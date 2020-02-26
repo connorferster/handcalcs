@@ -161,8 +161,8 @@ class Calc:
 
         except ValueError:
             raise ValueError(
-                "Make sure you have pdflatex installed and is a registered command "
-                "on your computer to to generate the PDF output."
+                "Make sure you have 'pdflatex' installed, and is registered"
+                " on your system's PATH variable, to generate the PDF output."
             )
 
         def _render_subprocess(self):
