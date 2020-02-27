@@ -417,18 +417,16 @@ def render_latex_reprs(latex_dict: dict, precision: int) -> dict:
     return latex_lines
 
 
-def latex_line_conversion(line_of_code: list, precision: int) -> str:
+def latex_line_conversion(line_of_code: list, precision: int) -> list:
     """
     Returns a rounded str based on the latex_repr of an object in
     'line_of_code'
     """
     line_of_strs = []
     for item in line_of_code:
-        if isinstance(item, str):
-            line_of_strs.append(item)
-        elif isinstance(item, int):
-            line_of_strs.append(str(item))
-        else:
+        if isinstance(item, list):
+            return latex_line_conversion(item)  # Recursion!
+        elif not isinstance(item, (str, int)):
             try:
                 rounded = round(item, precision)
             except TypeError:
@@ -437,13 +435,16 @@ def latex_line_conversion(line_of_code: list, precision: int) -> str:
                 line_of_strs.append(latex_repr(rounded))
             else:
                 line_of_strs.append(latex_repr(item))
+        else:
+            line_of_strs.append(str(item))
+
     return line_of_strs
 
 
 def latex_repr(result: Any) -> str:
     """
-    Returns a str if the object in 'result' has a special "latex repr"
-    method. Returns str(result), otherwise.
+    Return a str if the object in 'result' has a special repr method
+    for rendering itself in latex.Returns str(result), otherwise.
     """
     if hasattr(result, "_repr_latex_"):
         return result._repr_latex_()
@@ -826,8 +827,9 @@ def swap_superscripts(pycode_as_list: list) -> list:
             new_item = swap_superscripts(item)  # recursion!
             pycode_with_supers.append(new_item)
         elif next_item == "**":
-            new_item = f"{l_par}{item}{r_par}"
-            pycode_with_supers.append(new_item)
+            pycode_with_supers.append(l_par)
+            pycode_with_supers.append(item)
+            pycode_with_supers.append(r_par)
         elif item == "**":
             new_item = f"{ops}{a}"
             pycode_with_supers.append(new_item)
