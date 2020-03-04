@@ -79,11 +79,14 @@ The most basic use is just to import the library:
 >>> bending_resistance = hand.Calc("calcs.wood.timber.mr") # Loads calcs/wood/timber/mr.py, my pre-written script
 >>> bending_resistance.inputs # Remind yourself what the function parameters are for your script
 <Signature (b, d, f_b, K_Zb, K_L, K_D, K_H, K_Sb, K_T, phi=0.9)>
+
 >>> results = bending_resistance(300, 1200, 19.2, 1, 1, 1, 1, 1, 1) # Calc object is now a callable function based on your script
 >>> results # The Calc object returns a dict with all of the intermediate values of your script included
 {'b': 300, 'd': 1200, 'f_b': 19.2, 'K_Zb': 1, 'K_L': 1, 'K_D': 1, 'K_H': 1, 'K_Sb': 1, 'K_T': 1, 'phi': 0.9, 'F_b': 19.2, 'S': 72000000.0, 'M_r': 1244160000.0}
+
 >>> bending_resistance.print(filename = "Bending Resistance Results")
 "handcalcs: Latex rendering complete."
+
 >>> print(bending_resistance._source)
 def main(b, d, f_b, K_Zb, K_L, K_D, K_H, K_Sb, K_T, phi = 0.9):
     # Cl. 6.5.4.1 General Bending Moment Resistance
