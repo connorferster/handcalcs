@@ -15,11 +15,6 @@ Intended users: working engineers, teachers, and students who want to
 focus on simply writing the calculation code and to have formatting just be "taken
 care of".
 
-## Examples of use:
-
-<img src = "https://github.com/connorferster/forallpeople/blob/master/Jupyter_example.PNG">
-
-
 ## Installing
 
 You can install using pip:
