@@ -85,8 +85,6 @@ The most basic use is just to import the library:
 >>> print(bending_resistance._source)
 def main(b, d, f_b, K_Zb, K_L, K_D, K_H, K_Sb, K_T, phi = 0.9):
     # Cl. 6.5.4.1 General Bending Moment Resistance
-    ## Parameters
-    phi = 0.9
 
     ## Specified strength in bending
     F_b = f_b * (K_D*K_H*K_Sb*K_T)
