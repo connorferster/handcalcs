@@ -69,7 +69,7 @@ This will allow you to create subfolders in your "calc" folder so you can organi
 
 The most basic use is just to import the library:
 
-```
+```python
 >>> import handcalcs as hand
 >>> bending_resistance = hand.Calc("calcs.wood.timber.mr") # Loads calcs/wood/timber/mr.py, my pre-written script
 >>> bending_resistance.inputs # Remind yourself what the function parameters are for your script
