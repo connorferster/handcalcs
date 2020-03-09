@@ -13,7 +13,7 @@ from setuptools import find_packages, setup, Command
 
 # Package meta-data.
 NAME = 'handcalcs'
-DESCRIPTION = 'Converts your Python calculation script into beautifully rendered Latex, similar to how you would write a calculation by hand.
+DESCRIPTION = 'Converts your Python calculation script into beautifully rendered Latex, similar to how you would write a calculation by hand.'
 URL = 'https://github.com/connorferster/handcalcs'
 EMAIL = 'connorferster@gmail.com'
 AUTHOR = 'Connor Ferster'
@@ -118,7 +118,7 @@ setup(
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "Development Status :: 3 - Alpha"
+        "Development Status :: 3 - Alpha",
         "Topic :: Scientific/Engineering :: Mathematics",
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
