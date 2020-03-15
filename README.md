@@ -11,7 +11,7 @@ without having to painstakingly format it as a report, much like you might have
 to do if you were to program your calculation as an Excel spreadsheet or as a
 MathCAD document.
 
-Intended users: working engineers, teachers, and students who want to
+Intended users: working engineers, teachers, and students thhat who want to
 focus on simply writing the calculation code and to have formatting just be "taken
 care of".
 
