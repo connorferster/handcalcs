@@ -450,7 +450,7 @@ def insert_gathered_environments(line: deque) -> deque:
         if "=" in str(component):
             equals += 1
         if 1 <= equals <= 2:
-            if "{" in str(component) or component == left_trigger or component == sqrt_trigger:
+            if ("{" in str(component) or (component == left_trigger or component == sqrt_trigger)) and "_" not in component and component != "}{":
                 if component == left_trigger:
                     sqrt_stack.append(0)
                     acc.append(component)
