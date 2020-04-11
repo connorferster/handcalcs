@@ -317,7 +317,7 @@ def test_long_line_of_math(line: deque, calculated_results: dict) -> Tuple[bool,
     will be over the character threshold. int represents the number of characters counted
     in the str representation of the substituted values. 
     """
-    discount_fraction_chars(line, calculated_results)
+    #discount_fraction_chars(line, calculated_results)
     count = 0
     recurse_bool = False
     count_bool = False
@@ -377,6 +377,7 @@ def format_long_calc_lines(symbolic_portion: deque, numeric_portion: deque, resu
     #     return with_line_breaks  # + result_value
     # elif 130 <= num_of_chars:
     full_equation = symbolic_portion + numeric_portion + result_value
+    print(discount_fraction_chars(full_equation))
     equation_in_multline_env = insert_multline_environment(full_equation)
 
     with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
@@ -405,6 +406,7 @@ def break_long_equations(flattened_deque: deque) -> deque:
     acc = deque([])
     exclusions = ("\\right)", "\\cdot", "}")
     insert_next = False
+    discount = discount_fraction_chars(flattened_deque)
     for idx, length in enumerate(str_lengths):
         component = flattened_deque[idx]
         next_idx = min(idx + 1, len(flattened_deque) - 1)
@@ -421,7 +423,7 @@ def break_long_equations(flattened_deque: deque) -> deque:
         else:
             acc.append(component)
             sum_of_lengths += length
-            if sum_of_lengths > 60 and (
+            if sum_of_lengths > 60 + discount and (
                     component not in exclusions or next_component not in exclusions)\
                     and (next_component == "+" or next_component == "-"):  # Hard-coded value
                 insert_next = True
@@ -537,34 +539,94 @@ def count_str_len_in_deque(d: deque, omit_latex=True, dive=True) -> deque:
     return acc
 
 
-def count_fraction_chars(d: deque, calculated_results: dict = {}) -> deque:
+def count_fraction_chars(flattened_deque: deque) -> deque:
     """
     Returns a deque representing the character counts in 'd' that belong
-    within a fraction. Assumes that 'd' has already had the function
-    'swap_frac_divs()' run on it.
+    within a fraction.
     """
-    acc = []
-    skip = False
-    for idx, component in enumerate(d):
-        next_idx = min(idx + 1, len(d) - 1)
-        next_item = d[next_idx]
-        if component == "\\frac{" or component == "}{":
-            acc.append(component)
+    frac_stack = deque([])
+    count_stack = deque([])
+    equals = 0
+    for idx, component in enumerate(flattened_deque):
+        component = str(component)
+        if "=" in str(component):
+            equals += 1
+            continue
+        if 1 <= equals <= 2:
+            if "{" in component and "_" not in component and "}" not in component:
+                if component == "\\frac{":
+                    frac_stack.append(1)
+                    count_stack.append("Numerator")
+                else:
+                    frac_stack.append(0)
+            elif component == "}{":
+                count_stack.append("End")
+                count_stack.append("Denominator")
+            elif "}" in component and "{" not in component:
+                frac_end_trigger = frac_stack.pop()
+                if frac_end_trigger:
+                    count_stack.append("End")
+            else:
+                if "_" in component:
+                    if "\\" not in component:
+                        split_subs = component.replace("{", "").replace("}", "").split("_")
+                        count_stack.append(len("".join(split_subs)))
+                    else:
+                        split_subs = component.replace("{", "").replace("}", "").split("_")
+                        count_stack.append(len("".join(split_subs[1:])) + 1)
+                elif "\\" in component:
+                    if component == "\cdot":
+                        count_stack.append(1)
+                    elif component == "\pi":
+                        count_stack.append(1)
+                    elif "operatorname" in component:
+                        func_name = component.replace("\\operatorname{","").replace("}","")
+                        count_stack.append(len(func_name))
+                else:
+                    count_stack.append(len(component))
+    return count_stack
 
-        elif isinstance(component, deque):
-            acc.append(count_fraction_chars(component))
-            if acc[-1] == []:
-                acc.pop()
-    return acc
 
-
-def discount_fraction_chars(d: deque, calculated_results: dict) -> int:
+def discount_fraction_chars(flattened_deque: deque) -> int:
     """
     Returns an int representing the number of chars
 
     @param d:
     @return:
     """
+    frac_counts = count_fraction_chars(flattened_deque)
+    tally = 0
+    num_count = 0
+    denom_count = 0
+    in_num = False
+    in_denom = False
+    for item in frac_counts:
+        if item == "Numerator":
+            in_num = True
+            if num_count > denom_count:
+                tally += num_count - denom_count
+            elif num_count < denom_count:
+                tally += denom_count - num_count
+            else:
+                tally += num_count
+            num_count = 0
+        elif item == "Denominator":
+            denom_count = 0
+        elif item == "End":
+            if in_num:
+                in_num = False
+            elif in_denom:
+                in_denom = False
+            continue
+        else:
+            if in_num:
+                num_count += item
+            elif in_denom:
+                denom_count += item
+    return tally
+
+
+
     #acc = 0
     #symbolic_count_list = count_fraction_chars(symbolic_portion)
     #numeric_count_list = count_fraction_chars(numeric_portion)
