@@ -18,12 +18,13 @@ URL = 'https://github.com/connorferster/handcalcs'
 EMAIL = 'connorferster@gmail.com'
 AUTHOR = 'Connor Ferster'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = '0.1.2'
+VERSION = '0.2.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
     'jinja2',
-    'pyparsing'
+    'pyparsing',
+    'array-to-latex'
     # 'requests', 'maya', 'records',
 ]
 
