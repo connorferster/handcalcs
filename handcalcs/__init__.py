@@ -377,7 +377,7 @@ def format_long_calc_lines(symbolic_portion: deque, numeric_portion: deque, resu
     #     return with_line_breaks  # + result_value
     # elif 130 <= num_of_chars:
     full_equation = symbolic_portion + numeric_portion + result_value
-    print(discount_fraction_chars(full_equation))
+    #print(discount_fraction_chars(full_equation))
     equation_in_multline_env = insert_multline_environment(full_equation)
 
     with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
@@ -413,7 +413,7 @@ def break_long_equations(flattened_deque: deque) -> deque:
         next_component = flattened_deque[next_idx]
         if "\\" in str(component):
             acc.append(component)
-        elif component == "+" or component == "-":
+        elif component == "+" or component == "-" or component == "\\cdot":
             if insert_next:
                 acc.append(component)
                 acc.append(line_break)
@@ -423,7 +423,7 @@ def break_long_equations(flattened_deque: deque) -> deque:
         else:
             acc.append(component)
             sum_of_lengths += length
-            if sum_of_lengths > 60 + discount and (
+            if sum_of_lengths > 60 and (
                     component not in exclusions or next_component not in exclusions)\
                     and (next_component == "+" or next_component == "-"):  # Hard-coded value
                 insert_next = True
