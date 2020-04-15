@@ -254,17 +254,13 @@ def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -
             calcd_result = deque(calcd_result)
             symbolic_portion, numeric_portion = swap_calculation(expr, calc_results)
             # May need to fine-tune what part of 'line' gets submitted to these functions
-            # print(type(substituted), type(calcd_result), type(comment))
             new_line = symbolic_portion + numeric_portion + calcd_result + comment
 
         elif ltype == "long calc":
             expr, calcd_result = line
             calcd_result = deque(calcd_result)
             symbolic_portion, numeric_portion = swap_calculation(expr, calc_results)
-            # print("Symbolic portion: ", symbolic_portion)
-            # print("Numeric portion: ", numeric_portion)
             new_line = format_long_calc_lines(symbolic_portion, numeric_portion, calcd_result)
-            # print(new_line)
         latex_results.update({line_num: {"line": new_line, "type": ltype}})
     return latex_results
 
@@ -367,30 +363,11 @@ def count_subbed_chars_in_equation(line: deque, calculated_results: dict) -> deq
 
 
 def format_long_calc_lines(symbolic_portion: deque, numeric_portion: deque, result_value: deque):
-    # calc_drop_decl = deque([list(symbolic_portion)[1:]])
-    # num_of_chars = sum_str_len_in_deque(calc_drop_decl) + sum_str_len_in_deque(numeric_portion)
-    # if 90 <= num_of_chars < 130:  # Hard-coded values
-    #     # print("Medium")
-    #     gathered_numeric_partial = insert_multline_environment(symbolic_portion + numeric_portion + result_value,
-    #                                                            "partial")
-    #     with_line_breaks = break_long_equations(gathered_numeric_partial)
-    #     return with_line_breaks  # + result_value
-    # elif 130 <= num_of_chars:
     full_equation = symbolic_portion + numeric_portion + result_value
-    #print(discount_fraction_chars(full_equation))
     equation_in_multline_env = insert_multline_environment(full_equation)
-
     with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
     with_line_breaks = break_long_equations(with_gathered_envs)
     return with_line_breaks  # + result_value
-    # elif num_of_chars >= 170: <<<----- It doesn't seem possible to further break a line
-    # within the '\multline' environment
-    #    print("Longest")
-    #    full_equation = symbolic_portion + numeric_portion + result_value
-    #    gathered_numeric_full = insert_multline_environment(full_equation)
-    #    with_line_breaks = break_long_equations(gathered_numeric_full)
-    #    print("With line_breaks; ", with_line_breaks)
-    #    return with_line_breaks# + result_value
 
 
 def break_long_equations(flattened_deque: deque) -> deque:
@@ -575,9 +552,9 @@ def count_fraction_chars(flattened_deque: deque) -> deque:
                         split_subs = component.replace("{", "").replace("}", "").split("_")
                         count_stack.append(len("".join(split_subs[1:])) + 1)
                 elif "\\" in component:
-                    if component == "\cdot":
+                    if component == "\\cdot":
                         count_stack.append(1)
-                    elif component == "\pi":
+                    elif component == "\\pi":
                         count_stack.append(1)
                     elif "operatorname" in component:
                         func_name = component.replace("\\operatorname{","").replace("}","")
@@ -625,12 +602,6 @@ def discount_fraction_chars(flattened_deque: deque) -> int:
                 denom_count += item
     return tally
 
-
-
-    #acc = 0
-    #symbolic_count_list = count_fraction_chars(symbolic_portion)
-    #numeric_count_list = count_fraction_chars(numeric_portion)
-    #print(symbolic_count_list, "\n", "Numeric: ", numeric_count_list)
 
 
 def sum_str_len_in_deque(d: deque, omit_latex=True, dive=True) -> int:
@@ -738,9 +709,6 @@ def parse_parameter_cell(
     removed_blank_lines = [line for line in python_lines if line.strip() != ""]
     for line_num, line in enumerate(removed_blank_lines):
         param_line = parse_parameter_line(line, calculated_results)
-        # param = line.split("=")[0].replace(" ","")
-        # param_line = deque([param, "=", calculated_results[param]])
-        # swapped_param_symbols = swap_symbolic_calcs(param_line)
         parsed_params.update({line_num: {"line": param_line, "ltype": "parameter"}})
     return format_parameters_cell(parsed_params, precision, cols)
 
@@ -1005,17 +973,15 @@ def swap_params(parameter: deque) -> deque:
 def swap_calculation(calculation: deque, calc_results: dict) -> tuple:
     """Returns the python code elements in the deque converted into
     latex code elements in the deque"""
-    # print(calculation)
     calc_drop_decl = deque(list(calculation)[1:])  # Drop the param declaration
     symbolic_portion = swap_symbolic_calcs(calculation)
     numeric_portion = swap_numeric_calcs(calc_drop_decl, calc_results)
-    # resulting_latex = symbolic_portion + numeric_portion
-    # print("Resulting latex: ", resulting_latex)
     return (symbolic_portion, numeric_portion)
 
 
 def swap_symbolic_calcs(calculation: deque) -> deque:
     symbolic_expression = copy.copy(calculation)
+    flatten_deque = Flattener()
     functions_on_symbolic_expressions = [
         swap_frac_divs,
         swap_math_funcs,
@@ -1023,69 +989,113 @@ def swap_symbolic_calcs(calculation: deque) -> deque:
         swap_for_greek,
         extend_subscripts,
         swap_superscripts,
-        flatten_pycode_as_deque,
+        flatten_deque,
     ]
     for function in functions_on_symbolic_expressions:
         symbolic_expression = function(symbolic_expression)
-        # print("Function, result: ", function, symbolic_expression)
     return symbolic_expression
 
 
 def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
     numeric_expression = copy.copy(calculation)
+    flatten_deque = Flattener()
     functions_on_numeric_expressions = [
         swap_frac_divs,
         swap_math_funcs,
         swap_py_operators,
         swap_values,
         swap_superscripts,
-        flatten_pycode_as_deque,
+        flatten_deque,
     ]
     for function in functions_on_numeric_expressions:
         if function is swap_values:
             numeric_expression = function(numeric_expression, calc_results)
         else:
             numeric_expression = function(numeric_expression)
-        # print("Function, Numeric expression: ", f"{function} ", numeric_expression)
     return numeric_expression
 
 
-def flatten(pycode_as_deque: deque, parentheses=False) -> deque:
-    """Returns elements from a deque and flattens elements from subdeques"""
-    if isinstance(pycode_as_deque, deque) and not isinstance(
-            pycode_as_deque, (str, bytes)
-    ):
-        if parentheses:
-            yield "\\left("
-        for item in pycode_as_deque:
-            yield from flatten(item, True)  # recursion!
-        if parentheses:
-            yield "\\right)"
-    else:
-        yield pycode_as_deque
+# def flatten(pycode_as_deque: deque, parentheses=True) -> deque:
+#     """Returns elements from a deque and flattens elements from sub-deques"""
+#     if isinstance(pycode_as_deque, deque):
+#         if parentheses:
+#             yield "\\left("
+#         for item in pycode_as_deque:
+#             yield from flatten(item, parentheses)  # recursion!
+#         if parentheses:
+#             yield "\\right)"
+#     else:
+#         yield pycode_as_deque
 
 
-def flatten_pycode_as_deque(pycode_as_deque: deque) -> deque:
-    """Returns pycode_as_deque flattened with parentheses on either side of the
-    flattened deque item"""
-    flattened_deque = deque([])
-    fraction = False
-    for item in pycode_as_deque:
-        if "frac" in str(item) or "}{" in str(item):
-            fraction = True
-        if type(item) is deque:
-            if fraction:
-                sub_deque_generator = flatten(item, False)
-                fraction = False
-                for new_item in sub_deque_generator:
-                    flattened_deque.append(new_item)
+# def flatten_pycode_as_deque(pycode_as_deque: deque, fraction: bool = False) -> deque:
+#     """Returns pycode_as_deque flattened with parentheses on either side of the
+#     flattened deque item"""
+#     flattened_deque = deque([])
+#     fraction = False
+#     previous_item = ""
+#     for item in pycode_as_deque:
+#         if isinstance(item, str) and ("frac" in item or "}{" in item):
+#             fraction = True
+#         if isinstance(item, deque):
+
+#             # if fraction:
+#             #     sub_deque_generator = flatten(item)
+#             #     fraction = False
+#             #     for new_item in sub_deque_generator:
+#             #         flattened_deque.append(new_item)
+#         else:
+#             sub_deque_generator = flatten(item)
+#             for new_item in sub_deque_generator:
+#                 flattened_deque.append(new_item)
+#         # else:
+#         #     flattened_deque.append(item)
+#         previous_item = item
+#     return flattened_deque
+
+
+class Flattener: # Helper class
+    def __init__(self):
+        self.fraction = False
+
+    def __call__(self, nested: deque):
+        flattened_deque = deque([])
+        for item in nested:
+            if isinstance(item, str) and ("frac" in item or "}{" in item):
+                self.fraction = True
+            if isinstance(item, deque):
+                if self.fraction:
+                    sub_deque_generator = self.flatten(item)
+                    for new_item in sub_deque_generator:
+                        flattened_deque.append(new_item)
+                    self.fraction = False
+                else:
+                    sub_deque_generator = self.flatten(item)
+                    for new_item in sub_deque_generator:
+                        flattened_deque.append(new_item)
             else:
-                sub_deque_generator = flatten(item, True)
+                sub_deque_generator = self.flatten(item)
                 for new_item in sub_deque_generator:
                     flattened_deque.append(new_item)
+            previous_item = item
+        return flattened_deque
+
+    def flatten(self, items: Any) -> deque:
+        """Returns elements from a deque and flattens elements from sub-deques"""
+        if isinstance(items, str) and ("frac" in items or "}{" in items):
+            self.fraction = True
+        omit_parentheses = self.fraction
+        if isinstance(items, deque):
+            if not omit_parentheses:
+                yield "\\left("
+            for item in items:
+                yield from self.flatten(item)  # recursion!
+            if not omit_parentheses:
+                yield "\\right)"
+                self.fraction = False
+
         else:
-            flattened_deque.append(item)
-    return flattened_deque
+            yield items
 
 
 def eval_conditional(conditional_str: str, **kwargs) -> str:
@@ -1283,7 +1293,8 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
 def swap_py_operators(pycode_as_deque: deque) -> deque:
     """
     Swaps out Python mathematical operators that do not exist in Latex.
-    Specifically, swaps "*", "**", and "%" for "\\cdot", "^", and "\\bmod".
+    Specifically, swaps "*", "**", and "%" for "\\cdot", "^", and "\\bmod",
+    respectively.
     """
     swapped_deque = deque([])
     length = len(pycode_as_deque)
@@ -1396,20 +1407,15 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
     values.
     """
     swapped_values = deque([])
-    # print(pycode_as_deque)
     for item in pycode_as_deque:
         swapped_value = ""
         if isinstance(item, deque):
             swapped_values.append(swap_values(item, tex_results))
         else:
             swapped_value = tex_results.get(item, item)
-            # print("Pre-pass")
-            # print("Swapped value: ", swapped_value, "Item: ", item)
             if isinstance(swapped_value, str) and swapped_value != item:
-                # print("Passes")
                 swapped_value = format_strings(swapped_value, comment=False)
             swapped_values.append(swapped_value)
-    # print("Swapped values: ", swapped_values)
     return swapped_values
 
 
