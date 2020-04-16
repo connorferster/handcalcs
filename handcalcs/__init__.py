@@ -124,6 +124,7 @@ def raw_python_to_separated_dict(raw_python_source: str, calculated_results: dic
             comment = ""
         if ":" in line:
             new_dict_item = split_conditional(line, comment, line_num)
+            #print(new_dict_item)
             separated_code.update(new_dict_item)
         elif test_for_parameter_line(line):
             separated_code.update({line_num: {"line": parse_parameter_line(line, calculated_results),
@@ -141,29 +142,6 @@ def raw_python_to_separated_dict(raw_python_source: str, calculated_results: dic
                                 "comment": comment}}
                 )
     return separated_code
-
-
-def split_conditional(line: str, comment: str, line_num: int):
-    condition, expressions = line.split(":")
-    expr_deque = deque(expressions.split(";"))  # handle multiple lines in cond
-    condition = condition.lstrip("else").lstrip("elif").lstrip("if")
-    try:
-        cond = expr_parser(condition.strip())
-    except pp.ParseException:
-        cond = [condition.strip()]
-
-    expr_acc = deque([])
-    for line in expr_deque:
-        try:
-            expr = expr_parser(line.strip())
-        except pp.ParseException:
-            expr = [line.strip()]
-        expr_acc.append(expr)
-
-    new_line = [cond] + [expr_acc]
-    return {line_num: {"line": new_line, "type": "conditional",
-                       "raw conditional": condition, "raw expr": expr_deque,
-                       "comment": comment}}  # Test for long conditionals later
 
 
 def add_result_values_to_lines(parsed_results: dict, calculated_results: dict) -> dict:
@@ -185,6 +163,29 @@ def add_result_values_to_lines(parsed_results: dict, calculated_results: dict) -
                 resulting_value = calc_results.get(parameter_name, parameter_name)
                 line_data["line"][1][idx] = [expr, ["=", resulting_value]]
     return parsed_results
+
+
+def split_conditional(line: str, comment: str, line_num: int):
+    conditional, expressions = line.split(":")
+    expr_deque = deque(expressions.split(";"))  # handle multiple lines in cond
+    condition = conditional.lstrip("else").lstrip("elif").lstrip("if").strip()
+    try:
+        cond = expr_parser(condition)
+    except pp.ParseException:
+        cond = [condition]
+
+    expr_acc = deque([])
+    for line in expr_deque:
+        try:
+            expr = expr_parser(line.strip())
+        except pp.ParseException:
+            expr = [line.strip()]
+        expr_acc.append(expr)
+
+    new_line = [cond] + [expr_acc]
+    return {line_num: {"line": new_line, "type": "conditional",
+                       "raw conditional": conditional, "raw expr": expr_deque,
+                       "comment": comment}}  # Test for long conditionals later
 
 
 def subbed_results_indexes(line: deque) -> Tuple[int]:
@@ -219,6 +220,7 @@ def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -
     """
     latex_results = {}
     calc_results = calculated_results
+    swap_conditional = ConditionalEvaluator() # Helper class as stateful function
     for line_num, line_data in parsed_results.items():
         ltype = line_data["type"]  # str
         line = line_data["line"]  # deque
@@ -290,7 +292,10 @@ def render_to_string(latex_results: dict) -> deque:
             rendered_deque.append(line)
         elif ltype == "conditional":
             condition, expressions = line
-            cond = format_conditional_lines(condition[0])
+            if condition[0]:
+                cond = format_conditional_lines(condition[0])
+            else:
+                cond = '\\text{Therefore} \\; \\rightarrow \\;'
             formatted_acc = deque([])
             for expression in expressions[0]:
                 expr = expression
@@ -429,7 +434,8 @@ def insert_gathered_environments(line: deque) -> deque:
         if "=" in str(component):
             equals += 1
         if 1 <= equals <= 2:
-            if ("{" in str(component) or (component == left_trigger or component == sqrt_trigger)) and "_" not in component and component != "}{":
+            if ("{" in str(component) or (component == left_trigger or component == sqrt_trigger)) and\
+            "_" not in component and component != "}{":
                 if component == left_trigger:
                     sqrt_stack.append(0)
                     acc.append(component)
@@ -916,10 +922,10 @@ def swap_headings(heading: str) -> str:
     Possible values for the tex formatting are hard-coded into this function.
     """
     latex_emphasis = {
-        1: r"\section*",
-        2: r"\subsection*",
-        3: r"\subsubsection*",
-        4: r"\boldface",
+        1: "\\section*",
+        2: "\\subsection*",
+        3: "\\subsubsection*",
+        4: "\\boldface",
     }
     emphasis = heading.count("#")
     comment = heading.lstrip().replace("#", "")
@@ -938,27 +944,76 @@ def format_notes(note: str, environment: str) -> str:
     return formatted
 
 
-def swap_conditional(conditional: deque, raw_conditional: str, calc_results: dict) -> deque:
-    """
-    Returns the deque, 'conditional' if the conditional statement
-    evaluates as True based on the data in calc_results.
-    Returns an empty deque, otherwise.
-    This to ensure that unnecessary conditional statements are not
-    printed in the final results.
-    """
-    # print(raw_conditional)
-    result = eval_conditional(raw_conditional, **calc_results)
-    if result == True:
-        l_par = "\\left("
-        r_par = "\\right)"
-        symbolic_portion = swap_symbolic_calcs(conditional)
-        numeric_portion = swap_numeric_calcs(conditional, calc_results)
-        resulting_latex = deque([
-            symbolic_portion + deque(["\\rightarrow"]) + deque([l_par]) + numeric_portion + deque([r_par])
-        ])
-        return resulting_latex
-    else:
-        return deque([])
+# def swap_conditional(conditional: deque, raw_conditional: str, calc_results: dict) -> deque:
+#     """
+#     Returns the deque, 'conditional' if the conditional statement
+#     evaluates as True based on the data in calc_results.
+#     Returns an empty deque, otherwise.
+#     This to ensure that unnecessary conditional statements are not
+#     printed in the final results.
+#     """
+#     # print(raw_conditional)
+#     result = eval_conditional(raw_conditional, **calc_results)
+#     if result == True:
+#         l_par = "\\left("
+#         r_par = "\\right)"
+#         symbolic_portion = swap_symbolic_calcs(conditional)
+#         numeric_portion = swap_numeric_calcs(conditional, calc_results)
+#         resulting_latex = deque([
+#             symbolic_portion + deque(["\\rightarrow"]) + deque([l_par]) + numeric_portion + deque([r_par])
+#         ])
+#         return resulting_latex
+#     else:
+#         return deque([])
+
+class ConditionalEvaluator:
+    def __init__(self):
+        self.prev_cond_type = ""
+        self.prev_result = False
+
+    def __call__(self, conditional: deque, raw_conditional: str, calc_results: dict) -> deque:
+        if "else" not in raw_conditional:
+            cond_type, condition = raw_conditional.split(" ", 1)
+            result = eval_conditional(condition, **calc_results)
+        else:
+            cond_type = "else"
+            result = True
+            condition = "else"
+        #print(f"cond_type: {cond_type}, condition: {condition}, prev_cond_type: {self.prev_cond_type}, prev_result: {self.prev_result}, result: {result}, check_cond_type: {self.check_prev_cond_type(cond_type)}")
+        if (result == True and self.check_prev_cond_type(cond_type) and not self.prev_result) or\
+            (self.prev_result == True and not self.check_prev_cond_type(cond_type)):
+            l_par = "\\left("
+            r_par = "\\right)"
+            if cond_type != "else":
+                symbolic_portion = swap_symbolic_calcs(conditional)
+                numeric_portion = swap_numeric_calcs(conditional, calc_results)
+                resulting_latex = deque([
+                    symbolic_portion + deque(["\\rightarrow"]) + deque([l_par]) + numeric_portion + deque([r_par])
+                ])
+            else:
+                numeric_portion = swap_numeric_calcs(conditional, calc_results)
+                resulting_latex =  numeric_portion
+            self.prev_cond_type = cond_type
+            self.prev_result = result
+            return resulting_latex
+        else:
+            return deque([])
+
+
+    def check_prev_cond_type(self, cond_type: str) -> bool:
+        """
+        Returns True if cond_type is a legal conditional type to 
+        follow self.prev_cond_type. Returns False otherwise.
+        e.g. cond_type = "elif", self.prev_cond_type = "if" -> True
+        e.g. cond_type = "if", self.prev_cond_type = "elif" -> False
+        """
+        prev = self.prev_cond_type
+        current = cond_type
+        if prev == "else":
+            return False
+        elif prev == "elif" and current == "if":
+            return False
+        return True
 
 
 def swap_params(parameter: deque) -> deque:
