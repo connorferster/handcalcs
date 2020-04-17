@@ -13,8 +13,8 @@ import jinja2
 
 from jinja2 import Template
 
-#TODO: Conditionals only stop running when they hit a "return" statement; fix this.
-#TODO: Do something with inequality checks
+# TODO: Conditionals only stop running when they hit a "return" statement; fix this.
+# TODO: Do something with inequality checks
 
 latex_jinja_env = jinja2.Environment(
     block_start_string="\\BLOCK{",
@@ -68,7 +68,9 @@ class LatexRenderer:
         return latex(self.source, self.results)
 
 
-def latex(raw_python_source: str, calculated_results: dict, precision=3, p_cols=3) -> str:
+def latex(
+    raw_python_source: str, calculated_results: dict, precision=3, p_cols=3
+) -> str:
     """
     Returns the Python source as a string that has been converted into latex code.
     """
@@ -111,7 +113,9 @@ def parse_python_code(raw_python_source: str, calculated_results: dict) -> dict:
     return parsed_with_results
 
 
-def raw_python_to_separated_dict(raw_python_source: str, calculated_results: dict) -> dict:
+def raw_python_to_separated_dict(
+    raw_python_source: str, calculated_results: dict
+) -> dict:
     """
     Returns a dict representing the parsed python code in self.source
     """
@@ -124,22 +128,38 @@ def raw_python_to_separated_dict(raw_python_source: str, calculated_results: dic
             comment = ""
         if ":" in line:
             new_dict_item = split_conditional(line, comment, line_num)
-            #print(new_dict_item)
+            # print(new_dict_item)
             separated_code.update(new_dict_item)
         elif test_for_parameter_line(line):
-            separated_code.update({line_num: {"line": parse_parameter_line(line, calculated_results),
-                                              "type": "parameter", "comment": comment}})
+            separated_code.update(
+                {
+                    line_num: {
+                        "line": parse_parameter_line(line, calculated_results),
+                        "type": "parameter",
+                        "comment": comment,
+                    }
+                }
+            )
         elif "=" in line:
             if test_long_line_of_math(code_reader(line), calculated_results)[0]:
                 separated_code.update(
-                    {line_num: {"line": code_reader(line),
-                                "type": "long calc", "comment": comment}}
+                    {
+                        line_num: {
+                            "line": code_reader(line),
+                            "type": "long calc",
+                            "comment": comment,
+                        }
+                    }
                 )
             else:
                 separated_code.update(
-                    {line_num: {"line": code_reader(line),
-                                "type": "normal calc",
-                                "comment": comment}}
+                    {
+                        line_num: {
+                            "line": code_reader(line),
+                            "type": "normal calc",
+                            "comment": comment,
+                        }
+                    }
                 )
     return separated_code
 
@@ -183,9 +203,15 @@ def split_conditional(line: str, comment: str, line_num: int):
         expr_acc.append(expr)
 
     new_line = [cond] + [expr_acc]
-    return {line_num: {"line": new_line, "type": "conditional",
-                       "raw conditional": conditional, "raw expr": expr_deque,
-                       "comment": comment}}  # Test for long conditionals later
+    return {
+        line_num: {
+            "line": new_line,
+            "type": "conditional",
+            "raw conditional": conditional,
+            "raw expr": expr_deque,
+            "comment": comment,
+        }
+    }  # Test for long conditionals later
 
 
 def subbed_results_indexes(line: deque) -> Tuple[int]:
@@ -207,10 +233,11 @@ def subbed_results_line(line: deque) -> deque:
     """
     first_equals, second_equals = subbed_results_indexes(line)
 
-    return deque(list(line)[first_equals:second_equals + 1])
+    return deque(list(line)[first_equals : second_equals + 1])
 
 
 # TODO: Ignore or deal with inline comments; deal with headings
+
 
 def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -> dict:
     """
@@ -220,7 +247,7 @@ def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -
     """
     latex_results = {}
     calc_results = calculated_results
-    swap_conditional = ConditionalEvaluator() # Helper class as stateful function
+    swap_conditional = ConditionalEvaluator()  # Helper class as stateful function
     for line_num, line_data in parsed_results.items():
         ltype = line_data["type"]  # str
         line = line_data["line"]  # deque
@@ -239,13 +266,17 @@ def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -
             new_line = line + comment
         elif ltype == "conditional":
             condition, expressions = line
-            true_cond = swap_conditional(condition, line_data["raw conditional"], calc_results)
+            true_cond = swap_conditional(
+                condition, line_data["raw conditional"], calc_results
+            )
             if true_cond:
                 expr_acc = deque([])
                 for expr in expressions:
                     calcd_result = expr[1]
                     expr = expr[0]  # break out of nested deque
-                    symbolic_portion, numeric_portion = swap_calculation(expr, calc_results)
+                    symbolic_portion, numeric_portion = swap_calculation(
+                        expr, calc_results
+                    )
                     expr_acc.append([symbolic_portion + numeric_portion, calcd_result])
                 new_line = deque([true_cond, expr_acc]) + comment
             else:
@@ -262,7 +293,9 @@ def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -
             expr, calcd_result = line
             calcd_result = deque(calcd_result)
             symbolic_portion, numeric_portion = swap_calculation(expr, calc_results)
-            new_line = format_long_calc_lines(symbolic_portion, numeric_portion, calcd_result)
+            new_line = format_long_calc_lines(
+                symbolic_portion, numeric_portion, calcd_result
+            )
         latex_results.update({line_num: {"line": new_line, "type": ltype}})
     return latex_results
 
@@ -295,7 +328,7 @@ def render_to_string(latex_results: dict) -> deque:
             if condition[0]:
                 cond = format_conditional_lines(condition[0])
             else:
-                cond = '\\text{Therefore} \\; \\rightarrow \\;'
+                cond = "\\text{Therefore} \\; \\rightarrow \\;"
             formatted_acc = deque([])
             for expression in expressions[0]:
                 expr = expression
@@ -318,7 +351,7 @@ def test_long_line_of_math(line: deque, calculated_results: dict) -> Tuple[bool,
     will be over the character threshold. int represents the number of characters counted
     in the str representation of the substituted values. 
     """
-    #discount_fraction_chars(line, calculated_results)
+    # discount_fraction_chars(line, calculated_results)
     count = 0
     recurse_bool = False
     count_bool = False
@@ -357,7 +390,9 @@ def count_subbed_chars_in_equation(line: deque, calculated_results: dict) -> deq
     count_deque = deque([])
     for component in line:
         if type(component) == deque:
-            count_deque.append(count_subbed_chars_in_equation(component, calculated_results))
+            count_deque.append(
+                count_subbed_chars_in_equation(component, calculated_results)
+            )
         elif type(component) == (float, int):
             count += len(str(component))
         elif type(component) == str:
@@ -367,7 +402,9 @@ def count_subbed_chars_in_equation(line: deque, calculated_results: dict) -> deq
     return count_deque
 
 
-def format_long_calc_lines(symbolic_portion: deque, numeric_portion: deque, result_value: deque):
+def format_long_calc_lines(
+    symbolic_portion: deque, numeric_portion: deque, result_value: deque
+):
     full_equation = symbolic_portion + numeric_portion + result_value
     equation_in_multline_env = insert_multline_environment(full_equation)
     with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
@@ -405,9 +442,11 @@ def break_long_equations(flattened_deque: deque) -> deque:
         else:
             acc.append(component)
             sum_of_lengths += length
-            if sum_of_lengths > 60 and (
-                    component not in exclusions or next_component not in exclusions)\
-                    and (next_component == "+" or next_component == "-"):  # Hard-coded value
+            if (
+                sum_of_lengths > 60
+                and (component not in exclusions or next_component not in exclusions)
+                and (next_component == "+" or next_component == "-")
+            ):  # Hard-coded value
                 insert_next = True
                 sum_of_lengths = 0
     return acc
@@ -434,8 +473,14 @@ def insert_gathered_environments(line: deque) -> deque:
         if "=" in str(component):
             equals += 1
         if 1 <= equals <= 2:
-            if ("{" in str(component) or (component == left_trigger or component == sqrt_trigger)) and\
-            "_" not in component and component != "}{":
+            if (
+                (
+                    "{" in str(component)
+                    or (component == left_trigger or component == sqrt_trigger)
+                )
+                and "_" not in component
+                and component != "}{"
+            ):
                 if component == left_trigger:
                     sqrt_stack.append(0)
                     acc.append(component)
@@ -516,9 +561,9 @@ def count_str_len_in_deque(d: deque, omit_latex=True, dive=True) -> deque:
             if omit_latex:
                 acc.append(0)
             else:
-                acc.append(len(str(component).replace("_","")))
+                acc.append(len(str(component).replace("_", "")))
         else:
-            acc.append(len(str(component).replace("_","")))
+            acc.append(len(str(component).replace("_", "")))
     return acc
 
 
@@ -552,10 +597,14 @@ def count_fraction_chars(flattened_deque: deque) -> deque:
             else:
                 if "_" in component:
                     if "\\" not in component:
-                        split_subs = component.replace("{", "").replace("}", "").split("_")
+                        split_subs = (
+                            component.replace("{", "").replace("}", "").split("_")
+                        )
                         count_stack.append(len("".join(split_subs)))
                     else:
-                        split_subs = component.replace("{", "").replace("}", "").split("_")
+                        split_subs = (
+                            component.replace("{", "").replace("}", "").split("_")
+                        )
                         count_stack.append(len("".join(split_subs[1:])) + 1)
                 elif "\\" in component:
                     if component == "\\cdot":
@@ -563,7 +612,9 @@ def count_fraction_chars(flattened_deque: deque) -> deque:
                     elif component == "\\pi":
                         count_stack.append(1)
                     elif "operatorname" in component:
-                        func_name = component.replace("\\operatorname{","").replace("}","")
+                        func_name = component.replace("\\operatorname{", "").replace(
+                            "}", ""
+                        )
                         count_stack.append(len(func_name))
                 else:
                     count_stack.append(len(component))
@@ -607,7 +658,6 @@ def discount_fraction_chars(flattened_deque: deque) -> int:
             elif in_denom:
                 denom_count += item
     return tally
-
 
 
 def sum_str_len_in_deque(d: deque, omit_latex=True, dive=True) -> int:
@@ -700,7 +750,7 @@ def parse_output_line(python_line: str, calculated_results: dict) -> deque:
 
 
 def parse_parameter_cell(
-        raw_python_source: str, calculated_results: dict, precision: int, cols: int = 3
+    raw_python_source: str, calculated_results: dict, precision: int, cols: int = 3
 ) -> str:
     """
     Return a str representing the latex code conversion of `raw_python_code` which
@@ -720,7 +770,7 @@ def parse_parameter_cell(
 
 
 def parse_output_cell(
-        raw_python_source: str, calculated_results: dict, precision: int, cols: int = 3
+    raw_python_source: str, calculated_results: dict, precision: int, cols: int = 3
 ) -> str:
     """
     Return a str representing the latex code conversion of `raw_python_code` which
@@ -739,9 +789,7 @@ def parse_output_cell(
     return format_parameters_cell(parsed_params, precision, cols)
 
 
-def format_parameters_cell(
-        parameters_dict: dict, precision: int, cols: int = 3
-) -> str:
+def format_parameters_cell(parameters_dict: dict, precision: int, cols: int = 3) -> str:
     """
     Returns the input parameters as an \align environment with 'cols'
     number of columns.
@@ -966,12 +1014,15 @@ def format_notes(note: str, environment: str) -> str:
 #     else:
 #         return deque([])
 
+
 class ConditionalEvaluator:
     def __init__(self):
         self.prev_cond_type = ""
         self.prev_result = False
 
-    def __call__(self, conditional: deque, raw_conditional: str, calc_results: dict) -> deque:
+    def __call__(
+        self, conditional: deque, raw_conditional: str, calc_results: dict
+    ) -> deque:
         if "else" not in raw_conditional:
             cond_type, condition = raw_conditional.split(" ", 1)
             result = eval_conditional(condition, **calc_results)
@@ -979,26 +1030,34 @@ class ConditionalEvaluator:
             cond_type = "else"
             result = True
             condition = "else"
-        #print(f"cond_type: {cond_type}, condition: {condition}, prev_cond_type: {self.prev_cond_type}, prev_result: {self.prev_result}, result: {result}, check_cond_type: {self.check_prev_cond_type(cond_type)}")
-        if (result == True and self.check_prev_cond_type(cond_type) and not self.prev_result) or\
-            (self.prev_result == True and not self.check_prev_cond_type(cond_type)):
+        # print(f"cond_type: {cond_type}, condition: {condition}, prev_cond_type: {self.prev_cond_type}, prev_result: {self.prev_result}, result: {result}, check_cond_type: {self.check_prev_cond_type(cond_type)}")
+        if (
+            result == True
+            and self.check_prev_cond_type(cond_type)
+            and not self.prev_result
+        ) or (self.prev_result == True and not self.check_prev_cond_type(cond_type)):
             l_par = "\\left("
             r_par = "\\right)"
             if cond_type != "else":
                 symbolic_portion = swap_symbolic_calcs(conditional)
                 numeric_portion = swap_numeric_calcs(conditional, calc_results)
-                resulting_latex = deque([
-                    symbolic_portion + deque(["\\rightarrow"]) + deque([l_par]) + numeric_portion + deque([r_par])
-                ])
+                resulting_latex = deque(
+                    [
+                        symbolic_portion
+                        + deque(["\\rightarrow"])
+                        + deque([l_par])
+                        + numeric_portion
+                        + deque([r_par])
+                    ]
+                )
             else:
                 numeric_portion = swap_numeric_calcs(conditional, calc_results)
-                resulting_latex =  numeric_portion
+                resulting_latex = numeric_portion
             self.prev_cond_type = cond_type
             self.prev_result = result
             return resulting_latex
         else:
             return deque([])
-
 
     def check_prev_cond_type(self, cond_type: str) -> bool:
         """
@@ -1029,12 +1088,14 @@ def swap_calculation(calculation: deque, calc_results: dict) -> tuple:
     """Returns the python code elements in the deque converted into
     latex code elements in the deque"""
     calc_drop_decl = deque(list(calculation)[1:])  # Drop the param declaration
-    symbolic_portion = swap_symbolic_calcs(calculation)
-    numeric_portion = swap_numeric_calcs(calc_drop_decl, calc_results)
+    calc_w_integrals_preswapped = swap_integrals(calc_drop_decl, calc_results)
+    symbolic_portion = swap_symbolic_calcs(calc_w_integrals_preswapped)
+    numeric_portion = swap_numeric_calcs(calc_w_integrals_preswapped, calc_results)
     return (symbolic_portion, numeric_portion)
 
 
 def swap_symbolic_calcs(calculation: deque) -> deque:
+    # remove calc_results function parameter
     symbolic_expression = copy.copy(calculation)
     flatten_deque = Flattener()
     functions_on_symbolic_expressions = [
@@ -1069,6 +1130,47 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
             numeric_expression = function(numeric_expression)
     return numeric_expression
 
+
+def swap_integrals(calculation: deque, calc_results: dict) -> deque:
+    """
+    Returns 'calculation' with any function named 
+    """
+    swapped_deque = deque([])
+    length = len(calculation)
+    skip_next = False
+    for index, item in enumerate(calculation):
+        next_item = calculation[min(index+1, length-1)]
+        if skip_next == True:
+            skip_next = False
+            continue
+        if isinstance(item, deque):
+            new_item = swap_integrals(item, calc_results)  # recursion!
+            swapped_deque.append(new_item)
+        else:
+            if "integrate" in str(item) or "quad" in str(item) and isinstance(next_item, deque):
+                #print(item)
+                #print(next_item)
+                skip_next = True
+                function_name = next_item[0]
+                function = calc_results[function_name]
+                function_source = inspect.getsource(function).split("\n")[1].replace('return','')
+                variable = str(inspect.signature(function)).replace("(","").replace(")","").replace(" ","").split(":")[0]
+                #print(function_source)
+                source_deque = expr_parser(function_source)
+                a = next_item[2]
+                b = next_item[4]
+                #print(a, b)
+                l_br = "{"
+                r_br = "}"
+                integral = f"\\int_{l_br}{a}{r_br}^{l_br}{b}{r_br}"
+                #print(integral)
+                #print(source_deque)
+                swapped_deque.append(integral)
+                swapped_deque.append(source_deque)
+                swapped_deque.append(f"\\; d{variable}")
+            else:
+                swapped_deque.append(item)
+    return swapped_deque
 
 # def flatten(pycode_as_deque: deque, parentheses=True) -> deque:
 #     """Returns elements from a deque and flattens elements from sub-deques"""
@@ -1109,14 +1211,14 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
 #     return flattened_deque
 
 
-class Flattener: # Helper class
+class Flattener:  # Helper class
     def __init__(self):
         self.fraction = False
 
     def __call__(self, nested: deque):
         flattened_deque = deque([])
         for item in nested:
-            if isinstance(item, str) and ("frac" in item or "}{" in item):
+            if isinstance(item, str) and ("frac" in item or "}{" in item or "\\int" in item):
                 self.fraction = True
             if isinstance(item, deque):
                 if self.fraction:
@@ -1137,7 +1239,7 @@ class Flattener: # Helper class
 
     def flatten(self, items: Any) -> deque:
         """Returns elements from a deque and flattens elements from sub-deques"""
-        if isinstance(items, str) and ("frac" in items or "}{" in items):
+        if isinstance(items, str) and ("frac" in items or "}{" in items or "\\int" in items):
             self.fraction = True
         omit_parentheses = self.fraction
         if isinstance(items, deque):
@@ -1176,7 +1278,7 @@ def code_reader(pycode_as_str: str) -> deque:
     var_name, expression = pycode_as_str.split("=")
     var_name, expression = var_name.strip(), expression.strip()
     expression_as_deque = expr_parser(expression)
-    return deque([var_name]) + deque(["=", ]) + expression_as_deque
+    return deque([var_name]) + deque(["=",]) + expression_as_deque
 
 
 def expr_parser(expr_as_str: str) -> deque:
@@ -1187,10 +1289,10 @@ def expr_parser(expr_as_str: str) -> deque:
     items within the nested deque.
     """
     term = pp.Word(pp.srange("[A-Za-z0-9_.]"), pp.srange("[A-Za-z0-9_.]"))
-    operator = pp.Word("+-*/^,%<>=~!")
+    operator = pp.Word("+-*/^%<>=~!,")
     # eol = pp.Word(";")
-    func = pp.Word(pp.srange("[A-Za-z0-9_]")) + pp.FollowedBy(
-        pp.Word(pp.srange("[A-Za-z0-9_(),]"))
+    func = pp.Word(pp.srange("[A-Za-z0-9_.]")) + pp.FollowedBy(
+        pp.Word(pp.srange("[A-Za-z0-9_()]"))
     )
     string = pp.Word(pp.srange("[A-Za-z0-9'\"]"))
     group = term ^ operator ^ func ^ string
@@ -1224,7 +1326,7 @@ def extend_subscripts(pycode_as_deque: deque) -> deque:
         if isinstance(item, deque):
             new_item = extend_subscripts(item)  # recursion!
             swapped_deque.append(new_item)
-        elif isinstance(item, str) and "_" in item:
+        elif isinstance(item, str) and "_" in item and not "\\int" in item:
             new_item = ""
             for char in item:
                 if char == "_":
@@ -1332,7 +1434,11 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
             new_item = f"{b}"
             close_bracket_token = False
             swapped_deque.append(new_item)
-        elif isinstance(next_item, deque) and item.isalpha() and item not in latex_math_funcs:
+        elif (
+            isinstance(next_item, deque)
+            and item.isalpha()
+            and item not in latex_math_funcs
+        ):
             ops = "\\operatorname"
             new_item = f"{ops}{a}{item}{b}"
             swapped_deque.append(new_item)
