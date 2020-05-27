@@ -1,4 +1,9 @@
 # env/bin/python
+try:
+	from array2latex import to_latex
+except:
+	from handcalcs.array2latex import to_latex
+
 def attempt_repr_latex(x):
 	try:
 		return x._repr_latex_()
@@ -8,18 +13,19 @@ def attempt_repr_latex(x):
 
 def series_repr_latex(self):
 	latex_result = self.to_latex(formatters = [attempt_repr_latex,], escape = False)
-	print(latex_result)
 	replaced = latex_result.replace('tabular', 'array').replace('toprule', 'hline').replace('midrule', 'hline').replace('bottomrule','hline')
-	print(replaced)
 	return replaced
 
 
 def dataframe_repr_latex(self):
 	latex_result = self.to_latex(formatters = [attempt_repr_latex,] * len(self.columns), escape = False)
-	print(latex_result)
+	#print(latex_result)
 	replaced = latex_result.replace('tabular', 'array').replace('toprule', 'hline').replace('midrule', 'hline').replace('bottomrule','hline')
-	print(replaced)
+	#print(replaced)
 	return replaced
+
+def numpy_repr_latex(array):
+	return to_latex(array)
 
 # def series_repr_latex(self):
 # 	latex_result = self.to_latex(formatters = attempt_repr_latex,)
