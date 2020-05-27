@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import singledispatch
 import importlib
 import inspect
+import itertools
 import math
 import os
 import pathlib
@@ -22,6 +23,7 @@ import pyparsing as pp
 class CalcLine:
     line: deque
     comment: str
+    latex: str
 
 
 @dataclass
@@ -34,19 +36,21 @@ class ConditionalLine:
     true_condition: deque
     true_expressions: deque
     comment: str
+    latex: str
 
 
 @dataclass
 class ParameterLine:
     line: deque
     comment: str
+    latex: str
 
 
 @dataclass
 class LongCalcLine:
-    def __init__(self, calcline: CalcLine):
-        self.line = calcline.line
-        self.comment = calcline.comment
+    line: deque
+    comment: str
+    latex: str
 
 
 # Three types of cell
@@ -55,16 +59,14 @@ class CalcCell:
     source: str
     calculated_results: dict
     precision: int
-    incoming_lines: deque
-    outgoing_lines: deque
+    lines: deque
     latex_code: str
 
     def __repr__(self):
         return str(
             "CalcCell(\n"
             + f"source=\n{self.source}\n"
-            + f"incoming_lines=\n{self.incoming_lines}\n"
-            + f"outgoing_lines={self.outgoing_lines}"
+            + f"lines=\n{self.lines}\n"
         )
 
 
@@ -72,8 +74,7 @@ class CalcCell:
 class OutputCell:
     source: str
     calculated_results: dict
-    incoming_lines: deque
-    outgoing_lines: deque
+    lines: deque
     precision: int
     cols: int
     latex_code: str
@@ -82,8 +83,7 @@ class OutputCell:
         return str(
             "OutputCell(\n"
             + f"source=\n{self.source}\n"
-            + f"incoming_lines=\n{self.incoming_lines}\n"
-            + f"outgoing_lines=\n{self.outgoing_lines}"
+            + f"lines=\n{self.lines}\n"
         )
 
 
@@ -91,8 +91,7 @@ class OutputCell:
 class ParameterCell:
     source: str
     calculated_results: dict
-    incoming_lines: deque
-    outgoing_lines: deque
+    lines: deque
     precision: int
     cols: int
     latex_code: str
@@ -101,8 +100,7 @@ class ParameterCell:
         return str(
             "ParametersCell(\n"
             + f"source=\n{self.source}\n"
-            + f"incoming_lines=\n{self.incoming_lines}\n"
-            + f"outgoing_lines=\n{self.outgoing_lines}"
+            + f"lines=\n{self.lines}\n"
         )
 
 
@@ -122,6 +120,7 @@ class LatexRenderer:
         return latex(self.source, self.results, self.precision)
 
 
+
 # Pure functions that do all the work
 def latex(raw_python_source: str, calculated_results: dict, precision: int = 3) -> str:
     """
@@ -131,21 +130,8 @@ def latex(raw_python_source: str, calculated_results: dict, precision: int = 3) 
     cell = categorize_raw_cell(source, calculated_results)
     cell = categorize_lines(cell)
     cell = convert_cell(cell)
-    return cell
-
-
-    # parsed_calc_cell = parse_python_code(cell)
-    # cell.lines = python_to_latex_conversion(cell.lines, cell.calculated_results)
-    # # print(converted_into_latex)
-    # cell.lines = render_latex_reprs(cell.lines, cell.precision)
-    # cell.latex_code = render_to_string(cell.lines)
-    # # print(final_latex_deque)
-    # cell.latex_code = "\\\\[10pt]\n".join(cell.latex_code)
-    # beg_env = "\\begin{aligned}\n"
-    # end_env = "\\end{aligned}"
-    # cell.latex_code = f"{beg_env}{cell.latex_code}{end_env}"
-
-    # cell.latex_code = f"\\[\n{cell.latex_code}\n\\]"
+    cell = format_cell(cell)
+    return cell.latex_code
 
 
 def categorize_raw_cell(
@@ -156,10 +142,9 @@ def categorize_raw_cell(
     """
     if test_for_parameter_cell(raw_source):
         cell = ParameterCell(
-            source=raw_source,
+            source=strip_cell_code(raw_source),
             calculated_results=calculated_results,
-            incoming_lines=deque([]),
-            outgoing_lines=deque([]),
+            lines=deque([]),
             precision=precision,
             cols=3,
             latex_code="",
@@ -167,12 +152,11 @@ def categorize_raw_cell(
 
     elif test_for_output_cell(raw_source):
         cell = OutputCell(
-            source=raw_source,
+            source=strip_cell_code(raw_source),
             calculated_results=calculated_results,
-            incoming_lines=deque([]),
-            outgoing_lines=deque([]),
+            lines=deque([]),
             precision=precision,
-            cols=3,
+            cols=1,
             latex_code="",
         )
     else:
@@ -180,10 +164,50 @@ def categorize_raw_cell(
             source=raw_source,
             calculated_results=calculated_results,
             precision=precision,
-            incoming_lines=deque([]),
-            outgoing_lines=deque([]),
+            lines=deque([]),
             latex_code="",
         )
+    return cell
+
+def strip_cell_code(raw_source: str) -> str:
+    """
+    Return 'raw_source' with the "cell code" removed.
+    A "cell code" is a first-line comment in the cell for the
+    purpose of categorizing an IPython cell as something other
+    than a CalcCell.
+    """
+    split_lines = deque(raw_source.split("\n"))
+    if split_lines[0].startswith("#"):
+        split_lines.popleft()
+        return "\n".join(split_lines)
+    return raw_source
+
+def categorize_lines(cell: Union[CalcCell, ParameterCell, OutputCell]) -> Union[CalcCell, ParameterCell, OutputCell]:
+    """
+    Return 'cell' with the line data contained in cell_object.source categorized
+    into one of four types:
+    * CalcLine
+    * ParameterLine
+    * ConditionalLine
+
+    categorize_lines(calc_cell) is considered the default behaviour for the 
+    singledispatch categorize_lines function.
+    """
+    #source = cell.source.rstrip()
+    outgoing = cell.source.rstrip().split("\n")
+    incoming = deque([])
+    calculated_results = cell.calculated_results
+    for line in outgoing:
+        if isinstance(cell, (ParameterCell, OutputCell)):
+            categorized_w_result_appended= ParameterLine(
+                split_parameter_line(line, calculated_results), '', ''
+            )
+        else:
+            categorized = categorize_line(line, calculated_results)
+            categorized_w_result_appended = add_result_values_to_line(categorized, calculated_results)
+
+        incoming.append(categorized_w_result_appended)
+    cell.lines = incoming
     return cell
 
 
@@ -198,10 +222,11 @@ def categorize_line(
         line, comment = line.split("#")
     except ValueError:
         comment = ""
+    categorized_line = None
 
     if test_for_parameter_line(line):
         categorized_line = ParameterLine(
-            split_parameter_line(line, calculated_results), comment
+            split_parameter_line(line, calculated_results), comment, ''
         )
 
     elif ":" in line and ("if" in line or "else" in line):
@@ -211,7 +236,7 @@ def categorize_line(
             expression,
             raw_condition,
             raw_expression,
-        ) = split_conditional(line)
+        ) = split_conditional(line, calculated_results)
         categorized_line = ConditionalLine(
             condition=condition,
             condition_type=condition_type,
@@ -221,13 +246,14 @@ def categorize_line(
             true_condition=deque([]),
             true_expressions=deque([]),
             comment=comment,
+            latex=''
         )
 
     elif "=" in line:
-        categorized_line = CalcLine(code_reader(line), comment)
+        categorized_line = CalcLine(code_reader(line), comment, '')
 
     elif len(line) == 1:
-        categorized_line = ParameterLine(split_parameter_line(line, calculated_results), comment)        
+        categorized_line = ParameterLine(split_parameter_line(line, calculated_results), comment, '')        
 
     else:
         if line == "":
@@ -241,33 +267,9 @@ def categorize_line(
     return categorized_line
 
 
-def categorize_lines(cell: Union[CalcCell, ParameterCell, OutputCell]) -> Union[CalcCell, ParameterCell, OutputCell]:
-    """
-    Return 'cell' with the line data contained in cell_object.source categorized
-    into one of four types:
-    * CalcLine
-    * ParameterLine
-    * ConditionalLine
-
-    categorize_lines(calc_cell) is considered the default behaviour for the 
-    singledispatch categorize_lines function.
-    """
-    source = cell.source
-    outgoing = source.split("\n")
-    incoming = deque([])
-    calculated_results = cell.calculated_results
-    for line in outgoing:
-        categorized = categorize_line(line, calculated_results)
-        categorized_w_result_appended = add_result_values_to_line(categorized, calculated_results)
-        incoming.append(categorized_w_result_appended)
-    cell.incoming_lines = incoming
-    return cell
-
-
 @singledispatch
 def add_result_values_to_line(line_object, calculated_results: dict):
-    raise ValueError(f"Line object, {type(line_object)} not fully implemented yet.")
-
+    raise TypeError(f"Line object, {type(line_object)} is not recognized yet in add_result_values_to_line()")
 
 @add_result_values_to_line.register(CalcLine)
 def results_for_calcline(line_object, calculated_results):
@@ -276,356 +278,372 @@ def results_for_calcline(line_object, calculated_results):
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
 
-
 @add_result_values_to_line.register(ParameterLine)
 def results_for_paramline(line_object, calculated_results):
     return line_object
-
 
 @add_result_values_to_line.register(ConditionalLine)
 def results_for_conditionline(line_object, calculated_results: dict):
     expressions = line_object.expressions
     for expr in expressions:
-        parameter_name = expr[0]
-        resulting_value = calculated_results.get(parameter_name, parameter_name)
-        expr.append(deque(["=", resulting_value]))
+        add_result_values_to_line(expr, calculated_results)
     return line_object
+
 
 @singledispatch
 def convert_cell(cell_object):
-    raise ValueError(f"Cell object {type(cell_object)} not recognized, yet.")
+    raise TypeError(f"Cell object {type(cell_object)} is not yet recognized in convert_cell()")
 
 @convert_cell.register(CalcCell)
 def convert_calc_cell(cell: CalcCell) -> CalcCell:
-    outgoing = cell.incoming_lines
+    outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
         incoming.append(convert_line(line, calculated_results))
-    cell.incoming_lines = incoming
+    cell.lines = incoming
     return cell
 
 @convert_cell.register(ParameterCell)
 def convert_parameter_cell(cell: ParameterCell) -> ParameterCell:
-    outgoing = cell.incoming_lines
+    outgoing = cell.lines
+    calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        conversion_line = line.line
-        line.line = swap_symbolic_calcs(conversion_line)
-        incoming.append(line)
-    cell.incoming_lines = incoming
+        incoming.append(convert_line(line, calculated_results))
+    cell.lines = incoming
     return cell
 
 @convert_cell.register(OutputCell)
 def convert_parameter_cell(cell: OutputCell) -> OutputCell:
-    outgoing = cell.incoming_lines
+    outgoing = cell.lines
+    calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        conversion_line = line.line
-        line.line = swap_symbolic_calcs(conversion_line)
-        incoming.append(line)
-    cell.incoming_lines = incoming
+        incoming.append(convert_line(line, calculated_results))
+    cell.lines = incoming
     return cell
+
 
 @singledispatch
 def convert_line(line_object: Union[CalcLine, ConditionalLine, ParameterLine], calculated_results: dict) -> Union[CalcLine, ConditionalLine, ParameterLine]:
-    raise ValueError(f"Cell object {type(line_object)} not recognized, yet.")
+    raise TypeError(f"Cell object {type(line_object)} is not yet recognized in convert_line()")
 
 @convert_line.register(CalcLine)
 def convert_calc(line, calculated_results):
-    *line_deque, result = line.line
+    *line_deque, result = line.line # Unpack deque of form [[calc_line, ...], ['=', 'result']]
     symbolic_portion, numeric_portion = swap_calculation(line_deque, calculated_results)
-    try:
-        line.line = symbolic_portion + numeric_portion + result
-    except:
-        breakpoint()
+    line.line = symbolic_portion + numeric_portion + result
     return line
 
 @convert_line.register(ConditionalLine)
 def convert_conditional(line, calculated_results):
     condition, condition_type, expressions, raw_condition = (line.condition, line.condition_type, line.expressions, line.raw_condition)
-    swap_conditional = ConditionalEvaluator() # Callable helper class
+    #breakpoint()
     true_condition_deque = swap_conditional(condition, condition_type, raw_condition, calculated_results)
     if true_condition_deque:
         line.true_condition = true_condition_deque
         for expression in expressions:
-            *expr, result = expression # Unpack deque of form [[expr, ...], ['=', 'result']]
-            symbolic_portion, numeric_portion = swap_calculation(expr, calculated_results)
-            line.true_expressions.append(symbolic_portion + numeric_portion + result)
+            line.true_expressions.append(convert_line(expression, calculated_results))
+            # *expr, result = expression # Unpack deque of form [[expr, ...], ['=', 'result']]
+            # symbolic_portion, numeric_portion = swap_calculation(expr, calculated_results)
+            # expr_calc_line = CalcLine(line=symbolic_portion + numeric_portion + result, latex = '', comment = '')
+            # line.true_expressions.append(expr_calc_line)
     return line
 
 @convert_line.register(ParameterLine)
 def convert_parameter(line, calculated_results):
-    conversion_line = line.line
-    converted_line = swap_symbolic_calcs(conversion_line)
-    line.line = converted_line
+    line.line = swap_symbolic_calcs(line.line)
     return line
-
-#TODO: Get clear on which functions return what in the last steps
-# Road map: render_objects_in_deque_to_str('round resulting values', consumes line object) -> format_cell: format_lines(returns Line object) -> render_cell_to_str
-
-
-def render_lines_to_latex(cell_object: Union[CalcCell, ParameterCell, OutputCell]) -> Union[CalcCell, ParameterCell, OutputCell]:
-    """
-    At this point, the .line deques still have various objects in them (e.g. float, int, other)
-    This function renders those objects into strings. They are rounded to the appropriate
-    precision. If they are non-native Python objects, then an attempt is made to call
-    their _repr_latex_ function to render them as a latex string.
-    """
-    precision = cell_object.precision
-    for line in cell_object.incoming_lines:
-        line = round_resulting_values(line, precision)
-    cell_object.latex_code = " ".join(cell_object.incoming_lines)
-    return cell_object
-
-    #cell.latex_code = " ".join(cell.incoming_lines)
-    #return format_calc_cell(cell) -> Write this function
 
 
 @singledispatch
-def format_cell(cell_object: Union[OutputCell, ParametersCell, CalcCell]):
-    raise ValueError(f'Cell type {type(cell_object)} has not been implemented, yet.')
+def format_cell(cell_object: Union[OutputCell, ParameterCell, CalcCell]):
+    raise TypeError(f'Cell type {type(cell_object)} has not yet been implemented in format_cell().')
 
-# Check this one out. Does it need to do so much in one function or can it follow
-# the unified process?
-@format_cell.register
+@format_cell.register(ParameterCell)
 def parameters_cell(cell: ParameterCell):
     """
     Returns the input parameters as an \\align environment with 'cols'
     number of columns.
     """
-    outgoing = cell.incoming_lines
-    precision = cell.precision
     cols = cell.cols
+    precision = cell.precision
+    opener = "\\["
     begin = "\\begin{aligned}"
     end = "\\end{aligned}"
-    linebreak = "\\\\"
+    closer = "\\]"
+    line_break = "\\\\\n"
+    cycle_cols = itertools.cycle(range(1, cols + 1))
+    for line in cell.lines:
+        line = round_and_render_line_objects_to_latex(line, precision)
+        latex_param = line.latex
+        current_col = next(cycle_cols)
+        if current_col % (cols - 1) == 0: line.latex = "&" + latex_param.replace("=", "&=")
+        elif current_col % cols == 0: line.latex = "&" + latex_param.replace("=", "&=") + line_break
+        else: line.latex = latex_param.replace("=", "&=")
+
+    latex_block = " ".join([line.latex for line in cell.lines])
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
+    return cell
+        
+@format_cell.register(CalcCell)
+def format_calc_cell(cell: CalcCell) -> str:
+    line_break = "\\\\[10pt]\n"
+    precision = cell.precision
     incoming = deque([])
-    for idx, line in enumerate(outgoing):
-        latex_line = round_resulting_values(line, precision)
-        symbol, equals, value = latex_line
-        if idx % cols == 0:
-            equals = "&="
-        elif idx % cols == cols - 1:
-            symbol = f"&{symbol}"
-            equals = "&="
-            value = f"{value} {linebreak} "
-        else:
-            symbol = f"&{symbol}"
-            equals = "&="
-        incoming.append(" ".join([symbol, equals, value]))
-    cell.incoming = incoming
-    latex_code = " ".join(cell.incoming)
-    cell.latex_code = "\n".join([begin, latex_code, end])
+    for line in cell.lines:
+        line = round_and_render_line_objects_to_latex(line, precision)
+        line = convert_applicable_long_lines(line)
+        #breakpoint()
+        line = format_lines(line)
+        incoming.append(line)
+    #breakpoint()
+    cell.lines = incoming
+
+    latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
+    begin = "\\begin{aligned}"
+    end = "\\end{aligned}"
+    cell.latex_code = "\n".join([begin, latex_block, end])
     return cell
 
-@format_cell.register
-def format_calc_cell(cell: CalcCell) -> str:
-    for line in cell.latex_code:
-        line = format_calc_lines(line)
-    joined_latex = "\\\\[10pt]\n".join(cell.latex_code)
-    beg_env = "\\begin{aligned}\n"
-    end_env = "\\end{aligned}"
-    return f"{beg_env}{joined_latex}{end_env}\n\\"
-
-@format_cell.register
+@format_cell.register(OutputCell)
 def format_output_cell(cell: OutputCell) -> str:
-    for line in cell.latex_code:
-        line = format_calc_lines(line)
-    joined_latex = "\\\\[10pt]\n".join(cell.latex_code)
-    beg_env = "\\begin{aligned}\n"
-    end_env = "\\end{aligned}"
-    return f"{beg_env}{joined_latex}{end_env}\n\\"
+    line_break = "\\\\[10pt]\n"
+    precision = cell.precision
+    for line in cell.lines:
+        line = round_and_render_line_objects_to_latex(line, precision)
+    latex_block = line_break.join([line.latex for line in cell.lines])
+    begin = "\\begin{aligned}"
+    end = "\\end{aligned}"
+    cell.latex_code =  "\n".join([begin, latex_block, end])
+    return cell
+
+@singledispatch
+def round_and_render_line_objects_to_latex(line: Union[CalcLine, ConditionalLine, ParameterLine], precision: int):
+    raise TypeError(f"Line type {type(line)} not recognized yet in round_and_render_line_objects_to_latex()")
+
+@round_and_render_line_objects_to_latex.register(CalcLine)
+def round_and_render_calc(line: CalcLine, precision: int) -> CalcLine:
+    rounded_line = round_and_render(line.line, precision)
+    line.line = rounded_line
+    line.latex = " ".join(rounded_line)
+    return line
+
+@round_and_render_line_objects_to_latex.register(ParameterLine)
+def round_and_render_parameter(line: ParameterLine, precision: int) -> ParameterLine:
+    rounded_line = round_and_render(line.line, precision)
+    line.line = rounded_line
+    line.latex = " ".join(rounded_line)
+    return line
+
+@round_and_render_line_objects_to_latex.register(ConditionalLine)
+def round_and_render_conditional(line: ConditionalLine, precision: int) -> ConditionalLine:
+    line_break = "\\\\\n"
+    outgoing = deque([])
+    line.true_condition = round_and_render(line.true_condition, precision)
+    for expr in line.true_expressions: # Each 'expr' item is a CalcLine
+        outgoing.append(round_and_render_line_objects_to_latex(expr, precision))
+    line.true_expressions = outgoing
+    line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
+    return line
+
+
+@singledispatch
+def convert_applicable_long_lines(line: Union[ConditionalLine, CalcLine]):
+    raise TypeError(f"Line type {type(line)} not yet implemented in convert_applicable_long_lines().")
+
+@convert_applicable_long_lines.register(CalcLine)
+def convert_calc_to_long(line: CalcLine):
+    if test_for_long_lines(line):
+        
+        return convert_calc_line_to_long(line)
+    return line
+
+@convert_applicable_long_lines.register(ConditionalLine)
+def convert_expressions_to_long(line: ConditionalLine):
+    for idx, expr in enumerate(line.true_expressions):
+        if test_for_long_lines(expr):
+            line.true_expressions[idx] = convert_calc_line_to_long(expr)
+    return line
+
+@convert_applicable_long_lines.register(ParameterLine)
+def convert_param_to_long(line: ParameterLine):
+    return line
+
+
+@singledispatch
+def test_for_long_lines(line: Union[CalcLine, ConditionalLine]) -> bool:
+    raise TypeError(f"Line type of {type(line)} not yet implemented in test_for_long_lines().")
+
+@test_for_long_lines.register(ParameterLine)
+def test_for_long_param_lines(line: ParameterLine) -> bool:
+    return False
+
+@test_for_long_lines.register(CalcLine)
+def test_for_long_calc_lines(line: CalcLine) -> bool:
+    """
+    Return True if 'calc_line' passes the criteria to be considered, 
+    a "LongCalcLine". False otherwise.
+
+    This is an imperfect work-in-progress.
+    """
+    threshold = 130 # This is an arbitrary value that can be adjusted manually, if reqd
+    item_length = 0
+    fraction_discount = 0
+    stack = 0
+    stack_location = 0
+    fraction_flag = False
+    fraction_count = 0
+    total_length = 0
+    for item in line.line:
+        if ( # Check for subscripts and superscripts first
+            "_" in item or
+            "^" in item
+        ):
+            item = item.replace("_","").replace("^", "").replace("{", "").replace("}", "")
+            item_length = len(item)
+        
+        elif ("\\" not in item or "{" not in item):
+            item_length = len(item)
+
+        elif "{" in item: # Check for other latex operators that use { }
+            stack +=1
+
+        else: # Assume the latex command adds at least one character, e.g. \left( or \cdot
+            total_length += 1
+            continue
+
+        if (item == "\\frac{" or item == "}{"): # If entering into a fraction
+            fraction_discount = fraction_count if fraction_count > fraction_discount else fraction_discount
+            fraction_count = 0
+            fraction_flag = True
+            if item == "\\frac{":
+                stack_location = stack # Mark the where the fraction is in relation to the other "{" operators
+                stack += 1
+
+        elif ( # Check for closing of misc latex operators, which may include a fraction
+            item == "}"
+        ):
+            stack -=1
+            if stack == stack_location:
+                fraction_flag == False
+                fraction_discount = fraction_count if fraction_count > fraction_discount else fraction_discount
+
+        if fraction_flag == True:
+            fraction_count += item_length
+
+        total_length += item_length
+    
+    stat = (total_length - fraction_discount)
+    return stat >= threshold
+        
+
+def convert_calc_line_to_long(calc_line: CalcLine) -> LongCalcLine:
+    """
+    Return a LongCalcLine based on a calc_line
+    """
+    return LongCalcLine(line=calc_line.line, comment=calc_line.comment, latex=calc_line.latex)
+
 
 @singledispatch
 def format_lines(line_object):
-    raise ValueError(f"Line type {type(line_object)} is not implemented, yet.")
+    raise TypeError(f"Line type {type(line_object)} is not yet implemented in format_lines().")
 
-@format_lines.register
+@format_lines.register(CalcLine)
 def format_calc_lines(line: CalcLine) -> CalcLine:
-    latex_code = line.line
+    latex_code = line.latex
     equals_signs = [idx for idx, char in enumerate(latex_code) if char == "="]
     second_equals = equals_signs[1]  # Change to 1 for second equals
     latex_code = latex_code.replace("=", "&=")  # Align with ampersands for '\align'
-    return f"{latex_code[0:second_equals + 1]}{latex_code[second_equals + 2:]}\n"
+    comment_space = ""
+    comment = ""
+    if line.comment:
+        comment_space = "\\;"
+        comment = format_strings(line.comment, comment = True)
+    line.latex = f"{latex_code[0:second_equals + 1]}{latex_code[second_equals + 2:]}{comment_space}{comment}\n"
+    return line
 
-
-class ConditionalLine:
-    condition: deque
-    condition_type: str
-    expressions: deque
-    raw_condition: str
-    raw_expression: str
-    true_condition: deque
-    true_expressions: deque
-    comment: str
-
-
-# def format_conditional_lines(latex_code: str) -> str:
-#     """
-#     Returns a line of 'latex_code' that has been formatted for the 'aligned' environment
-#     """
-#     a = "{"
-#     b = "}"
-#     text = "\\textrm"
-#     # opening = f"\\begin{a}{environment}{b}\n"
-#     conditional = f"&{text}{a}Since, {b}{latex_code}:\\\\\n"
-#     # end = f"\\end{a}{environment}{b}\n"
-#     conditional_line = f"{conditional}"
-#     return conditional_line
-
-
-@format_lines.register
+@format_lines.register(ConditionalLine)
 def format_conditional_lines(line: ConditionalLine) -> ConditionalLine:
     """
     Returns the conditional line as a string of latex_code
     """
-    # THIS IS NOT DONE YET. Need to figure out if expression_lines are fully processed and ready to be joined with "\\\\\n" or if further formatting is required.
-    latex_condition = " ".join(line.true_condition) # This needs to be coming in as a line of joined latex; or made into one here
-    a = "{"
-    b = "}"
-    text = "\\text"
-    # opening = f"\\begin{a}{environment}{b}\n"
-    first_line = f"&\\text{a}Since, {b}{latex_condition}:\\\\\n"
-    transition_line = "\\text{Therefore} \\; \\rightarrow \\;"
-    expression_lines = deque([" ".join(expression) for expression in line.true_expressions]) # Maybe format_calc_line for every expression?
-    remaining_lines = "\\\\\n".join(expression_lines)
-    return rendered_deque
+    if line.true_condition:
+        latex_condition = " ".join(line.true_condition)
+        a = "{"
+        b = "}"
+        first_line = f"&\\text{a}Since, {b}{latex_condition}:\\\\\n"
+        if line.condition_type == "else":
+            first_line = ""
+        transition_line = "&\\text{Therefore} \\; \\rightarrow \\;"
+        line_break = "\\\\\n"
+        comment_space = ""
+        comment = ""
+        if line.comment:
+            comment_space = "\\;"
+            comment = format_strings(line.comment, comment = True)
+        outgoing = deque([])
+        for calc_line in line.true_expressions:
+            outgoing.append((format_lines(calc_line)).latex)
+        latex_exprs = line_break.join(outgoing)
+        if len(outgoing) > 1:
+            line.latex = first_line + comment_space + comment + transition_line + line_break + latex_exprs
+        else:
+            line.latex = first_line + comment_space + comment + transition_line + latex_exprs
+        return line
+    else:
+        line.latex = ""
+        return line
 
-def render_to_string(latex_results: dict) -> deque:
+@format_lines.register(LongCalcLine)
+def format_long_calc_lines(line: LongCalcLine) -> LongCalcLine:
     """
-    Returns a deque of rendered latex_lines that are ready for printing.
+    Return line with .latex attribute formatted with line breaks suitable
+    for positioning within the "\aligned" latex environment.
     """
-    rendered_deque = deque([])
-    for line_num, line_data in latex_results.items():
-        line = line_data["line"]  # deque
-        ltype = line_data["type"]  # str
-        if ltype == "heading":
-            rendered_deque.append(line)
-        #         elif ltype == "note":
-        #             formatted_note = format_notes(line, text_env)
-        #             rendered_deque.append(formatted_note)
-        elif ltype == "normal calc":
-            if "return" in line:
-                return rendered_deque
-            else:
-                formatted_calc = format_calc_lines(line)
-            rendered_deque.append(formatted_calc)
-        elif ltype == "long calc":
-            rendered_deque.append(line)
-        elif ltype == "parameter":
-            rendered_deque.append(line)
-        elif ltype == "conditional":
-            condition, expressions = line
-            if condition[0]:
-                cond = format_conditional_lines(condition[0])
-            else:
-                cond = "\\text{Therefore} \\; \\rightarrow \\;"
-            formatted_acc = deque([])
-            for expression in expressions[0]:
-                expr = expression
-                if "return" in " ".join(expr):
-                    formatted_conditional = f"{cond}{' '.join(formatted_acc)}"
-                    rendered_deque.append(formatted_conditional)
-                    return rendered_deque
-                else:
-                    formatted_calc = format_calc_lines(" ".join(expr))
-                formatted_acc.append(formatted_calc)
-            else:
-                formatted_conditional = f"{cond}{' '.join(formatted_acc)}"
-                rendered_deque.append(formatted_conditional)
-    return rendered_deque
+    latex_code = line.latex
+    long_latex = latex_code.replace("=", "\\\\&=") # Change all
+    long_latex = long_latex.replace("\\\\&=", "&=", 1) # Fix the first one
+    line_break = "\\\\\n"
+    comment_space = ""
+    comment = ""
+    if line.comment:
+        comment_space = "\\;"
+        comment = format_strings(line.comment, comment = True)
+    line.latex = f"{long_latex}{comment_space}{comment}{line_break}"
+    return line
+
+@format_lines.register(ParameterLine)
+def format_param_lines(line: ParameterLine) -> ParameterLine:
+    line.latex = line.latex.replace("=", "&=")
+    return line
 
 
 
-def format_calc_lines(latex_code: str) -> str:
-    """
-    Returns a line of 'latex_code' that has been formatted for the 'aligned' environment
-    """
-    equals_signs = [idx for idx, char in enumerate(latex_code) if char == "="]
-    second_equals = equals_signs[1]  # Change to 1 for second equals
-
-    latex_code = latex_code.replace("=", "&=")  # Align with ampersands for '\align'
-    remove_amp_from_second = (
-        f"{latex_code[0:second_equals + 1]}{latex_code[second_equals + 2:]}"
-    )
-    normal_line = f"{remove_amp_from_second}\n"
-    return normal_line
 
 
-def format_conditional_lines(latex_code: str) -> str:
-    """
-    Returns a line of 'latex_code' that has been formatted for the 'aligned' environment
-    """
-    a = "{"
-    b = "}"
-    text = "\\textrm"
-    # opening = f"\\begin{a}{environment}{b}\n"
-    conditional = f"&{text}{a}Since, {b}{latex_code}:\\\\\n"
-    # end = f"\\end{a}{environment}{b}\n"
-    conditional_line = f"{conditional}"
-    return conditional_line
-
-
-    
-    # cell.lines = render_latex_reprs(cell.lines, cell.precision)
-    # cell.latex_code = render_to_string(cell.lines)
-
-# def render_latex_reprs(latex_dict: dict, precision: int) -> dict:
+# @singledispatch
+# def render_cell_latex_string(cell: Union[CalcCell, ParameterCell, OutputCell]):
 #     """
-#     Returns the line-by-line latex code in latex_dict compiled into a
-#     str for rendering. Floats and other numerical objects are rounded
-#     and converted into appropriate strings for display.
+#     Converts the 'cell' into a str ready to be sent to a latex compiler.
 #     """
-#     latex_lines = {}
-#     for line_num, line_data in latex_dict.items():
-#         line = line_data["line"]
-#         ltype = line_data["type"]
-#         if not line:
-#             continue
-#         elif "calc" in ltype:
-#             latex_line = round_resulting_values(line, precision)
-#             latex_lines.update(
-#                 {line_num: {"line": " ".join(latex_line), "type": ltype}}
-#             )
+#     raise TypeError(f"Cell type {type(cell)} not recognized yet in render_cell_latex().")
 
-#         elif ltype == "parameter":
-#             latex_line = round_resulting_values(line, precision)
-#             latex_lines.update(
-#                 {line_num: {"line": " ".join(latex_line), "type": ltype}}
-#             )
-#         elif ltype == "conditional":
-#             # 'line' structure for 'ltype' == "conditional":
-#             # [[condition],[[[expression_1 if true], [result of expression]],
-#             #             [[expression_2 if true], [result of expression]]]]
-#             condition = line[0]
-#             expressions = line[1]
-#             conditioned = round_resulting_values(condition, precision)
-#             expr_acc = deque([])
-#             for expression in expressions:
-#                 expr, result = expression
-#                 expr_rep = round_resulting_values(expr, precision)
-#                 result_rep = round_resulting_values(result, precision)
-#                 combined = expr_rep + result_rep
-#                 expr_acc.append(combined)
-#             latex_lines.update(
-#                 {
-#                     line_num: {
-#                         "line": [[" ".join(conditioned)], [expr_acc]],
-#                         "type": ltype,
-#                     }
-#                 }
-#             )
-#         else:
-#             latex_lines.update({line_num: {"line": line, "type": ltype}})
-#     return latex_lines
+# @render_cell_latex_string.register
+# def render_calc_cell(cell: CalcCell):
+#     beg = "\\begin{aligned}"
+#     end = "\\end{aligned}"
+#     line_break = "\\\\[10pt]\n"
 
-
-
-def split_conditional(line: str):
+def split_conditional(line: str, calculated_results):
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
-    cond_type, condition = raw_conditional.split(" ", 1)
+    try:
+        cond_type, condition = raw_conditional.split(" ", 1)
+    except:
+        cond_type = "else"
+        condition = ""
     cond_type = cond_type.strip().lstrip()
     condition = condition.strip().lstrip()
     try:
@@ -635,11 +653,9 @@ def split_conditional(line: str):
 
     expr_acc = deque([])
     for line in expr_deque:
-        try:
-            expr = expr_parser(line.strip())
-        except pp.ParseException:
-            expr = [line.strip()]
-        expr_acc.append(expr)
+        categorized = categorize_line(line, calculated_results)
+        categorized_w_result_appended = add_result_values_to_line(categorized, calculated_results)
+        expr_acc.append(categorized_w_result_appended)
 
     return (
         cond,
@@ -649,435 +665,152 @@ def split_conditional(line: str):
         raw_expressions,
     )
 
-def split_expressions(d: deque) -> deque:
-    """
-    Return d with symbolics and numerics swapped for the list of 
-    calculations/expressions within d
-    """
-    pass
+# Useful legacy routine
+# def format_long_calc_lines(
+#     symbolic_portion: deque, numeric_portion: deque, result_value: deque
+# ):
+#     full_equation = symbolic_portion + numeric_portion + result_value
+#     equation_in_multline_env = insert_multline_environment(full_equation)
+#     with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
+#     with_line_breaks = break_long_equations(with_gathered_envs)
+#     return with_line_breaks  # + result_value
 
-def subbed_results_indexes(line: deque) -> Tuple[int]:
-    """
-    Returns a 2-tuple of ints that represent the index location of the 
-    two "=" within line.
-    """
-    acc = []
-    for idx, component in enumerate(line):
-        if component == "=":
-            acc.append(idx)
-    return tuple(acc)
+# Recover
 
-
-def subbed_results_line(line: deque) -> deque:
-    """
-    Returns a deque that contains only the portion of the `line` that
-    contains the substituted results, between the two "=" signs.
-    """
-    first_equals, second_equals = subbed_results_indexes(line)
-
-    return deque(list(line)[first_equals : second_equals + 1])
-
-
-# TODO: Ignore or deal with inline comments; deal with headings
-
-
-def python_to_latex_conversion(parsed_results: dict, calculated_results: dict) -> dict:
-    """
-    Coordinates the conversion of the data in parsed_results into latex.
-    Stores the output in self._latex after performing the conversion
-    with module functions.
-    """
-    latex_results = {}
-    calc_results = calculated_results
-    swap_conditional = ConditionalEvaluator()  # Helper class as stateful function
-    for line_num, line_data in parsed_results.items():
-        ltype = line_data["type"]  # str
-        line = line_data["line"]  # deque
-        comment = line_data["comment"]
-        if comment:
-            comment = format_strings(comment, comment=True)
-        else:
-            comment = deque([])
-        if ltype == "heading":
-            new_line = swap_headings(line)
-        elif ltype == "note":
-            new_line = line
-        # TODO: Deal with parameter lines
-        elif ltype == "parameter":
-            # print(line, comment)
-            new_line = line + comment
-        elif ltype == "conditional":
-            condition, expressions = line
-            true_cond = swap_conditional(
-                condition, line_data["raw conditional"], calc_results
-            )
-            if true_cond:
-                expr_acc = deque([])
-                for expr in expressions:
-                    calcd_result = expr[1]
-                    expr = expr[0]  # break out of nested deque
-                    symbolic_portion, numeric_portion = swap_calculation(
-                        expr, calc_results
-                    )
-                    expr_acc.append([symbolic_portion + numeric_portion, calcd_result])
-                new_line = deque([true_cond, expr_acc]) + comment
-            else:
-                new_line = deque([])
-
-        elif ltype == "normal calc":
-            expr, calcd_result = line
-            calcd_result = deque(calcd_result)
-            symbolic_portion, numeric_portion = swap_calculation(expr, calc_results)
-            # May need to fine-tune what part of 'line' gets submitted to these functions
-            new_line = symbolic_portion + numeric_portion + calcd_result + comment
-
-        elif ltype == "long calc":
-            expr, calcd_result = line
-            calcd_result = deque(calcd_result)
-            symbolic_portion, numeric_portion = swap_calculation(expr, calc_results)
-            new_line = format_long_calc_lines(
-                symbolic_portion, numeric_portion, calcd_result
-            )
-        latex_results.update({line_num: {"line": new_line, "type": ltype}})
-    return latex_results
-
-def test_long_line_of_math(line: deque, calculated_results: dict) -> Tuple[bool, int]:
-    """
-    Return a Tuple[bool, int] that indicates whether the substituted values of `line`
-    will be over the character threshold. int represents the number of characters counted
-    in the str representation of the substituted values. 
-    """
-    # discount_fraction_chars(line, calculated_results)
-    count = 0
-    recurse_bool = False
-    count_bool = False
-    new_bool = False
-    for component in line:
-        if isinstance(component, deque):
-            new_bool, new_count = test_long_line_of_math(component, calculated_results)
-            count += new_count
-            recurse_bool = recurse_bool or new_bool
-        elif isinstance(component, (float, int)):
-            count += len(str(component))
-        elif isinstance(component, str):
-            substitution = calculated_results.get(component, component)
-            count += len(str(substitution))
-    if count > 65:
-        count_bool = True
-    if count_bool or recurse_bool:
-        return (True, count)
-    else:
-        return (False, count)
+# def break_long_equations(flattened_deque: deque) -> deque:
+#     """
+#     Returns a deque that matches `line` except with a linebreak character inserted
+#     after the next mathematical operator after the character count of items within
+#     `line` exceeds the threshold
+#     """
+#     # TODO: Create test for appropriate palcement of linebreaks
+#     line_break = "{}\\\\\n"
+#     str_lengths = count_str_len_in_deque(flattened_deque, omit_latex=True, dive=False)
+#     sum_of_lengths = 0
+#     acc = deque([])
+#     exclusions = ("\\right)", "\\cdot", "}")
+#     insert_next = False
+#     discount = discount_fraction_chars(flattened_deque)
+#     for idx, length in enumerate(str_lengths):
+#         component = flattened_deque[idx]
+#         next_idx = min(idx + 1, len(flattened_deque) - 1)
+#         next_component = flattened_deque[next_idx]
+#         if "\\" in str(component):
+#             acc.append(component)
+#         elif (
+#             str(component) == "+" or str(component) == "-" or str(component) == "\\cdot"
+#         ):
+#             if insert_next:
+#                 acc.append(component)
+#                 acc.append(line_break)
+#                 insert_next = False
+#             else:
+#                 acc.append(component)
+#         else:
+#             acc.append(component)
+#             sum_of_lengths += length
+#             if (
+#                 sum_of_lengths > 60
+#                 and (
+#                     str(component) not in exclusions
+#                     or str(next_component) not in exclusions
+#                 )
+#                 and (str(next_component) == "+" or str(next_component) == "-")
+#             ):  # Hard-coded value
+#                 insert_next = True
+#                 sum_of_lengths = 0
+#     return acc
 
 
-def count_subbed_chars_in_equation(line: deque, calculated_results: dict) -> deque:
-    """
-    Returns a deque of int representing the length of the substituted values in
-    `line`. Each int represents the total length of the strs within one 
-    set of nested parentheses, deeper parentheses first.
-    e.g.
-    count_subbed_chars_in_equation(
-        ['234', '+', '958', '+', ['1234', '+', '2345', '+', '0942']]
-        )
-    returns [14, 8]
-    """
-    count = 0
-    count_deque = deque([])
-    for component in line:
-        if isinstance(component, deque):
-            count_deque.append(
-                count_subbed_chars_in_equation(component, calculated_results)
-            )
-        elif isinstance(component, (float, int)):
-            count += len(str(component))
-        elif isinstance(component, str):
-            substitution = calculated_results.get(component, component)
-            count += len(str(substitution))
-    count_deque.append(count)
-    return count_deque
+# def insert_gathered_environments(line: deque) -> deque:
+#     """
+#     Returns 'line' with "\\begin{gathered}" environments inserted at the beginning
+#     of nested deques within 'line' and at the end of nested deques within 'line'.
+
+#     @param line:
+#     @return:
+#     """
+#     beg_gathered = "\\begin{gathered}"
+#     end_gathered = "\\end{gathered}"
+#     acc = []
+#     left_trigger = "\\left("
+#     sqrt_trigger = "\\sqrt{"
+#     right_trigger = "\\right)"
+#     brace_trigger = "}"
+#     sqrt_stack = deque([])
+#     equals = 0
+#     for component in line:
+#         if str(component) == "=" or str(component) == "&=":
+#             equals += 1
+#         if 1 <= equals <= 2:
+#             if (
+#                 (
+#                     "{" in str(component)
+#                     or (
+#                         str(component) == left_trigger or str(component) == sqrt_trigger
+#                     )
+#                 )
+#                 and "_" not in component
+#                 and component != "}{"
+#             ):
+#                 if str(component) == left_trigger:
+#                     sqrt_stack.append(0)
+#                     acc.append(component)
+#                     acc.append(beg_gathered)
+#                 elif str(component) == sqrt_trigger:
+#                     sqrt_stack.append(1)
+#                     acc.append(component)
+#                     acc.append(beg_gathered)
+#                 else:
+#                     sqrt_stack.append(0)
+#                     acc.append(component)
+#             elif str(component) in (brace_trigger, right_trigger):
+#                 sqrt_close_trigger = sqrt_stack.pop()
+#                 if sqrt_close_trigger and str(component) == brace_trigger:
+#                     acc.append(end_gathered)
+#                     acc.append(component)
+#                 elif str(component) == right_trigger:
+#                     acc.append(end_gathered)
+#                     acc.append(component)
+#                 else:
+#                     acc.append(component)
+#             else:
+#                 acc.append(component)
+#         else:
+#             acc.append(component)
+#     return acc
 
 
-def format_long_calc_lines(
-    symbolic_portion: deque, numeric_portion: deque, result_value: deque
-):
-    full_equation = symbolic_portion + numeric_portion + result_value
-    equation_in_multline_env = insert_multline_environment(full_equation)
-    with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
-    with_line_breaks = break_long_equations(with_gathered_envs)
-    return with_line_breaks  # + result_value
+# def insert_multline_environment(line: deque) -> deque:
+#     """
+#     Returns `line` with a gathered environment inserted at the edges of the 
+
+#     """
+#     beg_gathered = "\\begin{gathered}\n"
+#     end_gathered = "\n\\end{gathered}\n"
+#     beg_aligned = "\\[\n\\begin{aligned}\n"
+#     end_aligned = "\\end{aligned}\n\\]\n"
+#     beg_multline = "\\begin{multline}\n"
+#     end_multline = "\n\\end{multline}\n"
+#     char_count = 0
+#     acc = deque([])
+#     equals = 0
+#     for component in line:
+#         if str(component) == "=" or str(component) == "&=" and equals == 0:
+#             equals += 1
+#             acc.append("=")
+#         elif str(component) == "=" or str(component) == "&=" and equals == 1:
+#             acc.append("\\\\=")
+#         else:
+#             acc.append(component)
+
+#     acc.appendleft(beg_multline)
+#     acc.appendleft(end_aligned)
+#     acc.append(end_multline)
+#     acc.append(beg_aligned)
+#     return acc
 
 
-
-
-def break_long_equations(flattened_deque: deque) -> deque:
-    """
-    Returns a deque that matches `line` except with a linebreak character inserted
-    after the next mathematical operator after the character count of items within
-    `line` exceeds the threshold
-    """
-    # TODO: Create test for appropriate palcement of linebreaks
-    line_break = "{}\\\\\n"
-    str_lengths = count_str_len_in_deque(flattened_deque, omit_latex=True, dive=False)
-    sum_of_lengths = 0
-    acc = deque([])
-    exclusions = ("\\right)", "\\cdot", "}")
-    insert_next = False
-    discount = discount_fraction_chars(flattened_deque)
-    for idx, length in enumerate(str_lengths):
-        component = flattened_deque[idx]
-        next_idx = min(idx + 1, len(flattened_deque) - 1)
-        next_component = flattened_deque[next_idx]
-        if "\\" in str(component):
-            acc.append(component)
-        elif (
-            str(component) == "+" or str(component) == "-" or str(component) == "\\cdot"
-        ):
-            if insert_next:
-                acc.append(component)
-                acc.append(line_break)
-                insert_next = False
-            else:
-                acc.append(component)
-        else:
-            acc.append(component)
-            sum_of_lengths += length
-            if (
-                sum_of_lengths > 60
-                and (
-                    str(component) not in exclusions
-                    or str(next_component) not in exclusions
-                )
-                and (str(next_component) == "+" or str(next_component) == "-")
-            ):  # Hard-coded value
-                insert_next = True
-                sum_of_lengths = 0
-    return acc
-
-
-def insert_gathered_environments(line: deque) -> deque:
-    """
-    Returns 'line' with "\\begin{gathered}" environments inserted at the beginning
-    of nested deques within 'line' and at the end of nested deques within 'line'.
-
-    @param line:
-    @return:
-    """
-    beg_gathered = "\\begin{gathered}"
-    end_gathered = "\\end{gathered}"
-    acc = []
-    left_trigger = "\\left("
-    sqrt_trigger = "\\sqrt{"
-    right_trigger = "\\right)"
-    brace_trigger = "}"
-    sqrt_stack = deque([])
-    equals = 0
-    for component in line:
-        if str(component) == "=" or str(component) == "&=":
-            equals += 1
-        if 1 <= equals <= 2:
-            if (
-                (
-                    "{" in str(component)
-                    or (
-                        str(component) == left_trigger or str(component) == sqrt_trigger
-                    )
-                )
-                and "_" not in component
-                and component != "}{"
-            ):
-                if str(component) == left_trigger:
-                    sqrt_stack.append(0)
-                    acc.append(component)
-                    acc.append(beg_gathered)
-                elif str(component) == sqrt_trigger:
-                    sqrt_stack.append(1)
-                    acc.append(component)
-                    acc.append(beg_gathered)
-                else:
-                    sqrt_stack.append(0)
-                    acc.append(component)
-            elif str(component) in (brace_trigger, right_trigger):
-                sqrt_close_trigger = sqrt_stack.pop()
-                if sqrt_close_trigger and str(component) == brace_trigger:
-                    acc.append(end_gathered)
-                    acc.append(component)
-                elif str(component) == right_trigger:
-                    acc.append(end_gathered)
-                    acc.append(component)
-                else:
-                    acc.append(component)
-            else:
-                acc.append(component)
-        else:
-            acc.append(component)
-    return acc
-
-
-def insert_multline_environment(line: deque) -> deque:
-    """
-    Returns `line` with a gathered environment inserted at the edges of the 
-
-    """
-    beg_gathered = "\\begin{gathered}\n"
-    end_gathered = "\n\\end{gathered}\n"
-    beg_aligned = "\\[\n\\begin{aligned}\n"
-    end_aligned = "\\end{aligned}\n\\]\n"
-    beg_multline = "\\begin{multline}\n"
-    end_multline = "\n\\end{multline}\n"
-    char_count = 0
-    acc = deque([])
-    # print("full runs")
-    equals = 0
-    for component in line:
-        # print(component)
-        if str(component) == "=" or str(component) == "&=" and equals == 0:
-            equals += 1
-            acc.append("=")
-        elif str(component) == "=" or str(component) == "&=" and equals == 1:
-            acc.append("\\\\=")
-        else:
-            acc.append(component)
-    # print(acc)
-
-    acc.appendleft(beg_multline)
-    acc.appendleft(end_aligned)
-    acc.append(end_multline)
-    acc.append(beg_aligned)
-    return acc
-
-
-def count_str_len_in_deque(d: deque, omit_latex=True, dive=True) -> deque:
-    """
-    Returns `l` with each item in `l` being replaced with an int that
-    represents the length of each item in `l`.
-    If 'omit_latex' is True, then any components with latex symbols
-    will not be counted.
-    If 'dive' is True, then the function will recursively count strs
-    in nested deques.
-    """
-    acc = deque([])
-    for component in d:
-        if isinstance(component, (deque, list)) and dive:
-            acc.append(count_str_len_in_deque(component, omit_latex, dive))
-        elif isinstance(component, (deque, list)) and not dive:
-            acc.append([])
-        elif str(component).startswith("\\"):
-            if omit_latex:
-                acc.append(0)
-            else:
-                acc.append(len(str(component).replace("_", "")))
-        else:
-            acc.append(len(str(component).replace("_", "")))
-    return acc
-
-
-def count_fraction_chars(flattened_deque: deque) -> deque:
-    """
-    Returns a deque representing the character counts in 'd' that belong
-    within a fraction.
-    """
-    frac_stack = deque([])
-    count_stack = deque([])
-    equals = 0
-    for idx, component in enumerate(flattened_deque):
-        component = str(component)
-        if "=" in str(component):
-            equals += 1
-            continue
-        if 1 <= equals <= 2:
-            if "{" in component and "_" not in component and "}" not in component:
-                if component == "\\frac{":
-                    frac_stack.append(1)
-                    count_stack.append("Numerator")
-                else:
-                    frac_stack.append(0)
-            elif component == "}{":
-                count_stack.append("End")
-                count_stack.append("Denominator")
-            elif "}" in component and "{" not in component:
-                frac_end_trigger = frac_stack.pop()
-                if frac_end_trigger:
-                    count_stack.append("End")
-            else:
-                if "_" in component:
-                    if "\\" not in component:
-                        split_subs = (
-                            component.replace("{", "").replace("}", "").split("_")
-                        )
-                        count_stack.append(len("".join(split_subs)))
-                    else:
-                        split_subs = (
-                            component.replace("{", "").replace("}", "").split("_")
-                        )
-                        count_stack.append(len("".join(split_subs[1:])) + 1)
-                elif "\\" in component:
-                    if component == "\\cdot":
-                        count_stack.append(1)
-                    elif component == "\\pi":
-                        count_stack.append(1)
-                    elif "operatorname" in component:
-                        func_name = component.replace("\\operatorname{", "").replace(
-                            "}", ""
-                        )
-                        count_stack.append(len(func_name))
-                else:
-                    count_stack.append(len(component))
-    return count_stack
-
-
-def discount_fraction_chars(flattened_deque: deque) -> int:
-    """
-    Returns an int representing the number of chars
-
-    @param d:
-    @return:
-    """
-    frac_counts = count_fraction_chars(flattened_deque)
-    tally = 0
-    num_count = 0
-    denom_count = 0
-    in_num = False
-    in_denom = False
-    for item in frac_counts:
-        if item == "Numerator":
-            in_num = True
-            if num_count > denom_count:
-                tally += num_count - denom_count
-            elif num_count < denom_count:
-                tally += denom_count - num_count
-            else:
-                tally += num_count
-            num_count = 0
-        elif item == "Denominator":
-            denom_count = 0
-        elif item == "End":
-            if in_num:
-                in_num = False
-            elif in_denom:
-                in_denom = False
-            continue
-        else:
-            if in_num:
-                num_count += item
-            elif in_denom:
-                denom_count += item
-    return tally
-
-
-def sum_str_len_in_deque(d: deque, omit_latex=True, dive=True) -> int:
-    """
-    Returns the cumulative sum of len(str) nested deques in d.
-    """
-    counts = count_str_len_in_deque(d, omit_latex)
-    cum_sum = 0
-    for count in counts:
-        if isinstance(count, deque) and dive:
-            cum_sum += sum_str_len_in_deque(count, omit_latex, dive)
-        elif isinstance(count, deque) and not dive:
-            pass
-        else:
-            cum_sum += count
-    return cum_sum
 
 
 def test_for_parameter_line(line: str) -> bool:
@@ -1087,7 +820,7 @@ def test_for_parameter_line(line: str) -> bool:
     """
     if not line.strip():
         return False
-    elif "=" not in line or "if" in line:
+    elif "=" not in line or "if " in line or ":" in line:
         return False
     else:
         _, right_side = line.split("=")
@@ -1102,7 +835,6 @@ def test_for_parameter_line(line: str) -> bool:
                 return False
         except ValueError:
             return False
-
 
 
 def test_for_parameter_cell(raw_python_source: str) -> bool:
@@ -1133,77 +865,8 @@ def split_parameter_line(line: str, calculated_results: dict) -> deque:
         deque([<parameter>, "&=", <value>])
     """
     param = line.replace(" ", "").split("=")[0]
-    param_line = deque([param, "&=", calculated_results[param]])
+    param_line = deque([param, "=", calculated_results[param]])
     return param_line
-
-def parse_parameter_line(line: str, calculated_results: dict) -> deque:
-    """
-    Returns a 'line' with any symbols for the parameter name swapped out
-    """
-    return swap_symbolic_calcs(line)
-    # print("Runs: ", swapped_param_symbols)
-
-
-def parse_output_line(python_line: str, calculated_results: dict) -> deque:
-    """
-    Returns a 'line' with any symbols for the parameter name swapped out
-    """
-    param = python_line.replace(" ", "")
-    param_line = deque([param, "&=", calculated_results[param]])
-    swapped_param_symbols = swap_symbolic_calcs(param_line)
-    # print("Runs: ", swapped_param_symbols)
-    return swapped_param_symbols
-
-
-def parse_parameter_cell(param_cell: ParameterCell) -> ParameterCell:
-    """
-    Return a str representing the latex code conversion of `raw_python_code` which
-    consists entirely of a "Parameters" cell; a Jupyter cell containing only 
-    variable assignments that begins with a "# Parameters" comment.
-
-    This is an alternate end point to the latex() function.
-    """
-    param_cell.outgoing_lines = deque(param_cell.source.split("\n"))
-    param_lines = param_cell.outgoing_lines
-    param_lines.popleft()  # Omit "# Parameters" line
-    removed_blank_lines = [line for line in param_lines if line.strip() != ""]
-    incoming = deque([])
-    for line in removed_blank_lines:
-        param_line = parse_parameter_line(line, param_cell.calculated_results)
-        incoming.append(param_line)
-    param_cell.incoming_lines = incoming
-    return param_cell
-
-
-def parse_output_cell(out_cell: OutputCell) -> OutputCell:
-
-    # raw_python_source: str, calculated_results: dict, precision: int, cols: int = 3
-    # ) -> str:
-    """
-    Return a str representing the latex code conversion of `raw_python_code` which
-    consists entirely of a "Parameters" cell; a Jupyter cell containing only 
-    variable assignments that begins with a "# Parameters" comment.
-
-    This is an alternate end point to the latex() function.
-    """
-    source = out_cell.source
-    precision = out_cell.precision
-    calculated_results = out_cell.calculated_results
-    out_cell.outgoing_lines = deque(source.split("\n"))
-    out_cell.outgoing_lines.popleft()  # Omit "# Output" line
-    removed_blank_lines = [
-        line for line in out_cell.outgoing_lines if line.strip() != ""
-    ]
-    incoming = deque([])
-    for line_num, line in enumerate(removed_blank_lines):
-        param_line = parse_output_line(line, calculated_results)
-        incoming.append(param_line)
-    out_cell.incoming_lines = incoming
-    return out_cell
-
-
-
-
 
 
 def format_strings(string: str, comment: bool) -> deque:
@@ -1223,130 +886,62 @@ def format_strings(string: str, comment: bool) -> deque:
     else:
         l_par = ""
         r_par = ""
-        text_env = "\\textrm{"
-        end_env = "}"
+        text_env = "\\textrm{'"
+        end_env = "'}"
 
-    return deque([text_env, l_par, string.strip().rstrip(), r_par, end_env])
-
-
+    return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
 
-
-def list_to_deque(los: List[str]) -> deque:
-    """
-    Return `los` converted into a deque.
-    """
-    acc = deque([])
-    for s in los:
-        if isinstance(s, list):
-            acc.append(list_to_deque(s))
-        else:
-            acc.append(s)
-    return deque(acc)
-
-
-def round_resulting_values(line_of_code: deque, precision: int) -> deque:
+def round_and_render(line_of_code: deque, precision: int) -> deque:
     """
     Returns a rounded str based on the latex_repr of an object in
     'line_of_code'
     """
-    line_of_strs = deque([])
+    outgoing = deque([])
     for item in line_of_code:
-        #if isinstance(item, deque):
-        #    return round_resulting_values(item, precision)  # Recursion!
         if not isinstance(item, (str, int)):
             try:
-                rounded = round(item, precision)
+                rounded = round(item, precision) # Rounding
             except:
                 rounded = item
-            line_of_strs.append(latex_repr(rounded))
+            outgoing.append(latex_repr(rounded)) # Rendering
         else:
-            line_of_strs.append(str(item))
-    return line_of_strs
+            outgoing.append(str(item))
+    return outgoing
 
 
-def latex_repr(result: Any) -> str:
+def latex_repr(item: Any) -> str:
     """
-    Return a str if the object in 'result' has a special repr method
+    Return a str if the object, 'item', has a special repr method
     for rendering itself in latex. If not, returns str(result).
     """
-    if hasattr(result, "hc_latex"):
+    if hasattr(item, "hc_latex"):
         try:
-            return result.hc_latex()
+            return item.hc_latex().replace("$", "")
         except TypeError:
-            return str(result)
+            return str(item)
 
-    elif hasattr(result, "_repr_latex_"):
-        return result._repr_latex_()
+    elif hasattr(item, "_repr_latex_"):
+        return item._repr_latex_().replace("$", "")
 
-    elif hasattr(result, "latex"):
+    elif hasattr(item, "latex"):
         try:
-            return result.latex()
+            return item.latex().replace("$", "")
         except TypeError:
-            str(result)
+            str(item)
 
-    elif hasattr(result, "to_latex"):
+    elif hasattr(item, "to_latex"):
         try:
-            return result.to_latex()
+            return item.to_latex().replace("$", "")
         except TypeError:
-            str(result)
+            str(item)
 
     else:
-        return str(result)
-
-
-def swap_headings(heading: str) -> str:
-    """
-    Returns a tex formatted heading for the raw string supplied in 'heading'.
-    Possible values for the tex formatting are hard-coded into this function.
-    """
-    latex_emphasis = {
-        1: "\\section*",
-        2: "\\subsection*",
-        3: "\\subsubsection*",
-        4: "\\boldface",
-    }
-    emphasis = heading.count("#")
-    comment = heading.lstrip().replace("#", "")
-    return "{}{}{}{}".format(latex_emphasis[emphasis], "{", comment, "}")
-
-
-def format_notes(note: str, environment: str) -> str:
-    """
-    Returns a tex formatted note from the raw string supplied in 'note'.
-    """
-    backs = "\\"
-    a = "{"
-    b = "}"
-    note = note.replace('"', "")
-    formatted = f"{backs}{environment}{a}{note}{b}"
-    return formatted
-
-
-# def swap_conditional(conditional: deque, raw_conditional: str, calc_results: dict) -> deque:
-#     """
-#     Returns the deque, 'conditional' if the conditional statement
-#     evaluates as True based on the data in calc_results.
-#     Returns an empty deque, otherwise.
-#     This to ensure that unnecessary conditional statements are not
-#     printed in the final results.
-#     """
-#     # print(raw_conditional)
-#     result = eval_conditional(raw_conditional, **calc_results)
-#     if result == True:
-#         l_par = "\\left("
-#         r_par = "\\right)"
-#         symbolic_portion = swap_symbolic_calcs(conditional)
-#         numeric_portion = swap_numeric_calcs(conditional, calc_results)
-#         resulting_latex = deque([
-#             symbolic_portion + deque(["\\rightarrow"]) + deque([l_par]) + numeric_portion + deque([r_par])
-#         ])
-#         return resulting_latex
-#     else:
-#         return deque([])
+        return str(item)
 
 
 class ConditionalEvaluator:
+    # This is not saving values from each run into the instance vars
     def __init__(self):
         self.prev_cond_type = ""
         self.prev_result = False
@@ -1354,30 +949,24 @@ class ConditionalEvaluator:
     def __call__(
         self, conditional: deque, conditional_type: str, raw_conditional: str, calc_results: dict
     ) -> deque:
+        if conditional_type == "if": # Reset
+            self.prev_cond_type = ""
+            self.prev_result = False
         if conditional_type != "else":
             result = eval_conditional(raw_conditional, **calc_results)
         else:
             result = True
-        # print(f"cond_type: {cond_type}, condition: {condition}, prev_cond_type: {self.prev_cond_type}, prev_result: {self.prev_result}, result: {result}, check_cond_type: {self.check_prev_cond_type(cond_type)}")
         if (
             result == True
             and self.check_prev_cond_type(conditional_type)
             and not self.prev_result
-        ) or (self.prev_result == True and not self.check_prev_cond_type(conditional_type)):
+        ):
             l_par = "\\left("
             r_par = "\\right)"
             if conditional_type != "else":
                 symbolic_portion = swap_symbolic_calcs(conditional)
                 numeric_portion = swap_numeric_calcs(conditional, calc_results)
-                resulting_latex = deque(
-                    [
-                        symbolic_portion
-                        + deque(["\\rightarrow"])
-                        + deque([l_par])
-                        + numeric_portion
-                        + deque([r_par])
-                    ]
-                )
+                resulting_latex = symbolic_portion + deque(["\\rightarrow"]) + deque([l_par]) + numeric_portion + deque([r_par])
             else:
                 numeric_portion = swap_numeric_calcs(conditional, calc_results)
                 resulting_latex = numeric_portion
@@ -1385,6 +974,8 @@ class ConditionalEvaluator:
             self.prev_result = result
             return resulting_latex
         else:
+            self.prev_cond_type = conditional_type
+            self.prev_result = result
             return deque([])
 
     def check_prev_cond_type(self, cond_type: str) -> bool:
@@ -1402,6 +993,7 @@ class ConditionalEvaluator:
             return False
         return True
 
+swap_conditional = ConditionalEvaluator() # Instantiate the callable helper class at "Cell" level scope
 
 def swap_params(parameter: deque) -> deque:
     """
@@ -1461,10 +1053,6 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
     return numeric_expression
 
 
-def swap_arrays():
-    pass
-
-
 def swap_integrals(calculation: deque, calc_results: dict) -> deque:
     """
     Returns 'calculation' with any function named 
@@ -1486,8 +1074,6 @@ def swap_integrals(calculation: deque, calc_results: dict) -> deque:
                 or "quad" in str(item)
                 and isinstance(next_item, deque)
             ):
-                # print(item)
-                # print(next_item)
                 skip_next = True
                 function_name = next_item[0]
                 function = calc_results[function_name]
@@ -1501,16 +1087,12 @@ def swap_integrals(calculation: deque, calc_results: dict) -> deque:
                     .replace(" ", "")
                     .split(":")[0]
                 )
-                # print(function_source)
                 source_deque = expr_parser(function_source)
                 a = next_item[2]
                 b = next_item[4]
-                # print(a, b)
                 l_br = "{"
                 r_br = "}"
                 integral = f"\\int_{l_br}{a}{r_br}^{l_br}{b}{r_br}"
-                # print(integral)
-                # print(source_deque)
                 swapped_deque.append(integral)
                 swapped_deque.append(source_deque)
                 swapped_deque.append(f"\\; d{variable}")
@@ -1547,7 +1129,11 @@ class Flattener:  # Helper class
         return flattened_deque
 
     def flatten(self, items: Any, omit_parentheses: bool = False) -> deque:
-        """Returns elements from a deque and flattens elements from sub-deques"""
+        """Returns elements from a deque and flattens elements from sub-deques.
+        Inserts latex parentheses ( '\\left(' and '\\right)' ) where sub-deques
+        used to exists, except if the reason for the sub-deque was to encapsulate
+        either a fraction or an integral (then no parentheses).
+        """
         if isinstance(items, str) and (
             "frac" in items or "}{" in items or "\\int" in items
         ):
@@ -1615,15 +1201,17 @@ def expr_parser(expr_as_str: str) -> deque:
     return list_to_deque(expr.parseString(expr_as_str).asList())
 
 
-def get_latex_method(o: object):
-    """Returns a bound method of the object, 'o', if 'o' has
-    a method name containing the string, 'latex'.
-    This is a crap-shoot to test if an evaluated value is an object that
-    has such a method that would be convenient for display.
-    Returns None otherwise."""
-    for method in dir(o):
-        if "latex" in method:
-            return getattr(o, method)
+def list_to_deque(los: List[str]) -> deque:
+    """
+    Return `los` converted into a deque.
+    """
+    acc = deque([])
+    for s in los:
+        if isinstance(s, list):
+            acc.append(list_to_deque(s))
+        else:
+            acc.append(s)
+    return deque(acc)
 
 
 def extend_subscripts(pycode_as_deque: deque) -> deque:
@@ -1729,7 +1317,6 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
     b = "}"
     for index, item in enumerate(pycode_as_deque):
         next_idx = min(index + 1, length - 1)
-        prev_idx = max(0, index - 1)
         next_item = pycode_as_deque[next_idx]
         if type(item) is deque:
             new_item = swap_math_funcs(item)  # recursion!
@@ -1766,8 +1353,7 @@ def swap_py_operators(pycode_as_deque: deque) -> deque:
     respectively.
     """
     swapped_deque = deque([])
-    length = len(pycode_as_deque)
-    for index, item in enumerate(pycode_as_deque):
+    for item in pycode_as_deque:
         if type(item) is deque:
             new_item = swap_py_operators(item)  # recursion!
             swapped_deque.append(new_item)
@@ -1797,9 +1383,6 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
     for idx, item in enumerate(pycode_as_deque):
         next_idx = min(idx + 1, len(pycode_as_deque) - 1)
         next_item = pycode_as_deque[next_idx]
-        # print(item == "**", "**" in str(item))
-        # if item != "**" and "**" in str(item):
-        #     print(str(item))
         if isinstance(item, deque) and not close_bracket_token:
             new_item = swap_superscripts(item)  # recursion!
             pycode_with_supers.append(new_item)
@@ -1883,36 +1466,20 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
     Returns a the 'pycode_as_deque' with any symbolic terms swapped out for their corresponding
     values.
     """
-    swapped_values = deque([])
+    outgoing = deque([])
     for item in pycode_as_deque:
         swapped_value = ""
         if isinstance(item, deque):
-            swapped_values.append(swap_values(item, tex_results))
+            outgoing.append(swap_values(item, tex_results))
         else:
-
-            try:
-                swapped_value = tex_results.get(item, item)
-            except:
-                breakpoint()
+            #try:
+            swapped_value = tex_results.get(item, item)
             if isinstance(swapped_value, str) and swapped_value != item:
                 swapped_value = format_strings(swapped_value, comment=False)
-            swapped_values.append(swapped_value)
-    return swapped_values
-
-
-#  def format_full_multline(latex_code: str, environment: str) -> str:
-#      """
-#      Returns a line of latex code that has been broken up into a \multiline with line
-#      breaks at each '=' sign.
-#      """
-#      a = "{"
-#      b = "}"
-
-#      # Align with '\\' for '\multline'
-#      latex_code = latex_code.replace("=", r"\\=")
-#      latex_code = latex_code.replace(r"\\=", "=", 1)
-#      long_line = f"\\begin{a}{environment}{b}\n{latex_code}\n\\end{a}{environment}{b}\n"
-#      return long_line
-
-
+            outgoing.append(swapped_value)
+            # except:
+            #     if isinstance(swapped_value, str) and swapped_value != item:
+            #         swapped_value = format_strings(swapped_value, comment=False)
+            #         swapped_values.append(swapped_value)
+    return outgoing
 
