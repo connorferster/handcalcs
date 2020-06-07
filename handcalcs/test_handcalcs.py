@@ -1,7 +1,8 @@
-import handcalcs as hc
+from . import handcalcs as hc
 from math import sqrt, sin, pi
 from collections import deque
 import json
+from hashlib import sha256
 
 from . import test_results as results
 
@@ -13,23 +14,23 @@ C = 30003.0003
 CALC_1 = "D_1 = A + B + C"
 CALC_2 = "F_a = sqrt((B+A)/(C+A) + B + B + C)"
 CALC_3 = "G_a_b = (B+B+A)/((C+A+A)/(C+B+sin(A)))"
-CALC_4 = "H_test_test_a = sqrt((B+A+B+C+A+B)/(B+C+B+C+B) +B*A*B*C*B * sqrt(B + G + B + C + B + A + B + B + A))"
+CALC_4 = "H_test_test_a = sqrt((B+A+B+C+A+B)/(B+C+B+C+B) +B*A*B*C*B * sqrt(B + G_a_b + B + C + B + A + B + B + A))"
 CALC_5 = "beta_farb = min(G_a_b, H_test_test_a)"
 CALC_6 = "Omega_3 = (F_a / D_1)"
 CALC_7 = (
-    "eta_xy = 0.9 * (B - A)*(((2*F_a)/G_a_b - 1))*((1 - H_test_test_a)/beta_farb)**2"
+    "eta_xy = 0.9 * (B - A)*((2*F_a)/G_a_b - 1)*((1 - H_test_test_a)/beta_farb)**2"
 )
 CALC_8 = "Psi_45 = (Omega_3 * pi**2 * A * (1/C))) / (2 * B**2) *  (eta_xy + sqrt(A**2 + 4*((Omega_3 * G_a_b * beta_farb**2)/(pi**2*A*(1/C)) + G_a_b / A)))"
-CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3)"
+CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3); Gamma = 4 * 2"
 CALC_10 = "elif B > C: Delta = 5**(A/B)"
 
 CALC_1_D =  deque(['D_1', '=', 'A', '+', 'B', '+', 'C'])
 CALC_2_D =  deque(['F_a', '=', 'sqrt', deque([deque(['B', '+', 'A']), '/', deque(['C', '+', 'A']), '+', 'B', '+', 'B', '+', 'C'])])
 CALC_3_D =  deque(['G_a_b', '=', deque(['B', '+', 'B', '+', 'A']), '/', deque([deque(['C', '+', 'A', '+', 'A']), '/', deque(['C', '+', 'B', '+', 'sin', deque(['A'])])])])
-CALC_4_D =  deque(['H_test_test_a', '=', 'sqrt', deque([deque(['B', '+', 'A', '+', 'B', '+', 'C', '+', 'A', '+', 'B']), '/', deque(['B', '+', 'C', '+', 'B', '+', 'C', '+', 'B']), '+', 'B', '*', 'A', '*', 'B', '*', 'C', '*', 'B', '*', 'sqrt', deque(['B', '+', 'G', '+', 'B', '+', 'C', '+', 'B', '+', 'A', '+', 'B', '+', 'B', '+', 'A'])])])
+CALC_4_D =  deque(['H_test_test_a', '=', 'sqrt', deque([deque(['B', '+', 'A', '+', 'B', '+', 'C', '+', 'A', '+', 'B']), '/', deque(['B', '+', 'C', '+', 'B', '+', 'C', '+', 'B']), '+', 'B', '*', 'A', '*', 'B', '*', 'C', '*', 'B', '*', 'sqrt', deque(['B', '+', 'G_a_b', '+', 'B', '+', 'C', '+', 'B', '+', 'A', '+', 'B', '+', 'B', '+', 'A'])])])
 CALC_5_D =  deque(['beta_farb', '=', 'min', deque(['G_a_b', ',', 'H_test_test_a'])])
 CALC_6_D =  deque(['Omega_3', '=', deque(['F_a', '/', 'D_1'])])
-CALC_7_D =  deque(['eta_xy', '=', '0.9', '*', deque(['B', '-', 'A']), '*', deque([deque([deque(['2', '*', 'F_a']), '/', 'G_a_b', '-', '1'])]), '*', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '**', '2'])
+CALC_7_D =  deque(['eta_xy', '=', '0.9', '*', deque(['B', '-', 'A']), '*', deque([deque(['2', '*', 'F_a']), '/', 'G_a_b', '-', '1']), '*', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '**', '2'])
 CALC_8_D =  deque(['Psi_45', '=', deque(['Omega_3', '*', 'pi', '**', '2', '*', 'A', '*', deque(['1', '/', 'C'])])])
 
 
@@ -40,6 +41,7 @@ CELL_4 = "\n".join([CALC_8, CALC_9, CALC_10])
 
 
 def load_calcs():
+    from math import sqrt, sin, pi
     A = 101.01
     B = 2002.002
     C = 30003.0003
@@ -51,10 +53,10 @@ def load_calcs():
     CALC_5 = "beta_farb = min(G_a_b, H_test_test_a)"
     CALC_6 = "Omega_3 = (F_a / D_1)"
     CALC_7 = (
-    "eta_xy = 0.9 * (B - A)*(((2*F_a)/G_a_b - 1))*((1 - H_test_test_a)/beta_farb)**2"
+    "eta_xy = 0.9 * (B - A)*((2*F_a)/G_a_b - 1)*((1 - H_test_test_a)/beta_farb)**2"
     )
     CALC_8 = "Psi_45 = (Omega_3 * pi**2 * A * (1/C)) / (2 * B**2) * (eta_xy + sqrt(A**2 + 4*((Omega_3 * G_a_b * beta_farb**2)/(pi**2*A*(1/C)) + G_a_b / A)))"
-    CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3)"
+    CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3); Gamma = 4 * 2"
     CALC_10 = "elif B > C: Delta = 5**(A/B)"
 
     CELL_1 = "\n".join([CALC_1, CALC_2, CALC_3, CALC_4])
@@ -108,14 +110,18 @@ def test_add_result_values_to_line():
     assert hc.add_result_values_to_line(hc.categorize_line(CALC_9, CALC_RESULTS), CALC_RESULTS) == results.CALC_9_w_result
     assert hc.add_result_values_to_line(hc.categorize_line(CALC_10, CALC_RESULTS), CALC_RESULTS) == results.CALC_10_w_result
 
+def test_convert_cell():
+    assert sha256(str(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_1, CALC_RESULTS)))).encode('utf-8')).hexdigest() == '59bf549bc20720192d390989de803e79e1bd39c0062c14f0360ae1b4d4c91c58'
+    assert sha256(str(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_2, CALC_RESULTS)))).encode('utf-8')).hexdigest() == '2c6e52d8a380eddbb0c82da8d2eb394635010fcf1e8a28b40dae9f67ac333ad5'
+    assert sha256(str(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_3, CALC_RESULTS)))).encode('utf-8')).hexdigest() == 'd78a388ac5289337a7786cc76e54f713de22e23e8dc9fcac055ebcac7eea7b32'
 
-def test_format_conditional_lines():
-    assert hc.format_conditional_lines("A > B") == "&\\textrm{Since, }A > B:\\\\\n"
-    assert hc.format_conditional_lines("15 >= x >= 30") == "&\\textrm{Since, }15 >= x >= 30:\\\\\n"
+def test_format_cell():
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_1, CALC_RESULTS))))).encode('utf-8')).hexdigest() == '213e818835bd2414cd04a7ada9e5a581b0e47cbce744d6c7b62c9d3e2d709382'
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_2, CALC_RESULTS))))).encode('utf-8')).hexdigest() == 'c351699aa278b8bf866dedca139394f76396e26c7d39dea134cd1fb4e8d9cfa8'
 
-def test_format_calc_lines():
-    assert hc.format_calc_lines("V = A + 23 = 43 + 23 = 76") == "V &= A + 23 = 43 + 23 &= 76\n"
-    assert hc.format_calc_lines("G_h = \\frac{1 + A }{2 \\cdot \\left(1 + A\\right)} = \\frac{1 + 23 }{2 \\cdot \\left(1 + 23 \\right)} = 0.5") == "G_h &= \\frac{1 + A }{2 \\cdot \\left(1 + A\\right)} = \\frac{1 + 23 }{2 \\cdot \\left(1 + 23 \\right)} &= 0.5\n"
+
+
+
 
 def test_swap_values():
     assert hc.swap_values(deque(["=", "A", "+", 23]), {"A": 43}) == deque(["=", 43, "+", 23])
@@ -129,23 +135,14 @@ def test_swap_for_greek():
 
 def test_swap_superscripts():
     assert hc.swap_superscripts(CALC_8_D) == deque(['Psi_45', '=', deque(['Omega_3', '*', '\\left(', 'pi', '\\right)', '^{', '2', '}', '*', 'A', '*', deque(['1', '/', 'C'])])])
-    assert hc.swap_superscripts(CALC_7_D) == deque(['eta_xy', '=', '0.9', '*', deque(['B', '-', 'A']), '*', deque([deque([deque(['2', '*', 'F_a']), '/', 'G_a_b', '-', '1'])]), '*', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '^{', '2', '}'])
+    assert hc.swap_superscripts(CALC_7_D) == deque(['eta_xy', '=', '0.9', '*', deque(['B', '-', 'A']), '*', deque([deque(['2', '*', 'F_a']), '/', 'G_a_b', '-', '1']), '*', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '^{', '2', '}'])
 
 
 def test_swap_py_operators():
-    assert hc.swap_py_operators(CALC_4_D) == deque(['H_test_test_a', '=', 'sqrt', deque([deque(['B', '+', 'A', '+', 'B', '+', 'C', '+', 'A', '+', 'B']), '/', deque(['B', '+', 'C', '+', 'B', '+', 'C', '+', 'B']), '+', 'B', '\\cdot', 'A', '\\cdot', 'B', '\\cdot', 'C', '\\cdot', 'B', '\\cdot', 'sqrt', deque(['B', '+', 'G', '+', 'B', '+', 'C', '+', 'B', '+', 'A', '+', 'B', '+', 'B', '+', 'A'])])])
-    assert hc.swap_py_operators(CALC_7_D) == deque(['eta_xy', '=', '0.9', '\\cdot', deque(['B', '-', 'A']), '\\cdot', deque([deque([deque(['2', '\\cdot', 'F_a']), '/', 'G_a_b', '-', '1'])]), '\\cdot', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '**', '2'])
+    assert hc.swap_py_operators(CALC_4_D) == deque(['H_test_test_a', '=', 'sqrt', deque([deque(['B', '+', 'A', '+', 'B', '+', 'C', '+', 'A', '+', 'B']), '/', deque(['B', '+', 'C', '+', 'B', '+', 'C', '+', 'B']), '+', 'B', '\\cdot', 'A', '\\cdot', 'B', '\\cdot', 'C', '\\cdot', 'B', '\\cdot', 'sqrt', deque(['B', '+', 'G_a_b', '+', 'B', '+', 'C', '+', 'B', '+', 'A', '+', 'B', '+', 'B', '+', 'A'])])])
+    assert hc.swap_py_operators(CALC_7_D) == deque(['eta_xy', '=', '0.9', '\\cdot', deque(['B', '-', 'A']), '\\cdot', deque([deque(['2', '\\cdot', 'F_a']), '/', 'G_a_b', '-', '1']), '\\cdot', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '**', '2'])
     assert hc.swap_py_operators(CALC_8_D) == deque(['Psi_45', '=', deque(['Omega_3', '\\cdot', 'pi', '**', '2', '\\cdot', 'A', '\\cdot', deque(['1', '/', 'C'])])])
     # TODO: Add test for swapping % and \bmod
-
-CALC_1_D =  deque(['D_1', '=', 'A', '+', 'B', '+', 'C'])
-CALC_2_D =  deque(['F_a', '=', 'sqrt', deque([deque(['B', '+', 'A']), '/', deque(['C', '+', 'A']), '+', 'B', '+', 'B', '+', 'C'])])
-CALC_3_D =  deque(['G_a_b', '=', deque(['B', '+', 'B', '+', 'A']), '/', deque([deque(['C', '+', 'A', '+', 'A']), '/', deque(['C', '+', 'B', '+', 'sin', deque(['A'])])])])
-CALC_4_D =  deque(['H_test_test_a', '=', 'sqrt', deque([deque(['B', '+', 'A', '+', 'B', '+', 'C', '+', 'A', '+', 'B']), '/', deque(['B', '+', 'C', '+', 'B', '+', 'C', '+', 'B']), '+', 'B', '*', 'A', '*', 'B', '*', 'C', '*', 'B', '*', 'sqrt', deque(['B', '+', 'G', '+', 'B', '+', 'C', '+', 'B', '+', 'A', '+', 'B', '+', 'B', '+', 'A'])])])
-CALC_5_D =  deque(['beta_farb', '=', 'min', deque(['G_a_b', ',', 'H_test_test_a'])])
-CALC_6_D =  deque(['Omega_3', '=', deque(['F_a', '/', 'D_1'])])
-CALC_7_D =  deque(['eta_xy', '=', '0.9', '*', deque(['B', '-', 'A']), '*', deque([deque([deque(['2', '*', 'F_a']), '/', 'G_a_b', '-', '1'])]), '*', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '**', '2'])
-CALC_8_D =  deque(['Psi_45', '=', deque(['Omega_3', '*', 'pi', '**', '2', '*', 'A', '*', deque(['1', '/', 'C'])])])
 
 def swap_math_funcs():
     assert hc.swap_math_funcs(CALC_5_D) == deque(['beta_farb', '=', '\\operatorname{min}', deque(['G_a_b', ',', 'H_test_test_a'])])
