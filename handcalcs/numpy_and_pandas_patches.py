@@ -2,7 +2,7 @@
 try:
 	from array2latex import to_latex
 except:
-	from handcalcs.array2latex import to_latex
+	from . import array2latex as a2l
 
 def attempt_repr_latex(x):
 	try:
@@ -25,7 +25,7 @@ def dataframe_repr_latex(self):
 	return replaced
 
 def numpy_repr_latex(array):
-	return to_latex(array)
+	return a2l.to_latex(array)
 
 # def series_repr_latex(self):
 # 	latex_result = self.to_latex(formatters = attempt_repr_latex,)
