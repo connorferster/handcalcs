@@ -714,9 +714,8 @@ def format_long_calc_lines(line: LongCalcLine) -> LongCalcLine:
 @format_lines.register(ParameterLine)
 def format_param_lines(line: ParameterLine) -> ParameterLine:
     replaced = line.latex.replace("=", "&=")
-    if line.comment:
-        comment_space = '\\;'
-        comment = format_strings(line.comment, comment = True)
+    comment_space = '\\;'
+    comment = format_strings(line.comment, comment = True)
     line.latex = f"{replaced}{comment_space}{comment}\n"
     return line
 
@@ -1581,3 +1580,6 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
             #         swapped_value = format_strings(swapped_value, comment=False)
             #         swapped_values.append(swapped_value)
     return outgoing
+
+if __name__ == "__main__":
+    print("Works")
