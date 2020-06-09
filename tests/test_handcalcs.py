@@ -1,15 +1,15 @@
-from . import handcalcs as hc
+from handcalcs import handcalcs as hc
 from math import sqrt, sin, pi
 from collections import deque
 import json
 from hashlib import sha256
 
-from . import test_results as results
+import pytest
+import test_results as results
 
 A = 101.01
 B = 2002.002
 C = 30003.0003
-
 
 CALC_1 = "D_1 = A + B + C"
 CALC_2 = "F_a = sqrt((B+A)/(C+A) + B + B + C)"
@@ -23,6 +23,7 @@ CALC_7 = (
 CALC_8 = "Psi_45 = (Omega_3 * pi**2 * A * (1/C))) / (2 * B**2) *  (eta_xy + sqrt(A**2 + 4*((Omega_3 * G_a_b * beta_farb**2)/(pi**2*A*(1/C)) + G_a_b / A)))"
 CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3); Gamma = 4 * 2"
 CALC_10 = "elif B > C: Delta = 5**(A/B)"
+CALC_11 = "C_pi = 0.5 # Approximate factor"
 
 CALC_1_D =  deque(['D_1', '=', 'A', '+', 'B', '+', 'C'])
 CALC_2_D =  deque(['F_a', '=', 'sqrt', deque([deque(['B', '+', 'A']), '/', deque(['C', '+', 'A']), '+', 'B', '+', 'B', '+', 'C'])])
@@ -33,12 +34,12 @@ CALC_6_D =  deque(['Omega_3', '=', deque(['F_a', '/', 'D_1'])])
 CALC_7_D =  deque(['eta_xy', '=', '0.9', '*', deque(['B', '-', 'A']), '*', deque([deque(['2', '*', 'F_a']), '/', 'G_a_b', '-', '1']), '*', deque([deque(['1', '-', 'H_test_test_a']), '/', 'beta_farb']), '**', '2'])
 CALC_8_D =  deque(['Psi_45', '=', deque(['Omega_3', '*', 'pi', '**', '2', '*', 'A', '*', deque(['1', '/', 'C'])])])
 
-
 CELL_1 = "\n".join([CALC_1, CALC_2, CALC_3, CALC_4])
 CELL_2 = "\n".join([CALC_6, CALC_7, CALC_8])
 CELL_3 = "#Parameters\nA = 101.01\nB = 2002.002\nC=30003.0003"
 CELL_4 = "\n".join([CALC_8, CALC_9, CALC_10])
-
+CELL_5 = "\n".join([CALC_11])
+CELL_6 = "#Output\nA\nB\nOmega_3"
 
 def load_calcs():
     from math import sqrt, sin, pi
@@ -57,12 +58,15 @@ def load_calcs():
     )
     CALC_8 = "Psi_45 = (Omega_3 * pi**2 * A * (1/C)) / (2 * B**2) * (eta_xy + sqrt(A**2 + 4*((Omega_3 * G_a_b * beta_farb**2)/(pi**2*A*(1/C)) + G_a_b / A)))"
     CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3); Gamma = 4 * 2"
-    CALC_10 = "elif B > C: Delta = 5**(A/B)"
+    #CALC_10 = "elif B > C: Delta = 5**(A/B)"
+    CALC_11 = "C_pi = 0.5 # Approximate factor"
 
     CELL_1 = "\n".join([CALC_1, CALC_2, CALC_3, CALC_4])
     CELL_2 = "\n".join([CALC_6, CALC_7, CALC_8])
     CELL_3 = "#Parameters\nA = 101.01\nB = 2002.002\nC=30003.0003"
     CELL_4 = "\n".join([CALC_8, CALC_9, CALC_10])
+    CELL_5 = "\n".join([CALC_11])
+    CELL_6 = "#Output\nA\nB\nOmega_3"
 
     exec(CALC_1)
     exec(CALC_2)
@@ -73,6 +77,9 @@ def load_calcs():
     exec(CALC_7)
     exec(CALC_8)
     exec(CALC_9)
+    exec(CELL_4)
+    exec(CALC_11)
+    exec(CELL_6)
     return locals()
 
 
@@ -81,6 +88,7 @@ globals().update(CALC_RESULTS)
 
 
 def test_categorize_line():
+    print("Running locally")
     assert hc.categorize_line(CALC_1, CALC_RESULTS) == results.CALC_1_categorized
     assert hc.categorize_line(CALC_2, CALC_RESULTS) == results.CALC_2_categorized
     assert hc.categorize_line(CALC_3, CALC_RESULTS) == results.CALC_3_categorized
@@ -114,14 +122,15 @@ def test_convert_cell():
     assert sha256(str(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_1, CALC_RESULTS)))).encode('utf-8')).hexdigest() == '59bf549bc20720192d390989de803e79e1bd39c0062c14f0360ae1b4d4c91c58'
     assert sha256(str(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_2, CALC_RESULTS)))).encode('utf-8')).hexdigest() == '2c6e52d8a380eddbb0c82da8d2eb394635010fcf1e8a28b40dae9f67ac333ad5'
     assert sha256(str(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_3, CALC_RESULTS)))).encode('utf-8')).hexdigest() == 'd78a388ac5289337a7786cc76e54f713de22e23e8dc9fcac055ebcac7eea7b32'
+    
 
 def test_format_cell():
     assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_1, CALC_RESULTS))))).encode('utf-8')).hexdigest() == '213e818835bd2414cd04a7ada9e5a581b0e47cbce744d6c7b62c9d3e2d709382'
-    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_2, CALC_RESULTS))))).encode('utf-8')).hexdigest() == 'c351699aa278b8bf866dedca139394f76396e26c7d39dea134cd1fb4e8d9cfa8'
-
-
-
-
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_2, CALC_RESULTS))))).encode('utf-8')).hexdigest() == '4aa8504a1d296652d35a36ead985d9b3f2e50044eb12a5bf579ea45c4dc3e914'
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_4, CALC_RESULTS))))).encode('utf-8')).hexdigest() == 'aa7a9f4858866bf27a19a7dad74892aa8e211a89dac6d45379b05ec79e656f6b'
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_3, CALC_RESULTS))))).encode('utf-8')).hexdigest() == '49be6186dfcd125f5b6b948e996a1d08200cdfce3671ac1552c8b987be709119'
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_5, CALC_RESULTS))))).encode('utf-8')).hexdigest() == 'e61f23b1d91f107a2ec7ad501563643eb8dfc2f7d6346b926e7ed9c880835fa8'
+    assert sha256(str(hc.format_cell(hc.convert_cell(hc.categorize_lines(hc.categorize_raw_cell(CELL_6, CALC_RESULTS))))).encode('utf-8')).hexdigest() == '3e75283e53f1328c8c461e270cdb8858d58044b2bcc65ad8ca19cdbce05d0331'
 
 def test_swap_values():
     assert hc.swap_values(deque(["=", "A", "+", 23]), {"A": 43}) == deque(["=", 43, "+", 23])
