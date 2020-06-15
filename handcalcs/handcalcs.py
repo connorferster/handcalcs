@@ -18,7 +18,7 @@ import pyparsing as pp
 # TODO: Add support for conditional expressions with ConditionalLine
 # TODO: Do something with inequality checks
 
-# Four basic line types
+# Five basic line types
 @dataclass
 class CalcLine:
     line: deque
@@ -52,6 +52,11 @@ class LongCalcLine:
     comment: str
     latex: str
 
+@dataclass 
+class BlankLine: # Attributes not used on BlankLine but still req'd
+    line: deque
+    comment: str
+    latex: str
 
 # Three types of cell
 @dataclass
@@ -196,28 +201,37 @@ def categorize_lines(
     outgoing = cell.source.rstrip().split("\n")
     incoming = deque([])
     calculated_results = cell.calculated_results
+    override = ''
     for line in outgoing:
         if isinstance(cell, (ParameterCell, OutputCell)):
-            categorized_w_result_appended = ParameterLine(
-                split_parameter_line(line, calculated_results), "", ""
-            )
+            override = "parameter"
         else:
-            categorized = categorize_line(line, calculated_results)
-            categorized_w_result_appended = add_result_values_to_line(
-                categorized, calculated_results
-            )
-
+            override = ""
+        categorized = categorize_line(line, calculated_results, override)
+        categorized_w_result_appended = add_result_values_to_line(
+            categorized, calculated_results
+        )
         incoming.append(categorized_w_result_appended)
     cell.lines = incoming
     return cell
 
 
 def categorize_line(
-    line: str, calculated_results: dict
+    line: str, calculated_results: dict, override:str = ""
 ) -> Union[CalcLine, ParameterLine, ConditionalLine]:
     """
     Return 'line' as either a CalcLine, ParameterLine, or ConditionalLine if 'line'
     fits the appropriate criteria. Raise ValueError, otherwise.
+
+    'override' is a str used to short-cut the tests in categorize_line(). e.g.
+    if the cell that the lines belong to is a ParameterCell or OutputCell, 
+    we do not need to run the test_for_parameter_line() function on the line
+    because, in a ParameterCell, all lines will default to a ParameterLine
+    because of the cell it's in and how that cell is supposed to behave.
+
+    'override' is passed from the categorize_lines() function because that
+    function has the information of the cell type and can pass along any
+    desired behavior to categorize_line().
     """
     try:
         line, comment = line.split("#")
@@ -225,6 +239,18 @@ def categorize_line(
         comment = ""
     categorized_line = None
 
+    # Override behaviour
+    if not test_for_blank_line(line):
+        if override == "parameter":
+            categorized_line = ParameterLine(
+                split_parameter_line(line, calculated_results), comment, ""
+            )
+            return categorized_line
+
+        elif True:
+            pass # Future override conditions can be put here
+
+    # Standard behaviour
     if test_for_parameter_line(line):
         categorized_line = ParameterLine(
             split_parameter_line(line, calculated_results), comment, ""
@@ -259,8 +285,8 @@ def categorize_line(
         )
 
     else:
-        if line == "":
-            pass
+        if line == "\n" or line == "":
+            categorized_line = BlankLine(line, "", "")
         else:
             raise ValueError(
                 f"Line: {line} is not recognized for rendering.\n"
@@ -295,6 +321,10 @@ def results_for_conditionline(line_object, calculated_results: dict):
     expressions = line_object.expressions
     for expr in expressions:
         add_result_values_to_line(expr, calculated_results)
+    return line_object
+
+@add_result_values_to_line.register(BlankLine)
+def results_for_blank(line_object, calculated_results):
     return line_object
 
 
@@ -382,6 +412,10 @@ def convert_parameter(line, calculated_results):
     line.line = swap_symbolic_calcs(line.line)
     return line
 
+@convert_line.register(BlankLine)
+def convert_blank(line, calculated_results):
+    return line
+
 
 @singledispatch
 def format_cell(cell_object: Union[OutputCell, ParameterCell, CalcCell]):
@@ -407,6 +441,8 @@ def parameters_cell(cell: ParameterCell):
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision)
         latex_param = line.latex
+        if isinstance(line, BlankLine):
+            continue
         current_col = next(cycle_cols)
         if current_col % (cols - 1) == 0:
             line.latex = "&" + latex_param.replace("=", "&=")
@@ -415,7 +451,7 @@ def parameters_cell(cell: ParameterCell):
         else:
             line.latex = latex_param.replace("=", "&=")
 
-    latex_block = " ".join([line.latex for line in cell.lines])
+    latex_block = " ".join([line.latex for line in cell.lines]).rstrip() # .rstrip(): Hack to solve another problem
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
     return cell
 
@@ -498,6 +534,9 @@ def round_and_render_conditional(
     line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
     return line
 
+@round_and_render_line_objects_to_latex.register(BlankLine)
+def round_and_render_blank(line, precision):
+    return line
 
 @singledispatch
 def convert_applicable_long_lines(line: Union[ConditionalLine, CalcLine]):
@@ -526,6 +565,10 @@ def convert_expressions_to_long(line: ConditionalLine):
 def convert_param_to_long(line: ParameterLine):
     return line
 
+@convert_applicable_long_lines.register(BlankLine)
+def convert_blank_to_long(line: BlankLine):
+    return line
+
 
 @singledispatch
 def test_for_long_lines(line: Union[CalcLine, ConditionalLine]) -> bool:
@@ -536,6 +579,10 @@ def test_for_long_lines(line: Union[CalcLine, ConditionalLine]) -> bool:
 
 @test_for_long_lines.register(ParameterLine)
 def test_for_long_param_lines(line: ParameterLine) -> bool:
+    return False
+
+@test_for_long_lines.register(BlankLine)
+def test_for_long_blank(line: BlankLine) -> bool:
     return False
 
 
@@ -636,7 +683,7 @@ def format_lines(line_object):
 
 
 @format_lines.register(CalcLine)
-def format_calc_lines(line: CalcLine) -> CalcLine:
+def format_calc_line(line: CalcLine) -> CalcLine:
     latex_code = line.latex
     equals_signs = [idx for idx, char in enumerate(latex_code) if char == "="]
     second_equals = equals_signs[1]  # Change to 1 for second equals
@@ -651,7 +698,7 @@ def format_calc_lines(line: CalcLine) -> CalcLine:
 
 
 @format_lines.register(ConditionalLine)
-def format_conditional_lines(line: ConditionalLine) -> ConditionalLine:
+def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
     """
     Returns the conditional line as a string of latex_code
     """
@@ -693,7 +740,7 @@ def format_conditional_lines(line: ConditionalLine) -> ConditionalLine:
 
 
 @format_lines.register(LongCalcLine)
-def format_long_calc_lines(line: LongCalcLine) -> LongCalcLine:
+def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
     """
     Return line with .latex attribute formatted with line breaks suitable
     for positioning within the "\aligned" latex environment.
@@ -712,11 +759,16 @@ def format_long_calc_lines(line: LongCalcLine) -> LongCalcLine:
 
 
 @format_lines.register(ParameterLine)
-def format_param_lines(line: ParameterLine) -> ParameterLine:
+def format_param_line(line: ParameterLine) -> ParameterLine:
     replaced = line.latex.replace("=", "&=")
     comment_space = '\\;'
     comment = format_strings(line.comment, comment = True)
     line.latex = f"{replaced}{comment_space}{comment}\n"
+    return line
+
+@format_lines.register(BlankLine)
+def format_blank_line(line: BlankLine) -> BlankLine:
+    line.latex = ""
     return line
 
 def split_conditional(line: str, calculated_results):
@@ -942,6 +994,23 @@ def test_for_output_cell(raw_python_source: str) -> bool:
         return True
     return False
 
+def test_for_blank_line(source: str) -> bool:
+    """
+    Returns True if 'source' is effectively a blank line, 
+    either "\n", " ", or "", or any combination thereof.
+    Returns False, otherwise.
+    """
+    return not bool(source.strip())
+
+
+def test_for_single_dict(source: str, calc_results: dict) -> bool:
+    """
+    Returns True if 'source' is a str representing a variable name
+    within 'calc_results' whose value itself is a single-level 
+    dictionary of keyword values.
+    """
+    gotten = calc_results.get(source,"")
+    return isinstance(gotten, dict)
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
     """
@@ -958,6 +1027,8 @@ def format_strings(string: str, comment: bool) -> deque:
     Returns 'string' appropriately formatted to display in a latex
     math environment.
     """
+    if not string:
+        return ""
     text_env = ""
     end_env = ""
     l_par = ""
@@ -970,8 +1041,8 @@ def format_strings(string: str, comment: bool) -> deque:
     else:
         l_par = ""
         r_par = ""
-        text_env = "\\textrm{'"
-        end_env = "'}"
+        text_env = "\\textrm{"
+        end_env = "}"
 
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
@@ -1538,8 +1609,10 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
         "phi",
         "chi",
         "omega",
+    ]
+    greek_exceptions = [
         "eta",
-        "psi",
+        "psi"
     ]
     pycode_with_greek = deque([])
     for item in pycode_as_deque:
@@ -1547,13 +1620,26 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
             new_item = swap_for_greek(item)  # recursion!
             pycode_with_greek.append(new_item)
         elif isinstance(item, str):
-            for letter in greeks:
-                if letter in item.lower():
-                    new_item = "\\" + item.replace("amb", "ambda")
-                    pycode_with_greek.append(new_item)
-                    break
-            else:
-                pycode_with_greek.append(item)
+            for greek in greeks:
+                if (greek in item or greek.capitalize() in item) and (greek not in greek_exceptions):
+                    item = item.replace(greek, "\\" + greek)
+                    item = item.replace(greek.capitalize(), "\\" + greek.capitalize())
+                    item = item.replace("lamb", "lambda")
+                    item = item.replace("Lamb", "Lambda")
+            for greek in greek_exceptions:
+                greek_match = (greek in item or greek.capitalize() in item)
+                greek_startswith = item.startswith(greek) or item.startswith(greek.capitalize())
+                greek_submatch = ("_" + greek) in item or ("_" + greek.capitalize()) in item
+                if greek_match and greek_startswith:
+                    item = item.replace(greek, "\\" + greek, 1)
+                    item = item.replace(greek.capitalize(), "\\" + greek.capitalize(), 1)
+                if greek_match and greek_submatch:
+                    item = item.replace("_" + greek, "_" + "\\" + greek)
+                    item = item.replace("_" + greek.capitalize(), "_" + "\\" + greek.capitalize())
+
+            pycode_with_greek.append(item)
+            # else:
+            #     pycode_with_greek.append(item)
         else:
             pycode_with_greek.append(item)
     return pycode_with_greek
