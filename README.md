@@ -1,19 +1,19 @@
-# handcalcs: Your Python code as beautifully formatted latex math.
+# handcalcs: Python calculations in Jupyter, as though you wrote them by hand.
+
+`handcalcs` is a library to render your python calculation code automatically in Latex, but in a manner that mimics how one might format their calculation if it were written with a pencil:  write the symbolic formula, followed by numeric substitutions, and then the result.
+
+**Intended users**: working engineers, teachers, educators, presenters, and students who want to
+focus on simply writing the calculation logic and have the proper formatting magically appear.
+
+## Demos
+
+### Basic Usage
+![handcalcs demo 1](docs/images/basic_demo.gif)
+
+### Exporting to PDF
+![handcalcs demo 2](docs/images/more_complicated.gif)
 
 
-
-`handcalcs` is a library designed for working engineers and educators who want
-their Python code to present as a finished calculation PDF report, just like you it
-would be if you had written it out by hand.
-
-The purpose of this library is to allow you to simply write the calculation logic
-without having to painstakingly format it as a report, much like you might have
-to do if you were to program your calculation as an Excel spreadsheet or as a
-MathCAD document.
-
-Intended users: working engineers, teachers, and students thhat who want to
-focus on simply writing the calculation code and to have formatting just be "taken
-care of".
 
 ## Installing
 
@@ -21,93 +21,91 @@ You can install using pip:
 
 `pip install handcalcs`
 
-### External requirements
+## Basic Usage
+`handcalcs` is intended to be used with either Jupyter Notebook or Jupyter Lab as a _cell magic_.
 
-Printing to PDF requires you to have a Latex environment with pdflatex installed
-on your system and to have `pdflatex` available on your `PATH` so that you can run
-`pdflatex` as a command from your terminal.
+First, import the module and run the cell:
 
-#### Windows installation of latex
+```python
+import handcalcs.render
+```
+
+Alternatively, you can load `handcalcs` as a Jupyter extension:
+
+```python
+%load_ext render
+```
+
+Then, in any cell that you want to render with `handcalcs`, just use the render cell magic at the top of your cell:
+
+```python
+%%render
+```
+
+For example:
+
+```python
+%%render
+a = 2
+b = 3
+c = 2*a + b/3
+```
+
+That is it!
+
+Once rendered, you can then export your notebook as a PDF, if you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section on installing Tex, below.
+
+## Enhanced Usage
+
+`handcalcs` makes certain assumptions about how you would like your calculation formatted and does not allow for a great deal of customization in this regard. However, there are currently **three** customizations you can make using `# comment tags` as the _first line of your cell_ after the `%%render` cell magic. You can only use __one__ comment tag per cell.
+
+* `# Parameters`: `handcalcs` renders lines of code vertically, one after the other. However, when you are assigning variables, i.e. establishing your calculation "parameters", you may not want to waste all of that vertical space. Using the `# Parameters` (also `# parameters`, `#parameters`, `#  Parameters`, etc.) comment tag, your list of parameters will instead render in three columns, thereby saving vertical space.
+
+* `# Output`: In order to render a line of calculations, `handcalcs` relies upon code in the form `parameter = expression`. However, if you just want to display values of a series of parameters that you have previously calculated, you can't create a new expression to assign to them. Using the `# Output` tag (also `#output`, `#out`, or `# Out`) will render all variables in your cell (each individual variable has to be on its own separate line) with their current values.
+
+* `# Long`: To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, render it out fully on one line. e.g. `c = 2*a + b/3 = 2*(2) + 3/(3) = 5`. If `handcalcs`'s internal test deems the calculation as being too long to fit onto one line, it breaks it out into multiple lines. Using the `# Long` (also `#long` or `#Long`, you get the idea) comment tag overrides the length check and displays the calculation in the "Long" format by default. e.g.
+
+    ```python
+    # From this:
+    c = 2*a + b/3 = 2*(2) + (3)/3 = 5
+
+    # To this:
+    c = 2*a + b/3
+      = 2*(2) + (3)/3
+      = 5
+    ```
+
+### Get Just the Latex Code, without the render
+If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic, instead:
+
+```python
+%%tex
+a = 2
+b = 3
+c = 2*a + b/3
+```
+
+Then you can just copy and paste the result into your own .tex document.
+
+## Installing Latex
+
+Printing to PDF requires you to have a Latex environment installed
+on your system and to have a Latex compiler available on your system's `PATH` variable so Jupyter can execute `xelatex` on a command line.
+
+Following an installation, you can open up a command line on your system and type `xelatex`. If the installation was successful and complete, the command will enter you into a Latex prompt instead of generating an error message.
+
+### Latex for Windows
 
 Installation on Windows is easiest by installing the TeX distribution, [MiKTeX](https://miktex.org/howto/install-miktex).
 After installation, ensure that you allow automatic downloading of required
 to make operation easiest.
 
-#### OSX installation of latex
+### Latex for OSX
 
 Installation on Mac OS X is easiest by installing [MacTeX](http://www.tug.org/mactex/mactex-download.html).
+
 Be sure to read the installation page to prevent/assist with any issues.
 
-#### Linux installation of latex
+### Latex for Linux
 
 `$ sudo apt install texlive-latex-extra`
-You can also refer to [this page](https://linuxconfig.org/how-to-install-latex-on-ubuntu-18-04-bionic-beaver-linux) to review all of the options available for the
-TeXLive installation.
-
-### Additional system setup (Optional, but convenient)
-
-`handcalcs` uses the Python import system to import any calculation scripts that
-create. Therefore its best to setup your system to make it easy to put new scripts
-into your Python path.
-
-1. Create a "calcs" folder you where you will begin building your calculation library. This can be anywhere on your system you like and can have any name.
-2. Copy the absolute path of your folder and paste it into a blank text file. Save that file as a `.pth` file and save it in your Python `site-packages` directory. You can find your `site-packages` directory by typing `python -m site` in your command line. Note: This requires `python` to be in your system's PATH variable. (i.e. you have to be able to launch Python by typing `python` in a terminal).
-3. In your new "calcs" folder, create a blank text file and name it `__init__.py`. Within that file, insert the following:
-
-```python
-
-from os.path import dirname, basename, isfile
-import glob
-modules = glob.glob(dirname(__file__)+"/*.py")
-__all__ = [ basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py')]
-from . import *
-```
-
-This will allow you to create subfolders in your "calc" folder so you can organize your calculation scripts more conveniently. For every folder you create with its own subfolders, include a copy of the same `__init__.py` file in the folder.
-
-## Basic usage
-
-The most basic use is just to import the library:
-
-```python
->>> import handcalcs as hand
->>> bending_resistance = hand.Calc("calcs.wood.timber.mr") # Loads calcs/wood/timber/mr.py, my pre-written script
->>> bending_resistance.inputs # Remind yourself what the function parameters are for your script
-<Signature (b, d, f_b, K_Zb, K_L, K_D, K_H, K_Sb, K_T, phi=0.9)>
-
->>> results = bending_resistance(300, 1200, 19.2, 1, 1, 1, 1, 1, 1) # Calc object is now a callable function based on your script
->>> results # The Calc object returns a dict with all of the intermediate values of your script included
-{'b': 300, 'd': 1200, 'f_b': 19.2, 'K_Zb': 1, 'K_L': 1, 'K_D': 1, 'K_H': 1, 'K_Sb': 1, 'K_T': 1, 'phi': 0.9, 'F_b': 19.2, 'S': 72000000.0, 'M_r': 1244160000.0}
-
->>> bending_resistance.print(filename = "Bending Resistance Results")
-"handcalcs: Latex rendering complete."
-
->>> print(bending_resistance._source)
-def main(b, d, f_b, K_Zb, K_L, K_D, K_H, K_Sb, K_T, phi = 0.9):
-    # Cl. 6.5.4.1 General Bending Moment Resistance
-
-    ## Specified strength in bending
-    F_b = f_b * (K_D*K_H*K_Sb*K_T)
-
-    ## Section Modulus
-    S = (b * d**2) / 6
-
-    ## Moment resistance
-    M_r = phi * F_b * S * K_Zb * K_L
-    return locals()
-```
-
-
-The PDF file that is created from `.print()` is created directly from the source
-code of the script, as seen below.
-
-<img src = "https://github.com/connorferster/handcalcs/blob/master/rendered_latex_pdf_example.png">
-
-## API
-
-
-
-### Properties
-
-
-### Methods
