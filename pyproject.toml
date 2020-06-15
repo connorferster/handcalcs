@@ -24,6 +24,8 @@ pyparsing = "^2.4.7"
 pytest = "^5.4.3"
 coverage = {extras = ["toml"], version = "^5.1"}
 pytest-cov = "^2.9.0"
+sphinx = "2.4.4"
+myst-parser = {extras = ["sphinx"], version = "^0.8.2"}
 
 [build-system]
 requires = ["poetry>=0.12"]
