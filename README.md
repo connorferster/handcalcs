@@ -14,7 +14,6 @@ focus on simply writing the calculation logic and have the proper formatting mag
 ![handcalcs demo 2](docs/images/more_complicated.gif)
 
 
-
 ## Installing
 
 You can install using pip:
@@ -86,6 +85,73 @@ c = 2*a + b/3
 ```
 
 Then you can just copy and paste the result into your own .tex document.
+
+## Features
+
+### Subscripts (and sub-subscripts, etc.)
+
+### Greek symbols
+
+### Functions, built-in or custom
+
+### Rendered in-line Comments
+
+### Conditional statements
+
+### Numeric integration
+
+
+
+##  Expected Behaviours and Gotchas
+
+`handcalcs` is intended to render arithmetical calculations written in python code. It is not intended to render arbitrary python into Latex. Given that, handcalcs only renders a small subset of python and there is a lot that will not work, especially anything that happens over multiple lines (e.g. function definitions, `for` loops, `with` statements, etc.).
+
+Additionally, `handcalcs` works by parsing individual _lines_ of python within a cell. It does not parse the cell as a whole. Therefore all statements to be rendered must be contained on a single line.
+
+### Accepted datatypes
+
+Objects are rendered into Latex by two main approaches:
+
+1. If the object has a `_repr_latex_()` method, then that method is used.
+
+    a) If the object has some alternate method for rendering itself into Latex code, an attempt is made to find that (e.g. `.latex()` or `.to_latex()` will be attempted), also.
+2. If the object does not have a Latex method, then `str()` is used.
+
+If you are using object types that have str methods that render as `<MyObject: value=34>` or something, then that's what the Latex interpreter will see.
+
+### Brackets (parentheses) are critical
+
+Brackets are used to remove ambiguity in how the Latex is rendered. For example:
+
+```python
+a = 42
+b = 32
+c = (3*a)/(sqrt(2*a + b**2))
+```
+Here, brackets are used to define both the numerator and denominator, unambiguously.
+
+However, the below will produce unexpected results:
+
+```python
+a = 42
+b = 32
+c = (3*a)/sqrt(2*a + b**2)
+```
+
+While the resulting value will still be the correct one, `handcalcs` sees the above approximately as:
+
+```python
+c = (3*a)/sqrt * (2*a + b**2)
+```
+
+Under-the-hood, parsed python code in `handcalcs` is represented as a nested deque: every set of parentheses (no matter the context) begins a new nested deque which is recursively converted to Latex code. 
+
+To render the fraction properly, a lookahead is performed and the next item after the `/` is rendered as the denominator. In this instance, the next item is the function name, `sqrt`, and not the full expression. Putting brackets around the whole denominator means that `handcalcs` will see the whole expression (as a nested deque) in the lookahead.
+
+All actual calculations are handled by Jupyter when the cell is run. The resulting values are stored in the user's namespace dictionary and `handcalcs` uses the variable's corresponding value from the dict as the result to display. 
+
+
+### `for` loops and other iterations
 
 ## Installing Latex
 
