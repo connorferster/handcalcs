@@ -126,7 +126,7 @@ Using lower case letters as your variable name. Using capitalized names will ren
 
 If you are using python functions in your calculation, eg. `min()` or `sin()`, they will be replaced with Latex code to represent that function in Latex
 
-![Functions](docs/images/functions.gif)
+![Functions](docs/images/funcs.gif)
 
 ### Rendered in-line Comments
 
