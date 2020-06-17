@@ -58,7 +58,7 @@ class BlankLine: # Attributes not used on BlankLine but still req'd
     comment: str
     latex: str
 
-# Three types of cell
+# Four types of cell
 @dataclass
 class CalcCell:
     source: str
@@ -102,6 +102,20 @@ class ParameterCell:
             "ParametersCell(\n"
             + f"source=\n{self.source}\n"
             + f"lines=\n{self.lines}\n"
+        )
+
+@dataclass
+class LongCalcCell:
+    source: str
+    calculated_results: dict
+    lines: deque
+    precision: int
+    cols: int
+    latex_code: str
+
+    def __repr__(self):
+        return str(
+            "LongCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
         )
 
 
@@ -159,6 +173,17 @@ def categorize_raw_cell(
             cols=1,
             latex_code="",
         )
+
+    elif test_for_long_cell(raw_source):
+        cell = LongCalcCell(
+            source = strip_cell_code(raw_source),
+            calculated_results=calculated_results,
+            lines=deque([]),
+            precision=precision,
+            cols=1,
+            latex_code=""
+        )
+
     else:
         cell = CalcCell(
             source=raw_source,
@@ -205,8 +230,8 @@ def categorize_lines(
     for line in outgoing:
         if isinstance(cell, (ParameterCell, OutputCell)):
             override = "parameter"
-        else:
-            override = ""
+        elif isinstance(cell, LongCalcCell):
+            override = "long"
         categorized = categorize_line(line, calculated_results, override)
         categorized_w_result_appended = add_result_values_to_line(
             categorized, calculated_results
@@ -247,6 +272,11 @@ def categorize_line(
             )
             return categorized_line
 
+        elif override == "long":
+            categorized_line = LongCalcLine(
+                code_reader(line), comment, ""
+            )
+            return categorized_line
         elif True:
             pass # Future override conditions can be put here
 
@@ -310,6 +340,13 @@ def results_for_calcline(line_object, calculated_results):
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
 
+@add_result_values_to_line.register(LongCalcLine)
+def results_for_longcalcline(line_object, calculated_results):
+    parameter_name = line_object.line[0]
+    resulting_value = calculated_results.get(parameter_name, parameter_name)
+    line_object.line.append(deque(["=", resulting_value]))
+    return line_object
+
 
 @add_result_values_to_line.register(ParameterLine)
 def results_for_paramline(line_object, calculated_results):
@@ -345,6 +382,15 @@ def convert_calc_cell(cell: CalcCell) -> CalcCell:
     cell.lines = incoming
     return cell
 
+@convert_cell.register(LongCalcCell)
+def convert_calc_cell(cell: LongCalcCell) -> LongCalcCell:
+    outgoing = cell.lines
+    calculated_results = cell.calculated_results
+    incoming = deque([])
+    for line in outgoing:
+        incoming.append(convert_line(line, calculated_results))
+    cell.lines = incoming
+    return cell
 
 @convert_cell.register(ParameterCell)
 def convert_parameter_cell(cell: ParameterCell) -> ParameterCell:
@@ -380,6 +426,17 @@ def convert_line(
 
 @convert_line.register(CalcLine)
 def convert_calc(line, calculated_results):
+    (
+        *line_deque,
+        result,
+    ) = line.line  # Unpack deque of form [[calc_line, ...], ['=', 'result']]
+    symbolic_portion, numeric_portion = swap_calculation(line_deque, calculated_results)
+    line.line = symbolic_portion + numeric_portion + result
+    return line
+
+
+@convert_line.register(LongCalcLine)
+def convert_longcalc(line, calculated_results):
     (
         *line_deque,
         result,
@@ -479,6 +536,29 @@ def format_calc_cell(cell: CalcCell) -> str:
     return cell
 
 
+@format_cell.register(LongCalcCell)
+def format_longcalc_cell(cell: LongCalcCell) -> str:
+    line_break = "\\\\[10pt]\n"
+    precision = cell.precision
+    incoming = deque([])
+    for line in cell.lines:
+        line = round_and_render_line_objects_to_latex(line, precision)
+        line = convert_applicable_long_lines(line)
+        line = format_lines(line)
+        incoming.append(line)
+    cell.lines = incoming
+
+    latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
+    opener = "\\["
+    begin = "\\begin{aligned}"
+    end = "\\end{aligned}"
+    closer = "\\]"
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
+        "\n" + end, end
+    )
+    return cell
+
+
 @format_cell.register(OutputCell)
 def format_output_cell(cell: OutputCell) -> str:
     line_break = "\\\\[10pt]\n"
@@ -512,6 +592,12 @@ def round_and_render_calc(line: CalcLine, precision: int) -> CalcLine:
     line.latex = " ".join(rounded_line)
     return line
 
+@round_and_render_line_objects_to_latex.register(LongCalcLine)
+def round_and_render_calc(line: LongCalcLine, precision: int) -> LongCalcLine:
+    rounded_line = round_and_render(line.line, precision)
+    line.line = rounded_line
+    line.latex = " ".join(rounded_line)
+    return line
 
 @round_and_render_line_objects_to_latex.register(ParameterLine)
 def round_and_render_parameter(line: ParameterLine, precision: int) -> ParameterLine:
@@ -552,6 +638,10 @@ def convert_calc_to_long(line: CalcLine):
         return convert_calc_line_to_long(line)
     return line
 
+@convert_applicable_long_lines.register(LongCalcLine)
+def convert_longcalc_to_long(line: LongCalcLine):
+    return line
+
 
 @convert_applicable_long_lines.register(ConditionalLine)
 def convert_expressions_to_long(line: ConditionalLine):
@@ -585,6 +675,11 @@ def test_for_long_param_lines(line: ParameterLine) -> bool:
 def test_for_long_blank(line: BlankLine) -> bool:
     return False
 
+@test_for_long_lines.register(LongCalcLine)
+def test_for_long_longcalcline(line: LongCalcLine) -> bool:
+    # No need to return True since it's already a LongCalcLine
+    return False
+
 
 @test_for_long_lines.register(CalcLine)
 def test_for_long_calc_lines(line: CalcLine) -> bool:
@@ -592,7 +687,7 @@ def test_for_long_calc_lines(line: CalcLine) -> bool:
     Return True if 'calc_line' passes the criteria to be considered, 
     as a "LongCalcLine". False otherwise.
 
-    Functoin goes through all of the code in the CalcLine and maintains
+    Function goes through all of the code in the CalcLine and maintains
     several (imperfect) tallies of characters to determine if the 
     calculation is too long to exist on a single line.
 
@@ -706,10 +801,11 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         latex_condition = " ".join(line.true_condition)
         a = "{"
         b = "}"
-        first_line = f"&\\text{a}Since, {b}{latex_condition}:\\\\\n"
+        new_math_env = "\n\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\n"
+        first_line = f"&\\text{a}Since, {b}{latex_condition}:{new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        transition_line = "&\\text{Therefore} \\; \\rightarrow \\;"
+        transition_line ="" #"&\\text{Therefore:} \\\\"
         line_break = "\\\\\n"
         comment_space = ""
         comment = ""
@@ -789,10 +885,10 @@ def split_conditional(line: str, calculated_results):
     expr_acc = deque([])
     for line in expr_deque:
         categorized = categorize_line(line, calculated_results)
-        categorized_w_result_appended = add_result_values_to_line(
-            categorized, calculated_results
-        )
-        expr_acc.append(categorized_w_result_appended)
+        # categorized_w_result_appended = add_result_values_to_line(
+        #     categorized, calculated_results
+        # )
+        expr_acc.append(categorized)
 
     return (
         cond,
@@ -993,6 +1089,18 @@ def test_for_output_cell(raw_python_source: str) -> bool:
     if "#" in first_element and "out" in first_element.lower():
         return True
     return False
+
+
+def test_for_long_cell(raw_python_source: str) -> bool:
+    """
+    Returns True if the text "# Long" is in the first line of
+    `raw_python_source`. False otherwise.
+    """
+    first_element = raw_python_source.split("\n")[0]
+    if "#" in first_element and "long" in first_element.lower():
+        return True
+    return False
+
 
 def test_for_blank_line(source: str) -> bool:
     """

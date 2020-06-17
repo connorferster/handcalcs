@@ -138,11 +138,15 @@ Any comments placed after a line of calculation will be rendered as an inline co
 
 Any calculation entirely wrapped in parentheses, `()`, will be rendered as just `param = result`, without the substitution. This can be convient when you want to calculate a parameter on the fly and not have it be the focus of the calculation.
 
+![Skip the substitution](docs/images/skip_subs.gif)
+
 ### Conditional statements
 
 Many calculations in the "real world" are dependent on context: you would do this if it's like that, and this other way if its not.
 
 `handcalcs` allows for the inclusion of some simple conditional statements into its code in a way that makes it easier to understand the context of the calculation.
+
+![Conditional calculations](docs/images/conditionals.gif)
 
 *Note: While less pythonic, all expressions following the conditional must be on the same line (separated with `;`, if required).*
 
