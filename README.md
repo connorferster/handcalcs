@@ -4,12 +4,26 @@
 
 Because `handcalcs` shows the numeric substitution, the calculations become significantly easier to check and verify by hand.
 
+
+## Contents
+
+* [Installation](https://github.com/connorferster/handcalcs#installing)
+* [Basic Usage](https://github.com/connorferster/handcalcs#basic-usage)
+* [Enhanced Usage](https://github.com/connorferster/handcalcs#enhanced-usage)
+* [Features](https://github.com/connorferster/handcalcs#Features)
+* [Expected Behaviours](https://github.com/connorferster/handcalcs#expected-behaviours)
+* [Gotchas](https://github.com/connorferster/handcalcs#gotchas)
+* [Yet another math software?](https://github.com/connorferster/handcalcs#this-seems-like-a-lot-of-effort-to-write-yet-another-software-to-render-math-havent-you-ever-heard-of-excelmaplemathcadmathematicamatlaboctavesmath-studio)
+* [Printing to PDF with Latex](https://github.com/connorferster/handcalcs#printing-to-pdf-with-latex)
+
+
 ## Basic Demo
 
 ![handcalcs demo 1](docs/images/basic_demo.gif)
 
 ### ...and exporting to PDF
 ![handcalcs demo 2](docs/images/more_complicated.gif)
+
 
 
 ## Installing
@@ -83,11 +97,15 @@ To save vertical space, `handcalcs` _attempts_ to figure out how long your calcu
 
 ---
 
-## Units Packages Compatibility
+## Features
+
+Here's what you can do right now. If the community is interested in more features that I have not thought of, then maybe there could be more.
+
+### Units Packages Compatibility
 
 `handcalcs` was designed to be used with the units package, `forallpeople` (and `forallpeople` was designed to be compatible with `handcalcs`). 
 
-![Parameters](docs/images/forallpeople.gif)
+![handcalcs with forallpeople](docs/images/forallpeople.gif)
 
 Other units packages can be used to similar effect provided they do the following:
 
@@ -98,7 +116,7 @@ However, if you are using a units package that does not auto-reduce, it should s
 
 ---
 
-## Get Just the Latex Code, without the render
+### Get Just the Latex Code, without the render
 If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic, instead:
 
 ```python
@@ -113,11 +131,6 @@ Then you can just copy and paste the result into your own .tex document.
 ![Parameters](docs/images/tex.gif)
 
 ---
-
-## Features
-
-Here's what you can do right now. If the community is interested in more features that I have not thought of, then maybe there could be more.
-
 
 
 ### Subscripts (and sub-subscripts, etc.)
@@ -272,11 +285,7 @@ They do not auto-format your calculations.
 
 Many are not as extensible as `handcalcs` because they are not a part of the amazing python eco-system <3
 
-## Printing to PDF in Jupyter
-
-### Input only Templates
-
-### Installing Latex
+## Printing to PDF with Latex
 
 Printing to PDF requires you to have a Latex environment installed
 on your system and to have a Latex compiler available on your system's `PATH` variable so Jupyter can execute `xelatex` on a command line.
