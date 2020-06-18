@@ -14,7 +14,7 @@ name = "handcalcs"
 version = "1.0.0"
 description = "Sample desc"
 authors = ["Connor Ferster"]
-license = "MIT"
+license = "GPLv3+"
 
 [tool.poetry.dependencies]
 python = "^3.7"
