@@ -1367,10 +1367,7 @@ def swap_integrals(calculation: deque, calc_results: dict) -> deque:
                 source_deque = expr_parser(function_source)
                 a = next_item[2]
                 b = next_item[4]
-                l_br = "{"
-                r_br = "}"
-                integral = f"\\int_{l_br}{a}{r_br}^{l_br}{b}{r_br}"
-                swapped_deque.append(integral)
+                swapped_deque += deque(["\\int_{", a, "}", "^", "{", b, "}"])
                 swapped_deque.append(source_deque)
                 swapped_deque.append(f"\\; d{variable}")
             else:

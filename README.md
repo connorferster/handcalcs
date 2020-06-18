@@ -4,12 +4,11 @@
 
 Because `handcalcs` shows the numeric substitution, the calculations become significantly easier to check and verify by hand.
 
-## Demos
+## Basic Demo
 
-### Basic Usage
 ![handcalcs demo 1](docs/images/basic_demo.gif)
 
-### Exporting to PDF
+### ...and exporting to PDF
 ![handcalcs demo 2](docs/images/more_complicated.gif)
 
 
@@ -49,7 +48,7 @@ b = 3
 c = 2*a + b/3
 ```
 
-That is it!
+**That is it!**
 
 Once rendered, you can then export your notebook as a PDF, if you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section Installing Tex, below.
 
@@ -77,6 +76,10 @@ Once rendered, you can then export your notebook as a PDF, if you have a Latex e
       = 5
     ```
 
+![Long calculations](docs/images/long.gif)
+
+---
+
 ## Units Packages Compatibility
 
 `handcalcs` was designed to be used with the units package, `forallpeople` (and `forallpeople` was designed to be compatible with `handcalcs`). 
@@ -90,7 +93,9 @@ Other units packages can be used to similar effect provided they do the followin
 
 However, if you are using a units package that does not auto-reduce, it should still be compatible but the output will not be as clean and intuitive.
 
-### Get Just the Latex Code, without the render
+---
+
+## Get Just the Latex Code, without the render
 If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic, instead:
 
 ```python
@@ -104,15 +109,23 @@ Then you can just copy and paste the result into your own .tex document.
 
 ![Parameters](docs/images/tex.gif)
 
+---
+
 ## Features
 
 Here's what you can do right now. If the community is interested in more features that I have not thought of, then maybe there could be more.
 
+
+
 ### Subscripts (and sub-subscripts, etc.)
+
 
 Subscripts in variable names are automatically created when `_` is used in the variable name. Sub-subscripts are nested for each separate `_` used in series.
 
 ![Parameters](docs/images/subscripts.gif)
+
+
+----
 
 ### Greek symbols
 
@@ -122,11 +135,15 @@ Using lower case letters as your variable name. Using capitalized names will ren
 
 ![Greek symbols](docs/images/greeks.gif)
 
+---
+
 ### Functions, built-in or custom
 
 If you are using python functions in your calculation, eg. `min()` or `sin()`, they will be replaced with Latex code to represent that function in Latex
 
 ![Functions](docs/images/funcs.gif)
+
+---
 
 ### Rendered in-line Comments
 
@@ -134,11 +151,15 @@ Any comments placed after a line of calculation will be rendered as an inline co
 
 ![Comments](docs/images/comments.gif)
 
+---
+
 ### Skip the substitution
 
 Any calculation entirely wrapped in parentheses, `()`, will be rendered as just `param = result`, without the substitution. This can be convient when you want to calculate a parameter on the fly and not have it be the focus of the calculation.
 
 ![Skip the substitution](docs/images/skip_subs.gif)
+
+---
 
 ### Conditional statements
 
@@ -150,10 +171,17 @@ Many calculations in the "real world" are dependent on context: you would do thi
 
 *Note: While less pythonic, all expressions following the conditional must be on the same line (separated with `;`, if required).*
 
+---
+
 ### Numeric integration
 
 You can use `scipy.quad` to perform numeric integration on a pre-defined function and have `handcalcs` perform a basic rendering of it.
 
+This behaviour is triggered and attempted if you use a function with either `integrate` or `quad` in the name.
+
+![Numeric integration](docs/images/integration.gif)
+
+---
 
 ##  Expected Behaviours
 
@@ -188,8 +216,8 @@ Currently, `//` is not rendered but you can easily use `math.floor` as a functio
 Brackets are used to remove ambiguity in how the Latex is rendered. For example:
 
 ```python
-a = 42
-b = 32
+a = 23.2
+b = 9.4
 c = (3*a)/(sqrt(2*a + b**2))
 ```
 Here, brackets are used to define both the numerator and denominator, unambiguously.
@@ -197,16 +225,11 @@ Here, brackets are used to define both the numerator and denominator, unambiguou
 However, the below will produce unexpected results:
 
 ```python
-a = 42
-b = 32
+a = 23.2
+b = 9.4
 c = (3*a)/sqrt(2*a + b**2)
 ```
-
-While the resulting value will still be the correct one, `handcalcs` sees the above approximately as:
-
-```python
-c = (3*a)/sqrt * (2*a + b**2)
-```
+![Incorrect brackets](docs/images/wrong_brackets.gif)
 
 Under-the-hood, parsed python code in `handcalcs` is represented as a nested deque: every set of parentheses (no matter the context) begins a new nested deque which is recursively converted to Latex code. The above line would look like this (represented as a list for brevity): `[[3, '*', 'a'], '/', 'sqrt', [2, '*', 'a', '+', 'b', '**', '2' ]]`. Notice how the 'sqrt' is all alone after the `/` operator?
 
@@ -229,8 +252,6 @@ This happens because `handcalcs` uses the notebook's user namespace dictionary t
 
 You _can_ re-use variable names to good effect throughout a notebook, _IFF_ the cells are run in the correct order (easier if this is just top to bottom). 
 
-`<gif example to follow>`
-
 **On this note: if you are using `handcalcs` for any kind of reporting that may become a legal document (e.g. design engineering calculations), it is up to YOU to ensure that the results are what you expect them to be. `handcalcs` is free and open-source software and the author(s) are not responsible for incorrect calculations that result from its use.**
 
 That being said, the very purpose for the way `handcalcs` renders its math is to make it very easy to confirm and verify calculations by hand.
@@ -240,15 +261,13 @@ That being said, the very purpose for the way `handcalcs` renders its math is to
 
 SMath Studio is excellent software and I highly recommend it. Octave is also great.
 
-The others are all proprietary. 
+Many of these softwares are proprietary.
 
 They do not show numeric substitutions. 
 
 They do not auto-format your calculations. 
 
-They are not as extensible as `handcalcs` because they are not a part of the amazing python eco-system <3
-
-As far as I have seen, `handcalcs` is the only software that does what it does (but I would like to be wrong about this).
+Many are not as extensible as `handcalcs` because they are not a part of the amazing python eco-system <3
 
 ## Printing to PDF in Jupyter
 
