@@ -9,13 +9,8 @@ import math
 import os
 import pathlib
 from typing import Any, Union, Optional, Tuple, List
-
 import pyparsing as pp
 
-# import jinja2
-# from jinja2 import Template
-
-# TODO: Add support for conditional expressions with ConditionalLine
 # TODO: Do something with inequality checks
 
 # Five basic line types
@@ -52,11 +47,13 @@ class LongCalcLine:
     comment: str
     latex: str
 
-@dataclass 
-class BlankLine: # Attributes not used on BlankLine but still req'd
+
+@dataclass
+class BlankLine:  # Attributes not used on BlankLine but still req'd
     line: deque
     comment: str
     latex: str
+
 
 # Four types of cell
 @dataclass
@@ -103,6 +100,7 @@ class ParameterCell:
             + f"source=\n{self.source}\n"
             + f"lines=\n{self.lines}\n"
         )
+
 
 @dataclass
 class LongCalcCell:
@@ -176,12 +174,12 @@ def categorize_raw_cell(
 
     elif test_for_long_cell(raw_source):
         cell = LongCalcCell(
-            source = strip_cell_code(raw_source),
+            source=strip_cell_code(raw_source),
             calculated_results=calculated_results,
             lines=deque([]),
             precision=precision,
             cols=1,
-            latex_code=""
+            latex_code="",
         )
 
     else:
@@ -226,7 +224,7 @@ def categorize_lines(
     outgoing = cell.source.rstrip().split("\n")
     incoming = deque([])
     calculated_results = cell.calculated_results
-    override = ''
+    override = ""
     for line in outgoing:
         if isinstance(cell, (ParameterCell, OutputCell)):
             override = "parameter"
@@ -242,7 +240,7 @@ def categorize_lines(
 
 
 def categorize_line(
-    line: str, calculated_results: dict, override:str = ""
+    line: str, calculated_results: dict, override: str = ""
 ) -> Union[CalcLine, ParameterLine, ConditionalLine]:
     """
     Return 'line' as either a CalcLine, ParameterLine, or ConditionalLine if 'line'
@@ -273,12 +271,10 @@ def categorize_line(
             return categorized_line
 
         elif override == "long":
-            categorized_line = LongCalcLine(
-                code_reader(line), comment, ""
-            )
+            categorized_line = LongCalcLine(code_reader(line), comment, "")
             return categorized_line
         elif True:
-            pass # Future override conditions can be put here
+            pass  # Future override conditions can be put here
 
     # Standard behaviour
     if test_for_parameter_line(line):
@@ -340,6 +336,7 @@ def results_for_calcline(line_object, calculated_results):
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
 
+
 @add_result_values_to_line.register(LongCalcLine)
 def results_for_longcalcline(line_object, calculated_results):
     parameter_name = line_object.line[0]
@@ -359,6 +356,7 @@ def results_for_conditionline(line_object, calculated_results: dict):
     for expr in expressions:
         add_result_values_to_line(expr, calculated_results)
     return line_object
+
 
 @add_result_values_to_line.register(BlankLine)
 def results_for_blank(line_object, calculated_results):
@@ -382,6 +380,7 @@ def convert_calc_cell(cell: CalcCell) -> CalcCell:
     cell.lines = incoming
     return cell
 
+
 @convert_cell.register(LongCalcCell)
 def convert_calc_cell(cell: LongCalcCell) -> LongCalcCell:
     outgoing = cell.lines
@@ -391,6 +390,7 @@ def convert_calc_cell(cell: LongCalcCell) -> LongCalcCell:
         incoming.append(convert_line(line, calculated_results))
     cell.lines = incoming
     return cell
+
 
 @convert_cell.register(ParameterCell)
 def convert_parameter_cell(cell: ParameterCell) -> ParameterCell:
@@ -469,6 +469,7 @@ def convert_parameter(line, calculated_results):
     line.line = swap_symbolic_calcs(line.line)
     return line
 
+
 @convert_line.register(BlankLine)
 def convert_blank(line, calculated_results):
     return line
@@ -508,7 +509,9 @@ def parameters_cell(cell: ParameterCell):
         else:
             line.latex = latex_param.replace("=", "&=")
 
-    latex_block = " ".join([line.latex for line in cell.lines]).rstrip() # .rstrip(): Hack to solve another problem
+    latex_block = " ".join(
+        [line.latex for line in cell.lines]
+    ).rstrip()  # .rstrip(): Hack to solve another problem
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
     return cell
 
@@ -592,12 +595,14 @@ def round_and_render_calc(line: CalcLine, precision: int) -> CalcLine:
     line.latex = " ".join(rounded_line)
     return line
 
+
 @round_and_render_line_objects_to_latex.register(LongCalcLine)
 def round_and_render_calc(line: LongCalcLine, precision: int) -> LongCalcLine:
     rounded_line = round_and_render(line.line, precision)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
     return line
+
 
 @round_and_render_line_objects_to_latex.register(ParameterLine)
 def round_and_render_parameter(line: ParameterLine, precision: int) -> ParameterLine:
@@ -614,15 +619,19 @@ def round_and_render_conditional(
     line_break = "\\\\\n"
     outgoing = deque([])
     line.true_condition = round_and_render(line.true_condition, precision)
-    for expr in line.true_expressions:  # Each 'expr' item is a CalcLine or other line type
+    for (
+        expr
+    ) in line.true_expressions:  # Each 'expr' item is a CalcLine or other line type
         outgoing.append(round_and_render_line_objects_to_latex(expr, precision))
     line.true_expressions = outgoing
     line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
     return line
 
+
 @round_and_render_line_objects_to_latex.register(BlankLine)
 def round_and_render_blank(line, precision):
     return line
+
 
 @singledispatch
 def convert_applicable_long_lines(line: Union[ConditionalLine, CalcLine]):
@@ -637,6 +646,7 @@ def convert_calc_to_long(line: CalcLine):
 
         return convert_calc_line_to_long(line)
     return line
+
 
 @convert_applicable_long_lines.register(LongCalcLine)
 def convert_longcalc_to_long(line: LongCalcLine):
@@ -655,6 +665,7 @@ def convert_expressions_to_long(line: ConditionalLine):
 def convert_param_to_long(line: ParameterLine):
     return line
 
+
 @convert_applicable_long_lines.register(BlankLine)
 def convert_blank_to_long(line: BlankLine):
     return line
@@ -671,9 +682,11 @@ def test_for_long_lines(line: Union[CalcLine, ConditionalLine]) -> bool:
 def test_for_long_param_lines(line: ParameterLine) -> bool:
     return False
 
+
 @test_for_long_lines.register(BlankLine)
 def test_for_long_blank(line: BlankLine) -> bool:
     return False
+
 
 @test_for_long_lines.register(LongCalcLine)
 def test_for_long_longcalcline(line: LongCalcLine) -> bool:
@@ -805,7 +818,7 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         first_line = f"&\\text{a}Since, {b}{latex_condition}:{new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        transition_line ="" #"&\\text{Therefore:} \\\\"
+        transition_line = ""  # "&\\text{Therefore:} \\\\"
         line_break = "\\\\\n"
         comment_space = ""
         comment = ""
@@ -857,15 +870,17 @@ def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
 @format_lines.register(ParameterLine)
 def format_param_line(line: ParameterLine) -> ParameterLine:
     replaced = line.latex.replace("=", "&=")
-    comment_space = '\\;'
-    comment = format_strings(line.comment, comment = True)
+    comment_space = "\\;"
+    comment = format_strings(line.comment, comment=True)
     line.latex = f"{replaced}{comment_space}{comment}\n"
     return line
+
 
 @format_lines.register(BlankLine)
 def format_blank_line(line: BlankLine) -> BlankLine:
     line.latex = ""
     return line
+
 
 def split_conditional(line: str, calculated_results):
     raw_conditional, raw_expressions = line.split(":")
@@ -897,152 +912,6 @@ def split_conditional(line: str, calculated_results):
         condition,
         raw_expressions,
     )
-
-
-# Useful legacy routine
-# def format_long_calc_lines(
-#     symbolic_portion: deque, numeric_portion: deque, result_value: deque
-# ):
-#     full_equation = symbolic_portion + numeric_portion + result_value
-#     equation_in_multline_env = insert_multline_environment(full_equation)
-#     with_gathered_envs = insert_gathered_environments(equation_in_multline_env)
-#     with_line_breaks = break_long_equations(with_gathered_envs)
-#     return with_line_breaks  # + result_value
-
-# Recover
-
-# def break_long_equations(flattened_deque: deque) -> deque:
-#     """
-#     Returns a deque that matches `line` except with a linebreak character inserted
-#     after the next mathematical operator after the character count of items within
-#     `line` exceeds the threshold
-#     """
-#     # TODO: Create test for appropriate palcement of linebreaks
-#     line_break = "{}\\\\\n"
-#     str_lengths = count_str_len_in_deque(flattened_deque, omit_latex=True, dive=False)
-#     sum_of_lengths = 0
-#     acc = deque([])
-#     exclusions = ("\\right)", "\\cdot", "}")
-#     insert_next = False
-#     discount = discount_fraction_chars(flattened_deque)
-#     for idx, length in enumerate(str_lengths):
-#         component = flattened_deque[idx]
-#         next_idx = min(idx + 1, len(flattened_deque) - 1)
-#         next_component = flattened_deque[next_idx]
-#         if "\\" in str(component):
-#             acc.append(component)
-#         elif (
-#             str(component) == "+" or str(component) == "-" or str(component) == "\\cdot"
-#         ):
-#             if insert_next:
-#                 acc.append(component)
-#                 acc.append(line_break)
-#                 insert_next = False
-#             else:
-#                 acc.append(component)
-#         else:
-#             acc.append(component)
-#             sum_of_lengths += length
-#             if (
-#                 sum_of_lengths > 60
-#                 and (
-#                     str(component) not in exclusions
-#                     or str(next_component) not in exclusions
-#                 )
-#                 and (str(next_component) == "+" or str(next_component) == "-")
-#             ):  # Hard-coded value
-#                 insert_next = True
-#                 sum_of_lengths = 0
-#     return acc
-
-
-# def insert_gathered_environments(line: deque) -> deque:
-#     """
-#     Returns 'line' with "\\begin{gathered}" environments inserted at the beginning
-#     of nested deques within 'line' and at the end of nested deques within 'line'.
-
-#     @param line:
-#     @return:
-#     """
-#     beg_gathered = "\\begin{gathered}"
-#     end_gathered = "\\end{gathered}"
-#     acc = []
-#     left_trigger = "\\left("
-#     sqrt_trigger = "\\sqrt{"
-#     right_trigger = "\\right)"
-#     brace_trigger = "}"
-#     sqrt_stack = deque([])
-#     equals = 0
-#     for component in line:
-#         if str(component) == "=" or str(component) == "&=":
-#             equals += 1
-#         if 1 <= equals <= 2:
-#             if (
-#                 (
-#                     "{" in str(component)
-#                     or (
-#                         str(component) == left_trigger or str(component) == sqrt_trigger
-#                     )
-#                 )
-#                 and "_" not in component
-#                 and component != "}{"
-#             ):
-#                 if str(component) == left_trigger:
-#                     sqrt_stack.append(0)
-#                     acc.append(component)
-#                     acc.append(beg_gathered)
-#                 elif str(component) == sqrt_trigger:
-#                     sqrt_stack.append(1)
-#                     acc.append(component)
-#                     acc.append(beg_gathered)
-#                 else:
-#                     sqrt_stack.append(0)
-#                     acc.append(component)
-#             elif str(component) in (brace_trigger, right_trigger):
-#                 sqrt_close_trigger = sqrt_stack.pop()
-#                 if sqrt_close_trigger and str(component) == brace_trigger:
-#                     acc.append(end_gathered)
-#                     acc.append(component)
-#                 elif str(component) == right_trigger:
-#                     acc.append(end_gathered)
-#                     acc.append(component)
-#                 else:
-#                     acc.append(component)
-#             else:
-#                 acc.append(component)
-#         else:
-#             acc.append(component)
-#     return acc
-
-
-# def insert_multline_environment(line: deque) -> deque:
-#     """
-#     Returns `line` with a gathered environment inserted at the edges of the
-
-#     """
-#     beg_gathered = "\\begin{gathered}\n"
-#     end_gathered = "\n\\end{gathered}\n"
-#     beg_aligned = "\\[\n\\begin{aligned}\n"
-#     end_aligned = "\\end{aligned}\n\\]\n"
-#     beg_multline = "\\begin{multline}\n"
-#     end_multline = "\n\\end{multline}\n"
-#     char_count = 0
-#     acc = deque([])
-#     equals = 0
-#     for component in line:
-#         if str(component) == "=" or str(component) == "&=" and equals == 0:
-#             equals += 1
-#             acc.append("=")
-#         elif str(component) == "=" or str(component) == "&=" and equals == 1:
-#             acc.append("\\\\=")
-#         else:
-#             acc.append(component)
-
-#     acc.appendleft(beg_multline)
-#     acc.appendleft(end_aligned)
-#     acc.append(end_multline)
-#     acc.append(beg_aligned)
-#     return acc
 
 
 def test_for_parameter_line(line: str) -> bool:
@@ -1117,8 +986,9 @@ def test_for_single_dict(source: str, calc_results: dict) -> bool:
     within 'calc_results' whose value itself is a single-level 
     dictionary of keyword values.
     """
-    gotten = calc_results.get(source,"")
+    gotten = calc_results.get(source, "")
     return isinstance(gotten, dict)
+
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
     """
@@ -1204,7 +1074,6 @@ def latex_repr(item: Any) -> str:
 
 
 class ConditionalEvaluator:
-    # This is not saving values from each run into the instance vars
     def __init__(self):
         self.prev_cond_type = ""
         self.prev_result = False
@@ -1715,10 +1584,7 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
         "chi",
         "omega",
     ]
-    greek_exceptions = [
-        "eta",
-        "psi"
-    ]
+    greek_exceptions = ["eta", "psi"]
     pycode_with_greek = deque([])
     for item in pycode_as_deque:
         if isinstance(item, deque):
@@ -1726,21 +1592,31 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
             pycode_with_greek.append(new_item)
         elif isinstance(item, str):
             for greek in greeks:
-                if (greek in item or greek.capitalize() in item) and (greek not in greek_exceptions):
+                if (greek in item or greek.capitalize() in item) and (
+                    greek not in greek_exceptions
+                ):
                     item = item.replace(greek, "\\" + greek)
                     item = item.replace(greek.capitalize(), "\\" + greek.capitalize())
                     item = item.replace("lamb", "lambda")
                     item = item.replace("Lamb", "Lambda")
             for greek in greek_exceptions:
-                greek_match = (greek in item or greek.capitalize() in item)
-                greek_startswith = item.startswith(greek) or item.startswith(greek.capitalize())
-                greek_submatch = ("_" + greek) in item or ("_" + greek.capitalize()) in item
+                greek_match = greek in item or greek.capitalize() in item
+                greek_startswith = item.startswith(greek) or item.startswith(
+                    greek.capitalize()
+                )
+                greek_submatch = ("_" + greek) in item or (
+                    "_" + greek.capitalize()
+                ) in item
                 if greek_match and greek_startswith:
                     item = item.replace(greek, "\\" + greek, 1)
-                    item = item.replace(greek.capitalize(), "\\" + greek.capitalize(), 1)
+                    item = item.replace(
+                        greek.capitalize(), "\\" + greek.capitalize(), 1
+                    )
                 if greek_match and greek_submatch:
                     item = item.replace("_" + greek, "_" + "\\" + greek)
-                    item = item.replace("_" + greek.capitalize(), "_" + "\\" + greek.capitalize())
+                    item = item.replace(
+                        "_" + greek.capitalize(), "_" + "\\" + greek.capitalize()
+                    )
 
             pycode_with_greek.append(item)
             # else:
@@ -1771,6 +1647,7 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
             #         swapped_value = format_strings(swapped_value, comment=False)
             #         swapped_values.append(swapped_value)
     return outgoing
+
 
 if __name__ == "__main__":
     print("Works")
