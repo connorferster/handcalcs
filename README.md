@@ -12,9 +12,10 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 * [Enhanced Usage](https://github.com/connorferster/handcalcs#enhanced-usage)
 * [Features](https://github.com/connorferster/handcalcs#Features)
 * [Expected Behaviours](https://github.com/connorferster/handcalcs#expected-behaviours)
-* [Gotchas](https://github.com/connorferster/handcalcs#gotchas)
-* [Yet another math software?](https://github.com/connorferster/handcalcs#this-seems-like-a-lot-of-effort-to-write-yet-another-software-to-render-math-havent-you-ever-heard-of-excelmaplemathcadmathematicamatlaboctavesmath-studio)
-* [Printing to PDF with Latex](https://github.com/connorferster/handcalcs#printing-to-pdf-with-latex)
+* [Gotchas and Disclaimer](https://github.com/connorferster/handcalcs#gotchas)
+* [Applications and Compatibility](https://github.com/connorferster/handcalcs#real-world-applications)
+
+
 
 
 ## Basic Demo
@@ -32,19 +33,13 @@ You can install using pip:
 
 `pip install handcalcs`
 
-## Basic Usage
+## Basic Usage 1: As a Jupyter cell magic (`%render`)
 `handcalcs` is intended to be used with either Jupyter Notebook or Jupyter Lab as a _cell magic_.
 
 First, import the module and run the cell:
 
 ```python
 import handcalcs.render
-```
-
-Alternatively, you can load `handcalcs` as a Jupyter extension:
-
-```python
-%load_ext render
 ```
 
 Then, in any cell that you want to render with `handcalcs`, just use the render cell magic at the top of your cell:
@@ -66,22 +61,55 @@ c = 2*a + b/3
 
 Once rendered, you can then export your notebook as a PDF, if you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section Installing Tex, below.
 
-## Enhanced Usage
+## Basic Usage 2: As a decorator on your functions (`@handcalc`)
+
+This is the same kind thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, that you treat like a Jupyter cell. An example:
+
+```python
+from handcalcs import handcalc
+```
+
+Then, write your function. Your function MUST `return locals()`:
+
+```python
+@handcalc
+def my_calc(x, y, z):
+  a = 2*x / y
+  b = 3*a
+  c = (a + b) / z
+  return locals()
+```
+
+Everything between `def my_calc(...)` and `return locals()` is now like the code in our Jupyter cell, except it's a standard function.
+
+Now, when called, your function will return a 2-tuple. The first item will be the last value in your calculation (your "answer", in this example, `c`). The second item will be a `str` with your rendered Latex code. 
+
+```
+c, my_latex_code_str = my_calc(3,4,5)
+```
+
+Used in this way, you can use `handcalc` to dynamically generate Latex code for you to display in both Jupyter and other non-Jupypter Python environments (e.g. matplotlib, streamlit, )
+
+## Comment Tags
 
 `handcalcs` makes certain assumptions about how you would like your calculation formatted and does not allow for a great deal of customization in this regard. However, there are currently **three** customizations you can make using `# comment tags` as the _first line of your cell_ after the `%%render` cell magic. You can only use __one__ comment tag per cell.
 
-## `# Parameters`: 
+### `# Parameters`: 
 `handcalcs` renders lines of code vertically, one after the other. However, when you are assigning variables, i.e. establishing your calculation "parameters", you may not want to waste all of that vertical space. Using the `# Parameters` (also `# parameters`, `#parameters`, `#  Parameters`, etc.) comment tag, your list of parameters will instead render in three columns, thereby saving vertical space.
 
 ![Parameters](docs/images/parameters.gif)
 
-## `# Output`: 
-In order to render a line of calculations, `handcalcs` relies upon code in the form `parameter = expression`. However, if you just want to display values of a series of parameters that you have previously calculated, you can't create a new expression to assign to them. Using the `# Output` tag (also `#output`, `#out`, or `# Out`) will render all variables in your cell (each individual variable has to be on its own separate line) with their current values.
+### `# Output`: 
+In order to render a line of calculations, `handcalcs` relies upon code in the form `parameter = expression`. 
+
+However, if you just want to display values of a series of parameters that you have previously calculated, using the `# Output` tag (also `#output`, `#out`, or `# Out`) will render all variables in your cell (each individual variable has to be on its own separate line) with their current values.
 
 ![Outputs](docs/images/output.gif)
 
-## `# Long`: 
-To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, render it out fully on one line. e.g. `c = 2*a + b/3 = 2*(2) + 3/(3) = 5`. If `handcalcs`'s internal test deems the calculation as being too long to fit onto one line, it breaks it out into multiple lines. Using the `# Long` (also `#long` or `#Long`, you get the idea) comment tag overrides the length check and displays the calculation in the "Long" format by default. e.g.
+### `# Long`: 
+To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, render it out fully on one line. e.g. `c = 2*a + b/3 = 2*(2) + 3/(3) = 5`. 
+
+If `handcalcs`'s internal test deems the calculation as being too long to fit onto one line, it breaks it out into multiple lines. Using the `# Long` (also `#long` or `#Long`, you get the idea) comment tag overrides the length check and displays the calculation in the "Long" format by default. e.g.
 
     ```python
     # From this:
@@ -97,11 +125,7 @@ To save vertical space, `handcalcs` _attempts_ to figure out how long your calcu
 
 ---
 
-## Features
-
-Here's what you can do right now. If the community is interested in more features that I have not thought of, then maybe there could be more.
-
-### Units Packages Compatibility
+## Units Packages Compatibility
 
 `handcalcs` was designed to be used with the units package, `forallpeople` (and `forallpeople` was designed to be compatible with `handcalcs`). 
 
@@ -114,7 +138,13 @@ Other units packages can be used to similar effect provided they do the followin
 
 However, if you are using a units package that does not auto-reduce, it should still be compatible but the output will not be as clean and intuitive.
 
+**For compatibility with some other Python packages (e.g. papermill, streamlit), please see the wiki**
+
 ---
+
+## Features
+
+
 
 ### Get Just the Latex Code, without the render
 If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic, instead:
@@ -147,7 +177,9 @@ Subscripts in variable names are automatically created when `_` is used in the v
 
 Any variable name that contains a Greek letter (e.g. "pi", "upsilon", "eta", etc.) as a string or substring will be replaced by the appropriate Latex code to represent that Greek letter.
 
-Using lower case letters as your variable name. Using capitalized names will render as upper case.
+* Using lower case letters as your variable name will make a lower case Greek letter (e.g. `sigma` $\rightarrow \sigma$). 
+
+* Using a Capitalized Name for your variable will render as an upper case Greek letter (e.g. `Sigma` $\rightarrow \Sigma$).
 
 ![Greek symbols](docs/images/greeks.gif)
 
@@ -155,7 +187,9 @@ Using lower case letters as your variable name. Using capitalized names will ren
 
 ### Functions, built-in or custom
 
-If you are using python functions in your calculation, eg. `min()` or `sin()`, they will be replaced with Latex code to represent that function in Latex
+If you are using python functions in your calculation, eg. `min()` or `sin()`, they will be replaced with Latex code to represent that function in Latex.
+
+If you are making up your own functions, then they will be rendered in Latex as a custom operator.
 
 ![Functions](docs/images/funcs.gif)
 
@@ -272,38 +306,6 @@ You _can_ re-use variable names to good effect throughout a notebook, _IFF_ the 
 
 That being said, the very purpose for the way `handcalcs` renders its math is to make it very easy to confirm and verify calculations by hand.
 
+## Applications and Compatibility with OPP (Other People's Packages)
 
-## This seems like a lot of effort to write yet _another_ software to render math. Haven't you ever heard of Excel/Maple/MathCAD/Mathematica/MATLAB/Octave/SMATH Studio?
-
-SMath Studio is excellent software and I highly recommend it. Octave is also great.
-
-Many of these softwares are proprietary.
-
-They do not show numeric substitutions. 
-
-They do not auto-format your calculations. 
-
-Many are not as extensible as `handcalcs` because they are not a part of the amazing python eco-system <3
-
-## Printing to PDF with Latex
-
-Printing to PDF requires you to have a Latex environment installed
-on your system and to have a Latex compiler available on your system's `PATH` variable so Jupyter can execute `xelatex` on a command line.
-
-Following an installation, you can open up a command line on your system and type `xelatex`. If the installation was successful and complete, the command will enter you into a Latex prompt instead of generating an error message.
-
-### Latex for Windows
-
-Installation on Windows is easiest by installing the TeX distribution, [MiKTeX](https://miktex.org/howto/install-miktex).
-After installation, ensure that you allow automatic downloading of required
-to make operation easiest.
-
-### Latex for OSX
-
-Installation on Mac OS X is easiest by installing [MacTeX](http://www.tug.org/mactex/mactex-download.html).
-
-Be sure to read the installation page to prevent/assist with any issues.
-
-### Latex for Linux
-
-`$ sudo apt install texlive-latex-extra`
+** Please see the wiki for applications of `handcalcs` in education and engineering.
