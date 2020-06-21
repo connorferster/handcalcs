@@ -23,7 +23,7 @@ CALC_7 = (
 CALC_8 = "Psi_45 = (Omega_3 * pi**2 * A * (1/C))) / (2 * B**2) *  (eta_xy + sqrt(A**2 + 4*((Omega_3 * G_a_b * beta_farb**2)/(pi**2*A*(1/C)) + G_a_b / A)))"
 CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3); Gamma = 4 * 2"
 CALC_10 = "elif B > C: Delta = 5**(A/B)"
-CALC_11 = "C_pi = 0.5 # Approximate factor"
+CALC_11 = "C_p_i = 0.5 # Approximate factor"
 
 CALC_1_D =  deque(['D_1', '=', 'A', '+', 'B', '+', 'C'])
 CALC_2_D =  deque(['F_a', '=', 'sqrt', deque([deque(['B', '+', 'A']), '/', deque(['C', '+', 'A']), '+', 'B', '+', 'B', '+', 'C'])])
@@ -59,7 +59,7 @@ def load_calcs():
     CALC_8 = "Psi_45 = (Omega_3 * pi**2 * A * (1/C)) / (2 * B**2) * (eta_xy + sqrt(A**2 + 4*((Omega_3 * G_a_b * beta_farb**2)/(pi**2*A*(1/C)) + G_a_b / A)))"
     CALC_9 = "if A <= B < C: Delta = (5*A*B**4)/(384*B*C**3); Gamma = 4 * 2"
     #CALC_10 = "elif B > C: Delta = 5**(A/B)"
-    CALC_11 = "C_pi = 0.5 # Approximate factor"
+    CALC_11 = "C_p_i = 0.5 # Approximate factor"
 
     CELL_1 = "\n".join([CALC_1, CALC_2, CALC_3, CALC_4])
     CELL_2 = "\n".join([CALC_6, CALC_7, CALC_8])

@@ -1,7 +1,7 @@
 from collections import deque
 import copy
 from dataclasses import dataclass
-from functools import singledispatch
+from functools import singledispatch, wraps
 import importlib
 import inspect
 import itertools
@@ -152,6 +152,7 @@ def categorize_raw_cell(
     """
     Return a "Cell" type depending on the source of the cell.
     """
+    raw_source = raw_source.strip()
     if test_for_parameter_cell(raw_source):
         cell = ParameterCell(
             source=strip_cell_code(raw_source),
@@ -568,6 +569,7 @@ def format_output_cell(cell: OutputCell) -> str:
     precision = cell.precision
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision)
+        line = format_lines(line)
     latex_block = line_break.join([line.latex for line in cell.lines])
     opener = "\\["
     begin = "\\begin{aligned}"
@@ -784,7 +786,6 @@ def convert_calc_line_to_long(calc_line: CalcLine) -> LongCalcLine:
 
 @singledispatch
 def format_lines(line_object):
-    print("Hits")
     raise TypeError(
         f"Line type {type(line_object)} is not yet implemented in format_lines()."
     )
@@ -930,7 +931,13 @@ def test_for_parameter_line(line: str) -> bool:
             return True
         try:
             expr_as_code = code_reader(line)
-            if len(expr_as_code) == 3 and expr_as_code[1] == "=":
+            if len(expr_as_code) == 3 and expr_as_code[1] == "=":  # Param = value
+                return True
+            elif (
+                len(expr_as_code) == 4
+                and expr_as_code[1] == "="
+                and expr_as_code[2] == "-"
+            ):  # Param = -value
                 return True
             else:
                 return False
@@ -1648,6 +1655,41 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
             #         swapped_values.append(swapped_value)
     return outgoing
 
+## Basic Usage 2: Decorator
 
-if __name__ == "__main__":
-    print("Works")
+def handcalc(func):
+    #@wraps(func)
+    def wrapper(*args, **kwargs):
+        func_source = inspect.getsource(func)
+        cell_source = func_source_to_cell(func_source)
+        calculated_results = func(*args, **kwargs) # Func must use `return locals()`
+        if not isinstance(calculated_results, dict):
+            raise ValueError(f"Return value of decorated function should be locals(),",
+                             " not {calculated_results}")
+        renderer = LatexRenderer(cell_source, calculated_results)
+        latex_code = renderer.render()
+
+        latex_code = latex_code.replace("\\[","", 1).replace("\\]","")
+        return (latex_code, calculated_results)
+    return wrapper
+        
+def func_source_to_cell(source: str):
+    """
+    Returns a string that represents `source` but with no signature, doc string,
+    or return statement.
+    
+    `source` is a string representing a function's complete source code.
+    """
+    source_lines = source.split('\n')
+    acc = []
+    for line in source_lines:
+        doc_string = False
+        if not doc_string and '"""' in line: 
+            doc_string = True
+            continue
+        elif doc_string and '"""' in line: 
+            doc_string = False
+            continue
+        if "def" not in line and not doc_string and "return" not in line and "@" not in line:
+            acc.append(line)
+    return "\n".join(acc)
