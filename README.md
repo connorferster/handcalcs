@@ -13,8 +13,7 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 * [Features](https://github.com/connorferster/handcalcs#Features)
 * [Expected Behaviours](https://github.com/connorferster/handcalcs#expected-behaviours)
 * [Gotchas and Disclaimer](https://github.com/connorferster/handcalcs#gotchas)
-* [Applications and Compatibility](https://github.com/connorferster/handcalcs#real-world-applications)
-
+* [Applications and Compatibility with Other Libraries (wiki)](https://github.com/connorferster/handcalcs/wiki)
 
 
 
@@ -33,7 +32,7 @@ You can install using pip:
 
 `pip install handcalcs`
 
-## Basic Usage 1: As a Jupyter cell magic (`%render`)
+## Basic Usage 1: As a Jupyter cell magic (`%%render`)
 `handcalcs` is intended to be used with either Jupyter Notebook or Jupyter Lab as a _cell magic_.
 
 First, import the module and run the cell:
@@ -131,14 +130,8 @@ If `handcalcs`'s internal test deems the calculation as being too long to fit on
 
 ![handcalcs with forallpeople](docs/images/forallpeople.gif)
 
-Other units packages can be used to similar effect provided they do the following:
 
-1. Define a `_repr_latex_()` method
-2. Auto-reduce dimensions (i.e. you don't have to call an extra method on the resulting object to have the resulting quantity render itself the way you intend)
-
-However, if you are using a units package that does not auto-reduce, it should still be compatible but the output will not be as clean and intuitive.
-
-**For compatibility with some other Python packages (e.g. papermill, streamlit), please see the wiki**
+**For compatibility with some other Python libraries (e.g. papermill, streamlit, other units libraries), please see [the wiki.](https://github.com/connorferster/handcalcs/wiki)**
 
 ---
 
