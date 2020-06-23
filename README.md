@@ -1,4 +1,6 @@
-![Handcalcs Cover Art](docs/images/handcalcs.jpg)
+<p align="center">
+  <img src="docs/images/handcalcs.jpg">
+</p>
 
 # handcalcs: Python calculations in Jupyter, as though you wrote them by hand.
 
