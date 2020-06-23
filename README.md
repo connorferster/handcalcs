@@ -1,4 +1,4 @@
-![Handcalcs Cover Art](docs/images/handcalcs.jpg =500x)
+![Handcalcs Cover Art](docs/images/handcalcs.jpg)
 
 # handcalcs: Python calculations in Jupyter, as though you wrote them by hand.
 
