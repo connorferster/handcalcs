@@ -2,7 +2,7 @@
   <img src="docs/images/handcalcs.jpg">
 </p>
 
-<h1 align = "center">handcalcs:<br>Python calculations in Jupyter, as though you wrote them by hand.</h1>
+<h1 align = "center">handcalcs:<br>Python calculations in Jupyter,<br>as though you wrote them by hand.</h1>
 
 `handcalcs` is a library to render your python calculation code automatically in Latex, but in a manner that mimics how one might format their calculation if it were written with a pencil:  write the symbolic formula, **followed by numeric substitutions**, and then the result.
 
