@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/handcalcs.jpg">
+  <img src="docs/images/handcalcs.jpg"><br>
   Covert art by <a href = "https://www.instagram.com/joshuahoibergtattoos/">Joshua Hoiberg</a>
 </p>
 
