@@ -7,10 +7,14 @@ from IPython.display import Latex, Markdown, display
 from IPython.utils.capture import capture_output
 import sys
 
-_nms = NamespaceMagics()
-_Jupyter = get_ipython()
-_nms.shell = _Jupyter.kernel.shell
-cell_capture = capture_output(stdout=True, stderr=True, display=True)
+try:
+    _nms = NamespaceMagics()
+    _Jupyter = get_ipython()
+    _nms.shell = _Jupyter.kernel.shell
+    cell_capture = capture_output(stdout=True, stderr=True, display=True)
+except AttributeError:
+    raise ImportError("handcalcs.render is intended for a Jupyter environment."
+    " Use 'from handcalcs import handcalc' for the decorator interface.")
 
 @register_cell_magic
 def render(line, cell):
