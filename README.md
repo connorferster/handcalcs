@@ -94,7 +94,7 @@ Now, when called, your function will return a 2-tuple consisting of
 my_latex_code_str, locals_dict = my_calc(3,4,5)
 ```
 
-Used in this way, you can use `handcalc` to dynamically generate Latex code for display in both Jupyter and other non-Jupypter Python environments (e.g. matplotlib, streamlit, )
+Used in this way, you can use `handcalc` to dynamically generate Latex code for display in non-Jupypter Python environments (e.g. matplotlib, streamlit, )
 
 ## Comment Tags
 
