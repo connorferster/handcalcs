@@ -9,8 +9,6 @@
 
 Because `handcalcs` shows the numeric substitution, the calculations become significantly easier to check and verify by hand.
 
-`handcalcs` hopes to enhance Jupyter as being even more of a [literate programming environment](https://en.wikipedia.org/wiki/Literate_programming).
-
 
 ## Contents
 
