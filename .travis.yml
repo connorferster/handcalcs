@@ -2,3 +2,6 @@ language: python
 rvm:
  - 3.7
 script: pytest
+before_install:
+ - "pip install -U pip"
+ - "python setup.py install"
