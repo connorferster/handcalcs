@@ -1,5 +1,5 @@
 language: python
-rvm:
+python:
  - 3.7
 script: pytest
 before_install:
