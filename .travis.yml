@@ -1,7 +1,12 @@
 language: python
 python:
  - 3.7
-script: pytest --cov-report=xml
+script: pytest --cov-report term --cov
 before_install:
  - "pip install -U pip"
  - "python setup.py install"
+ - "pip install pytest pytest-cov"
+ - "pip install codecov"
+
+after_success:
+ - "codecov"
