@@ -17,7 +17,7 @@ DESCRIPTION = 'Converts your Python calculation script into beautifully rendered
 URL = 'https://github.com/connorferster/handcalcs'
 EMAIL = 'connorferster@gmail.com'
 AUTHOR = 'Connor Ferster'
-REQUIRES_PYTHON = '>=3.6.0'
+REQUIRES_PYTHON = '>=3.7.0'
 VERSION = '0.2.0'
 
 # What packages are required for this module to be executed?
