@@ -22,9 +22,7 @@ VERSION = '0.2.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'jinja2',
     'pyparsing',
-    'array-to-latex'
     # 'requests', 'maya', 'records',
 ]
 
