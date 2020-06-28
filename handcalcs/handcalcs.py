@@ -64,7 +64,7 @@ class CalcCell:
     lines: deque
     latex_code: str
 
-# Test
+    # Test
     def __repr__(self):
         return str(
             "CalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
@@ -79,7 +79,7 @@ class ParameterCell:
     precision: int
     cols: int
     latex_code: str
-# Test
+    # Test
     def __repr__(self):
         return str(
             "ParametersCell(\n"
@@ -96,7 +96,7 @@ class LongCalcCell:
     precision: int
     cols: int
     latex_code: str
-# Test
+    # Test
     def __repr__(self):
         return str(
             "LongCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
@@ -109,7 +109,8 @@ class LatexRenderer:
         self.source = python_code_str
         self.results = results
         self.precision = 3
-# Test
+
+    # Test
     def set_precision(self, n=3):
         """Sets the precision (number of decimal places) in all
         latex printed values. Default = 3"""
@@ -150,7 +151,7 @@ def categorize_raw_cell(
             latex_code="",
         )
 
-# Test: A long calc
+    # Test: A long calc
     elif test_for_long_cell(raw_source):
         comment_tag_removed = strip_cell_code(raw_source)
         cell = LongCalcCell(
@@ -243,7 +244,7 @@ def categorize_line(
     categorized_line = None
 
     # Override behaviour
-    if not test_for_blank_line(line): # True is blank
+    if not test_for_blank_line(line):  # True is blank
         if override == "parameter":
             categorized_line = ParameterLine(
                 split_parameter_line(line, calculated_results), comment, ""
@@ -251,7 +252,9 @@ def categorize_line(
             return categorized_line
 
         elif override == "long":
-            if test_for_parameter_line(line): # A parameter can exist in a long cell, too
+            if test_for_parameter_line(
+                line
+            ):  # A parameter can exist in a long cell, too
                 categorized_line = ParameterLine(
                     split_parameter_line(line, calculated_results), comment, ""
                 )
@@ -291,7 +294,7 @@ def categorize_line(
         categorized_line = CalcLine(code_reader(line), comment, "")
 
     elif line == "\n" or line == "":
-            categorized_line = BlankLine(line, "", "")
+        categorized_line = BlankLine(line, "", "")
 
     elif len(expr_parser(line)) == 1:
         categorized_line = ParameterLine(
@@ -636,6 +639,7 @@ def test_for_long_lines(line: Union[CalcLine, ConditionalLine]) -> bool:
         f"Line type of {type(line)} not yet implemented in test_for_long_lines()."
     )
 
+
 @test_for_long_lines.register(ParameterLine)
 def test_for_long_param_lines(line: ParameterLine) -> bool:
     return False
@@ -780,7 +784,7 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         first_line = f"&\\text{a}Since, {b}{latex_condition}:{comment_space}{comment}{new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        #transition_line = ""  # Previously: "&\\text{Therefore:} \\\\"
+        # transition_line = ""  # Previously: "&\\text{Therefore:} \\\\"
         line_break = "\\\\\n"
 
         outgoing = deque([])
@@ -919,6 +923,7 @@ def test_for_blank_line(source: str) -> bool:
     Returns False, otherwise.
     """
     return not bool(source.strip())
+
 
 def test_for_conditional_line(source: str) -> bool:
     """
@@ -1589,24 +1594,30 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
             #         swapped_values.append(swapped_value)
     return outgoing
 
+
 ## Basic Usage 2: Decorator
 
+
 def handcalc(func):
-    #@wraps(func)
+    # @wraps(func)
     def wrapper(*args, **kwargs):
         func_source = inspect.getsource(func)
         cell_source = func_source_to_cell(func_source)
-        calculated_results = func(*args, **kwargs) # Func must use `return locals()`
+        calculated_results = func(*args, **kwargs)  # Func must use `return locals()`
         if not isinstance(calculated_results, dict):
-            raise ValueError(f"Return value of decorated function should be locals(),",
-                             " not {calculated_results}")
+            raise ValueError(
+                f"Return value of decorated function should be locals(),",
+                " not {calculated_results}",
+            )
         renderer = LatexRenderer(cell_source, calculated_results)
         latex_code = renderer.render()
 
-        latex_code = latex_code.replace("\\[","", 1).replace("\\]","")
+        latex_code = latex_code.replace("\\[", "", 1).replace("\\]", "")
         return (latex_code, calculated_results)
+
     return wrapper
-        
+
+
 def func_source_to_cell(source: str):
     """
     Returns a string that represents `source` but with no signature, doc string,
@@ -1614,16 +1625,21 @@ def func_source_to_cell(source: str):
     
     `source` is a string representing a function's complete source code.
     """
-    source_lines = source.split('\n')
+    source_lines = source.split("\n")
     acc = []
     for line in source_lines:
         doc_string = False
-        if not doc_string and '"""' in line: 
+        if not doc_string and '"""' in line:
             doc_string = True
             continue
-        elif doc_string and '"""' in line: 
+        elif doc_string and '"""' in line:
             doc_string = False
             continue
-        if "def" not in line and not doc_string and "return" not in line and "@" not in line:
+        if (
+            "def" not in line
+            and not doc_string
+            and "return" not in line
+            and "@" not in line
+        ):
             acc.append(line)
     return "\n".join(acc)
