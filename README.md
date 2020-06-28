@@ -107,7 +107,7 @@ Used in this way, you can use `handcalc` to dynamically generate Latex code for 
 
 ## Comment Tags
 
-`handcalcs` makes certain assumptions about how you would like your calculation formatted and does not allow for a great deal of customization in this regard. However, there are currently **three** customizations you can make using `# comment tags` as the _first line of your cell_ after the `%%render` cell magic. You can only use __one__ comment tag per cell.
+`handcalcs` makes certain assumptions about how you would like your calculation formatted and does not allow for a great deal of customization in this regard. However, there are currently **two** customizations you can make using `# comment tags` as the _first line of your cell_ after the `%%render` cell magic. You can only use __one__ comment tag per cell.
 
 **Comment tags can be used with both the Jupyter cell magic and the function decorator**. To use a comment tag with the decorator, the comment tag must be the first line after the signature (i.e. the `def func_name():`)
 
@@ -118,12 +118,6 @@ Using the `# Parameters` comment tag, your list of parameters will instead rende
 
 ![Parameters](docs/images/parameters.gif)
 
-### `# Output`: 
-In order to render a line of calculations, `handcalcs` relies upon code in the form `parameter = expression`. 
-
-However, if you just want to display values of a series of parameters that you have previously calculated, use the `# Output` comment tag to display them.
-
-![Outputs](docs/images/output.gif)
 
 ### `# Long`: 
 To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, render it out fully on one line.
