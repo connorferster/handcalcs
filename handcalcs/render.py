@@ -1,11 +1,15 @@
-from . import handcalcs as hand
-from . import numpy_and_pandas_patches as patches
-from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
-from IPython import get_ipython
-from IPython.core.magics.namespace import NamespaceMagics
-from IPython.display import Latex, Markdown, display
-from IPython.utils.capture import capture_output
 import sys
+from . import handcalcs as hand
+
+try: 
+    from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
+    from IPython import get_ipython
+    from IPython.core.magics.namespace import NamespaceMagics
+    from IPython.display import Latex, Markdown, display
+    from IPython.utils.capture import capture_output
+except ImportError:
+    pass
+
 
 try:
     _nms = NamespaceMagics()
