@@ -2,6 +2,10 @@
   <img src="https://travis-ci.org/connorferster/handcalcs.svg?branch=master">
   <img src="docs/images/coverage.svg">
   <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
+  <img src="https://img.shields.io/pypi/v/handcalcs">
+  <img src="https://img.shields.io/pypi/pyversions/handcalcs">
+  <img src="https://img.shields.io/github/license/connorferster/handcalcs">
+  <img src="https://img.shields.io/pypi/dm/handcalcs">
 </p>
 <p align="center">
   <img src="docs/images/handcalcs.jpg"><br>
