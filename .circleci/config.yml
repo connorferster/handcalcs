@@ -4,6 +4,13 @@ orbs:
   python: circleci/python@0.2.1
 
 jobs:
+  Unit Test:
+    docker:
+      - image: circleci/python:3.7.1
+
+    steps:
+      - checkout
+      - run  
   build-and-test:
     executor: python/default
     steps:
@@ -12,10 +19,11 @@ jobs:
       - python/install-deps
       - python/save-cache
       - run:
-          command: ./manage.py test
+          command: 
           name: Test
 
 workflows:
   main:
     jobs:
       - build-and-test
+        working_directory
