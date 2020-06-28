@@ -1,7 +1,7 @@
 language: python
 python:
  - 3.7
-script: pytest
+script: pytest --cov-report=xml
 before_install:
  - "pip install -U pip"
  - "python setup.py install"
