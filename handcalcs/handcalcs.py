@@ -64,24 +64,10 @@ class CalcCell:
     lines: deque
     latex_code: str
 
+# Test
     def __repr__(self):
         return str(
             "CalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
-        )
-
-
-@dataclass
-class OutputCell:
-    source: str
-    calculated_results: dict
-    lines: deque
-    precision: int
-    cols: int
-    latex_code: str
-
-    def __repr__(self):
-        return str(
-            "OutputCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
         )
 
 
@@ -93,7 +79,7 @@ class ParameterCell:
     precision: int
     cols: int
     latex_code: str
-
+# Test
     def __repr__(self):
         return str(
             "ParametersCell(\n"
@@ -110,7 +96,7 @@ class LongCalcCell:
     precision: int
     cols: int
     latex_code: str
-
+# Test
     def __repr__(self):
         return str(
             "LongCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
@@ -123,7 +109,7 @@ class LatexRenderer:
         self.source = python_code_str
         self.results = results
         self.precision = 3
-
+# Test
     def set_precision(self, n=3):
         """Sets the precision (number of decimal places) in all
         latex printed values. Default = 3"""
@@ -148,14 +134,15 @@ def latex(raw_python_source: str, calculated_results: dict, precision: int = 3) 
 
 def categorize_raw_cell(
     raw_source: str, calculated_results: dict, precision: int = 3
-) -> Union[ParameterCell, OutputCell, CalcCell]:
+) -> Union[ParameterCell, CalcCell]:
     """
     Return a "Cell" type depending on the source of the cell.
     """
     raw_source = raw_source.strip()
     if test_for_parameter_cell(raw_source):
+        comment_tag_removed = strip_cell_code(raw_source)
         cell = ParameterCell(
-            source=strip_cell_code(raw_source),
+            source=comment_tag_removed,
             calculated_results=calculated_results,
             lines=deque([]),
             precision=precision,
@@ -163,19 +150,11 @@ def categorize_raw_cell(
             latex_code="",
         )
 
-    elif test_for_output_cell(raw_source):
-        cell = OutputCell(
-            source=strip_cell_code(raw_source),
-            calculated_results=calculated_results,
-            lines=deque([]),
-            precision=precision,
-            cols=1,
-            latex_code="",
-        )
-
+# Test: A long calc
     elif test_for_long_cell(raw_source):
+        comment_tag_removed = strip_cell_code(raw_source)
         cell = LongCalcCell(
-            source=strip_cell_code(raw_source),
+            source=comment_tag_removed,
             calculated_results=calculated_results,
             lines=deque([]),
             precision=precision,
@@ -209,8 +188,8 @@ def strip_cell_code(raw_source: str) -> str:
 
 
 def categorize_lines(
-    cell: Union[CalcCell, ParameterCell, OutputCell]
-) -> Union[CalcCell, ParameterCell, OutputCell]:
+    cell: Union[CalcCell, ParameterCell]
+) -> Union[CalcCell, ParameterCell]:
     """
     Return 'cell' with the line data contained in cell_object.source categorized
     into one of four types:
@@ -227,7 +206,7 @@ def categorize_lines(
     calculated_results = cell.calculated_results
     override = ""
     for line in outgoing:
-        if isinstance(cell, (ParameterCell, OutputCell)):
+        if isinstance(cell, (ParameterCell)):
             override = "parameter"
         elif isinstance(cell, LongCalcCell):
             override = "long"
@@ -248,7 +227,7 @@ def categorize_line(
     fits the appropriate criteria. Raise ValueError, otherwise.
 
     'override' is a str used to short-cut the tests in categorize_line(). e.g.
-    if the cell that the lines belong to is a ParameterCell or OutputCell, 
+    if the cell that the lines belong to is a ParameterCell,
     we do not need to run the test_for_parameter_line() function on the line
     because, in a ParameterCell, all lines will default to a ParameterLine
     because of the cell it's in and how that cell is supposed to behave.
@@ -264,7 +243,7 @@ def categorize_line(
     categorized_line = None
 
     # Override behaviour
-    if not test_for_blank_line(line):
+    if not test_for_blank_line(line): # True is blank
         if override == "parameter":
             categorized_line = ParameterLine(
                 split_parameter_line(line, calculated_results), comment, ""
@@ -272,7 +251,12 @@ def categorize_line(
             return categorized_line
 
         elif override == "long":
-            categorized_line = LongCalcLine(code_reader(line), comment, "")
+            if test_for_parameter_line(line): # A parameter can exist in a long cell, too
+                categorized_line = ParameterLine(
+                    split_parameter_line(line, calculated_results), comment, ""
+                )
+            else:
+                categorized_line = LongCalcLine(code_reader(line), comment, "")
             return categorized_line
         elif True:
             pass  # Future override conditions can be put here
@@ -306,20 +290,22 @@ def categorize_line(
     elif "=" in line:
         categorized_line = CalcLine(code_reader(line), comment, "")
 
-    elif len(line) == 1:
+    elif line == "\n" or line == "":
+            categorized_line = BlankLine(line, "", "")
+
+    elif len(expr_parser(line)) == 1:
         categorized_line = ParameterLine(
             split_parameter_line(line, calculated_results), comment, ""
         )
 
     else:
-        if line == "\n" or line == "":
-            categorized_line = BlankLine(line, "", "")
-        else:
-            raise ValueError(
-                f"Line: {line} is not recognized for rendering.\n"
-                "Lines must include either 'if/else' or '='."
-                "Did you intend to create an '# Output' cell?"
-            )
+        raise ValueError(
+            f"Line: {line} is not recognized for rendering.\n"
+            "Lines must either:\n"
+            "\t * Be the name of a previously assigned single variable\n"
+            "\t * Be an arithmetic variable assignment (i.e. calculation that uses '=' in the line)\n"
+            "\t * Be a conditional arithmetic assignment (i.e. uses 'if', 'elif', or 'else', each on a single line)"
+        )
     return categorized_line
 
 
@@ -404,17 +390,6 @@ def convert_parameter_cell(cell: ParameterCell) -> ParameterCell:
     return cell
 
 
-@convert_cell.register(OutputCell)
-def convert_parameter_cell(cell: OutputCell) -> OutputCell:
-    outgoing = cell.lines
-    calculated_results = cell.calculated_results
-    incoming = deque([])
-    for line in outgoing:
-        incoming.append(convert_line(line, calculated_results))
-    cell.lines = incoming
-    return cell
-
-
 @singledispatch
 def convert_line(
     line_object: Union[CalcLine, ConditionalLine, ParameterLine],
@@ -477,7 +452,7 @@ def convert_blank(line, calculated_results):
 
 
 @singledispatch
-def format_cell(cell_object: Union[OutputCell, ParameterCell, CalcCell]):
+def format_cell(cell_object: Union[ParameterCell, CalcCell]):
     raise TypeError(
         f"Cell type {type(cell_object)} has not yet been implemented in format_cell()."
     )
@@ -511,8 +486,8 @@ def parameters_cell(cell: ParameterCell):
             line.latex = latex_param.replace("=", "&=")
 
     latex_block = " ".join(
-        [line.latex for line in cell.lines]
-    ).rstrip()  # .rstrip(): Hack to solve another problem
+        [line.latex for line in cell.lines if not isinstance(line, BlankLine)]
+    ).rstrip()  # .rstrip(): Hack to solve another problem of empty lines in {aligned} environment
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
     return cell
 
@@ -553,24 +528,6 @@ def format_longcalc_cell(cell: LongCalcCell) -> str:
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
-    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
-        "\n" + end, end
-    )
-    return cell
-
-
-@format_cell.register(OutputCell)
-def format_output_cell(cell: OutputCell) -> str:
-    line_break = "\\\\[10pt]\n"
-    precision = cell.precision
-    for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision)
-        line = format_lines(line)
-    latex_block = line_break.join([line.latex for line in cell.lines])
     opener = "\\["
     begin = "\\begin{aligned}"
     end = "\\end{aligned}"
@@ -678,7 +635,6 @@ def test_for_long_lines(line: Union[CalcLine, ConditionalLine]) -> bool:
     raise TypeError(
         f"Line type of {type(line)} not yet implemented in test_for_long_lines()."
     )
-
 
 @test_for_long_lines.register(ParameterLine)
 def test_for_long_param_lines(line: ParameterLine) -> bool:
@@ -815,34 +771,23 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         latex_condition = " ".join(line.true_condition)
         a = "{"
         b = "}"
-        new_math_env = "\n\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\n"
-        first_line = f"&\\text{a}Since, {b}{latex_condition}:{new_math_env}"
-        if line.condition_type == "else":
-            first_line = ""
-        transition_line = ""  # "&\\text{Therefore:} \\\\"
-        line_break = "\\\\\n"
         comment_space = ""
         comment = ""
         if line.comment:
             comment_space = "\\;"
             comment = format_strings(line.comment, comment=True)
+        new_math_env = "\n\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\n"
+        first_line = f"&\\text{a}Since, {b}{latex_condition}:{comment_space}{comment}{new_math_env}"
+        if line.condition_type == "else":
+            first_line = ""
+        #transition_line = ""  # Previously: "&\\text{Therefore:} \\\\"
+        line_break = "\\\\\n"
+
         outgoing = deque([])
         for calc_line in line.true_expressions:
             outgoing.append((format_lines(calc_line)).latex)
         latex_exprs = line_break.join(outgoing)
-        if len(outgoing) > 1:
-            line.latex = (
-                first_line
-                + comment_space
-                + comment
-                + transition_line
-                + line_break
-                + latex_exprs
-            )
-        else:
-            line.latex = (
-                first_line + comment_space + comment + transition_line + latex_exprs
-            )
+        line.latex = first_line + latex_exprs
         return line
     else:
         line.latex = ""
@@ -956,17 +901,6 @@ def test_for_parameter_cell(raw_python_source: str) -> bool:
     return False
 
 
-def test_for_output_cell(raw_python_source: str) -> bool:
-    """
-    Returs True if the text "# Out" is in the first line of 
-    'raw_python_source'. False otherwise.
-    """
-    first_element = raw_python_source.split("\n")[0]
-    if "#" in first_element and "out" in first_element.lower():
-        return True
-    return False
-
-
 def test_for_long_cell(raw_python_source: str) -> bool:
     """
     Returns True if the text "# Long" is in the first line of
@@ -985,6 +919,12 @@ def test_for_blank_line(source: str) -> bool:
     Returns False, otherwise.
     """
     return not bool(source.strip())
+
+def test_for_conditional_line(source: str) -> bool:
+    """
+    Returns True if 'source' appears to be conditional expression.
+    """
+    return ":" in source and ("if" in source or "else" in source)
 
 
 def test_for_single_dict(source: str, calc_results: dict) -> bool:
@@ -1055,13 +995,7 @@ def latex_repr(item: Any) -> str:
     Return a str if the object, 'item', has a special repr method
     for rendering itself in latex. If not, returns str(result).
     """
-    if hasattr(item, "hc_latex"):
-        try:
-            return item.hc_latex().replace("$", "")
-        except TypeError:
-            return str(item)
-
-    elif hasattr(item, "_repr_latex_"):
+    if hasattr(item, "_repr_latex_"):
         return item._repr_latex_().replace("$", "")
 
     elif hasattr(item, "latex"):
