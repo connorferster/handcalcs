@@ -7,7 +7,7 @@ before_install:
  - "python setup.py install"
  - "pip install pytest-cov"
  - "pip install coverage[toml]"
- - "pip install codecov"
+ - "pip install coveralls"
 
 after_success:
- - "codecov"
+ - "coveralls"
