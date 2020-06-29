@@ -23,9 +23,9 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 
 * [Basic Demo](https://github.com/connorferster/handcalcs#basic-demo)
 * [Installation](https://github.com/connorferster/handcalcs#installing)
-* [Basic Usage](https://github.com/connorferster/handcalcs#basic-usage)
-* [Enhanced Usage](https://github.com/connorferster/handcalcs#enhanced-usage)
-* [Features](https://github.com/connorferster/handcalcs#Features)
+* [Basic Usage](https://github.com/connorferster/handcalcs#basic-usage-1-as-a-jupyter-cell-magic-render)
+* [Enhanced Usage](https://github.com/connorferster/handcalcs#basic-usage-2-as-a-decorator-on-your-functions-handcalc)
+* [Features](https://github.com/connorferster/handcalcs#features)
 * [Expected Behaviours](https://github.com/connorferster/handcalcs#expected-behaviours)
 * [Gotchas and Disclaimer](https://github.com/connorferster/handcalcs#gotchas)
 * [Applications and Compatibility with Other Libraries (wiki)](https://github.com/connorferster/handcalcs/wiki)

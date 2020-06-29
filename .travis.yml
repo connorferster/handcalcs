@@ -5,7 +5,7 @@ script: pytest --cov-report term --cov
 before_install:
  - "pip install -U pip"
  - "python setup.py install"
- - "pip install pytest pytest-cov"
+ - "pip install pytest-cov"
  - "pip install codecov"
 
 after_success:
