@@ -6,6 +6,7 @@ before_install:
  - "pip install -U pip"
  - "python setup.py install"
  - "pip install pytest-cov"
+ - "pip install coverage[toml]"
  - "pip install codecov"
 
 after_success:
