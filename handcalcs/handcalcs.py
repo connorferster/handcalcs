@@ -355,6 +355,13 @@ def results_for_blank(line_object, calculated_results):
 
 @singledispatch
 def convert_cell(cell_object):
+    """
+    Return the cell_object with all of its lines run through the function, 
+    'convert_lines()', effectively converting each python element in the parsed
+    deque in the equivalent element in latex. 
+
+    The result remains stored in cell.lines
+    """
     raise TypeError(
         f"Cell object {type(cell_object)} is not yet recognized in convert_cell()"
     )
@@ -372,7 +379,7 @@ def convert_calc_cell(cell: CalcCell) -> CalcCell:
 
 
 @convert_cell.register(LongCalcCell)
-def convert_calc_cell(cell: LongCalcCell) -> LongCalcCell:
+def convert_longcalc_cell(cell: LongCalcCell) -> LongCalcCell:
     outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
@@ -398,6 +405,14 @@ def convert_line(
     line_object: Union[CalcLine, ConditionalLine, ParameterLine],
     calculated_results: dict,
 ) -> Union[CalcLine, ConditionalLine, ParameterLine]:
+    """
+    Returns 'line_object' with its .line attribute converted into a 
+    deque with elements that have been converted to their appropriate
+    Latex counterparts.
+
+    convert_line() runs the deque through all of the conversion functions
+    as organized in `swap_calculation()`.
+    """
     raise TypeError(
         f"Cell object {type(line_object)} is not yet recognized in convert_line()"
     )
@@ -545,6 +560,15 @@ def format_longcalc_cell(cell: LongCalcCell) -> str:
 def round_and_render_line_objects_to_latex(
     line: Union[CalcLine, ConditionalLine, ParameterLine], precision: int
 ):
+    """
+    Returns 'line' with the elements of the deque in its .line attribute
+    converted into their final string form for rendering (thereby preserving
+    its intermediate step) and populates the 
+    .latex attribute with the joined string from .line.
+
+    'precision' is the number of decimal places that each object should
+    be rounded to for display.
+    """
     raise TypeError(
         f"Line type {type(line)} not recognized yet in round_and_render_line_objects_to_latex()"
     )
@@ -746,6 +770,14 @@ def convert_calc_line_to_long(calc_line: CalcLine) -> LongCalcLine:
 
 @singledispatch
 def format_lines(line_object):
+    """
+    format_lines adds small, context-dependent pieces of latex code in
+    amongst the latex string in the line_object.latex attribute. This involves
+    things like inserting "&" or linebreak characters for equation alignment, 
+    formatting comments stored in the .comment attribute and putting them at 
+    the end of the calculation, or the distinctive "Since, <condition> ..."
+    text that occurs when a conditional calculation is rendered.
+    """
     raise TypeError(
         f"Line type {type(line_object)} is not yet implemented in format_lines()."
     )
@@ -850,9 +882,6 @@ def split_conditional(line: str, calculated_results):
     expr_acc = deque([])
     for line in expr_deque:
         categorized = categorize_line(line, calculated_results)
-        # categorized_w_result_appended = add_result_values_to_line(
-        #     categorized, calculated_results
-        # )
         expr_acc.append(categorized)
 
     return (
