@@ -4,7 +4,7 @@ import handcalcs
 import pytest
 
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
-from handcalcs.handcalcs import ParameterCell, LongCalcCell
+from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
 
 # When writing a new test create a new "cell" .py file
 from test_handcalcs import cell_1
@@ -90,8 +90,7 @@ def test_integration():
     )
     assert (
         cell_3_renderer.render()
-        == '\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt{ \\left( \\frac{ 1 }{ \\frac{ b }{ c } } \\right) } = \\sqrt{ \\left( \\frac{ 1 }{ \\frac{ 3 }{ 4 } } \\right) } &= 1.155\n\\\\[10pt]\nf &= \\operatorname{ceil} \\left( \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right) = \\operatorname{ceil} \\left( \\left( 23 + 1 \\right) \\bmod 2 \\right) &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= (42, 0.001)\n\\end{aligned}\n\\]'
-
+        == "\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt{ \\left( \\frac{ 1 }{ \\frac{ b }{ c } } \\right) } = \\sqrt{ \\left( \\frac{ 1 }{ \\frac{ 3 }{ 4 } } \\right) } &= 1.155\n\\\\[10pt]\nf &= \\operatorname{ceil} \\left( \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right) = \\operatorname{ceil} \\left( \\left( 23 + 1 \\right) \\bmod 2 \\right) &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= (42, 0.001)\n\\end{aligned}\n\\]"
     )
     assert (
         cell_4_renderer.render()
@@ -270,6 +269,1361 @@ def test_add_result_values_to_lines():
         true_expressions=deque([]),
         comment=" Comment",
         latex="",
+    )
+
+
+# def test_convert_line():
+#     assert handcalcs.handcalcs.convert_line(
+#         ParameterLine(line=deque(["a", "=", 2]), comment=" Comment", latex="")
+#     ) == ParameterLine(line=deque(["a", "=", 2]), comment=" Comment", latex="")
+#     assert handcalcs.handcalcs.convert_line(
+#         CalcLine(
+#             line=deque(
+#                 [
+#                     "alpha_eta_psi",
+#                     "=",
+#                     "4",
+#                     "/",
+#                     deque(["y", "**", deque(["a", "+", "1"])]),
+#                     deque(["=", 0.018518518518518517]),
+#                 ]
+#             ),
+#             comment=" Comment",
+#             latex="",
+#         )
+#     ) == CalcLine(
+#         line=deque(
+#             [
+#                 "\\alpha_{\\eta_{\\psi}}",
+#                 "=",
+#                 "\\frac{",
+#                 "4",
+#                 "}{",
+#                 "\\left(",
+#                 "y",
+#                 "\\right)",
+#                 "^{",
+#                 "\\left(",
+#                 "a",
+#                 "+",
+#                 "1",
+#                 "\\right)",
+#                 "}",
+#                 "}",
+#                 "=",
+#                 "\\frac{",
+#                 "4",
+#                 "}{",
+#                 "\\left(",
+#                 6,
+#                 "\\right)",
+#                 "^{",
+#                 "\\left(",
+#                 2,
+#                 "+",
+#                 "1",
+#                 "\\right)",
+#                 "}",
+#                 "}",
+#                 "=",
+#                 0.018518518518518517,
+#             ]
+#         ),
+#         comment=" Comment",
+#         latex="",
+#     )
+#     assert handcalcs.handcalcs.convert_line(
+#         ParameterLine(
+#             line=deque(["alpha_eta_psi", "=", 0.018518518518518517]),
+#             comment="",
+#             latex="",
+#         )
+#     ) == ParameterLine(
+#         line=deque(["\\alpha_{\\eta_{\\psi}}", "=", 0.018518518518518517]),
+#         comment="",
+#         latex="",
+#     )
+#     # assert handcalcs.handcalcs.convert_line(
+#     #     ConditionalLine(
+#     #         condition=deque(["x", ">", "1"]),
+#     #         condition_type="elif",
+#     #         expressions=deque(
+#     #             [
+#     #                 CalcLine(
+#     #                     line=deque(["b", "=", "x", "*", "1", deque(["=", 2])]),
+#     #                     comment="",
+#     #                     latex="",
+#     #                 ),
+#     #                 ParameterLine(line=deque(["c", "=", 2]), comment="", latex=""),
+#     #             ]
+#     #         ),
+#     #         raw_condition="x > 1",
+#     #         raw_expression="b = x*1; c = b",
+#     #         true_condition=deque([]),
+#     #         true_expressions=deque([]),
+#     #         comment=" Comment",
+#     #         latex="",
+#     #     )
+#     # ) == ConditionalLine(
+#     #     condition=deque(["x", ">", "1"]),
+#     #     condition_type="elif",
+#     #     expressions=deque(
+#     #         [
+#     #             CalcLine(
+#     #                 line=deque(
+#     #                     ["b", "=", "x", "\\cdot", "1", "=", 2, "\\cdot", "1", "=", 2]
+#     #                 ),
+#     #                 comment="",
+#     #                 latex="",
+#     #             ),
+#     #             ParameterLine(line=deque(["c", "=", 2]), comment="", latex=""),
+#     #         ]
+#     #     ),
+#     #     raw_condition="x > 1",
+#     #     raw_expression="b = x*1; c = b",
+#     #     true_condition=deque(
+#     #         ["x", ">", "1", "\\rightarrow", "\\left(", 2, ">", "1", "\\right)"]
+#     #     ),
+#     #     true_expressions=deque(
+#     #         [
+#     #             CalcLine(
+#     #                 line=deque(
+#     #                     ["b", "=", "x", "\\cdot", "1", "=", 2, "\\cdot", "1", "=", 2]
+#     #                 ),
+#     #                 comment="",
+#     #                 latex='b = x \\cdot 1 = 2 \\cdot 1 = 2',
+#     #             ),
+#     #             ParameterLine(line=deque(["c", "=", 2]), comment="", latex='c = 2'),
+#     #         ]
+#     #     ),
+#     #     comment=" Comment",
+#     #     latex="",
+#     # )
+#     assert handcalcs.handcalcs.convert_line(
+#         CalcLine(
+#             line=deque(
+#                 [
+#                     "d",
+#                     "=",
+#                     "sqrt",
+#                     deque(["1", "/", deque(["b", "/", "c"])]),
+#                     deque(["=", 1.1547005383792515]),
+#                 ]
+#             ),
+#             comment="",
+#             latex="",
+#         )
+#     ) == CalcLine(
+#         line=deque(
+#             [
+#                 "d",
+#                 "=",
+#                 "\\sqrt{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "1",
+#                 "}{",
+#                 "\\frac{",
+#                 "b",
+#                 "}{",
+#                 "c",
+#                 "}",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "=",
+#                 "\\sqrt{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "1",
+#                 "}{",
+#                 "\\frac{",
+#                 3,
+#                 "}{",
+#                 4,
+#                 "}",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "=",
+#                 1.1547005383792515,
+#             ]
+#         ),
+#         comment="",
+#         latex="",
+#     )
+#     assert handcalcs.convert_line(
+#         CalcLine(
+#             line=deque(
+#                 [
+#                     "f",
+#                     "=",
+#                     "ceil",
+#                     deque([deque(["alpha_eta_psi", "+", "1"]), "%", "2"]),
+#                     deque(["=", 0]),
+#                 ]
+#             ),
+#             comment="",
+#             latex="",
+#         )
+#     ) == CalcLine(
+#         line=deque(
+#             [
+#                 "f",
+#                 "=",
+#                 "\\operatorname{ceil}",
+#                 "\\left(",
+#                 "\\left(",
+#                 "\\alpha_{\\eta_{\\psi}}",
+#                 "+",
+#                 "1",
+#                 "\\right)",
+#                 "\\bmod",
+#                 "2",
+#                 "\\right)",
+#                 "=",
+#                 "\\operatorname{ceil}",
+#                 "\\left(",
+#                 "\\left(",
+#                 23,
+#                 "+",
+#                 "1",
+#                 "\\right)",
+#                 "\\bmod",
+#                 "2",
+#                 "\\right)",
+#                 "=",
+#                 0,
+#             ]
+#         ),
+#         comment="",
+#         latex="",
+#     )
+#     assert handcalcs.handcalcs.convert_line(
+#         CalcLine(
+#             line=deque(
+#                 [
+#                     "g",
+#                     "=",
+#                     "quad",
+#                     deque(["F", ",", "y", ",", "b"]),
+#                     deque(["=", (42, 0.001)]),
+#                 ]
+#             ),
+#             comment="",
+#             latex="",
+#         )
+#     ) == CalcLine(
+#         line=deque(
+#             [
+#                 "g",
+#                 "=",
+#                 "\\int_{",
+#                 "y",
+#                 "}",
+#                 "^",
+#                 "{",
+#                 "b",
+#                 "}",
+#                 "\\left(",
+#                 "x",
+#                 "\\right)",
+#                 "^{",
+#                 "2",
+#                 "}",
+#                 "+",
+#                 "3",
+#                 "\\cdot",
+#                 "x",
+#                 "\\; dx",
+#                 "=",
+#                 "\\int_{",
+#                 -2,
+#                 "}",
+#                 "^",
+#                 "{",
+#                 3,
+#                 "}",
+#                 "\\left(",
+#                 "x",
+#                 "\\right)",
+#                 "^{",
+#                 "2",
+#                 "}",
+#                 "+",
+#                 "3",
+#                 "\\cdot",
+#                 "x",
+#                 "\\; dx",
+#                 "=",
+#                 (42, 0.001),
+#             ]
+#         ),
+#         comment="",
+#         latex="",
+#     )
+#     assert handcalcs.handcalcs.convert_line(
+#         CalcLine(
+#             line=deque(
+#                 [
+#                     "y",
+#                     "=",
+#                     "sqrt",
+#                     deque(["a", "/", "b"]),
+#                     "+",
+#                     "asin",
+#                     deque(["sin", deque(["b", "/", "c"])]),
+#                     "+",
+#                     deque(["a", "/", "b"]),
+#                     "**",
+#                     deque(["0.5"]),
+#                     "+",
+#                     "sqrt",
+#                     deque(
+#                         [
+#                             deque(["a", "*", "b", "+", "b", "*", "c"]),
+#                             "/",
+#                             deque(["b", "**", "2"]),
+#                         ]
+#                     ),
+#                     "+",
+#                     "sin",
+#                     deque(["a", "/", "b"]),
+#                     deque(["=", 3.97451933001706]),
+#                 ]
+#             ),
+#             comment=" Comment",
+#             latex="",
+#         )
+#     ) == CalcLine(
+#         line=deque(
+#             [
+#                 "y",
+#                 "=",
+#                 "\\sqrt{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "a",
+#                 "}{",
+#                 "b",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\arcsin{",
+#                 "\\left(",
+#                 "\\sin{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "b",
+#                 "}{",
+#                 "c",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "a",
+#                 "}{",
+#                 "b",
+#                 "}",
+#                 "\\right)",
+#                 "^{",
+#                 "\\left(",
+#                 "0.5",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\sqrt{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "a",
+#                 "\\cdot",
+#                 "b",
+#                 "+",
+#                 "b",
+#                 "\\cdot",
+#                 "c",
+#                 "}{",
+#                 "\\left(",
+#                 "b",
+#                 "\\right)",
+#                 "^{",
+#                 "2",
+#                 "}",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\sin{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 "a",
+#                 "}{",
+#                 "b",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "=",
+#                 "\\sqrt{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 10000001,
+#                 "}{",
+#                 20000002,
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\arcsin{",
+#                 "\\left(",
+#                 "\\sin{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 20000002,
+#                 "}{",
+#                 30000003,
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\left(",
+#                 "\\frac{",
+#                 10000001,
+#                 "}{",
+#                 20000002,
+#                 "}",
+#                 "\\right)",
+#                 "^{",
+#                 "\\left(",
+#                 "0.5",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\sqrt{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 10000001,
+#                 "\\cdot",
+#                 20000002,
+#                 "+",
+#                 20000002,
+#                 "\\cdot",
+#                 30000003,
+#                 "}{",
+#                 "\\left(",
+#                 20000002,
+#                 "\\right)",
+#                 "^{",
+#                 "2",
+#                 "}",
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "+",
+#                 "\\sin{",
+#                 "\\left(",
+#                 "\\frac{",
+#                 10000001,
+#                 "}{",
+#                 20000002,
+#                 "}",
+#                 "\\right)",
+#                 "}",
+#                 "=",
+#                 3.97451933001706,
+#             ]
+#         ),
+#         comment=" Comment",
+#         latex="",
+#     )
+#     assert handcalcs.handcalcs.convert_line(
+#         LongCalcLine(
+#             line=deque(["b", "=", "3", "*", "a", deque(["=", 6])]), comment="", latex=""
+#         )
+#     ) == LongCalcLine(
+#         line=deque(["b", "=", "3", "\\cdot", "a", "=", "3", "\\cdot", 2, "=", 6]),
+#         comment="",
+#         latex="",
+#     )
+
+
+def test_round_and_render_line_objects_to_latex():
+    assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
+        CalcLine(
+            line=deque(
+                [
+                    "\\alpha_{\\eta_{\\psi}}",
+                    "=",
+                    "\\frac{",
+                    "4",
+                    "}{",
+                    "\\left(",
+                    "y",
+                    "\\right)",
+                    "^{",
+                    "\\left(",
+                    "a",
+                    "+",
+                    "1",
+                    "\\right)",
+                    "}",
+                    "}",
+                    "=",
+                    "\\frac{",
+                    "4",
+                    "}{",
+                    "\\left(",
+                    6,
+                    "\\right)",
+                    "^{",
+                    "\\left(",
+                    2,
+                    "+",
+                    "1",
+                    "\\right)",
+                    "}",
+                    "}",
+                    "=",
+                    0.018518518518518517,
+                ]
+            ),
+            comment=" Comment",
+            latex="",
+        ),
+        3,
+    ) == CalcLine(
+        line=deque(
+            [
+                "\\alpha_{\\eta_{\\psi}}",
+                "=",
+                "\\frac{",
+                "4",
+                "}{",
+                "\\left(",
+                "y",
+                "\\right)",
+                "^{",
+                "\\left(",
+                "a",
+                "+",
+                "1",
+                "\\right)",
+                "}",
+                "}",
+                "=",
+                "\\frac{",
+                "4",
+                "}{",
+                "\\left(",
+                "6",
+                "\\right)",
+                "^{",
+                "\\left(",
+                "2",
+                "+",
+                "1",
+                "\\right)",
+                "}",
+                "}",
+                "=",
+                "0.019",
+            ]
+        ),
+        comment=" Comment",
+        latex="\\alpha_{\\eta_{\\psi}} = \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } = 0.019",
+    )
+    assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
+        ParameterLine(
+            line=deque(["\\alpha_{\\eta_{\\psi}}", "=", 0.018518518518518517]),
+            comment="",
+            latex="",
+        ),
+        3,
+    ) == ParameterLine(
+        line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "0.019"]),
+        comment="",
+        latex="\\alpha_{\\eta_{\\psi}} = 0.019",
+    )
+    # assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
+    #     ConditionalLine(
+    #         condition=deque(["x", ">", "1"]),
+    #         condition_type="elif",
+    #         expressions=deque(
+    #             [
+    #                 CalcLine(
+    #                     line=deque(
+    #                         [
+    #                             "b",
+    #                             "=",
+    #                             "x",
+    #                             "\\cdot",
+    #                             "1",
+    #                             "=",
+    #                             2,
+    #                             "\\cdot",
+    #                             "1",
+    #                             "=",
+    #                             2,
+    #                         ]
+    #                     ),
+    #                     comment="",
+    #                     latex="",
+    #                 ),
+    #                 ParameterLine(line=deque(["c", "=", 2]), comment="", latex=""),
+    #             ]
+    #         ),
+    #         raw_condition="x > 1",
+    #         raw_expression="b = x*1; c = b",
+    #         true_condition=deque(
+    #             ["x", ">", "1", "\\rightarrow", "\\left(", 2, ">", "1", "\\right)"]
+    #         ),
+    #         true_expressions=deque(
+    #             [
+    #                 CalcLine(
+    #                     line=deque(
+    #                         [
+    #                             "b",
+    #                             "=",
+    #                             "x",
+    #                             "\\cdot",
+    #                             "1",
+    #                             "=",
+    #                             2,
+    #                             "\\cdot",
+    #                             "1",
+    #                             "=",
+    #                             2,
+    #                         ]
+    #                     ),
+    #                     comment="",
+    #                     latex="",
+    #                 ),
+    #                 ParameterLine(line=deque(["c", "=", 2]), comment="", latex=""),
+    #             ]
+    #         ),
+    #         comment=" Comment",
+    #         latex="",
+    #     ),
+    #     3,
+    # ) == ConditionalLine(
+    #     condition=deque(["x", ">", "1"]),
+    #     condition_type="elif",
+    #     expressions=deque(
+    #         [
+    #             CalcLine(
+    #                 line=deque(
+    #                     [
+    #                         "b",
+    #                         "=",
+    #                         "x",
+    #                         "\\cdot",
+    #                         "1",
+    #                         "=",
+    #                         "2",
+    #                         "\\cdot",
+    #                         "1",
+    #                         "=",
+    #                         "2",
+    #                     ]
+    #                 ),
+    #                 comment="",
+    #                 latex="b = x \\cdot 1 = 2 \\cdot 1 = 2",
+    #             ),
+    #             ParameterLine(line=deque(["c", "=", "2"]), comment="", latex="c = 2"),
+    #         ]
+    #     ),
+    #     raw_condition="x > 1",
+    #     raw_expression="b = x*1; c = b",
+    #     true_condition=deque(
+    #         ["x", ">", "1", "\\rightarrow", "\\left(", "2", ">", "1", "\\right)"]
+    #     ),
+    #     true_expressions=deque(
+    #         [
+    #             CalcLine(
+    #                 line=deque(
+    #                     [
+    #                         "b",
+    #                         "=",
+    #                         "x",
+    #                         "\\cdot",
+    #                         "1",
+    #                         "=",
+    #                         "2",
+    #                         "\\cdot",
+    #                         "1",
+    #                         "=",
+    #                         "2",
+    #                     ]
+    #                 ),
+    #                 comment="",
+    #                 latex="b = x \\cdot 1 = 2 \\cdot 1 = 2",
+    #             ),
+    #             ParameterLine(line=deque(["c", "=", "2"]), comment="", latex="c = 2"),
+    #         ]
+    #     ),
+    #     comment=" Comment",
+    #     latex="b = x \\cdot 1 = 2 \\cdot 1 = 2\\\\\nc = 2",
+    # )
+    assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
+        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), 3
+    ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
+    assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
+        CalcLine(
+            line=deque(
+                [
+                    "y",
+                    "=",
+                    "\\sqrt{",
+                    "\\left(",
+                    "\\frac{",
+                    "a",
+                    "}{",
+                    "b",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\arcsin{",
+                    "\\left(",
+                    "\\sin{",
+                    "\\left(",
+                    "\\frac{",
+                    "b",
+                    "}{",
+                    "c",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\left(",
+                    "\\frac{",
+                    "a",
+                    "}{",
+                    "b",
+                    "}",
+                    "\\right)",
+                    "^{",
+                    "\\left(",
+                    "0.5",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\sqrt{",
+                    "\\left(",
+                    "\\frac{",
+                    "a",
+                    "\\cdot",
+                    "b",
+                    "+",
+                    "b",
+                    "\\cdot",
+                    "c",
+                    "}{",
+                    "\\left(",
+                    "b",
+                    "\\right)",
+                    "^{",
+                    "2",
+                    "}",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\sin{",
+                    "\\left(",
+                    "\\frac{",
+                    "a",
+                    "}{",
+                    "b",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "=",
+                    "\\sqrt{",
+                    "\\left(",
+                    "\\frac{",
+                    10000001,
+                    "}{",
+                    20000002,
+                    "}",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\arcsin{",
+                    "\\left(",
+                    "\\sin{",
+                    "\\left(",
+                    "\\frac{",
+                    20000002,
+                    "}{",
+                    30000003,
+                    "}",
+                    "\\right)",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\left(",
+                    "\\frac{",
+                    10000001,
+                    "}{",
+                    20000002,
+                    "}",
+                    "\\right)",
+                    "^{",
+                    "\\left(",
+                    "0.5",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\sqrt{",
+                    "\\left(",
+                    "\\frac{",
+                    10000001,
+                    "\\cdot",
+                    20000002,
+                    "+",
+                    20000002,
+                    "\\cdot",
+                    30000003,
+                    "}{",
+                    "\\left(",
+                    20000002,
+                    "\\right)",
+                    "^{",
+                    "2",
+                    "}",
+                    "}",
+                    "\\right)",
+                    "}",
+                    "+",
+                    "\\sin{",
+                    "\\left(",
+                    "\\frac{",
+                    10000001,
+                    "}{",
+                    20000002,
+                    "}",
+                    "\\right)",
+                    "}",
+                    "=",
+                    3.97451933001706,
+                ]
+            ),
+            comment=" Comment",
+            latex="",
+        ),
+        3,
+    ) == CalcLine(
+        line=deque(
+            [
+                "y",
+                "=",
+                "\\sqrt{",
+                "\\left(",
+                "\\frac{",
+                "a",
+                "}{",
+                "b",
+                "}",
+                "\\right)",
+                "}",
+                "+",
+                "\\arcsin{",
+                "\\left(",
+                "\\sin{",
+                "\\left(",
+                "\\frac{",
+                "b",
+                "}{",
+                "c",
+                "}",
+                "\\right)",
+                "}",
+                "\\right)",
+                "}",
+                "+",
+                "\\left(",
+                "\\frac{",
+                "a",
+                "}{",
+                "b",
+                "}",
+                "\\right)",
+                "^{",
+                "\\left(",
+                "0.5",
+                "\\right)",
+                "}",
+                "+",
+                "\\sqrt{",
+                "\\left(",
+                "\\frac{",
+                "a",
+                "\\cdot",
+                "b",
+                "+",
+                "b",
+                "\\cdot",
+                "c",
+                "}{",
+                "\\left(",
+                "b",
+                "\\right)",
+                "^{",
+                "2",
+                "}",
+                "}",
+                "\\right)",
+                "}",
+                "+",
+                "\\sin{",
+                "\\left(",
+                "\\frac{",
+                "a",
+                "}{",
+                "b",
+                "}",
+                "\\right)",
+                "}",
+                "=",
+                "\\sqrt{",
+                "\\left(",
+                "\\frac{",
+                "10000001",
+                "}{",
+                "20000002",
+                "}",
+                "\\right)",
+                "}",
+                "+",
+                "\\arcsin{",
+                "\\left(",
+                "\\sin{",
+                "\\left(",
+                "\\frac{",
+                "20000002",
+                "}{",
+                "30000003",
+                "}",
+                "\\right)",
+                "}",
+                "\\right)",
+                "}",
+                "+",
+                "\\left(",
+                "\\frac{",
+                "10000001",
+                "}{",
+                "20000002",
+                "}",
+                "\\right)",
+                "^{",
+                "\\left(",
+                "0.5",
+                "\\right)",
+                "}",
+                "+",
+                "\\sqrt{",
+                "\\left(",
+                "\\frac{",
+                "10000001",
+                "\\cdot",
+                "20000002",
+                "+",
+                "20000002",
+                "\\cdot",
+                "30000003",
+                "}{",
+                "\\left(",
+                "20000002",
+                "\\right)",
+                "^{",
+                "2",
+                "}",
+                "}",
+                "\\right)",
+                "}",
+                "+",
+                "\\sin{",
+                "\\left(",
+                "\\frac{",
+                "10000001",
+                "}{",
+                "20000002",
+                "}",
+                "\\right)",
+                "}",
+                "=",
+                "3.975",
+            ]
+        ),
+        comment=" Comment",
+        latex="y = \\sqrt{ \\left( \\frac{ a }{ b } \\right) } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\left( \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } \\right) } + \\sin{ \\left( \\frac{ a }{ b } \\right) } = \\sqrt{ \\left( \\frac{ 10000001 }{ 20000002 } \\right) } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 20000002 }{ 30000003 } \\right) } \\right) } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\left( \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } \\right) } + \\sin{ \\left( \\frac{ 10000001 }{ 20000002 } \\right) } = 3.975",
+    )
+
+
+def format_lines():
+    assert handcalcs.handcalcs.format_lines(
+        ParameterLine(line=deque(["y", "=", "6"]), comment=" Comment", latex="y = 6")
+    ) == ParameterLine(
+        line=deque(["y", "=", "6"]),
+        comment=" Comment",
+        latex="y &= 6\\;\\;\\textrm{(Comment)}\n",
+    )
+    assert handcalcs.handcalcs.format_lines(
+        CalcLine(
+            line=deque(
+                [
+                    "\\alpha_{\\eta_{\\psi}}",
+                    "=",
+                    "\\frac{",
+                    "4",
+                    "}{",
+                    "\\left(",
+                    "y",
+                    "\\right)",
+                    "^{",
+                    "\\left(",
+                    "a",
+                    "+",
+                    "1",
+                    "\\right)",
+                    "}",
+                    "}",
+                    "=",
+                    "\\frac{",
+                    "4",
+                    "}{",
+                    "\\left(",
+                    "6",
+                    "\\right)",
+                    "^{",
+                    "\\left(",
+                    "2",
+                    "+",
+                    "1",
+                    "\\right)",
+                    "}",
+                    "}",
+                    "=",
+                    "0.019",
+                ]
+            ),
+            comment=" Comment",
+            latex="\\alpha_{\\eta_{\\psi}} = \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } = 0.019",
+        )
+    ) == CalcLine(
+        line=deque(
+            [
+                "\\alpha_{\\eta_{\\psi}}",
+                "=",
+                "\\frac{",
+                "4",
+                "}{",
+                "\\left(",
+                "y",
+                "\\right)",
+                "^{",
+                "\\left(",
+                "a",
+                "+",
+                "1",
+                "\\right)",
+                "}",
+                "}",
+                "=",
+                "\\frac{",
+                "4",
+                "}{",
+                "\\left(",
+                "6",
+                "\\right)",
+                "^{",
+                "\\left(",
+                "2",
+                "+",
+                "1",
+                "\\right)",
+                "}",
+                "}",
+                "=",
+                "0.019",
+            ]
+        ),
+        comment=" Comment",
+        latex="\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 0.019\\;\\;\\textrm{(Comment)}\n",
+    )
+    assert handcalcs.handcalcs.format_lines(
+        ConditionalLine(
+            condition=deque(["x", ">", "1"]),
+            condition_type="elif",
+            expressions=deque(
+                [
+                    CalcLine(
+                        line=deque(
+                            [
+                                "b",
+                                "=",
+                                "x",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "2",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "2",
+                            ]
+                        ),
+                        comment="",
+                        latex="b = x \\cdot 1 = 2 \\cdot 1 = 2",
+                    ),
+                    ParameterLine(
+                        line=deque(["c", "=", "2"]), comment="", latex="c = 2"
+                    ),
+                ]
+            ),
+            raw_condition="x > 1",
+            raw_expression="b = x*1; c = b",
+            true_condition=deque(
+                ["x", ">", "1", "\\rightarrow", "\\left(", "2", ">", "1", "\\right)"]
+            ),
+            true_expressions=deque(
+                [
+                    CalcLine(
+                        line=deque(
+                            [
+                                "b",
+                                "=",
+                                "x",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "2",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "2",
+                            ]
+                        ),
+                        comment="",
+                        latex="b = x \\cdot 1 = 2 \\cdot 1 = 2",
+                    ),
+                    ParameterLine(
+                        line=deque(["c", "=", "2"]), comment="", latex="c = 2"
+                    ),
+                ]
+            ),
+            comment=" Comment",
+            latex="b = x \\cdot 1 = 2 \\cdot 1 = 2\\\\\nc = 2",
+        )
+    ) == ConditionalLine(
+        condition=deque(["x", ">", "1"]),
+        condition_type="elif",
+        expressions=deque(
+            [
+                CalcLine(
+                    line=deque(
+                        [
+                            "b",
+                            "=",
+                            "x",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "2",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "2",
+                        ]
+                    ),
+                    comment="",
+                    latex="b &= x \\cdot 1 = 2 \\cdot 1 &= 2\n",
+                ),
+                ParameterLine(
+                    line=deque(["c", "=", "2"]), comment="", latex="c &= 2\\;\n"
+                ),
+            ]
+        ),
+        raw_condition="x > 1",
+        raw_expression="b = x*1; c = b",
+        true_condition=deque(
+            ["x", ">", "1", "\\rightarrow", "\\left(", "2", ">", "1", "\\right)"]
+        ),
+        true_expressions=deque(
+            [
+                CalcLine(
+                    line=deque(
+                        [
+                            "b",
+                            "=",
+                            "x",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "2",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "2",
+                        ]
+                    ),
+                    comment="",
+                    latex="b &= x \\cdot 1 = 2 \\cdot 1 &= 2\n",
+                ),
+                ParameterLine(
+                    line=deque(["c", "=", "2"]), comment="", latex="c &= 2\\;\n"
+                ),
+            ]
+        ),
+        comment=" Comment",
+        latex="&\\text{Since, }x > 1 \\rightarrow \\left( 2 > 1 \\right):\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1 = 2 \\cdot 1 &= 2\n\\\\\nc &= 2\\;\n",
+    )
+    assert handcalcs.handcalcs.format_lines(
+        ConditionalLine(
+            condition=deque([""]),
+            condition_type="else",
+            expressions=deque(
+                [
+                    CalcLine(
+                        line=deque(
+                            [
+                                "b",
+                                "=",
+                                "x",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "10",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "10",
+                            ]
+                        ),
+                        comment="",
+                        latex="b = x \\cdot 1 = 10 \\cdot 1 = 10",
+                    ),
+                    ParameterLine(
+                        line=deque(["c", "=", "10"]), comment="", latex="c = 10"
+                    ),
+                ]
+            ),
+            raw_condition="",
+            raw_expression="b = x*1; c = b",
+            true_condition=deque([""]),
+            true_expressions=deque(
+                [
+                    CalcLine(
+                        line=deque(
+                            [
+                                "b",
+                                "=",
+                                "x",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "10",
+                                "\\cdot",
+                                "1",
+                                "=",
+                                "10",
+                            ]
+                        ),
+                        comment="",
+                        latex="b = x \\cdot 1 = 10 \\cdot 1 = 10",
+                    ),
+                    ParameterLine(
+                        line=deque(["c", "=", "10"]), comment="", latex="c = 10"
+                    ),
+                ]
+            ),
+            comment="Comment",
+            latex="b = x \\cdot 1 = 10 \\cdot 1 = 10\\\\\nc = 10",
+        )
+    ) == ConditionalLine(
+        condition=deque([""]),
+        condition_type="else",
+        expressions=deque(
+            [
+                CalcLine(
+                    line=deque(
+                        [
+                            "b",
+                            "=",
+                            "x",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "10",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "10",
+                        ]
+                    ),
+                    comment="",
+                    latex="b &= x \\cdot 1 = 10 \\cdot 1 &= 10\n",
+                ),
+                ParameterLine(
+                    line=deque(["c", "=", "10"]), comment="", latex="c &= 10\\;\n"
+                ),
+            ]
+        ),
+        raw_condition="",
+        raw_expression="b = x*1; c = b",
+        true_condition=deque([""]),
+        true_expressions=deque(
+            [
+                CalcLine(
+                    line=deque(
+                        [
+                            "b",
+                            "=",
+                            "x",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "10",
+                            "\\cdot",
+                            "1",
+                            "=",
+                            "10",
+                        ]
+                    ),
+                    comment="",
+                    latex="b &= x \\cdot 1 = 10 \\cdot 1 &= 10\n",
+                ),
+                ParameterLine(
+                    line=deque(["c", "=", "10"]), comment="", latex="c &= 10\\;\n"
+                ),
+            ]
+        ),
+        comment="Comment",
+        latex="b &= x \\cdot 1 = 10 \\cdot 1 &= 10\n\\\\\nc &= 10\\;\n",
+    )
+    assert handcalcs.handcalcs.format_lines(
+        LongCalcLine(
+            line=deque(
+                ["b", "=", "3", "\\cdot", "a", "=", "3", "\\cdot", "2", "=", "6"]
+            ),
+            comment="",
+            latex="b = 3 \\cdot a = 3 \\cdot 2 = 6",
+        )
+    ) == LongCalcLine(
+        line=deque(["b", "=", "3", "\\cdot", "a", "=", "3", "\\cdot", "2", "=", "6"]),
+        comment="",
+        latex="b &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n",
     )
 
 
