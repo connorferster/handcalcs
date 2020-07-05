@@ -153,6 +153,11 @@ Use the `# Long` comment tag to override the length check and display the calcul
 
 ## Features
 
+### Quickly display the values of many variables
+In Python, displaying the value of many variables often requires tediously typing them all into a `print()` statement or something. `handcalcs` makes this much easier:
+
+![display variable demo](docs/images/outputs.gif)
+
 ### Get Just the Latex Code, without the render
 If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic, instead:
 
