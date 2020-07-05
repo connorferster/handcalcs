@@ -1,5 +1,10 @@
 from math import ceil, sqrt
 def quad(*args, **kwargs):
+    """
+    This is a mocked integration function to mimic
+    scipy.integrate.quad. It doesn't do anything
+    other than return a value in the correct format.
+    """
     return (42, 0.001)
 
 def F(x):

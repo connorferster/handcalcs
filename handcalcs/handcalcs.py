@@ -1,3 +1,17 @@
+#    Copyright 2020 Connor Ferster
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
 from collections import deque
 import copy
 from dataclasses import dataclass
@@ -55,7 +69,7 @@ class BlankLine:  # Attributes not used on BlankLine but still req'd
     latex: str
 
 
-# Four types of cell
+# Three types of cell
 @dataclass
 class CalcCell:
     source: str
@@ -201,7 +215,6 @@ def categorize_lines(
     categorize_lines(calc_cell) is considered the default behaviour for the 
     singledispatch categorize_lines function.
     """
-    # source = cell.source.rstrip()
     outgoing = cell.source.rstrip().split("\n")
     incoming = deque([])
     calculated_results = cell.calculated_results
@@ -244,7 +257,7 @@ def categorize_line(
     categorized_line = None
 
     # Override behaviour
-    if not test_for_blank_line(line):  # True is blank
+    if not test_for_blank_line(line):  # True is a blank line
         if override == "parameter":
             categorized_line = ParameterLine(
                 split_parameter_line(line, calculated_results), comment, ""
@@ -265,7 +278,10 @@ def categorize_line(
             pass  # Future override conditions can be put here
 
     # Standard behaviour
-    if test_for_parameter_line(line):
+    if line == "\n" or line == "":
+        categorized_line = BlankLine(line, "", "")
+
+    elif test_for_parameter_line(line):
         categorized_line = ParameterLine(
             split_parameter_line(line, calculated_results), comment, ""
         )
@@ -293,8 +309,6 @@ def categorize_line(
     elif "=" in line:
         categorized_line = CalcLine(code_reader(line), comment, "")
 
-    elif line == "\n" or line == "":
-        categorized_line = BlankLine(line, "", "")
 
     elif len(expr_parser(line)) == 1:
         categorized_line = ParameterLine(
@@ -816,7 +830,6 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         first_line = f"&\\text{a}Since, {b}{latex_condition}:{comment_space}{comment}{new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        # transition_line = ""  # Previously: "&\\text{Therefore:} \\\\"
         line_break = "\\\\\n"
 
         outgoing = deque([])
@@ -837,8 +850,8 @@ def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
     for positioning within the "\aligned" latex environment.
     """
     latex_code = line.latex
-    long_latex = latex_code.replace("=", "\\\\&=")  # Change all
-    long_latex = long_latex.replace("\\\\&=", "&=", 1)  # Fix the first one
+    long_latex = latex_code.replace("=", "\\\\&=")  # Change all...
+    long_latex = long_latex.replace("\\\\&=", "&=", 1)  # ...except the first one
     line_break = "\\\\\n"
     comment_space = ""
     comment = ""
@@ -911,7 +924,7 @@ def test_for_parameter_line(line: str) -> bool:
             expr_as_code = code_reader(line)
             if len(expr_as_code) == 3 and expr_as_code[1] == "=":  # Param = value
                 return True
-            elif (
+            elif (  # Special check required for -ve nums
                 len(expr_as_code) == 4
                 and expr_as_code[1] == "="
                 and expr_as_code[2] == "-"
@@ -1282,6 +1295,9 @@ def eval_conditional(conditional_str: str, **kwargs) -> str:
     # unpacking-a-passed-dictionary-into-the-functions-name-space-in-python
     exec(",".join(kwargs) + ", = kwargs.values()")
     try:
+        # It would be good to sanitize the code coming in on 'conditional_str'
+        # Should this code be forced into using only boolean operators?
+        # Do not need to cross this bridge, yet.
         return eval(conditional_str)
     except SyntaxError:
         return conditional_str
@@ -1306,13 +1322,11 @@ def expr_parser(expr_as_str: str) -> deque:
     """
     term = pp.Word(pp.srange("[A-Za-z0-9_'\".]"), pp.srange("[A-Za-z0-9_'\".]"))
     operator = pp.Word("+-*/^%<>=~!,")
-    # eol = pp.Word(";")
     func = pp.Word(pp.srange("[A-Za-z0-9_.]")) + pp.FollowedBy(
         pp.Word(pp.srange("[A-Za-z0-9_()]"))
     )
     string = pp.Word(pp.srange("[A-Za-z0-9'\"]"))
     group = term ^ operator ^ func ^ string
-    # parenth = pp.nestedExpr(content=group ^ eol)
     parenth = pp.nestedExpr(content=group)
     master = group ^ parenth
     expr = pp.OneOrMore(master)
@@ -1504,9 +1518,7 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
         if isinstance(item, deque) and not close_bracket_token:
             new_item = swap_superscripts(item)  # recursion!
             pycode_with_supers.append(new_item)
-        elif not isinstance(next_item, deque) and "**" in str(
-            next_item
-        ):  # next_item == "**":#"**" in str(next_item):
+        elif not isinstance(next_item, deque) and "**" in str(next_item):
             pycode_with_supers.append(l_par)
             pycode_with_supers.append(item)
             pycode_with_supers.append(r_par)
@@ -1518,7 +1530,7 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
             close_bracket_token
             and not isinstance(prev_item, deque)
             and "**" in str(prev_item)
-        ):  # prev_item == "**":
+        ):
             pycode_with_supers.append(item)
             new_item = f"{b}"
             pycode_with_supers.append(new_item)
@@ -1534,7 +1546,8 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
     Returns full line of code as deque with any Greek terms swapped in for words describing
     Greek terms, e.g. 'beta' -> 'β'
     """
-    # "eta" and "psi" need to be last on the list b/c they are substrings of "theta" and "epsilon"
+    # "eta" and "psi" need to be last on the list b/c they are substrings
+    # of "theta" and "epsilon"
     greeks = [
         "alpha",
         "beta",
@@ -1566,6 +1579,8 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
             new_item = swap_for_greek(item)  # recursion!
             pycode_with_greek.append(new_item)
         elif isinstance(item, str):
+            # This code is intended to swap out the greeks but to also swap
+            # out greeks in subscripts or sub-sub-scripts, etc.
             for greek in greeks:
                 if (greek in item or greek.capitalize() in item) and (
                     greek not in greek_exceptions
@@ -1594,8 +1609,6 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
                     )
 
             pycode_with_greek.append(item)
-            # else:
-            #     pycode_with_greek.append(item)
         else:
             pycode_with_greek.append(item)
     return pycode_with_greek
@@ -1612,15 +1625,10 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
         if isinstance(item, deque):
             outgoing.append(swap_values(item, tex_results))
         else:
-            # try:
             swapped_value = tex_results.get(item, item)
             if isinstance(swapped_value, str) and swapped_value != item:
                 swapped_value = format_strings(swapped_value, comment=False)
             outgoing.append(swapped_value)
-            # except:
-            #     if isinstance(swapped_value, str) and swapped_value != item:
-            #         swapped_value = format_strings(swapped_value, comment=False)
-            #         swapped_values.append(swapped_value)
     return outgoing
 
 

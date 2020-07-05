@@ -1,3 +1,18 @@
+#    Copyright 2020 Connor Ferster
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+
 import inspect
 from collections import deque
 import handcalcs
@@ -25,12 +40,23 @@ def remove_imports_defs_and_globals(source: str):
     """
     source_lines = source.split("\n")
     acc = []
+    doc_string = False
     for line in source_lines:
+        if not doc_string and '"""' in line:
+            doc_string = True
+            continue
+        elif doc_string and '"""' in line:
+            doc_string = False
+            continue
+        elif doc_string:
+            continue
         if (
-            "import" not in line
-            and "def" not in line
-            and "globals" not in line
+            "def" not in line
+            and not doc_string
             and "return" not in line
+            and "@" not in line
+            and "globals" not in line
+            and "import" not in line
         ):
             acc.append(line)
     return "\n".join(acc)

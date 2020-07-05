@@ -11,10 +11,10 @@ show_missing = true
 
 [tool.poetry]
 name = "handcalcs"
-version = "0.3.2"
+version = "0.4.0"
 description = "Sample desc"
 authors = ["Connor Ferster"]
-license = "GPL-3.0-only"
+license = "Apache-2.0"
 homepage = "https://github.com/connorferster/handcalcs"
 repository = "https://github.com/connorferster/handcalcs"
 documentation = "https://github.com/connorferster/handcalcs"
@@ -25,13 +25,8 @@ python = "^3.7"
 pyparsing = "^2.4.7"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.4.3"
-coverage = {extras = ["toml"], version = "^5.1"}
 pytest-cov = "^2.9.0"
-sphinx = "2.4.4"
-myst-parser = {extras = ["sphinx"], version = "^0.8.2"}
-streamlit = "^0.61.0"
-scipy = "^1.5.0"
+coverage = {extras = ["toml"], version = "^5.1"}
 
 [build-system]
 requires = ["poetry>=0.12"]
