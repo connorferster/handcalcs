@@ -25,11 +25,18 @@ import pathlib
 from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
-# TODO: Do something with inequality checks
+# TODO: Do something with inequality checks and bools
 
-# Five basic line types
+# Six basic line types
 @dataclass
 class CalcLine:
+    line: deque
+    comment: str
+    latex: str
+
+
+@dataclass
+class SymbolicLine:
     line: deque
     comment: str
     latex: str
@@ -69,9 +76,37 @@ class BlankLine:  # Attributes not used on BlankLine but still req'd
     latex: str
 
 
-# Three types of cell
+# Five types of cell
 @dataclass
 class CalcCell:
+    source: str
+    calculated_results: dict
+    precision: int
+    lines: deque
+    latex_code: str
+
+    # Test
+    def __repr__(self):
+        return str(
+            "CalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
+        )
+
+@dataclass
+class ShortCalcCell:
+    source: str
+    calculated_results: dict
+    precision: int
+    lines: deque
+    latex_code: str
+
+    # Test
+    def __repr__(self):
+        return str(
+            "ShortCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
+        )
+
+@dataclass
+class SymbolicCell:
     source: str
     calculated_results: dict
     precision: int
@@ -108,7 +143,6 @@ class LongCalcCell:
     calculated_results: dict
     lines: deque
     precision: int
-    cols: int
     latex_code: str
     # Test
     def __repr__(self):
@@ -165,7 +199,6 @@ def categorize_raw_cell(
             latex_code="",
         )
 
-    # Test: A long calc
     elif test_for_long_cell(raw_source):
         comment_tag_removed = strip_cell_code(raw_source)
         cell = LongCalcCell(
@@ -173,7 +206,27 @@ def categorize_raw_cell(
             calculated_results=calculated_results,
             lines=deque([]),
             precision=precision,
-            cols=1,
+            latex_code="",
+        )
+
+    elif test_for_short_cell(raw_source):
+        comment_tag_removed = strip_cell_code(raw_source)
+        cell = ShortCalcCell(
+            source=comment_tag_removed,
+            calculated_results=calculated_results,
+            lines=deque([]),
+            precision=precision,
+            latex_code="",
+        )
+
+    # Test: a symbolic calc
+    elif test_for_symbolic_cell(raw_source):
+        comment_tag_removed = strip_cell_code(raw_source)
+        cell = SymbolicCell(
+            source=comment_tag_removed,
+            calculated_results=calculated_results,
+            lines=deque([]),
+            precision=precision,
             latex_code="",
         )
 
@@ -220,10 +273,12 @@ def categorize_lines(
     calculated_results = cell.calculated_results
     override = ""
     for line in outgoing:
-        if isinstance(cell, (ParameterCell)):
+        if isinstance(cell, ParameterCell):
             override = "parameter"
         elif isinstance(cell, LongCalcCell):
             override = "long"
+        elif isinstance(cell, SymbolicCell):
+            override = "symbolic"
         categorized = categorize_line(line, calculated_results, override)
         categorized_w_result_appended = add_result_values_to_line(
             categorized, calculated_results
@@ -274,8 +329,14 @@ def categorize_line(
             else:
                 categorized_line = LongCalcLine(code_reader(line), comment, "")
             return categorized_line
+        elif override == "symbolic":
+            categorized_line = SymbolicLine(code_reader(line), comment, "")
+            return categorized_line
+        elif override == "short":
+            categorized_line = CalcLine(code_reader(line), comment, "")
+            return categorized_line
         elif True:
-            pass  # Future override conditions can be put here
+            pass  # Future override conditions to match new cell types can be put here
 
     # Standard behaviour
     if line == "\n" or line == "":
@@ -308,7 +369,6 @@ def categorize_line(
 
     elif "=" in line:
         categorized_line = CalcLine(code_reader(line), comment, "")
-
 
     elif len(expr_parser(line)) == 1:
         categorized_line = ParameterLine(
@@ -362,6 +422,11 @@ def results_for_conditionline(line_object, calculated_results: dict):
     return line_object
 
 
+@add_result_values_to_line.register(SymbolicLine)
+def results_for_symbolicline(line_object, calculated_results):
+    return line_object
+
+
 @add_result_values_to_line.register(BlankLine)
 def results_for_blank(line_object, calculated_results):
     return line_object
@@ -391,6 +456,15 @@ def convert_calc_cell(cell: CalcCell) -> CalcCell:
     cell.lines = incoming
     return cell
 
+@convert_cell.register(ShortCalcCell)
+def convert_calc_cell(cell: ShortCalcCell) -> ShortCalcCell:
+    outgoing = cell.lines
+    calculated_results = cell.calculated_results
+    incoming = deque([])
+    for line in outgoing:
+        incoming.append(convert_line(line, calculated_results))
+    cell.lines = incoming
+    return cell
 
 @convert_cell.register(LongCalcCell)
 def convert_longcalc_cell(cell: LongCalcCell) -> LongCalcCell:
@@ -414,11 +488,24 @@ def convert_parameter_cell(cell: ParameterCell) -> ParameterCell:
     return cell
 
 
+@convert_cell.register(SymbolicCell)
+def convert_symbolic_cell(cell: SymbolicCell) -> SymbolicCell:
+    outgoing = cell.lines
+    calculated_results = cell.calculated_results
+    incoming = deque([])
+    for line in outgoing:
+        incoming.append(convert_line(line, calculated_results))
+    cell.lines = incoming
+    return cell
+
+
 @singledispatch
 def convert_line(
-    line_object: Union[CalcLine, ConditionalLine, ParameterLine],
+    line_object: Union[
+        CalcLine, ConditionalLine, ParameterLine, SymbolicLine, BlankLine
+    ],
     calculated_results: dict,
-) -> Union[CalcLine, ConditionalLine, ParameterLine]:
+) -> Union[CalcLine, ConditionalLine, ParameterLine, SymbolicLine, BlankLine]:
     """
     Returns 'line_object' with its .line attribute converted into a 
     deque with elements that have been converted to their appropriate
@@ -478,13 +565,21 @@ def convert_parameter(line, calculated_results):
     return line
 
 
+@convert_line.register(SymbolicLine)
+def convert_symbolic_line(line, calculated_results):
+    line.line = swap_symbolic_calcs(line.line)
+    return line
+
+
 @convert_line.register(BlankLine)
 def convert_blank(line, calculated_results):
     return line
 
 
 @singledispatch
-def format_cell(cell_object: Union[ParameterCell, CalcCell]):
+def format_cell(
+    cell_object: Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell]
+) -> Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell]:
     raise TypeError(
         f"Cell type {type(cell_object)} has not yet been implemented in format_cell()."
     )
@@ -546,6 +641,26 @@ def format_calc_cell(cell: CalcCell) -> str:
     )
     return cell
 
+@format_cell.register(ShortCalcCell)
+def format_shortcalc_cell(cell: ShortCalcCell) -> str:
+    line_break = "\\\\[10pt]\n"
+    precision = cell.precision
+    incoming = deque([])
+    for line in cell.lines:
+        line = round_and_render_line_objects_to_latex(line, precision)
+        line = format_lines(line)
+        incoming.append(line)
+    cell.lines = incoming
+
+    latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
+    opener = "\\["
+    begin = "\\begin{aligned}"
+    end = "\\end{aligned}"
+    closer = "\\]"
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
+        "\n" + end, end
+    )
+    return cell
 
 @format_cell.register(LongCalcCell)
 def format_longcalc_cell(cell: LongCalcCell) -> str:
@@ -570,10 +685,32 @@ def format_longcalc_cell(cell: LongCalcCell) -> str:
     return cell
 
 
+@format_cell.register(SymbolicCell)
+def format_symbolic_cell(cell: SymbolicCell) -> str:
+    line_break = "\\\\[10pt]\n"
+    precision = cell.precision
+    incoming = deque([])
+    for line in cell.lines:
+        line = round_and_render_line_objects_to_latex(line, precision)
+        line = format_lines(line)
+        incoming.append(line)
+    cell.lines = incoming
+
+    latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
+    opener = "\\["
+    begin = "\\begin{aligned}"
+    end = "\\end{aligned}"
+    closer = "\\]"
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
+        "\n" + end, end
+    )
+    return cell
+
+
 @singledispatch
 def round_and_render_line_objects_to_latex(
     line: Union[CalcLine, ConditionalLine, ParameterLine], precision: int
-):
+):  # Not called for symbolic lines; see format_symbolic_cell()
     """
     Returns 'line' with the elements of the deque in its .line attribute
     converted into their final string form for rendering (thereby preserving
@@ -628,13 +765,23 @@ def round_and_render_conditional(
     return line
 
 
+@round_and_render_line_objects_to_latex.register(SymbolicLine)
+def round_and_render_symbolic(line: SymbolicLine, precision: int) -> SymbolicLine:
+    rounded_line = round_and_render(line.line, precision)
+    line.line = rounded_line
+    line.latex = " ".join(rounded_line)
+    return line
+
+
 @round_and_render_line_objects_to_latex.register(BlankLine)
 def round_and_render_blank(line, precision):
     return line
 
 
 @singledispatch
-def convert_applicable_long_lines(line: Union[ConditionalLine, CalcLine]):
+def convert_applicable_long_lines(
+    line: Union[ConditionalLine, CalcLine]
+):  # Not called for symbolic lines; see format_symbolic_cell()
     raise TypeError(
         f"Line type {type(line)} not yet implemented in convert_applicable_long_lines()."
     )
@@ -871,6 +1018,15 @@ def format_param_line(line: ParameterLine) -> ParameterLine:
     return line
 
 
+@format_lines.register(SymbolicLine)
+def format_symbolic_line(line: SymbolicLine) -> SymbolicLine:
+    replaced = line.latex.replace("=", "&=")
+    comment_space = "\\;"
+    comment = format_strings(line.comment, comment=True)
+    line.latex = f"{replaced}{comment_space}{comment}\n"
+    return line
+
+
 @format_lines.register(BlankLine)
 def format_blank_line(line: BlankLine) -> BlankLine:
     line.latex = ""
@@ -954,6 +1110,27 @@ def test_for_long_cell(raw_python_source: str) -> bool:
     """
     first_element = raw_python_source.split("\n")[0]
     if "#" in first_element and "long" in first_element.lower():
+        return True
+    return False
+
+def test_for_short_cell(raw_python_source: str) -> bool:
+    """
+    Returns True if the text "# Long" is in the first line of
+    `raw_python_source`. False otherwise.
+    """
+    first_element = raw_python_source.split("\n")[0]
+    if "#" in first_element and "short" in first_element.lower():
+        return True
+    return False
+
+
+def test_for_symbolic_cell(raw_python_source: str) -> bool:
+    """
+    Returns True if the text "# Long" is in the first line of
+    `raw_python_source`. False otherwise.
+    """
+    first_element = raw_python_source.split("\n")[0]
+    if "#" in first_element and "symbolic" in first_element.lower():
         return True
     return False
 

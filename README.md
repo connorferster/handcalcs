@@ -14,7 +14,7 @@
 
 <h1 align = "center">handcalcs:<br>Python calculations in Jupyter,<br>as though you wrote them by hand.</h1>
 
-`handcalcs` is a library to render your Python calculation code automatically in Latex, but in a manner that mimics how one might format their calculation if it were written with a pencil:  write the symbolic formula, **followed by numeric substitutions**, and then the result.
+`handcalcs` is a library to render Python calculation code automatically in Latex, but in a manner that mimics how one might format their calculation if it were written with a pencil:  write the symbolic formula, **followed by numeric substitutions**, and then the result.
 
 Because `handcalcs` shows the numeric substitution, the calculations become significantly easier to check and verify by hand.
 
@@ -73,7 +73,7 @@ Once rendered, you can then export your notebook as a PDF, provided you have a L
 
 ## Basic Usage 2: As a decorator on your functions (`@handcalc`)
 
-This is the same kind thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, which is treated like a Jupyter cell. 
+This is the same kind of thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, which is treated like a Jupyter cell. 
 
 For example, start by importing the `@handcalc` decorator:
 
@@ -107,7 +107,7 @@ Used in this way, you can use `handcalc` to dynamically generate Latex code for 
 
 ## Comment Tags
 
-`handcalcs` makes certain assumptions about how you would like your calculation formatted and does not allow for a great deal of customization in this regard. However, there are currently **two** customizations you can make using `# comment tags` as the _first line of your cell_ after the `%%render` cell magic. You can only use __one__ comment tag per cell.
+`handcalcs` makes certain assumptions about how you would like your calculation formatted and does not allow for a great deal of customization in this regard. However, there are currently **three** customizations you can make using `# comment tags` as the _first line of your cell_ after the `%%render` cell magic. You can only use __one__ comment tag per cell.
 
 **Comment tags can be used with both the Jupyter cell magic and the function decorator**. To use a comment tag with the decorator, the comment tag must be the first line after the signature (i.e. the `def func_name():`)
 
@@ -120,7 +120,7 @@ Using the `# Parameters` comment tag, your list of parameters will instead rende
 
 
 ### `# Long`: 
-To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, render it out fully on one line.
+To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, renders it out fully on one line.
 
 If `handcalcs`'s internal test deems the calculation as being too long to fit onto one line, it breaks it out into multiple lines. 
 
@@ -154,12 +154,12 @@ Use the `# Long` comment tag to override the length check and display the calcul
 ## Features
 
 ### Quickly display the values of many variables
-In Python, displaying the value of many variables often requires tediously typing them all into a `print()` statement or something. `handcalcs` makes this much easier:
+In Python, displaying the value of many variables often requires tediously typing them all into a series of `print()` statements. `handcalcs` makes this much easier:
 
 ![display variable demo](docs/images/outputs.gif)
 
 ### Get Just the Latex Code, without the render
-If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic, instead:
+If you just want to generate the rendered Latex code directly to use in your own Latex files, you can use the `%%tex` cell magic instead:
 
 ```python
 %%tex
@@ -168,7 +168,7 @@ b = 3
 c = 2*a + b/3
 ```
 
-Then you can just copy and paste the result into your own .tex document.
+Then you can just copy and paste the result into your own LaTeX document.
 
 ![tex cell magic demo](docs/images/tex.gif)
 
@@ -189,7 +189,7 @@ Any variable name that contains a Greek letter (e.g. "pi", "upsilon", "eta", etc
 
 * Using lower case letters as your variable name will make a lower case Greek letter.
 
-* Using a Capitalized Name for your variable will render as an upper case Greek letter.
+* Using a Capitalized Name for your variable will render it as an upper case Greek letter.
 
 ![Greek symbols deom](docs/images/greeks.gif)
 
@@ -199,7 +199,7 @@ Any variable name that contains a Greek letter (e.g. "pi", "upsilon", "eta", etc
 
 If you are using Python functions in your calculation, eg. `min()` or `tan()`, they will be replaced with Latex code to represent that function in Latex.
 
-If you are making up your own functions, then they will be rendered in Latex as a custom operator.
+If you are creating your own functions, then they will be rendered in Latex as a custom operator.
 
 If you are using a function with the name `sqrt` (whether your own custom implementation or from `math.sqrt`), then it will be rendered as the radical sign.
 
@@ -211,7 +211,7 @@ If you are using a function with the name `sqrt` (whether your own custom implem
 
 Any comments placed after a line of calculation will be rendered as an inline comment in the Latex. 
 
-This makes it convenient to make notes along side your calculations to briefly explain where you may have gotten/chosen a particular value.
+This makes it convenient to make notes along side your calculations to briefly explain where you may have acquired or derived a particular value.
 
 ![Comments](docs/images/comments.gif)
 
@@ -243,7 +243,7 @@ Many calculations in the "real world" are dependent on context.
 
 You can use `scipy.quad` to perform numeric integration on a pre-defined function and have `handcalcs` perform a basic rendering of it.
 
-This behaviour is triggered and attempted if you use a function with either `integrate` or `quad` in the name.
+This behaviour is triggered if you use a function with either `integrate` or `quad` in the name.
 
 ![Numeric integration](docs/images/integration.gif)
 
@@ -265,12 +265,12 @@ Objects are rendered into Latex by two main approaches:
 
 1. If the object has a `_repr_latex_()` method defined, then that method is used.
 
-    a) If the object has some alternate method for rendering itself into Latex code, an attempt is made to find that (e.g. `.latex()` or `.to_latex()` will be attempted), also. 
+    a) If the object has some alternate method for rendering itself into Latex code, e.g. `.latex()` or `.to_latex()`, that will be attempted as well.
     
     In order for the representation to be rendered properly, the object's Latex represention must use commands that are implemented with MathJax and/or Katex.
 2. If the object does not have a Latex method, then `str()` is used.
 
-If you are using object types that have str methods that render as `<MyObject: value=34>`, then that's what the Latex interpreter will see and attempt to render.
+If you are using object types which have str methods that render as `<MyObject: value=34>`, then that's what the Latex interpreter will see and attempt to render.
 
 ### Arithmetic operators
 
@@ -281,7 +281,7 @@ If you are using object types that have str methods that render as `<MyObject: v
 * `**` renders as superscripts
 * `%` renders as the "mod function" (Latex: \mod)
 
-Currently, `//` is not rendered but you can easily use `math.floor` as a function, instead.
+Currently `//` is not rendered but you can easily use `math.floor` as a function instead.
 
 ### Brackets (parentheses) are critical
 
@@ -292,7 +292,7 @@ a = 23.2
 b = 9.4
 c = (3*a)/(sqrt(2*a + b**2))
 ```
-Here, brackets are used to define both the numerator and denominator, unambiguously.
+Here, brackets are used to define both numerator and denominator, unambiguously.
 
 However, even though it is correct and valid Python, the below will produce unexpected results:
 
@@ -309,16 +309,16 @@ The above line would look like this (represented as a list, for brevity): `[[3, 
 
 To render the fraction properly, a lookahead is performed and the next item after the `/` is rendered as the denominator. In this instance, the next item is the function name, `sqrt`, and not the full expression. 
 
-Putting brackets around the whole denominator means that `handcalcs` will see the whole expression (as a nested deque) in the lookahead.
+Bracketing the entire denominator causes `handcalcs` to see the whole expression (as a nested deque) in the lookahead.
 
 **If you have Latex output that does not look quite right, check to see if you are using brackets and fractions in this unambiguous manner.**
 
-All actual calculations are handled by Jupyter when the cell is run. The resulting values are stored in the user's namespace dictionary and `handcalcs` uses the variable's corresponding value from the namespace dict as the result to display. This means that, even if the representation of your calculation appears funny, the result will be correct _provided that you are using a unique variable name._ (see, [Gotchas](https://github.com/connorferster/handcalcs#gotchas))
+All actual calculations are handled by Jupyter when the cell is run. The resulting values are stored in the user's namespace dictionary and `handcalcs` uses the variable's corresponding value from the namespace dict as the result to display. Consequently, even if the representation of your calculation seems odd, the result will be correct _provided that you are using a unique variable name._ (see, [Gotchas](https://github.com/connorferster/handcalcs#gotchas))
 
 
 ### `for` loops and other iterations
 
-Showing rendered iterations is not supported. The intention for use is that you perform your iterations in a cell that is not rendered and then, once the iteration has produced the desired resulting value, then you render the result in a separate cell.
+Showing rendered iterations is not supported. The intention for use is that you perform your iterations in a cell that is not rendered and then, once the iteration has produced the desired resulting value, you render the result in a separate cell.
 
 ## Gotchas
 
