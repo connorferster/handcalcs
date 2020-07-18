@@ -112,31 +112,43 @@ Used in this way, you can use `handcalc` to dynamically generate Latex code for 
 **Comment tags can be used with both the Jupyter cell magic and the function decorator**. To use a comment tag with the decorator, the comment tag must be the first line after the signature (i.e. the `def func_name():`)
 
 ### `# Parameters`: 
-`handcalcs` renders lines of code vertically, one after the other. However, when you are assigning variables, you may not want to waste all of that vertical space. 
+`handcalcs` renders lines of code vertically, one after the other. However, when you are assigning variables, or displaying resulting variables, you may not want to waste all of that vertical space. 
 
 Using the `# Parameters` comment tag, your list of parameters will instead render in three columns, thereby saving vertical space.
 
 ![Parameters](docs/images/parameters.gif)
 
 
-### `# Long`: 
+### `# Long` and `# Short`: 
 To save vertical space, `handcalcs` _attempts_ to figure out how long your calculation is and, if it is short enough, renders it out fully on one line.
 
 If `handcalcs`'s internal test deems the calculation as being too long to fit onto one line, it breaks it out into multiple lines. 
 
-Use the `# Long` comment tag to override the length check and display the calculation in the "Long" format by default. e.g.
+Use the `# Long` or `# Short` comment tags to override the length check and display the calculation in the "Long" format or the "Short" format for all calculations in the cell. e.g.
 
 ```python
-    # From this:
+    # Format for "short" calculations (can fit on one line):
     c = 2*a + b/3 = 2*(2) + (3)/3 = 5
 
-    # To this:
+    # Format for "long" calculations (requires multi-line format)
     c = 2*a + b/3
       = 2*(2) + (3)/3
       = 5
 ```
 
-![Long calculations](docs/images/long.gif)
+![Short and Long calculations](docs/images/shortandlong.gif)
+
+
+### `# Symbolic`
+The primary purpose of `handcalcs` is to render the full calculation with the numeric substitution. This allows for easy traceability and verification of the calculation. 
+
+However, there may be instances when it is preferred to simply display calculations symbolically. For example, you can use the `# Symbolic` tag to use `handcalcs` as a fast way to render Latex equations symbolically.
+
+Alternatively, you may prefer to render out all of input parameters in one cell, your formulae symbolically in the following cell, and then all the final values in the last cell, skipping the numeric substitution process entirely.
+
+Keep in mind that even if you use the `# Symbolic` tag with your calculations, you still need to declare those variables (by assigning values to them) ahead of time in order for your calculation to be valid Python.
+
+![handcalcs with forallpeople](docs/images/symbolic.gif)
 
 ---
 
