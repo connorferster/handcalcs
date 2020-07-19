@@ -22,6 +22,7 @@ import itertools
 import math
 import os
 import pathlib
+import re
 from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
@@ -150,6 +151,16 @@ class LongCalcCell:
             "LongCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
         )
 
+def is_number(s: str) -> bool:
+    """
+    A basic helper function because Python str methods do not
+    have this ability...
+    """
+    try:
+        float(s)
+        return True
+    except:
+        return False
 
 # The renderer class ("output" class)
 class LatexRenderer:
@@ -1627,20 +1638,16 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
     for index, item in enumerate(pycode_as_deque):
         next_idx = min(index + 1, length - 1)
         next_item = pycode_as_deque[next_idx]
-        if type(item) is deque:
+        if isinstance(item, deque):
             new_item = swap_math_funcs(item)  # recursion!
             swapped_deque.append(new_item)
             if close_bracket_token:
                 swapped_deque.append(b)
                 close_bracket_token = False
-        elif close_bracket_token:
-            swapped_deque.append(latex_math_funcs.get(item, item))
-            new_item = f"{b}"
-            close_bracket_token = False
-            swapped_deque.append(new_item)
         elif (
             isinstance(next_item, deque)
-            and item.isalpha()
+            and isinstance(item, str)
+            and re.match(r'^[A-Za-z_]+$', item)
             and item not in latex_math_funcs
         ):
             ops = "\\operatorname"
