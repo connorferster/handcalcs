@@ -71,7 +71,7 @@ c = 2*a + b/3
 
 Once rendered, you can then export your notebook as a PDF, provided you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section [Installing Tex](https://github.com/connorferster/handcalcs/wiki), in the wiki.
 
-## Basic Usage 2: As a decorator on your functions (`@handcalc()`)
+## Basic Usage 2: As a decorator on your functions, `@handcalc()`
 
 This is the same kind of thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, which is treated like a Jupyter cell. 
 
@@ -104,6 +104,14 @@ my_latex_code_str, locals_dict = my_calc(3,4,5)
 ```
 
 Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
+
+#### `@handcalc(left: str = "", right: str = "", jupyter_display: bool = False)`
+
+Returns a tuple consisting of `(latex_code: str, locals: dict)`, where `locals` is a dictionary of all variables in the scope of the function namespace.
+
+* `left` and `right` are strings that can proceed and follow the encoded Latex string, such as `\\[` and `\\]` or `$` and `$`
+* `jupyter_display`, when True, will return only the `locals` dictionary and instead will display the encoded Latex string rendering with `display(Latex(latex_code))` from `IPython.display`.
+
 
 ## Comment Tags
 
