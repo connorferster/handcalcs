@@ -71,20 +71,20 @@ c = 2*a + b/3
 
 Once rendered, you can then export your notebook as a PDF, provided you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section [Installing Tex](https://github.com/connorferster/handcalcs/wiki), in the wiki.
 
-## Basic Usage 2: As a decorator on your functions (`@handcalc`)
+## Basic Usage 2: As a decorator on your functions (`@handcalc()`)
 
 This is the same kind of thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, which is treated like a Jupyter cell. 
 
-For example, start by importing the `@handcalc` decorator:
+For example, start by importing the `@handcalc()` decorator:
 
 ```python
-from handcalcs import handcalc
+from handcalcs.decorator import handcalc
 ```
 
 Then, write your function. Your function MUST `return locals()`:
 
 ```python
-@handcalc
+@handcalc()
 def my_calc(x, y, z):
   a = 2*x / y
   b = 3*a
@@ -103,7 +103,7 @@ Now, when called, your function will return a 2-tuple consisting of
 my_latex_code_str, locals_dict = my_calc(3,4,5)
 ```
 
-Used in this way, you can use `handcalc` to dynamically generate Latex code for display in non-Jupypter Python environments (e.g. matplotlib, streamlit, )
+Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
 
 ## Comment Tags
 
