@@ -20,6 +20,7 @@ import pytest
 
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
 from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
+from handcalcs.decorator import handcalc
 
 # When writing a new test create a new "cell" .py file
 from test_handcalcs import cell_1
@@ -65,14 +66,14 @@ def remove_imports_defs_and_globals(source: str):
     return "\n".join(acc)
 
 
-@handcalcs.handcalc
+@handcalc()
 def func_1(x, y):
     a = 2 * x
     b = 3 * a + y
     return locals()
 
 
-@handcalcs.handcalc
+@handcalc()
 def error_func(x, y):
     a = 2 * x
     b = 3 * a + y

@@ -15,7 +15,7 @@
 from collections import deque
 import copy
 from dataclasses import dataclass
-from functools import singledispatch, wraps
+from functools import singledispatch
 import importlib
 import inspect
 import itertools
@@ -26,7 +26,7 @@ import re
 from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
-# TODO: Do something with inequality checks and bools
+# TODO: Provide better formatting for inequality checks and bools
 
 # Six basic line types
 @dataclass
@@ -92,6 +92,7 @@ class CalcCell:
             "CalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
         )
 
+
 @dataclass
 class ShortCalcCell:
     source: str
@@ -105,6 +106,7 @@ class ShortCalcCell:
         return str(
             "ShortCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
         )
+
 
 @dataclass
 class SymbolicCell:
@@ -151,6 +153,7 @@ class LongCalcCell:
             "LongCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
         )
 
+
 def is_number(s: str) -> bool:
     """
     A basic helper function because Python str methods do not
@@ -161,6 +164,7 @@ def is_number(s: str) -> bool:
         return True
     except:
         return False
+
 
 # The renderer class ("output" class)
 class LatexRenderer:
@@ -467,6 +471,7 @@ def convert_calc_cell(cell: CalcCell) -> CalcCell:
     cell.lines = incoming
     return cell
 
+
 @convert_cell.register(ShortCalcCell)
 def convert_calc_cell(cell: ShortCalcCell) -> ShortCalcCell:
     outgoing = cell.lines
@@ -476,6 +481,7 @@ def convert_calc_cell(cell: ShortCalcCell) -> ShortCalcCell:
         incoming.append(convert_line(line, calculated_results))
     cell.lines = incoming
     return cell
+
 
 @convert_cell.register(LongCalcCell)
 def convert_longcalc_cell(cell: LongCalcCell) -> LongCalcCell:
@@ -652,6 +658,7 @@ def format_calc_cell(cell: CalcCell) -> str:
     )
     return cell
 
+
 @format_cell.register(ShortCalcCell)
 def format_shortcalc_cell(cell: ShortCalcCell) -> str:
     line_break = "\\\\[10pt]\n"
@@ -672,6 +679,7 @@ def format_shortcalc_cell(cell: ShortCalcCell) -> str:
         "\n" + end, end
     )
     return cell
+
 
 @format_cell.register(LongCalcCell)
 def format_longcalc_cell(cell: LongCalcCell) -> str:
@@ -1124,6 +1132,7 @@ def test_for_long_cell(raw_python_source: str) -> bool:
         return True
     return False
 
+
 def test_for_short_cell(raw_python_source: str) -> bool:
     """
     Returns True if the text "# Long" is in the first line of
@@ -1214,6 +1223,11 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
     """
     outgoing = deque([])
     for item in line_of_code:
+        if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+            try:
+                rounded = [round(v, precision) for v in item]
+            except:
+                rounded = item
         if not isinstance(item, (str, int)):
             try:
                 rounded = round(item, precision)  # Rounding
@@ -1237,13 +1251,21 @@ def latex_repr(item: Any) -> str:
         try:
             return item.latex().replace("$", "")
         except TypeError:
-            str(item)
+            return str(item)
 
     elif hasattr(item, "to_latex"):
         try:
             return item.to_latex().replace("$", "")
         except TypeError:
-            str(item)
+            return str(item)
+
+    elif hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
+        comma_space = ",\\ "
+        try:
+            array = "[" + comma_space.join([str(v) for v in item]) + "]"
+            return array
+        except TypeError:
+            return str(item)
 
     else:
         return str(item)
@@ -1647,7 +1669,7 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
         elif (
             isinstance(next_item, deque)
             and isinstance(item, str)
-            and re.match(r'^[A-Za-z_]+$', item)
+            and re.match(r"^[A-Za-z_]+$", item)
             and item not in latex_math_funcs
         ):
             ops = "\\operatorname"
@@ -1819,48 +1841,55 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
 ## Basic Usage 2: Decorator
 
 
-def handcalc(func):
-    # @wraps(func)
-    def wrapper(*args, **kwargs):
-        func_source = inspect.getsource(func)
-        cell_source = func_source_to_cell(func_source)
-        calculated_results = func(*args, **kwargs)  # Func must use `return locals()`
-        if not isinstance(calculated_results, dict):
-            raise ValueError(
-                f"Return value of decorated function should be locals(),",
-                " not {calculated_results}",
-            )
-        renderer = LatexRenderer(cell_source, calculated_results)
-        latex_code = renderer.render()
+# def handcalc(left: str = "", right: str = "", jupyter_display: bool = False):
+#     # @wraps(func)
+#     def handcalc_decorator(func):
+#         def wrapper(*args, **kwargs):
+#             func_source = inspect.getsource(func)
+#             cell_source = func_source_to_cell(func_source)
+#             calculated_results = func(*args, **kwargs)  # Func must use `return locals()`
+#             if not isinstance(calculated_results, dict):
+#                 raise ValueError(
+#                     f"Return value of decorated function should be locals(),",
+#                     " not {calculated_results}",
+#                 )
+#             renderer = LatexRenderer(cell_source, calculated_results)
+#             latex_code = renderer.render()
+#             if jupyter_display:
+#                 try:
+#                     from IPython.display import Latex, display
+#                 except ModuleNotFoundError:
+#                     ModuleNotFoundError("jupyter_display option requires IPython.display to be installed.")
+#                 display(Latex(latex_code))
+#                 return calculated_results
+#             latex_code = latex_code.replace("\\[", "", 1).replace("\\]", "")
+#             return (left + latex_code + right, calculated_results)
+#         return wrapper
+#     return handcalc_decorator
 
-        latex_code = latex_code.replace("\\[", "", 1).replace("\\]", "")
-        return (latex_code, calculated_results)
 
-    return wrapper
+# def func_source_to_cell(source: str):
+#     """
+#     Returns a string that represents `source` but with no signature, doc string,
+#     or return statement.
 
-
-def func_source_to_cell(source: str):
-    """
-    Returns a string that represents `source` but with no signature, doc string,
-    or return statement.
-    
-    `source` is a string representing a function's complete source code.
-    """
-    source_lines = source.split("\n")
-    acc = []
-    for line in source_lines:
-        doc_string = False
-        if not doc_string and '"""' in line:
-            doc_string = True
-            continue
-        elif doc_string and '"""' in line:
-            doc_string = False
-            continue
-        if (
-            "def" not in line
-            and not doc_string
-            and "return" not in line
-            and "@" not in line
-        ):
-            acc.append(line)
-    return "\n".join(acc)
+#     `source` is a string representing a function's complete source code.
+#     """
+#     source_lines = source.split("\n")
+#     acc = []
+#     for line in source_lines:
+#         doc_string = False
+#         if not doc_string and '"""' in line:
+#             doc_string = True
+#             continue
+#         elif doc_string and '"""' in line:
+#             doc_string = False
+#             continue
+#         if (
+#             "def" not in line
+#             and not doc_string
+#             and "return" not in line
+#             and "@" not in line
+#         ):
+#             acc.append(line)
+#     return "\n".join(acc)
