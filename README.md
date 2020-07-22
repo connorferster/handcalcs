@@ -75,7 +75,7 @@ Once rendered, you can then export your notebook as a PDF, provided you have a L
 
 This is the same kind of thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, which is treated like a Jupyter cell. 
 
-For example, start by importing the `@handcalc()` decorator:
+Start by importing the `@handcalc()` decorator:
 
 ```python
 from handcalcs.decorator import handcalc
@@ -92,25 +92,16 @@ def my_calc(x, y, z):
   return locals()
 ```
 
-Everything between `def my_calc(...)` and `return locals()` is now like the code in a Jupyter cell, except it's a standard Python function.
-
-Now, when called, your function will return a 2-tuple consisting of
-
-1. A str of the function code rendered as latex code
-2. A dictionary of all of the variables in your function (the `locals()` dict).
-
-```python
-my_latex_code_str, locals_dict = my_calc(3,4,5)
-```
-
-Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
-
 #### `@handcalc(left: str = "", right: str = "", jupyter_display: bool = False)`
 
 Returns a tuple consisting of `(latex_code: str, locals: dict)`, where `locals` is a dictionary of all variables in the scope of the function namespace.
 
 * `left` and `right` are strings that can proceed and follow the encoded Latex string, such as `\\[` and `\\]` or `$` and `$`
 * `jupyter_display`, when True, will return only the `locals` dictionary and instead will display the encoded Latex string rendering with `display(Latex(latex_code))` from `IPython.display`.
+
+In your decorated function, everything between `def my_calc(...)` and `return locals()` is now like the code in a Jupyter cell, except it's a standard Python function.
+
+Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
 
 
 ## Comment Tags
@@ -211,7 +202,7 @@ Any variable name that contains a Greek letter (e.g. "pi", "upsilon", "eta", etc
 
 * Using a Capitalized Name for your variable will render it as an upper case Greek letter.
 
-![Greek symbols deom](docs/images/greeks.gif)
+![Greek symbols demo](docs/images/greeks.gif)
 
 ---
 
