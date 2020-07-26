@@ -16,11 +16,15 @@
 import inspect
 from collections import deque
 import handcalcs
+import pathlib
 import pytest
+import nbconvert
+import filecmp
 
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
 from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
 from handcalcs.decorator import handcalc
+from handcalcs.template import install_by_swap
 
 # When writing a new test create a new "cell" .py file
 from test_handcalcs import cell_1
@@ -153,12 +157,30 @@ def test_integration():
         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\left( \\frac{ a }{ b } \\right) } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\left( \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } \\right) } + \\sin{ \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
     )
 
+# Test decorator.py
 
 def test_handcalc():
     assert func_1(4, 5) == (
         "\n\\begin{aligned}\na &= 2 \\cdot x = 2 \\cdot 4 &= 8\n\\\\[10pt]\nb &= 3 \\cdot a + y = 3 \\cdot 8 + 5 &= 29\n\\end{aligned}\n",
         {"x": 4, "y": 5, "a": 8, "b": 29},
     )
+
+# Test template.py
+
+def test_install_by_swap(capsys):
+    HERE = pathlib.Path(__file__).resolve().parent
+    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / 't-makaro_classic_romanoutput_noinput.tplx'
+    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+
+    install_by_swap()
+    captured = capsys.readouterr()
+    assert captured.out == "Available templates: \n ['t-makaro_classic_romanoutput_noinput.tplx']\n"
+    install_by_swap('t-makaro_classic_romanoutput_noinput.tplx')
+    assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
+
+
+
 
 
 # Test expected exceptions

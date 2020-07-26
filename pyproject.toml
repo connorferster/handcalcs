@@ -11,7 +11,7 @@ show_missing = true
 
 [tool.poetry]
 name = "handcalcs"
-version = "0.6.0"
+version = "0.7.0"
 description = "Sample desc"
 authors = ["Connor Ferster"]
 license = "Apache-2.0"
@@ -28,6 +28,7 @@ pyparsing = "^2.4.7"
 pytest-cov = "^2.9.0"
 coverage = {extras = ["toml"], version = "^5.1"}
 jupyterlab = "^2.1.5"
+nbconvert = "^5.6.1"
 
 [build-system]
 requires = ["poetry>=0.12"]
