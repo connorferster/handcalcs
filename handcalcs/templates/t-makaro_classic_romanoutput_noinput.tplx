@@ -1,0 +1,91 @@
+((=- Default to the notebook output style -=))
+((* if not cell_style is defined *))
+    ((*- set cell_style = 'style_jupyter.tplx' -*))
+((* endif *))
+
+((=- Inherit from the specified cell style. -=))
+((* extends cell_style *))
+
+% The new file
+%===============================================================================
+% Latex Article
+%===============================================================================
+
+((* block docclass *))
+\documentclass[11pt]{article}
+((*- endblock docclass -*))
+
+((*- block packages -*))
+    \usepackage{parskip}
+    \setcounter{secnumdepth}{0} %Suppress section numbers
+    ((( super() )))
+((*- endblock packages -*))
+
+((*- block definitions -*))
+    ((( super() )))
+    %Updated MathJax Compatibility (if future behaviour of the notebook changes this may be removed)
+    \renewcommand{\TeX}{\ifmmode \textrm{\Oldtex} \else \textbackslash TeX \fi}
+    \renewcommand{\LaTeX}{\ifmmode \Oldlatex \else \textbackslash LaTeX \fi}
+    
+    ((* block repygments *))
+    %Reconfigured pygments
+    \makeatletter
+    \expandafter\def\csname PY@tok@mi\endcsname{\def\PY@tc##1{\textcolor[HTML]{008800}{##1}}} %numbers
+    \expandafter\def\csname PY@tok@mf\endcsname{\def\PY@tc##1{\textcolor[HTML]{008800}{##1}}} %numbers
+    \expandafter\def\csname PY@tok@nn\endcsname{\def\PY@tc##1{\textcolor[HTML]{000000}{##1}}} %imports
+    \expandafter\def\csname PY@tok@ow\endcsname{\let\PY@bf=\textbf\def\PY@tc##1{\textcolor[HTML]{008000}{##1}}} %operator.word
+    \expandafter\def\csname PY@tok@o\endcsname{\def\PY@tc##1{\textcolor[HTML]{AA22FF}{\codetrue##1\codefalse}}} %operator
+    \makeatother
+
+    \makeatletter
+    \newcommand*\@iflatexlater{\@ifl@t@r\fmtversion}
+    \@iflatexlater{2016/03/01}{
+	    \newcommand{\wordboundary}{4095}}{
+	    \newcommand{\wordboundary}{255}}
+    \makeatother
+
+    \newif\ifcode
+    \codefalse
+    \definecolor{Grey}{rgb}{0.40,0.40,0.40}
+    %If using XeLaTeX, use magic to not highlight . operators with purple.
+    \ifdefined\XeTeXcharclass
+    \XeTeXinterchartokenstate = 1
+    \newXeTeXintercharclass \mycharclassGrey
+    \XeTeXcharclass `. \mycharclassGrey
+    \XeTeXinterchartoks 0 \mycharclassGrey   = {\bgroup\ifcode\color{Grey}\else\fi}
+
+    \XeTeXinterchartoks \wordboundary \mycharclassGrey = {\bgroup\ifcode\color{Grey}\else\fi}
+
+    \XeTeXinterchartoks \mycharclassGrey 0   = {\egroup}
+    \XeTeXinterchartoks \mycharclassGrey \wordboundary = {\egroup}
+    \fi %end magical operator highlighting
+    %End Reconfigured Pygments
+    ((* endblock repygments *))
+
+    % Header Adjustments
+    \renewcommand{\paragraph}{\textbf}
+    \renewcommand{\subparagraph}[1]{\textit{\textbf{#1}}}
+((*- endblock definitions -*))
+
+((*- block margins -*))
+    \geometry{verbose,tmargin=.5in,bmargin=.7in,lmargin=.7in,rmargin=.7in}
+((*- endblock margins -*))
+
+((* block maketitle *))((* endblock maketitle *))
+
+% Input overrides: Do not display input cells
+((* block input_group *))
+((* endblock input_group *))
+
+% Output overrides: Removes numeric output prompt and changes font to standard "roman"
+((* block execute_result scoped *))
+    ((*- for type in output.data | filter_data_type -*))
+        ((*- if type in ['text/plain'] *))
+            \textrm{((( output.data['text/plain'] | escape_latex )))}
+        ((* else -*))
+            ((( super() )))
+        ((*- endif -*))
+    ((*- endfor -*))
+((* endblock execute_result *))
+
+((* set charlim = 89 *))
