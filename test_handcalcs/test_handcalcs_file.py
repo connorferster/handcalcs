@@ -170,13 +170,13 @@ def test_handcalc():
 def test_install_by_swap(capsys):
     HERE = pathlib.Path(__file__).resolve().parent
     TEMPLATES = HERE.parent/ "handcalcs" / "templates"
-    MAIN_TEMPLATE = TEMPLATES / 't-makaro_classic_romanoutput_noinput.tplx'
+    MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
     NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
 
-    install_by_swap()
+    install_by_swap(template_type ='latex')
     captured = capsys.readouterr()
     assert captured.out == "Available templates: \n ['t-makaro_classic_romanoutput_noinput.tplx']\n"
-    install_by_swap('t-makaro_classic_romanoutput_noinput.tplx')
+    install_by_swap(template_type = 'latex', swap_in ='t-makaro_classic_romanoutput_noinput.tplx')
     assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
 
 
