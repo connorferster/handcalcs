@@ -4,12 +4,7 @@ import shutil
 
 import nbconvert
 
-HERE = pathlib.Path(__file__).resolve()
-TEMPLATES = HERE.parent / "templates"
-AVAILABLE_TEMPLATES = TEMPLATES.glob("*.tplx")
-NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
-
-def install_by_swap(swap_in: str = "", swap_out: str = "article.tplx", restore: bool = False) -> None:
+def install_by_swap(template_type: str, swap_in: str = "", swap_out: str = "article.tplx", restore: bool = False) -> None:
     """
     Replaces the file 'swap_out' with the file 'swap_in'. The swapped in
     file will be copied to the location of 'swap_out' and be given its file name.
@@ -18,6 +13,7 @@ def install_by_swap(swap_in: str = "", swap_out: str = "article.tplx", restore: 
 
     Parameters:
 
+    'template_type' - The kind of template to install. A value of either "html" or "latex" is accepted.
     'swap_in' - The name of the template file to swap in. 
     If left as "", then install by swap will print the list of available
     .tplx files located in the handcalcs/templates directory
@@ -30,6 +26,14 @@ def install_by_swap(swap_in: str = "", swap_out: str = "article.tplx", restore: 
     templates directory that has the name of 'swap_out' is deleted and the file with the 
     name 'swap_out' + "_swapped.tplx" is renamed to just the name of 'swap_out'.
     """
+    if template_type != 'html' and template_type != 'latex':
+        raise ValueError(f"Value of 'template_type' must be either 'html' or 'latex', not {template_type}.")
+
+    HERE = pathlib.Path(__file__).resolve()
+    TEMPLATES = HERE.parent / "templates" / template_type 
+    AVAILABLE_TEMPLATES = TEMPLATES.glob("*.tplx")
+    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / template_type     
+
     if not swap_in and not restore: 
         print("Available templates: \n", [template.name for template in AVAILABLE_TEMPLATES])
         return
@@ -47,6 +51,7 @@ def install_by_swap(swap_in: str = "", swap_out: str = "article.tplx", restore: 
 
     if (NBCONVERT_TEMPLATES_DIR / swapped_name).exists() and swap_in:
         print(f"Cannot install {swap_in} because {swapped_name} has not been restored.\n Run this function again with restore=True first.")
+        return
     try:
         os.rename(NBCONVERT_TEMPLATES_DIR / swap_out, NBCONVERT_TEMPLATES_DIR / swapped_name)
     except FileExistsError:
