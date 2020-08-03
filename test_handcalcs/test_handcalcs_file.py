@@ -24,7 +24,7 @@ import filecmp
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
 from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
 from handcalcs.decorator import handcalc
-from handcalcs.template import install_by_swap
+from handcalcs.install_templates import install_html, install_latex
 
 # When writing a new test create a new "cell" .py file
 from test_handcalcs import cell_1
@@ -167,19 +167,45 @@ def test_handcalc():
 
 # Test template.py
 
-def test_install_by_swap(capsys):
+def test_install_latex(capsys):
     HERE = pathlib.Path(__file__).resolve().parent
     TEMPLATES = HERE.parent/ "handcalcs" / "templates"
     MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
     NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
 
-    install_by_swap(template_type ='latex')
+    install_latex()
     captured = capsys.readouterr()
     assert captured.out == "Available templates: \n ['t-makaro_classic_romanoutput_noinput.tplx']\n"
-    install_by_swap(template_type = 'latex', swap_in ='t-makaro_classic_romanoutput_noinput.tplx')
+    install_latex(swap_in ='t-makaro_classic_romanoutput_noinput.tplx')
     assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
 
+def test_install_latex_restore():
+    HERE = pathlib.Path(__file__).resolve().parent
+    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
+    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    install_latex(restore=True)
+    assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
 
+def test_install_html(capsys):
+    HERE = pathlib.Path(__file__).resolve().parent
+    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "html" / 'full_html_noinputs.tpl'
+    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
+
+    install_html()
+    captured = capsys.readouterr()
+    assert captured.out == "Available templates: \n ['full_html_noinputs.tpl']\n"
+    install_html(swap_in ='full_html_noinputs.tpl')
+    assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "full.tpl")
+
+def test_install_html_restore():
+    HERE = pathlib.Path(__file__).resolve().parent
+    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "html" / 'full_html_noinputs.tpl'
+    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
+    install_html(restore=True)
+    assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "full.tpl")
 
 
 
@@ -440,126 +466,7 @@ def test_round_and_render_line_objects_to_latex():
         comment="",
         latex="\\alpha_{\\eta_{\\psi}} = 0.019",
     )
-    # assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-    #     ConditionalLine(
-    #         condition=deque(["x", ">", "1"]),
-    #         condition_type="elif",
-    #         expressions=deque(
-    #             [
-    #                 CalcLine(
-    #                     line=deque(
-    #                         [
-    #                             "b",
-    #                             "=",
-    #                             "x",
-    #                             "\\cdot",
-    #                             "1",
-    #                             "=",
-    #                             2,
-    #                             "\\cdot",
-    #                             "1",
-    #                             "=",
-    #                             2,
-    #                         ]
-    #                     ),
-    #                     comment="",
-    #                     latex="",
-    #                 ),
-    #                 ParameterLine(line=deque(["c", "=", 2]), comment="", latex=""),
-    #             ]
-    #         ),
-    #         raw_condition="x > 1",
-    #         raw_expression="b = x*1; c = b",
-    #         true_condition=deque(
-    #             ["x", ">", "1", "\\rightarrow", "\\left(", 2, ">", "1", "\\right)"]
-    #         ),
-    #         true_expressions=deque(
-    #             [
-    #                 CalcLine(
-    #                     line=deque(
-    #                         [
-    #                             "b",
-    #                             "=",
-    #                             "x",
-    #                             "\\cdot",
-    #                             "1",
-    #                             "=",
-    #                             2,
-    #                             "\\cdot",
-    #                             "1",
-    #                             "=",
-    #                             2,
-    #                         ]
-    #                     ),
-    #                     comment="",
-    #                     latex="",
-    #                 ),
-    #                 ParameterLine(line=deque(["c", "=", 2]), comment="", latex=""),
-    #             ]
-    #         ),
-    #         comment=" Comment",
-    #         latex="",
-    #     ),
-    #     3,
-    # ) == ConditionalLine(
-    #     condition=deque(["x", ">", "1"]),
-    #     condition_type="elif",
-    #     expressions=deque(
-    #         [
-    #             CalcLine(
-    #                 line=deque(
-    #                     [
-    #                         "b",
-    #                         "=",
-    #                         "x",
-    #                         "\\cdot",
-    #                         "1",
-    #                         "=",
-    #                         "2",
-    #                         "\\cdot",
-    #                         "1",
-    #                         "=",
-    #                         "2",
-    #                     ]
-    #                 ),
-    #                 comment="",
-    #                 latex="b = x \\cdot 1 = 2 \\cdot 1 = 2",
-    #             ),
-    #             ParameterLine(line=deque(["c", "=", "2"]), comment="", latex="c = 2"),
-    #         ]
-    #     ),
-    #     raw_condition="x > 1",
-    #     raw_expression="b = x*1; c = b",
-    #     true_condition=deque(
-    #         ["x", ">", "1", "\\rightarrow", "\\left(", "2", ">", "1", "\\right)"]
-    #     ),
-    #     true_expressions=deque(
-    #         [
-    #             CalcLine(
-    #                 line=deque(
-    #                     [
-    #                         "b",
-    #                         "=",
-    #                         "x",
-    #                         "\\cdot",
-    #                         "1",
-    #                         "=",
-    #                         "2",
-    #                         "\\cdot",
-    #                         "1",
-    #                         "=",
-    #                         "2",
-    #                     ]
-    #                 ),
-    #                 comment="",
-    #                 latex="b = x \\cdot 1 = 2 \\cdot 1 = 2",
-    #             ),
-    #             ParameterLine(line=deque(["c", "=", "2"]), comment="", latex="c = 2"),
-    #         ]
-    #     ),
-    #     comment=" Comment",
-    #     latex="b = x \\cdot 1 = 2 \\cdot 1 = 2\\\\\nc = 2",
-    # )
+
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
         ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), 3
     ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
