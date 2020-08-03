@@ -12,8 +12,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 from handcalcs.decorator import handcalc
-from handcalcs.template import install_by_swap
+from handcalcs.install_templates import install_html, install_latex
 __all__ = ["handcalc"]
 
