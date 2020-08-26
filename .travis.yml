@@ -9,6 +9,7 @@ before_install:
  - "pip install coverage[toml]"
  - "pip install coveralls"
  - "pip install nbconvert"
+ - "pip install IPython"
 
 after_success:
  - "coveralls"
