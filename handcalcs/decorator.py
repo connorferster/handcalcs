@@ -14,7 +14,7 @@ def handcalc(left: str = "", right: str = "", jupyter_display: bool = False):
             if not isinstance(calculated_results, dict):
                 raise ValueError(
                     f"Return value of decorated function should be locals(),",
-                    " not {calculated_results}",
+                    f" not {calculated_results}",
                 )
             renderer = LatexRenderer(cell_source, calculated_results)
             latex_code = renderer.render()

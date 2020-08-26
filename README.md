@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/pypi/v/handcalcs">
   <img src="https://img.shields.io/pypi/pyversions/handcalcs">
   <img src="https://img.shields.io/github/license/connorferster/handcalcs">
-  <img src="https://img.shields.io/pypi/dm/handcalcs">
+  <img src="https://static.pepy.tech/badge/handcalcs/month">
 </p>
 <p align="center">
   <img src="docs/images/handcalcs.jpg"><br>
@@ -274,10 +274,9 @@ Jupyter Notebooks/Lab are able to print notebooks to PDF through two methods. Bo
 
 PDF notebooks made with handcalcs tend to look better if the code input cells are suppressed. To make this convenient, handcalcs ships with two modified nbconvert template files that can be installed by running a function in Jupyter before exporting.
 
-```python
-handcalcs.install_templates.install_html(swap_in:str = "", swap_out:str = "full.tpl", restore:bool = False)
-handcalcs.install_templates.install_latex(swap_in:str = "", swap_out:str = "article.tplx", restore:bool = False)
-```
+###  `handcalcs.install_templates.install_html(swap_in:str = "", swap_out:str = "full.tpl", restore:bool = False)`
+
+### `handcalcs.install_templates.install_latex(swap_in:str = "", swap_out:str = "article.tplx", restore:bool = False)`
 
 **`swap_in`**: the name of the handcalcs template file you wish to install. When not provided, the function will print a list of available templates whose names are acceptable inputs for this argument.<br>
 **`swap_out`**: the name of the nbconvert template file you wish to replace (default file is nbconvert's default html or latex template, respectively)<br>
