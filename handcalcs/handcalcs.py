@@ -86,12 +86,6 @@ class CalcCell:
     lines: deque
     latex_code: str
 
-    # Test
-    def __repr__(self):
-        return str(
-            "CalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
-        )
-
 
 @dataclass
 class ShortCalcCell:
@@ -100,12 +94,6 @@ class ShortCalcCell:
     precision: int
     lines: deque
     latex_code: str
-
-    # Test
-    def __repr__(self):
-        return str(
-            "ShortCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
-        )
 
 
 @dataclass
@@ -116,12 +104,6 @@ class SymbolicCell:
     lines: deque
     latex_code: str
 
-    # Test
-    def __repr__(self):
-        return str(
-            "CalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
-        )
-
 
 @dataclass
 class ParameterCell:
@@ -131,13 +113,6 @@ class ParameterCell:
     precision: int
     cols: int
     latex_code: str
-    # Test
-    def __repr__(self):
-        return str(
-            "ParametersCell(\n"
-            + f"source=\n{self.source}\n"
-            + f"lines=\n{self.lines}\n"
-        )
 
 
 @dataclass
@@ -147,11 +122,6 @@ class LongCalcCell:
     lines: deque
     precision: int
     latex_code: str
-    # Test
-    def __repr__(self):
-        return str(
-            "LongCalcCell(\n" + f"source=\n{self.source}\n" + f"lines=\n{self.lines}\n"
-        )
 
 
 def is_number(s: str) -> bool:
@@ -1053,10 +1023,11 @@ def format_blank_line(line: BlankLine) -> BlankLine:
 
 
 def split_conditional(line: str, calculated_results):
+    #breakpoint()
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
     try:
-        cond_type, condition = raw_conditional.split(" ", 1)
+        cond_type, condition = raw_conditional.strip().split(" ", 1)
     except:
         cond_type = "else"
         condition = ""
@@ -1088,6 +1059,8 @@ def test_for_parameter_line(line: str) -> bool:
     """
     if not line.strip():
         return False
+    elif len(line.strip().split()) == 1:
+        return True
     elif "=" not in line or "if " in line or ":" in line:
         return False
     else:
@@ -1450,9 +1423,10 @@ class Flattener:  # Helper class
         flattened_deque = deque([])
         for item in nested:
             if isinstance(item, str) and (
-                "frac" in item or "}{" in item or "\\int" in item
+                "frac" in item or "}{" in item or "\\int" in item or "sqrt" in item
             ):
                 self.fraction = True
+            
             if isinstance(item, deque):
                 if self.fraction:
                     sub_deque_generator = self.flatten(item)

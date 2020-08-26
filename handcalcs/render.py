@@ -49,7 +49,7 @@ def render(line, cell):
     renderer = hand.LatexRenderer(cell, var_dict)
     latex_code = renderer.render()
 
-    # Display, but not as an "output", specifically
+    # Display, but not as an "output"
     display(Latex(latex_code))
 
 
@@ -66,7 +66,7 @@ def tex(line, cell):
     renderer = hand.LatexRenderer(cell, var_dict)
     latex_code = renderer.render()
 
-    # Display, but not as an "output", specifically
+    # Display, but not as an "output"
     print(latex_code)
 
 def load_ipython_extension(ipython):
