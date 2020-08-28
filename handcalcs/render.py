@@ -37,6 +37,10 @@ except AttributeError:
 
 @register_cell_magic
 def render(line, cell):
+    try:
+        exec(cell)
+    except Exception:
+        raise
     # Run the cell
     with cell_capture:
         _nms.shell.run_cell(cell)
