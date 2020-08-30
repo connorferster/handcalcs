@@ -29,6 +29,7 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 * [PDF Printing in Jupyter](https://github.com/connorferster/handcalcs#pdf-printing-in-jupyter)
 * [Expected Behaviours](https://github.com/connorferster/handcalcs#expected-behaviours)
 * [Gotchas and Disclaimer](https://github.com/connorferster/handcalcs#gotchas)
+* [YouTube Tutorials](https://github.com/connorferster/handcalcs#youtube-tutorials)
 * [Applications and Compatibility with Other Libraries (wiki)](https://github.com/connorferster/handcalcs/wiki)
 
 
@@ -404,6 +405,16 @@ You _can_ re-use variable names to good effect throughout a notebook, _IFF_ the 
 **On this note: if you are using `handcalcs` for any kind of reporting that may become a legal document (e.g. design engineering calculations), it is up to YOU to ensure that the results are what you expect them to be. `handcalcs` is free and open-source software and the author(s) are not responsible for incorrect calculations that result from its use.**
 
 That being said, the very purpose for the way `handcalcs` renders its math is to make it very easy to confirm and verify calculations by hand.
+
+## YouTube Tutorials
+
+**Getting Started with handcalcs (assumes zero Python knowledge)**
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/ZNFhLCWqA_g" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+**Engineering Calculations: handcalcs-on-Jupyter vs. Excel**
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/n9Uzy3Eb-XI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ## Applications and Compatibility with OPP (Other People's Packages)
 
