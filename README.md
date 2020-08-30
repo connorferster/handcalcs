@@ -410,11 +410,11 @@ That being said, the very purpose for the way `handcalcs` renders its math is to
 
 **Getting Started with handcalcs (assumes zero Python knowledge)**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ZNFhLCWqA_g" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[https://www.youtube.com/watch?v=ZNFhLCWqA_g](https://www.youtube.com/watch?v=ZNFhLCWqA_g)
 
 **Engineering Calculations: handcalcs-on-Jupyter vs. Excel**
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/n9Uzy3Eb-XI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[https://www.youtube.com/watch?v=n9Uzy3Eb-XI](https://www.youtube.com/watch?v=n9Uzy3Eb-XI)
 
 ## Applications and Compatibility with OPP (Other People's Packages)
 
