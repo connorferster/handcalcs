@@ -1,15 +1,12 @@
+os: linux
+dist: focal
 language: python
 python:
- - 3.7
-script: pytest --cov-report term --cov
+  - 3.7
 before_install:
- - "pip install -U pip"
- - "python setup.py install"
- - "pip install pytest-cov"
- - "pip install coverage[toml]"
- - "pip install coveralls"
- - "pip install nbconvert"
- - "pip install IPython"
-
-after_success:
- - "coveralls"
+  - pip install --upgrade pip
+  - python setup.py install
+  - pip install coverage[toml] coveralls IPython nbconvert pytest-cov
+before_script: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+script: pytest --cov-report term --cov
+after_success: coveralls
