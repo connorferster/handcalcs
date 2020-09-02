@@ -6,7 +6,7 @@ python:
 before_install:
   - pip install --upgrade pip
   - python setup.py install
-  - pip install coverage[toml] coveralls IPython nbconvert pytest-cov
+  - pip install coverage[toml] coveralls flake8 IPython nbconvert pytest-cov
 before_script: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 script: pytest --cov-report term --cov
 after_success: coveralls
