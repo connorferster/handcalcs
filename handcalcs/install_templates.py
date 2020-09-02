@@ -3,7 +3,7 @@ import pathlib
 import shutil
 import nbconvert
 
-__all__ = ["install_latex_template", "install_html_template"]
+__all__ = ["install_latex", "install_html"]
 
 def install_latex(swap_in: str = "", swap_out: str = "article.tplx", restore: bool = False) -> None:
     """
