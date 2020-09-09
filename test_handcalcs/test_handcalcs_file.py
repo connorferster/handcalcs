@@ -78,13 +78,11 @@ def remove_imports_defs_and_globals(source: str):
 def func_1(x, y):
     a = 2 * x
     b = 3 * a + y
-    return locals()
 
 @handcalc(jupyter_display=True)
 def func_2(x, y):
     a = 2 * x
     b = 3 * a + y
-    return locals()
 
 @handcalc(jupyter_display=True)
 def error_func(x, y):
@@ -93,7 +91,6 @@ def error_func(x, y):
     """
     a = 2 * x
     b = 3 * a + y
-    return b  # Must return locals()
 
 
 cell_1_source = remove_imports_defs_and_globals(inspect.getsource(cell_1))
@@ -235,7 +232,7 @@ def test_error_cell():
 
 def test_error_func():
     with pytest.raises(ValueError):
-        error_func(4, 5)
+        error_func(4, 5)  # Unable to handle the docstring
 
 
 def test_add_result_values_to_lines_error():
