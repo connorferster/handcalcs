@@ -37,13 +37,12 @@ except AttributeError:
 
 @register_cell_magic
 def render(line, cell):
-    try:
-        exec(cell)
-    except Exception:
-        raise
     # Run the cell
     with cell_capture:
-        _nms.shell.run_cell(cell)
+        exec_result = _nms.shell.run_cell(cell)
+
+    if not exec_result.success:
+        return None
 
     # Retrieve variables from the local namespace
     var_list = _nms.who_ls()
