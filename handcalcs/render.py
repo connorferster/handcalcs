@@ -39,10 +39,7 @@ except AttributeError:
 def render(line, cell):
     # Run the cell
     with cell_capture:
-        exec_result = _nms.shell.run_cell(cell)
-
-    if not exec_result.success:
-        return None
+        _nms.shell.run_cell(cell)
 
     # Retrieve variables from the local namespace
     var_list = _nms.who_ls()
