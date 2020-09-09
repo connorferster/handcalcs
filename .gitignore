@@ -142,3 +142,9 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Vim's swap files
+*.sw[op]
+
+# VSCode settings file
+.vscode/
