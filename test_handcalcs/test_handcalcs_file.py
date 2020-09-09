@@ -83,6 +83,7 @@ def func_1(x, y):
 def func_2(x, y):
     a = 2 * x
     b = 3 * a + y
+    return locals()  # not necessary, but allowed
 
 @handcalc(jupyter_display=True)
 def error_func(x, y):
