@@ -111,7 +111,7 @@ Start by importing the `@handcalc()` decorator:
 from handcalcs.decorator import handcalc
 ```
 
-Then, write your function. Your function MUST `return locals()`:
+Then, write your function.
 
 ```python
 @handcalc()
@@ -119,7 +119,6 @@ def my_calc(x, y, z):
   a = 2*x / y
   b = 3*a
   c = (a + b) / z
-  return locals()
 ```
 
 #### `@handcalc(left: str = "", right: str = "", jupyter_display: bool = False)`
@@ -129,7 +128,7 @@ Returns a tuple consisting of `(latex_code: str, locals: dict)`, where `locals` 
 * `left` and `right` are strings that can precede and follow the encoded Latex string, such as `\\[` and `\\]` or `$` and `$`
 * `jupyter_display`, when True, will return only the `locals` dictionary and instead will display the encoded Latex string rendering with `display(Latex(latex_code))` from `IPython.display`. Will return an error if not used within 
 
-In your decorated function, everything between `def my_calc(...)` and `return locals()` is now like the code in a Jupyter cell, except it's a standard Python function.
+In your decorated function, everything between `def my_calc(...)` and a return statement (if any) is now like the code in a Jupyter cell, except it's a standard Python function.
 
 Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
 
