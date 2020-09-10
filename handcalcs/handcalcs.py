@@ -1726,15 +1726,15 @@ def swap_frac_divs(code: deque) -> deque:
     close_bracket_token = False
     for index, item in enumerate(code):
         next_idx = min(index + 1, length - 1)
-        if code[next_idx] is "/" and isinstance(item, deque):
+        if code[next_idx] == "/" and isinstance(item, deque):
             new_item = f"{ops}{a}"
             swapped_deque.append(new_item)
             swapped_deque.append(swap_frac_divs(item))  # recursion!
-        elif code[next_idx] is "/" and not isinstance(item, deque):
+        elif code[next_idx] == "/" and not isinstance(item, deque):
             new_item = f"{ops}{a}"
             swapped_deque.append(new_item)
             swapped_deque.append(item)
-        elif item is "/":
+        elif item == "/":
             swapped_deque.append(f"{b}{a}")
             close_bracket_token = True
         elif close_bracket_token:
@@ -1845,9 +1845,9 @@ def swap_py_operators(pycode_as_deque: deque) -> deque:
             new_item = swap_py_operators(item)  # recursion!
             swapped_deque.append(new_item)
         else:
-            if item is "*":
+            if item == "*":
                 swapped_deque.append("\\cdot")
-            elif item is "%":
+            elif item == "%":
                 swapped_deque.append("\\bmod")
             else:
                 swapped_deque.append(item)

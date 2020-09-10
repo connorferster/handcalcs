@@ -54,6 +54,8 @@ First, import the module and run the cell:
 import handcalcs.render
 ```
 
+> Note: This will import both `%%tex` and `%%render` magics in the Jupyter Notebook. 
+
 Then, in any cell that you want to render with `handcalcs`, just use the render cell magic at the top of your cell:
 
 ```python
@@ -73,6 +75,32 @@ c = 2*a + b/3
 
 Once rendered, you can then export your notebook as a PDF, provided you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section [Installing Tex](https://github.com/connorferster/handcalcs/wiki), in the wiki.
 
+You can also use the `%%tex` command to convert any Python code snippet into a valid LaTex. For Example:
+
+First import `handcalcs`. We are also importing a few properties/functions from __math__ package for the 
+example below.
+
+```python
+import handcalcs.render
+from math import sqrt, pi
+```
+
+Now, you can use the `%%tex` magic!
+
+```python
+%%tex
+a = 2 / 3 * sqrt(pi)
+```
+
+This will produce a LaTeX output as follows.
+
+```tex
+\[
+\begin{aligned}
+a &= \frac{ 2 }{ 3 } \cdot \sqrt{ \pi } = \frac{ 2 }{ 3 } \cdot \sqrt{ 3.142 } &= 1.182
+\end{aligned}
+\]
+```
 ## Basic Usage 2: As a decorator on your functions, `@handcalc()`
 
 This is the same kind of thing except instead of running your code in a Jupyter cell, you are running your code in a Python function, which is treated like a Jupyter cell. 
