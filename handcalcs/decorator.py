@@ -2,20 +2,20 @@ __all__ = ["handcalc"]
 
 from functools import wraps
 import inspect
+import innerscope
 from handcalcs.handcalcs import LatexRenderer
 
 def handcalc(left: str = "", right: str = "", jupyter_display: bool = False):
     # @wraps(func)
     def handcalc_decorator(func):
+        # use innerscope to get the values of locals within the function
+        scoped_func = innerscope.scoped_function(func)
+
         def wrapper(*args, **kwargs):
             func_source = inspect.getsource(func)
             cell_source = _func_source_to_cell(func_source)
-            calculated_results = func(*args, **kwargs)  # Func must use `return locals()`
-            if not isinstance(calculated_results, dict):
-                raise ValueError(
-                    f"Return value of decorated function should be locals(),",
-                    f" not {calculated_results}",
-                )
+            scope = scoped_func(*args, **kwargs)
+            calculated_results = scope.inner_scope
             renderer = LatexRenderer(cell_source, calculated_results)
             latex_code = renderer.render()
             if jupyter_display:
