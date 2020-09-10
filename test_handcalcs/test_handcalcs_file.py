@@ -1171,3 +1171,40 @@ def test_swap_math_funcs():
         deque(["b", "=", "new_func", deque(["3", "," , "4"]), "+", "5"])
     ) == deque(["b", "=", "\\operatorname{new_func}", deque(["3", ",", "4"]), "+", "5"])
 
+
+def test_test_for_scientific_notation_str():
+    assert handcalcs.handcalcs.test_for_scientific_notation_str("1.233e-3") == True
+    assert handcalcs.handcalcs.test_for_scientific_notation_str("0.090e10") == True
+    assert handcalcs.handcalcs.test_for_scientific_notation_str("e10") == False
+    assert handcalcs.handcalcs.test_for_scientific_notation_str("-1.23e4") == True
+
+def test_swap_scientific_notation_float():
+    assert handcalcs.handcalcs.swap_scientific_notation_float(deque([0.0000001, + 0.132]), 3) == deque(["1.000e-07", 0.132])
+    assert handcalcs.handcalcs.swap_scientific_notation_float(deque([0.000000135, + 2.30]), 3) == deque(["1.350e-07", 2.30])
+    assert handcalcs.handcalcs.swap_scientific_notation_float(deque([0.013546, + 0.132]),5) == deque(["1.35460e-02", '1.32000e-01'])
+
+def test_swap_comparison_ops():
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", ">", "1"])) == deque(["3", "\\gt", "1"])
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", ">=", "1"])) == deque(["3", "\\geq", "1"])
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", "==", "1"])) == deque(["3", "=", "1"])
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", "!=", "1"])) == deque(["3", "\\neq", "1"])
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["a", "=", deque(["1", "<", "5"])])) == deque(["a", "=", deque(["1", "\\lt", "5"])])
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["a", "=", deque(["1", "<=", "5"])])) == deque(["a", "=", deque(["1", "\\leq", "5"])])
+
+def test_test_for_long_var_strs():
+    assert handcalcs.handcalcs.test_for_long_var_strs("x_y_a") == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("Rate_annual") == True
+    assert handcalcs.handcalcs.test_for_long_var_strs("x_rake_red") == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("AB_x_y") == True
+    assert handcalcs.handcalcs.test_for_long_var_strs("category_x") == True
+    assert handcalcs.handcalcs.test_for_long_var_strs("x") == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("xy") == True
+    assert handcalcs.handcalcs.test_for_long_var_strs(234.21) == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("\\frac{") == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("\\sin") == False
+
+def test_swap_long_var_strs():
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4])) == deque(['\\mathrm{cat}_xy_u', '+', 4])
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"])) == deque(['\\mathrm{RATE}', '*', '4'])
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["\sin", "\left(", "apple_cart", "\\right)"])) == deque(['\\sin', '\\left(', '\\mathrm{apple}_cart', '\\right)'])
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["x" , "=", "a", "*", deque(["b", "+", "annual_x"])])) == deque(['x', '=', 'a', '*', deque(['b', '+', '\\mathrm{annual}_x'])])

@@ -15,6 +15,7 @@
 
 import sys
 from . import handcalcs as hand
+from . import sympy_kit as s_kit
 
 try: 
     from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
@@ -35,13 +36,44 @@ except AttributeError:
     raise ImportError("handcalcs.render is intended for a Jupyter environment."
     " Use 'from handcalcs import handcalc' for the decorator interface.")
 
+def parse_line_args(line: str) -> dict:
+    """
+    Returns a dict that represents the validated arguments
+    passed in as a line on the %%render or %%tex cell magics.
+    """
+    valid_args = ["parameters", "long", "short", "symbolic", "sympy"]
+    line_parts = line.split()
+    precision = 3
+    parsed_args = {"override": "", "precision": 3}
+    for arg in line_parts:
+        for valid_arg in valid_args:
+            if arg.lower() in valid_arg: 
+                parsed_args.update({"override": valid_arg})
+                break
+        try:
+            precision = int(arg)
+            parsed_args.update({"precision": precision})
+        except ValueError:
+            pass
+    return parsed_args
+
+
 @register_cell_magic
 def render(line, cell):
+    # Retrieve var dict from user namespace
+    var_list = _nms.who_ls()
+    var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
+
+    line_args = parse_line_args(line)
+    if line_args["override"] == "sympy":
+        cell = s_kit.convert_sympy_cell_to_py_cell(cell, var_dict)
+    
     # Run the cell
     with cell_capture:
         _nms.shell.run_cell(cell)
 
-    # Retrieve variables from the local namespace
+
+    # Retrieve updated variables (after .run_cell(cell))
     var_list = _nms.who_ls()
     var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
 
