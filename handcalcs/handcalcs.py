@@ -12,13 +12,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-from collections import deque
+from collections import deque, ChainMap
 import copy
 from dataclasses import dataclass
 from functools import singledispatch
 import importlib
 import inspect
 import itertools
+import more_itertools
 import math
 import os
 import pathlib
@@ -26,7 +27,68 @@ import re
 from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
-# TODO: Provide better formatting for inequality checks and bools
+# TODO:
+# Test for sci. notation str X
+# Convert str sci. notation to latex sci. notation X
+# Convert small rendered floats to latex sci. notation X
+# Convert comparison operators X
+# Change greeks detection to a regex for exact substitution X
+# Multi-character var names to text X
+# PRE_INSERT APPROPRIATE PARENTH and Simplify FLatten function
+
+GREEK_LOWER = {
+    "alpha": "\\alpha",
+    "beta": "\\beta",
+    "gamma": "\\gamma",
+    "delta": "\\delta",
+    "epsilon": "\\epsilon",
+    "zeta": "\\zeta",
+    "theta": "\\theta",
+    "iota": "\\iota",
+    "kappa": "\\kappa",
+    "mu": "\\mu",
+    "nu": "\\nu",
+    "xi": "\\xi",
+    "omicron": "\\omicron",
+    "pi": "\\pi",
+    "rho": "\\rho",
+    "sigma": "\\sigma",
+    "tau": "\\tau",
+    "upsilon": "\\upsilon",
+    "phi": "\\phi",
+    "chi": "\\chi",
+    "omega": "\\omega",
+    "eta": "\\eta",
+    "psi": "\\psi",
+    "lamb": "\\lambda",
+}
+
+GREEK_UPPER = {
+    "Alpha": "\\Alpha",
+    "Beta": "\\Beta",
+    "Gamma": "\\Gamma",
+    "Delta": "\\Delta",
+    "Epsilon": "\\Epsilon",
+    "Zeta": "\\Zeta",
+    "Theta": "\\Theta",
+    "Iota": "\\Iota",
+    "Kappa": "\\Kappa",
+    "Mu": "\\Mu",
+    "Nu": "\\Nu",
+    "Xi": "\\Xi",
+    "Omicron": "\\Omicron",
+    "Pi": "\\Pi",
+    "Rho": "\\Rho",
+    "Sigma": "\\Sigma",
+    "Tau": "\\Tau",
+    "Upsilon": "\\Upsilon",
+    "Phi": "\\Phi",
+    "Chi": "\\Chi",
+    "Omega": "\\Omega",
+    "Eta": "\\Eta",
+    "Psi": "\\Psi",
+    "Lamb": "\\Lambda",
+}
 
 # Six basic line types
 @dataclass
@@ -1023,7 +1085,7 @@ def format_blank_line(line: BlankLine) -> BlankLine:
 
 
 def split_conditional(line: str, calculated_results):
-    #breakpoint()
+    # breakpoint()
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
     try:
@@ -1064,9 +1126,9 @@ def test_for_parameter_line(line: str) -> bool:
     elif "=" not in line or "if " in line or ":" in line:
         return False
     else:
-        _, right_side = line.split("=")
+        _, right_side = line.split("=", 1)
         right_side.replace(" ", "")
-        if right_side.find("(") == 0 and right_side.find(")") == (len(right_side) + 1):
+        if right_side.find("(") == 0 and line.find(")") == (len(right_side) + 1):
             return True
         try:
             expr_as_code = code_reader(line)
@@ -1154,12 +1216,52 @@ def test_for_single_dict(source: str, calc_results: dict) -> bool:
     return isinstance(gotten, dict)
 
 
+def test_for_scientific_notation_str(elem: str) -> bool:
+    """
+    Returns True if 'elem' represents a python float in scientific
+    "e notation".
+    e.g. 1.23e-3, 0.09e5
+    Returns False otherwise
+    """
+    if "e" not in elem.lower():
+        return False
+    left, right = elem.split("e")
+    try:
+        left = float(left)
+    except ValueError:
+        return False
+    try:
+        right = int(right)
+    except ValueError:
+        return False
+    return True
+
+
+def test_for_small_float(elem: Any, precision: int) -> bool:
+    """
+    Returns True if elem is a float whose rounded str representation
+    has fewer significant figures than the numer in 'precision'. 
+    Return False otherwise
+    """
+    if not isinstance(elem, (int, float)):
+        return False
+    elem_as_str = str(round(elem, precision))
+    if "." in elem_as_str:
+        left, right = elem_as_str.split(".")
+        if left != "0":
+            return False
+    if len(elem_as_str.replace("0", "").replace(".", "")) < precision:
+        return True
+    else:
+        return False
+
+
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
     """
     Return 'line' as a deque that represents the line as: 
         deque([<parameter>, "&=", <value>])
     """
-    param = line.replace(" ", "").split("=")[0]
+    param = line.replace(" ", "").split("=", 1)[0]
     param_line = deque([param, "=", calculated_results[param]])
     return param_line
 
@@ -1342,6 +1444,7 @@ def swap_symbolic_calcs(calculation: deque) -> deque:
         swap_math_funcs,
         swap_py_operators,
         swap_for_greek,
+        swap_long_var_strs,
         extend_subscripts,
         swap_superscripts,
         flatten_deque,
@@ -1426,7 +1529,7 @@ class Flattener:  # Helper class
                 "frac" in item or "}{" in item or "\\int" in item or "sqrt" in item
             ):
                 self.fraction = True
-            
+
             if isinstance(item, deque):
                 if self.fraction:
                     sub_deque_generator = self.flatten(item)
@@ -1450,7 +1553,7 @@ class Flattener:  # Helper class
         either a fraction or an integral (then no parentheses).
         """
         if isinstance(items, str) and (
-            "frac" in items or "}{" in items or "\\int" in items
+            "frac" in items or "}{" in items or "\\int" in items or "\\sqrt" in items
         ):
             self.fraction = True
         omit_parentheses = self.fraction
@@ -1491,30 +1594,75 @@ def code_reader(pycode_as_str: str) -> deque:
     """
     Returns full line of code parsed into deque items
     """
-    var_name, expression = pycode_as_str.split("=")
+    var_name, expression = pycode_as_str.split("=", 1)
     var_name, expression = var_name.strip(), expression.strip()
     expression_as_deque = expr_parser(expression)
     return deque([var_name]) + deque(["=",]) + expression_as_deque
 
 
-def expr_parser(expr_as_str: str) -> deque:
-    """
-    Returns deque (or nested deque) of the mathematical expression, 'expr_as_str', that represents
-    the expression broken down into components of [<term>, <operator>, <term>, ...etc.]. If the expression
-    contains parentheses, then a nested deque is started, with the expressions within the parentheses as the
-    items within the nested deque.
-    """
-    term = pp.Word(pp.srange("[A-Za-z0-9_'\".]"), pp.srange("[A-Za-z0-9_'\".]"))
-    operator = pp.Word("+-*/^%<>=~!,")
-    func = pp.Word(pp.srange("[A-Za-z0-9_.]")) + pp.FollowedBy(
-        pp.Word(pp.srange("[A-Za-z0-9_()]"))
+# def old_expr_parser(expr_as_str: str) -> deque:
+#     """
+#     Returns deque (or nested deque) of the mathematical expression, 'expr_as_str', that represents
+#     the expression broken down into components of [<term>, <operator>, <term>, ...etc.]. If the expression
+#     contains parentheses, then a nested deque is started, with the expressions within the parentheses as the
+#     items within the nested deque.
+#     """
+#     term = pp.Word(pp.srange("[A-Za-z0-9_'\".]"), pp.srange("[A-Za-z0-9_'\".]"))
+#     operator = pp.Word("+-*/^%<>=~!,")
+#     func = pp.Word(pp.srange("[A-Za-z0-9_.]")) + pp.FollowedBy(
+#         pp.Word(pp.srange("[A-Za-z0-9_()]"))
+#     )
+#     string = pp.Word(pp.srange("[A-Za-z0-9'\"]"))
+#     group = term ^ operator ^ func ^ string
+#     parenth = pp.nestedExpr(content=group)
+#     master = group ^ parenth
+#     expr = pp.OneOrMore(master)
+#     return list_to_deque(expr.parseString(expr_as_str).asList())
+
+
+def expr_parser(line: str) -> list:
+    import sys
+
+    sys.setrecursionlimit(3000)
+    pp.ParserElement.enablePackrat()
+
+    ident = pp.Word(pp.alphanums + "_.")
+    integers = pp.Word(pp.nums)
+    floats = pp.Word(pp.nums + ".e-")
+
+    variable = ident
+    number = floats | integers
+
+    lpar = pp.Literal("(").suppress()
+    rpar = pp.Literal(")").suppress()
+    functor = variable
+
+    expr = pp.Forward()
+    func = pp.Group(functor + lpar + pp.Optional(pp.delimitedList(expr)) + rpar)
+    operand = func | number | variable
+
+    expop = pp.Literal("**")
+    signop = pp.oneOf("+ - ~")
+    arithop = pp.oneOf("= + - * / // % , < > >= <= == !=")
+    # notop = pp.Literal("not")
+    # andop = pp.Literal("and")
+    # orop = pp.Literal("or")
+
+    expr <<= pp.infixNotation(
+        operand,
+        [
+            (expop, 2, pp.opAssoc.RIGHT),
+            (signop, 1, pp.opAssoc.RIGHT),
+            (arithop, 2, pp.opAssoc.LEFT),
+            # (notop, 2, pp.opAssoc.LEFT),
+            # (andop, 2, pp.opAssoc.LEFT),
+            # (orop, 2, pp.opAssoc.LEFT),
+        ],
     )
-    string = pp.Word(pp.srange("[A-Za-z0-9'\"]"))
-    group = term ^ operator ^ func ^ string
-    parenth = pp.nestedExpr(content=group)
-    master = group ^ parenth
-    expr = pp.OneOrMore(master)
-    return list_to_deque(expr.parseString(expr_as_str).asList())
+
+    return list_to_deque(
+        more_itertools.collapse(expr.parseString(line).asList(), levels=1)
+    )
 
 
 def list_to_deque(los: List[str]) -> deque:
@@ -1539,10 +1687,13 @@ def extend_subscripts(pycode_as_deque: deque) -> deque:
     """
     swapped_deque = deque([])
     for item in pycode_as_deque:
+        discount = 0  # hack to prevent excess braces from swap_long_var_str
         if isinstance(item, deque):
             new_item = extend_subscripts(item)  # recursion!
             swapped_deque.append(new_item)
         elif isinstance(item, str) and "_" in item and not "\\int" in item:
+            if "\\mathrm{" in item:
+                discount = 1
             new_item = ""
             for char in item:
                 if char == "_":
@@ -1550,7 +1701,8 @@ def extend_subscripts(pycode_as_deque: deque) -> deque:
                     new_item += "{"
                 else:
                     new_item += char
-            num_braces = new_item.count("{")
+            num_braces = new_item.count("{") - discount
+
             new_item += "}" * num_braces
             swapped_deque.append(new_item)
         else:
@@ -1613,7 +1765,8 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
         "cos": "\\cos{",
         "tan": "\\tan{",
         "sqrt": "\\sqrt{",
-        "log": "\\log{",
+        "sum": "\\Sigma",
+        #"log": "\\log{",
         "exp": "\\exp{",
         "sinh": "\\sinh{",
         "tanh": "\\tanh{",
@@ -1626,19 +1779,30 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
         "acosh": "\\arccosh{",
         "atanh": "\\arctanh{",
     }
+
+    # Use the list of operators used by expr_parser() to check
+    # if the next item after the function name is an operator.
+    # If it is, then the item is not a function name,
+    # If not, then assume that the next item is the function arguments.
+
+    pycode_peeker = more_itertools.peekable(pycode_as_deque)
+    pycode_peeker.peek(False)  # Set default end value instead of StopIteration
     swapped_deque = deque([])
-    length = len(pycode_as_deque)
     close_bracket_token = False
     a = "{"
     b = "}"
-    for index, item in enumerate(pycode_as_deque):
-        next_idx = min(index + 1, length - 1)
-        next_item = pycode_as_deque[next_idx]
+    lpar = "\\left("
+    rpar = "\\right)"
+    for item in pycode_peeker:
+        next_item = pycode_peeker.peek(False)
         if isinstance(item, deque):
             new_item = swap_math_funcs(item)  # recursion!
             swapped_deque.append(new_item)
             if close_bracket_token:
                 swapped_deque.append(b)
+                if close_parenth_token:
+                    swapped_deque.append(rpar)
+                    close_parenth_token = False
                 close_bracket_token = False
         elif (
             isinstance(next_item, deque)
@@ -1649,13 +1813,24 @@ def swap_math_funcs(pycode_as_deque: deque) -> deque:
             ops = "\\operatorname"
             new_item = f"{ops}{a}{item}{b}"
             swapped_deque.append(new_item)
-        elif isinstance(next_item, deque) and item in latex_math_funcs:
-            swapped_deque.append(latex_math_funcs.get(item, item))
+            swapped_deque.append(lpar)
+        elif (isinstance(next_item, deque) or (isinstance(next_item, str) and re.match(r"[A-Za-z_]", next_item)) and item in latex_math_funcs):
+
+            close_parenth_token = True
             close_bracket_token = True
+            if item != "sqrt":
+                swapped_deque.append(lpar)
+                close_parenth_token = False
+            if item == "sum":
+                swapped_deque.append
+                close_bracket_token = False
+            swapped_deque.append(latex_math_funcs.get(item, item))
+
 
         else:
             swapped_deque.append(item)
     return swapped_deque
+
 
 
 def swap_py_operators(pycode_as_deque: deque) -> deque:
@@ -1676,6 +1851,80 @@ def swap_py_operators(pycode_as_deque: deque) -> deque:
                 swapped_deque.append("\\bmod")
             else:
                 swapped_deque.append(item)
+    return swapped_deque
+
+
+def swap_scientific_notation_str(pycode_as_deque: deque) -> deque:
+    """
+    Returns a deque representing 'pycode_as_deque' with any python 
+    float elements in the deque
+    that are in scientific notation "e" format converted into a Latex 
+    scientific notation.
+    """
+    swapped_deque = deque([])
+    for item in pycode_as_deque:
+        if type(item) is deque:
+            new_item = swap_scientific_notation_str(item)
+            swapped_deque.append(new_item)
+        elif test_for_scientific_notation_str(item):
+            new_item = item.replace("e", " \\times 10 ^")
+            swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
+    return swapped_deque
+
+
+def swap_comparison_ops(pycode_as_deque: deque) -> deque:
+    """
+    Returns a deque representing 'pycode_as_deque' with any python 
+    comparison operators, eg. ">", ">=", "!=", "==" swapped with 
+    their latex equivalent.
+    """
+    py_ops = {
+        "<": "\\lt",
+        ">": "\\gt",
+        "<=": "\\leq",
+        ">=": "\\geq",
+        "==": "=",
+        "!=": "\\neq",
+    }
+    swapped_deque = deque([])
+    for item in pycode_as_deque:
+        if type(item) is deque:
+            new_item = swap_comparison_ops(item)
+            swapped_deque.append(new_item)
+        else:
+            new_item = py_ops.get(item, item)
+            swapped_deque.append(new_item)
+    return swapped_deque
+
+
+def swap_scientific_notation_float(pycode_as_deque: deque, precision: int) -> deque:
+    """
+    Returns a deque representing 'pycode_as_deque' with any python floats that
+    will get "cut-off" by the 'precision' arg when they are rounded as being 
+    rendered as strings in python's "e format" scientific notation.
+
+    A float is "cut-off" by 'precision' when it's number of significant digits will
+    be less than those required by precision. 
+
+    e.g. elem = 0.001353 with precision=3 will round to 0.001, with only one
+    significant digit (1 < 3). Therefore this float is "cut off" and will be 
+    formatted instead as "1.353e-3"
+
+    elem = 0.1353 with precision=3 will round to 0.135 with three significant digits
+    (3 == 3). Therefore this float will not be formatted.
+    """
+    swapped_deque = deque([])
+    for item in pycode_as_deque:
+        if type(item) is deque:
+            new_item = swap_scientific_notation_float(item, precision)
+            swapped_deque.append(new_item)
+        elif test_for_small_float(item, precision):
+            new_item = "{:.{precision}e}".format(item, precision=precision)
+            swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
     return swapped_deque
 
 
@@ -1726,72 +1975,80 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
     Returns full line of code as deque with any Greek terms swapped in for words describing
     Greek terms, e.g. 'beta' -> 'β'
     """
-    # "eta" and "psi" need to be last on the list b/c they are substrings
-    # of "theta" and "epsilon"
-    greeks = [
-        "alpha",
-        "beta",
-        "gamma",
-        "delta",
-        "epsilon",
-        "zeta",
-        "theta",
-        "iota",
-        "kappa",
-        "lamb",
-        "mu",
-        "nu",
-        "xi",
-        "omicron",
-        "pi",
-        "rho",
-        "sigma",
-        "tau",
-        "upsilon",
-        "phi",
-        "chi",
-        "omega",
-    ]
-    greek_exceptions = ["eta", "psi"]
-    pycode_with_greek = deque([])
+    swapped_deque = deque([])
+    greek_chainmap = ChainMap(GREEK_LOWER, GREEK_UPPER)
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            new_item = swap_for_greek(item)  # recursion!
-            pycode_with_greek.append(new_item)
-        elif isinstance(item, str):
-            # This code is intended to swap out the greeks but to also swap
-            # out greeks in subscripts or sub-sub-scripts, etc.
-            for greek in greeks:
-                if (greek in item or greek.capitalize() in item) and (
-                    greek not in greek_exceptions
-                ):
-                    item = item.replace(greek, "\\" + greek)
-                    item = item.replace(greek.capitalize(), "\\" + greek.capitalize())
-                    item = item.replace("lamb", "lambda")
-                    item = item.replace("Lamb", "Lambda")
-            for greek in greek_exceptions:
-                greek_match = greek in item or greek.capitalize() in item
-                greek_startswith = item.startswith(greek) or item.startswith(
-                    greek.capitalize()
-                )
-                greek_submatch = ("_" + greek) in item or (
-                    "_" + greek.capitalize()
-                ) in item
-                if greek_match and greek_startswith:
-                    item = item.replace(greek, "\\" + greek, 1)
-                    item = item.replace(
-                        greek.capitalize(), "\\" + greek.capitalize(), 1
-                    )
-                if greek_match and greek_submatch:
-                    item = item.replace("_" + greek, "_" + "\\" + greek)
-                    item = item.replace(
-                        "_" + greek.capitalize(), "_" + "\\" + greek.capitalize()
-                    )
-
-            pycode_with_greek.append(item)
+            new_item = swap_for_greek(item)
+            swapped_deque.append(new_item)
+        elif "_" in str(item):
+            components = item.split("_")
+            swapped_components = [
+                greek_chainmap.get(component, component) for component in components
+            ]
+            new_item = "_".join(swapped_components)
+            swapped_deque.append(new_item)
         else:
-            pycode_with_greek.append(item)
-    return pycode_with_greek
+            new_item = greek_chainmap.get(item, item)
+            swapped_deque.append(new_item)
+    return swapped_deque
+
+
+def test_for_long_var_strs(elem: Any) -> bool:
+    """
+    Returns True if 'elem' is a variable string that has more than one character
+    in it's "top-level" name (as opposed to it's subscript).
+    False, otherwise.
+
+    e.g. elem = "Rate_annual" -> True
+         elem = "x_rake_red" -> False
+         elem = "AB_x_y" -> True
+         elem = "category_x" -> True
+         elem = "x" -> False
+         elem = "xy" -> True
+    """
+    if not isinstance(elem, str):
+        return False
+    if "\\" in elem or "{" in elem or "}" in elem:
+        return False
+    components = elem.split("_")
+    if len(components) != 1:
+        top_level, *remainders = components
+        if len(top_level) == 1:
+            return False
+        else:
+            return True
+    if len(components[0]) == 1:
+        return False
+    return True
+
+
+def swap_long_var_strs(pycode_as_deque: deque) -> deque:
+    """
+    Returns a new deque that represents 'pycode_as_deque' but
+    with all long variable names "escaped" so that they do not 
+    render as italic variables but rather upright text. 
+
+    ***Must be just before swap_subscripts in stack.***
+    """
+    swapped_deque = deque([])
+    begin = "\\mathrm{"
+    end = "}"
+    for item in pycode_as_deque:
+        if isinstance(item, deque):
+            new_item = swap_long_var_strs(item)
+            swapped_deque.append(new_item)
+        elif test_for_long_var_strs(item):
+            try:
+                top_level, remainder = item.split("_", 1)
+                new_item = begin + top_level + end + "_" + remainder
+                swapped_deque.append(new_item)
+            except:
+                new_item = begin + item + end
+                swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
+    return swapped_deque
 
 
 def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
