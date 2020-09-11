@@ -130,7 +130,7 @@ Returns a tuple consisting of `(latex_code: str, locals: dict)`, where `locals` 
 
 In your decorated function, everything between `def my_calc(...)` and a return statement (if any) is now like the code in a Jupyter cell, except it's a standard Python function.
 
-Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
+Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupyter Python environments (e.g. streamlit). 
 
 
 ## Comment Tags
