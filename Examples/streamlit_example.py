@@ -6,7 +6,6 @@ import streamlit as st
 def quadratic(a,b,c):
     x_1 = (-b + sqrt(b**2 - 4*a*c)) / (2*a)
     x_2 = (-b - sqrt(b**2 - 4*a*c)) / (2*a)
-    return locals()
 
 a = st.slider("Value for a:", 1,5, 5)
 b = st.slider("Value for b:", -10, 10, -5)
