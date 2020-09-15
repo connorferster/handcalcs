@@ -71,10 +71,7 @@ def render(line, cell):
     
     # Run the cell
     with cell_capture:
-        exec_result = _nms.shell.run_cell(cell)
-
-    if not exec_result.success:
-        return None
+        _nms.shell.run_cell(cell)
 
 
     # Retrieve updated variables (after .run_cell(cell))
