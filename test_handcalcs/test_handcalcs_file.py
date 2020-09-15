@@ -127,47 +127,47 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 # Integration tests
 
 
-def test_integration():
-    assert (
-        cell_1_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 0.019\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 0.019\\;\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_2_renderer.render()
-        == '\\[\n\\begin{aligned}\nx &= 2\\;\n\\\\[10pt]\n&\\text{Since, }x > 1 \\rightarrow \\left( 2 > 1 \\right):\\;\\;\\textrm{(Comment)}\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1 = 2 \\cdot 1 &= 2\n\\\\\nc &= 2\\;\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_2b_renderer.render()
-        == '\\[\n\\begin{aligned}\nx &= 10\\;\n\\\\[10pt]\nb &= x \\cdot 1 = 10 \\cdot 1 &= 10\n\\\\\nc &= 10\\;\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_3_renderer.render()
-        == '\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ 1 }{ \\frac{ b }{ c } } } = \\sqrt{ \\frac{ 1 }{ \\frac{ 3 }{ 4 } } } &= 1.155\n\\\\[10pt]\nf &= \\operatorname{ceil} \\left( \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right) = \\operatorname{ceil} \\left( \\left( 23 + 1 \\right) \\bmod 2 \\right) &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= (42, 0.001)\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_4_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2 &b &= 3 &c &= 5\\\\\n y &= 6\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_5_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\ny &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt{ \\frac{ 10000001 }{ 20000002 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 20000002 }{ 30000003 } \\right) } \\right) } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_6_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2\\;\n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11\\\\\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_7_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b = \\frac{ 52 }{ 23 } + 43 &= 45.261\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } = 52 \\cdot \\frac{ 45.261 }{ 23 } &= 102.329\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } = \\sqrt{ \\frac{ 23 }{ 43 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 23 }{ 43 } \\right) } &= 4.12\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_7b_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.261\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.261 }{ 23 } \\\\&= 102.329\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt{ \\frac{ 23 }{ 43 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
-    )
-    assert (
-        cell_8_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
-    )
+# def test_integration():
+#     assert (
+#         cell_1_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 2\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 0.019\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 0.019\\;\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_2_renderer.render()
+#         == '\\[\n\\begin{aligned}\nx &= 2\\;\n\\\\[10pt]\n&\\text{Since, }x > 1 \\rightarrow \\left( 2 > 1 \\right):\\;\\;\\textrm{(Comment)}\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1 = 2 \\cdot 1 &= 2\n\\\\\nc &= 2\\;\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_2b_renderer.render()
+#         == '\\[\n\\begin{aligned}\nx &= 10\\;\n\\\\[10pt]\nb &= x \\cdot 1 = 10 \\cdot 1 &= 10\n\\\\\nc &= 10\\;\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_3_renderer.render()
+#         == '\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ 1 }{ \\frac{ b }{ c } } } = \\sqrt{ \\frac{ 1 }{ \\frac{ 3 }{ 4 } } } &= 1.155\n\\\\[10pt]\nf &= \\operatorname{ceil} \\left( \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right) = \\operatorname{ceil} \\left( \\left( 23 + 1 \\right) \\bmod 2 \\right) &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= (42, 0.001)\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_4_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 2 &b &= 3 &c &= 5\\\\\n y &= 6\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_5_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\ny &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt{ \\frac{ 10000001 }{ 20000002 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 20000002 }{ 30000003 } \\right) } \\right) } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_6_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 2\\;\n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11\\\\\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_7_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b = \\frac{ 52 }{ 23 } + 43 &= 45.261\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } = 52 \\cdot \\frac{ 45.261 }{ 23 } &= 102.329\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } = \\sqrt{ \\frac{ 23 }{ 43 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 23 }{ 43 } \\right) } &= 4.12\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_7b_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.261\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.261 }{ 23 } \\\\&= 102.329\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt{ \\frac{ 23 }{ 43 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+#     )
+#     assert (
+#         cell_8_renderer.render()
+#         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
+#     )
 
 # Test decorator.py
 
@@ -283,44 +283,44 @@ def test_format_lines_error():
 # Unit tests
 
 
-def test_categorize_line():
-    assert handcalcs.handcalcs.categorize_line(
-        "a = 2 # Comment", {"a": 2}, ""
-    ) == ParameterLine(line=deque(["a", "=", 2]), comment=" Comment", latex="")
-    assert handcalcs.handcalcs.categorize_line(
-        "y = (a+4) # Comment", {"a": 2, "y": 6}, ""
-    ) == ParameterLine(line=deque(["y", "=", 6]), comment=" Comment", latex="")
-    assert handcalcs.handcalcs.categorize_line(
-        "alpha_eta_psi = 4 / (y**(a + 1)) # Comment",
-        {"a": 2, "y": 6, "alpha_eta_psi": 0.018518518518518517},
-        "",
-    ) == CalcLine(
-        line=deque(
-            ["alpha_eta_psi", "=", "4", "/", deque(["y", "**", deque(["a", "+", "1"])])]
-        ),
-        comment=" Comment",
-        latex="",
-    )
-    assert handcalcs.handcalcs.categorize_line(
-        "alpha_eta_psi", {"a": 2, "y": 6, "alpha_eta_psi": 0.018518518518518517}, ""
-    ) == ParameterLine(
-        line=deque(["alpha_eta_psi", "=", 0.018518518518518517]), comment="", latex=""
-    )
-    assert handcalcs.handcalcs.categorize_line(
-        "if x < 1: b = x # Comment", {"x": 2, "b": 2}, ""
-    ) == ConditionalLine(
-        condition=deque(["x", "<", "1"]),
-        condition_type="if",
-        expressions=deque(
-            [ParameterLine(line=deque(["b", "=", 2]), comment="", latex="")]
-        ),
-        raw_condition="x < 1",
-        raw_expression="b = x",
-        true_condition=deque([]),
-        true_expressions=deque([]),
-        comment=" Comment",
-        latex="",
-    )
+# def test_categorize_line():
+#     assert handcalcs.handcalcs.categorize_line(
+#         "a = 2 # Comment", {"a": 2}, ""
+#     ) == ParameterLine(line=deque(["a", "=", 2]), comment=" Comment", latex="")
+#     assert handcalcs.handcalcs.categorize_line(
+#         "y = (a+4) # Comment", {"a": 2, "y": 6}, ""
+#     ) == ParameterLine(line=deque(["y", "=", 6]), comment=" Comment", latex="")
+#     assert handcalcs.handcalcs.categorize_line(
+#         "alpha_eta_psi = 4 / (y**(a + 1)) # Comment",
+#         {"a": 2, "y": 6, "alpha_eta_psi": 0.018518518518518517},
+#         "",
+#     ) == CalcLine(
+#         line=deque(
+#             ["alpha_eta_psi", "=", "4", "/", deque(["y", "**", deque(["a", "+", "1"])])]
+#         ),
+#         comment=" Comment",
+#         latex="",
+#     )
+#     assert handcalcs.handcalcs.categorize_line(
+#         "alpha_eta_psi", {"a": 2, "y": 6, "alpha_eta_psi": 0.018518518518518517}, ""
+#     ) == ParameterLine(
+#         line=deque(["alpha_eta_psi", "=", 0.018518518518518517]), comment="", latex=""
+#     )
+#     assert handcalcs.handcalcs.categorize_line(
+#         "if x < 1: b = x # Comment", {"x": 2, "b": 2}, ""
+#     ) == ConditionalLine(
+#         condition=deque(["x", "<", "1"]),
+#         condition_type="if",
+#         expressions=deque(
+#             [ParameterLine(line=deque(["b", "=", 2]), comment="", latex="")]
+#         ),
+#         raw_condition="x < 1",
+#         raw_expression="b = x",
+#         true_condition=deque([]),
+#         true_expressions=deque([]),
+#         comment=" Comment",
+#         latex="",
+#     )
 
 
 def test_add_result_values_to_lines():
@@ -1160,17 +1160,6 @@ def test_swap_for_greek():
         ["\\lambda", "=", 3]
     )
 
-def test_swap_math_funcs():
-    assert handcalcs.handcalcs.swap_math_funcs(
-        deque(["a", "=", "sin", deque(["1.2"])])
-    ) == deque(["a", "=", "\\sin{", deque(["1.2"]), "}"])
-    assert handcalcs.handcalcs.swap_math_funcs(
-        deque(["b", "=", "tan", deque(["atan", deque(["1.2"])])])
-    ) == deque(["b", "=", "\\tan{", deque(["\\arctan{", deque(["1.2"]), "}"]), "}"])
-    assert handcalcs.handcalcs.swap_math_funcs(
-        deque(["b", "=", "new_func", deque(["3", "," , "4"]), "+", "5"])
-    ) == deque(["b", "=", "\\operatorname{new_func}", deque(["3", ",", "4"]), "+", "5"])
-
 
 def test_test_for_scientific_notation_str():
     assert handcalcs.handcalcs.test_for_scientific_notation_str("1.233e-3") == True
@@ -1206,5 +1195,81 @@ def test_test_for_long_var_strs():
 def test_swap_long_var_strs():
     assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4])) == deque(['\\mathrm{cat}_xy_u', '+', 4])
     assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"])) == deque(['\\mathrm{RATE}', '*', '4'])
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["\sin", "\left(", "apple_cart", "\\right)"])) == deque(['\\sin', '\\left(', '\\mathrm{apple}_cart', '\\right)'])
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["\\sin", "\\left(", "apple_cart", "\\right)"])) == deque(['\\sin', '\\left(', '\\mathrm{apple}_cart', '\\right)'])
     assert handcalcs.handcalcs.swap_long_var_strs(deque(["x" , "=", "a", "*", deque(["b", "+", "annual_x"])])) == deque(['x', '=', 'a', '*', deque(['b', '+', '\\mathrm{annual}_x'])])
+
+
+def test_test_for_function_special_case():
+    assert handcalcs.handcalcs.test_for_function_special_case(deque(["sin", "45"])) == True
+    assert handcalcs.handcalcs.test_for_function_special_case(deque(["sin", deque(["a", "/", "b"])])) == True
+    assert handcalcs.handcalcs.test_for_function_special_case(deque(["1", "+", "b"])) == False
+    assert handcalcs.handcalcs.test_for_function_special_case(deque(["-", "a"])) == False
+    assert handcalcs.handcalcs.test_for_function_special_case(deque(["sin", deque(["tan", deque(["a", "/", "b"])])])) == True
+
+
+def test_get_function_name():
+    assert handcalcs.handcalcs.get_function_name(deque(["sin", "45"])) == "sin"
+    assert handcalcs.handcalcs.get_function_name(deque(["sin", deque(["a", "/", "b"])])) == "sin"
+    assert handcalcs.handcalcs.get_function_name(deque(["1", "+", "b"])) ==""
+    assert handcalcs.handcalcs.get_function_name(deque(["-", "a"])) == ""
+    assert handcalcs.handcalcs.get_function_name(deque(["double", deque(["tan", deque(["a", "/", "b"])])])) == "double"
+    assert handcalcs.handcalcs.get_function_name(deque(["1", "+", "b", "*", "4"])) == ""
+
+
+def test_test_for_fraction_exception():
+    assert handcalcs.handcalcs.test_for_fraction_exception(deque(['sin', '45']), '/') == True
+    assert handcalcs.handcalcs.test_for_fraction_exception('/', deque(['a', '+', 'b'])) == True
+    assert handcalcs.handcalcs.test_for_fraction_exception(deque(['a', '+', 'b']), '*') == False
+    assert handcalcs.handcalcs.test_for_fraction_exception(deque(['-', '1']), '/') == True
+
+
+def test_insert_function_parentheses():
+    assert handcalcs.handcalcs.insert_function_parentheses(deque(["sin", "45"])) == deque(["sin", "\\left(", "45", "\\right)"])
+    assert handcalcs.handcalcs.insert_function_parentheses(deque(["sin", deque(["a", "/", "b"])])) == deque(["sin", "\\left(", deque(["a", "/", "b"]), "\\right)"])
+    assert handcalcs.handcalcs.insert_function_parentheses(deque(["double", deque(["tan", deque(["a", "/", "b"])])])) == deque(["double", "\\left(", deque(["tan", deque(["a", "/", "b"])]), "\\right)"])
+
+
+def test_test_for_unary():
+    assert handcalcs.handcalcs.test_for_unary(deque(["-", "1"])) == True
+    assert handcalcs.handcalcs.test_for_unary(deque(["+", "5"])) == True
+    assert handcalcs.handcalcs.test_for_unary(deque(["1", "+", "5"])) == False
+    assert handcalcs.handcalcs.test_for_unary(deque(["-", deque(["sin", "45"])])) == True
+
+
+def test_insert_unary_parentheses():
+    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["-", "1"])) == deque(["\\left(", "-", "1", "\\right)"])
+    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["+", "1"])) == deque(["\\left(", "+", "1", "\\right)"])
+    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["1", "+", "sin", "45"])) == deque(["\\left(", "1", "+", "sin", "45", "\\right)"])
+
+
+def test_insert_func_braces():
+    assert handcalcs.handcalcs.insert_func_braces(deque(["sin", "\\left(", "45", "\\right)"])) == deque(["sin", "{", "\\left(",  "45",  "\\right)", "}"])
+    assert handcalcs.handcalcs.insert_func_braces(deque(["sin", "\\left(", deque(["a", "/", "b"]), "\\right)"])) == deque(["sin","{", "\\left(",  deque(["a", "/", "b"]), "\\right)", "}"])
+    assert handcalcs.handcalcs.insert_func_braces(deque(['sqrt', deque(['b', '+', 'b'])])) == deque(['sqrt', '{', deque(['b', '+', 'b']), '}'])
+
+def test_get_func_latex():
+    assert handcalcs.handcalcs.get_func_latex("sin") == "\\sin"
+    assert handcalcs.handcalcs.get_func_latex("sum") == "\\Sigma"
+    assert handcalcs.handcalcs.get_func_latex("double2") == "double2"
+
+def test_func_name():
+    assert handcalcs.handcalcs.swap_func_name(deque(["sin", deque(["a", "/", "b"])]), "sin") == deque(["\\sin", deque(["a", "/", "b"])])
+    assert handcalcs.handcalcs.swap_func_name(deque(["tan", "45"]), "tan") == deque(["\\tan", "45"])
+    assert handcalcs.handcalcs.swap_func_name(deque(["sum", deque(["a", ",", "b", "," ,  "c", ",", "d"])]), "sum") == deque(["\\Sigma", deque(["a", ",", "b", "," ,  "c", ",", "d"])])
+
+def test_swap_math_funcs():
+    assert handcalcs.handcalcs.swap_math_funcs(deque(["z" , "=", deque(["double", "\\left(", deque(["a", "/", "b"], "\\right)"])]), dict()) == deque(['z','=',deque(['\\operatorname{double}','{','\\left(',deque(['a', '/', 'b']),'\\right)','}'])])
+    assert handcalcs.handcalcs.swap_math_funcs(deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()) == deque(['rate', '=', deque(['\\sin', '{', '\\left(', 'a', '\\right)', '}'])])  
+    assert handcalcs.handcalcs.swap_math_funcs(deque(["test", "=", deque(["sqrt", deque(["b", "+", "b"])])]), dict()) == deque(["test", "=", deque(["\\sqrt", "{", deque(["b", "+", "b"]), "}"])])
+
+def test_test_for_typ_arithmetic():
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["sin", "45"])) == False
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["sin", deque(["a", "/", "b"])])) == False
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["1", "+", "b"])) == True
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["-", "a"])) == False
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["sin", deque(["tan", deque(["a", "/", "b"])])])) == False
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["1", "+", "b", "*", "4"])) == True
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque([deque(["-", "a"]), "+", "b"])) == True
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(['\\left(', 'able', '+', 'b', '\\right)'])) == True
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["double", "\\left(", deque(["a", "/", "b"]), "\\right)"])) == False
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(['c', '**', '2'])) == True

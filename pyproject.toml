@@ -30,6 +30,7 @@ pytest-cov = "^2.9.0"
 coverage = {extras = ["toml"], version = "^5.1"}
 jupyterlab = "^2.1.5"
 nbconvert = "^5.6.1"
+pdbpp = "^0.10.2"
 
 [build-system]
 requires = ["poetry>=0.12"]

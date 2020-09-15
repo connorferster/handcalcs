@@ -43,8 +43,8 @@ def parse_line_args(line: str) -> dict:
     """
     valid_args = ["parameters", "long", "short", "symbolic", "sympy"]
     line_parts = line.split()
-    precision = 3
-    parsed_args = {"override": "", "precision": 3}
+    parsed_args = {"override": "", "precision": ""}
+    precision = ""
     for arg in line_parts:
         for valid_arg in valid_args:
             if arg.lower() in valid_arg: 
@@ -52,9 +52,10 @@ def parse_line_args(line: str) -> dict:
                 break
         try:
             precision = int(arg)
-            parsed_args.update({"precision": precision})
         except ValueError:
             pass
+        if precision:
+            parsed_args.update({"precision": precision})
     return parsed_args
 
 
@@ -81,7 +82,7 @@ def render(line, cell):
     var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
 
     # Do the handcalc conversion
-    renderer = hand.LatexRenderer(cell, var_dict)
+    renderer = hand.LatexRenderer(cell, var_dict, line_args)
     latex_code = renderer.render()
 
     # Display, but not as an "output"
@@ -90,15 +91,28 @@ def render(line, cell):
 
 @register_cell_magic
 def tex(line, cell):
-    # Run the cell
-    _nms.shell.run_cell(cell)
+    # Retrieve var dict from user namespace
+    var_list = _nms.who_ls()
+    var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
+
+    line_args = parse_line_args(line)
+    if line_args["override"] == "sympy":
+        cell = s_kit.convert_sympy_cell_to_py_cell(cell, var_dict)
     
-    # Retrieve variables from the local namespace
+    # Run the cell
+    with cell_capture:
+        exec_result = _nms.shell.run_cell(cell)
+
+    if not exec_result.success:
+        return None
+
+
+    # Retrieve updated variables (after .run_cell(cell))
     var_list = _nms.who_ls()
     var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
 
     # Do the handcalc conversion
-    renderer = hand.LatexRenderer(cell, var_dict)
+    renderer = hand.LatexRenderer(cell, var_dict, line_args)
     latex_code = renderer.render()
 
     # Display, but not as an "output"
