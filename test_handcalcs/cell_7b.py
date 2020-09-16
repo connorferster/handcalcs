@@ -1,7 +1,7 @@
 
 from math import asin, sin, sqrt
 
-# Long
+# Short
 a = 23
 b = 43
 c = 52
