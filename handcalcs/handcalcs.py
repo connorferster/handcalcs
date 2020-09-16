@@ -1419,6 +1419,7 @@ def swap_calculation(calculation: deque, calc_results: dict) -> tuple:
     latex code elements in the deque"""
     #calc_w_integrals_preswapped = swap_integrals(calculation, calc_results)
     symbolic_portion = swap_symbolic_calcs(calculation, calc_results)
+    print(symbolic_portion)
     calc_drop_decl = deque(
         list(calculation)[1:]
     )  # Drop the variable declaration
@@ -1472,14 +1473,15 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
 
 def swap_integrals(d: deque, calc_results: dict) -> deque:
     """
-    Returns 'calculation' with any function named 
+    Returns 'calculation' with any function named "quad" or "integrate"
+    rendered as an integral.
     """
     swapped_deque = deque([])
     if (
         "integrate" == d[0]
         or "quad" == d[0]
     ):
-        args_deque = d[2]
+        args_deque = d[1]
         function_name = args_deque[0]
         function = calc_results.get(function_name, function_name)
         function_source = (
@@ -1559,12 +1561,14 @@ def expr_parser(line: str) -> list:
     sys.setrecursionlimit(3000)
     pp.ParserElement.enablePackrat()
 
-    ident = pp.Word(pp.alphanums + "_.")
-    integers = pp.Word(pp.nums)
-    floats = pp.Word(pp.nums + ".e-")
-
-    variable = ident
-    number = floats | integers
+    variable = pp.Word(pp.alphanums + "_")
+    numbers = pp.pyparsing_common.fnumber.setParseAction("".join)
+    imag = pp.Literal("j")
+    plusminus = pp.oneOf("+ -")
+    imag_num = pp.Combine(numbers + imag)
+    comp_num = pp.Combine(numbers + plusminus + numbers + imag)
+    complex_number = comp_num | imag_num
+    all_nums = complex_number | numbers
 
     lpar = pp.Literal("(").suppress()
     rpar = pp.Literal(")").suppress()
@@ -1572,14 +1576,12 @@ def expr_parser(line: str) -> list:
 
     expr = pp.Forward()
     func = pp.Group(functor + lpar + pp.Optional(pp.delimitedList(expr)) + rpar)
-    operand = func | number | variable
+    # operand = func | numbers | variable .
+    operand = func | all_nums | variable 
 
     expop = pp.Literal("**")
     signop = pp.oneOf("+ - ~")
     arithop = pp.oneOf("= + - * / // % , < > >= <= == !=")
-    # notop = pp.Literal("not")
-    # andop = pp.Literal("and")
-    # orop = pp.Literal("or")
 
     expr <<= pp.infixNotation(
         operand,
@@ -1587,18 +1589,13 @@ def expr_parser(line: str) -> list:
             (expop, 2, pp.opAssoc.RIGHT),
             (signop, 1, pp.opAssoc.RIGHT),
             (arithop, 2, pp.opAssoc.LEFT),
-            # (notop, 2, pp.opAssoc.LEFT),
-            # (andop, 2, pp.opAssoc.LEFT),
-            # (orop, 2, pp.opAssoc.LEFT),
         ],
     )
 
     return list_to_deque(
         more_itertools.collapse(expr.parseString(line).asList(), levels=1)
     )
-    # return list_to_deque(
-    #    expr.parseString(line).asList()
-    # )
+
 
 def list_to_deque(los: List[str]) -> deque:
     """
@@ -2236,19 +2233,21 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
     peekable_deque = more_itertools.peekable(pycode_as_deque)
     lpar = "\\left("
     prev_item = None
-    func_exclude = ["sqrt", "integrate", "log", "ceil", "floor"]
+    func_exclude = ["sqrt", "quad", "integrate", "log", "ceil", "floor"]
     skip_fraction_token = False
     for item in peekable_deque:
+        #breakpoint()
         next_item = peekable_deque.peek(False)
         if isinstance(item, deque):
             poss_func_name = get_function_name(item)
             if poss_func_name:
-                if test_for_fraction_exception: 
+                if test_for_fraction_exception(item, next_item): 
                     skip_fraction_token = True
                     if not poss_func_name in func_exclude:
                         item = insert_function_parentheses(item)
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
+
             elif (test_for_typ_arithmetic(item) 
                   and not prev_item == lpar 
                   and not skip_fraction_token
@@ -2258,7 +2257,7 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                     new_item = insert_parentheses(item)
                     swapped_deque.append(new_item)
                 else:
-                    if prev_item not in func_exclude:
+                    if prev_item not in func_exclude and not test_for_nested_deque(item):
                         item = insert_arithmetic_parentheses(item)
                     new_item = insert_parentheses(item)
                     swapped_deque.append(new_item)
@@ -2269,12 +2268,21 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 swapped_deque.append(new_item)
             else:
                 if skip_fraction_token and prev_item == "/":
-                    skip_fraction_token = False
+                    skip_fraction_token = False                    
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
         else:
-            if skip_fraction_token and prev_item == "/":
+            if item == "/":
+                skip_fraction_token = True
+            elif skip_fraction_token and prev_item == "/":
                 skip_fraction_token = False
             swapped_deque.append(item)
         prev_item = item
     return swapped_deque
+
+def test_for_nested_deque(d: deque) -> bool:
+    """
+    Returns true if 'd' has a deque as its first item.
+    False otherwise
+    """
+    return next(isinstance(i, deque) for i in d)

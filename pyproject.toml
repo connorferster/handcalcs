@@ -24,6 +24,7 @@ documentation = "https://github.com/connorferster/handcalcs"
 python = "^3.7"
 pyparsing = "^2.4.7"
 more-itertools = "^8.5.0"
+innerscope = "^0.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest-cov = "^2.9.0"
