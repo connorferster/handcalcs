@@ -185,6 +185,9 @@ def test_install_latex(capsys):
     TEMPLATES = HERE.parent/ "handcalcs" / "templates"
     MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
     NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    file_list = NBCONVERT_TEMPLATES_DIR.parent.glob("*")
+    for file in file_list:
+        print(file)
 
     install_latex()
     captured = capsys.readouterr()
