@@ -41,9 +41,9 @@ from test_handcalcs import cell_8
 from test_handcalcs import error_cell
 
 
-def test_import_render():
-    with pytest.raises(ImportError):
-        import handcalcs.render
+# def test_import_render():
+#     with pytest.raises(ImportError):
+#         import handcalcs.render
 
 def remove_imports_defs_and_globals(source: str):
     """
@@ -86,19 +86,11 @@ def func_2(x, y):
     b = 3 * a + y
     return locals()  # not necessary, but allowed
 
-@handcalc(jupyter_display=True)
-def error_func(x, y):
-    """
-    This is the doc string
-    """
-    a = 2 * x
-    b = 3 * a + y
-    return b
 
 line_args = {"override": "", "precision": ""}
 line_args_params = {"override": "params", "precision": ""}
 line_args_symbolic = {"override": "symbolic", "precision": ""}
-line_args_long = {"override": "long", "precision": ""}
+line_args_long = {"override": "long", "precision": 2}
 line_args_short = {"override": "short", "precision": ""}
 
 
@@ -131,6 +123,7 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 )
 
 # Integration tests
+# Majority of test coverage primarily comes from these...
 
 
 def test_integration():
@@ -154,34 +147,32 @@ def test_integration():
         cell_4_renderer.render()
         == '\\[\n\\begin{aligned}\na &= 2 &b &= 3 &c &= 5\\\\\n y &= 6\n\\end{aligned}\n\\]'
     )
-#     assert (
-#         cell_5_renderer.render()
-#         == '\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\ny &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt{ \\frac{ 10000001 }{ 20000002 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 20000002 }{ 30000003 } \\right) } \\right) } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
-#     )
-#     assert (
-#         cell_6_renderer.render()
-#         == '\\[\n\\begin{aligned}\na &= 2\\;\n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11\\\\\n\\end{aligned}\n\\]'
-#     )
-#     assert (
-#         cell_7_renderer.render()
-#         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b = \\frac{ 52 }{ 23 } + 43 &= 45.261\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } = 52 \\cdot \\frac{ 45.261 }{ 23 } &= 102.329\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } = \\sqrt{ \\frac{ 23 }{ 43 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 23 }{ 43 } \\right) } &= 4.12\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
-#     )
-#     assert (
-#         cell_7b_renderer.render()
-#         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.261\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.261 }{ 23 } \\\\&= 102.329\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt{ \\frac{ 23 }{ 43 } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
-#     )
-#     assert (
-#         cell_8_renderer.render()
-#         == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt{ \\frac{ a }{ b } } + \\arcsin{ \\left( \\sin{ \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\left( 0.5 \\right) } + \\sqrt{ \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin{ \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
-#     )
+    assert (
+        cell_5_renderer.render()
+        == '\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\nx &= 5\\;\n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin { \\sin { \\left( \\frac{ 20000002 }{ 30000003 } \\right) } } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+    )
+    assert (
+        cell_6_renderer.render()
+        == '\\[\n\\begin{aligned}\na &= 2\\;\n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11\\\\\n\\end{aligned}\n\\]'
+    )
+    assert (
+        cell_7_renderer.render()
+        == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin { \\sin { \\left( \\frac{ 43 }{ 52 } \\right) } } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+    )
+    assert (
+        cell_7b_renderer.render()
+        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984\\;\n\\\\[10pt]\nb'_{c} &= 43\\;\n\\\\[10pt]\n\\mathrm{causal} &= (4.2+3.2j)\\;\n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c} = \\frac{ (4.2+3.2j) }{ 0.984 } + 43 &= (47.26829268292683+3.2520325203252036j)\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} } = (4.2+3.2j) \\cdot \\frac{ (47.26829268292683+3.2520325203252036j) }{ 0.984 } &= (191.1791922797277+167.59865159627205j)\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma { \\left( 1 ,\\  2 ,\\  3 \\right) } + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^3 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) } = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma { \\left( 1 ,\\  2 ,\\  3 \\right) } + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23e3 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 0.984 }{ 43 } \\right) } &= 6.333\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+    )
+    assert (
+        cell_8_renderer.render()
+        == '\\[\n\\begin{aligned}\na &= \\mathrm{23}\\;\n\\\\[10pt]\nb &= \\mathrm{43}\\;\n\\\\[10pt]\nc &= \\mathrm{52}\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
+    )
 
 # Test decorator.py
 
-# def test_handcalc():
-#     assert func_1(4, 5) == (
-#         "\n\\begin{aligned}\na &= 2 \\cdot x = 2 \\cdot 4 &= 8\n\\\\[10pt]\nb &= 3 \\cdot a + y = 3 \\cdot 8 + 5 &= 29\n\\end{aligned}\n",
-#         {"x": 4, "y": 5, "a": 8, "b": 29},
-    # )
+def test_handcalc():
+    assert func_1(4, 5) == ('\n\\begin{aligned}\na &= 2 \\cdot x = 2 \\cdot 4 &= 8\n\\10pt]\nb &= 3 \\cdot a + y = 3 \\cdot 8 + 5 &= 29\n\\end{aligned}\n',
+ {'x': 4, 'y': 5, 'a': 8, 'b': 29})
 
 def test_handcalc2():
     assert func_2(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
@@ -234,14 +225,9 @@ def test_install_html_restore():
 # Test expected exceptions
 
 
-# def test_error_cell():
-#     with pytest.raises(ValueError):
-#         error_cell_renderer.render()
-
-
-# def test_error_func():
-#     with pytest.raises(ValueError):
-#         error_func(4, 5)  # Unable to handle the docstring
+def test_error_cell():
+    with pytest.raises(ValueError):
+        error_cell_renderer.render()
 
 
 def test_add_result_values_to_lines_error():
@@ -1288,3 +1274,7 @@ def test_expr_parser():
     assert handcalcs.handcalcs.expr_parser("e1_nu = -1.25e5 +- 1") == deque(['e1_nu', '=', deque(['-', '1.25e5']), '+', deque(['-', '1'])])
     assert handcalcs.handcalcs.expr_parser("e1_nu = kN.to('ksf')") == deque(['e1_nu', '=', 'kN'])
     assert handcalcs.handcalcs.expr_parser("e1_nu = 1.25e5+1.25e-5j **(a/b**2)/sum(3,4,5)") == deque(['e1_nu', '=', deque(['1.25e5+1.25e-5j', '**', deque(['a', '/', deque(['b', '**', '2'])])]), '/', deque(['sum', deque(['3', ',', '4', ',', '5'])])])
+
+def test_swap_prime_notation():
+    assert handcalcs.handcalcs.swap_prime_notation(deque(["sin", deque(["tan", deque(["a", "/", 4])])])) == deque(["sin", deque(["tan", deque(["a", "/", 4])])])
+    assert handcalcs.handcalcs.swap_prime_notation(deque(["f_prime_c", "=" "eta_prime_prime_c", "*", deque(["phi_prime_prime_prime_c", "+", "zeta_pr"])])) == deque(["f'_c", "=" "eta''_c", "*", deque(["phi'''_c", "+", "zeta_pr"])])
