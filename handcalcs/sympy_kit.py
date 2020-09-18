@@ -90,6 +90,8 @@ def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
             elif test_for_sympy_expr(obj_str, var_dict):
                 sym_obj = get_sympy_obj(obj_str, var_dict)
                 acc.append(lhs + "=" + str(sym_obj))
+            else:
+                acc.append(line)
         else:
             obj_str = line.strip()
             if test_for_sympy_eqn(obj_str, var_dict):

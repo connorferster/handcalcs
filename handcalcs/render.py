@@ -17,31 +17,31 @@ import sys
 from . import handcalcs as hand
 from . import sympy_kit as s_kit
 
-try: 
-    from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
-    from IPython import get_ipython
-    from IPython.core.magics.namespace import NamespaceMagics
-    from IPython.display import Latex, Markdown, display
-    from IPython.utils.capture import capture_output
-except ImportError:
-    pass
+# try: 
+from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
+from IPython import get_ipython
+# from IPython.core.magics.namespace import NamespaceMagics
+from IPython.display import Latex, Markdown, display
+from IPython.utils.capture import capture_output
+# except ImportError:
+#     pass
 
 
-try:
-    _nms = NamespaceMagics()
-    _Jupyter = get_ipython()
-    _nms.shell = _Jupyter.kernel.shell
-    cell_capture = capture_output(stdout=True, stderr=True, display=True)
-except AttributeError:
-    raise ImportError("handcalcs.render is intended for a Jupyter environment."
-    " Use 'from handcalcs import handcalc' for the decorator interface.")
+# try:
+# _nms = NamespaceMagics()
+ip = get_ipython()
+# _nms.shell = _Jupyter.kernel.shell
+cell_capture = capture_output(stdout=True, stderr=True, display=True)
+# except AttributeError:
+#     raise ImportError("handcalcs.render is intended for a Jupyter environment."
+#     " Use 'from handcalcs import handcalc' for the decorator interface.")
 
 def parse_line_args(line: str) -> dict:
     """
     Returns a dict that represents the validated arguments
     passed in as a line on the %%render or %%tex cell magics.
     """
-    valid_args = ["parameters", "long", "short", "symbolic", "sympy"]
+    valid_args = ["params", "long", "short", "symbolic", "sympy", "_testing"]
     line_parts = line.split()
     parsed_args = {"override": "", "precision": ""}
     precision = ""
@@ -62,58 +62,55 @@ def parse_line_args(line: str) -> dict:
 @register_cell_magic
 def render(line, cell):
     # Retrieve var dict from user namespace
-    var_list = _nms.who_ls()
-    var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
-
+    user_ns_prerun = ip.user_ns
     line_args = parse_line_args(line)
+
     if line_args["override"] == "sympy":
-        cell = s_kit.convert_sympy_cell_to_py_cell(cell, var_dict)
+        cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
     
     # Run the cell
     with cell_capture:
-        _nms.shell.run_cell(cell)
-
+        ip.run_cell(cell)
 
     # Retrieve updated variables (after .run_cell(cell))
-    var_list = _nms.who_ls()
-    var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
+    user_ns_postrun = ip.user_ns
 
     # Do the handcalc conversion
-    renderer = hand.LatexRenderer(cell, var_dict, line_args)
+    renderer = hand.LatexRenderer(cell, user_ns_postrun, line_args)
     latex_code = renderer.render()
 
     # Display, but not as an "output"
     display(Latex(latex_code))
 
+    if line_args["override"] == "_testing":
+        return latex_code
+
 
 @register_cell_magic
 def tex(line, cell):
     # Retrieve var dict from user namespace
-    var_list = _nms.who_ls()
-    var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
-
+    user_ns_prerun = ip.user_ns
     line_args = parse_line_args(line)
+
     if line_args["override"] == "sympy":
-        cell = s_kit.convert_sympy_cell_to_py_cell(cell, var_dict)
+        cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
     
     # Run the cell
     with cell_capture:
-        exec_result = _nms.shell.run_cell(cell)
-
-    if not exec_result.success:
-        return None
-
+        ip.run_cell(cell)
 
     # Retrieve updated variables (after .run_cell(cell))
-    var_list = _nms.who_ls()
-    var_dict = {v: _nms.shell.user_ns[v] for v in var_list}
+    user_ns_postrun = ip.user_ns
 
     # Do the handcalc conversion
-    renderer = hand.LatexRenderer(cell, var_dict, line_args)
+    renderer = hand.LatexRenderer(cell, user_ns_postrun, line_args)
     latex_code = renderer.render()
 
-    # Display, but not as an "output"
+    # Print Latex Code
     print(latex_code)
+
+    if line_args["override"] == "_testing":
+        return latex_code
 
 def load_ipython_extension(ipython):
     """This function is called when the extension is
@@ -122,3 +119,12 @@ def load_ipython_extension(ipython):
     `register_magic_function` method of the shell
     instance."""
     ipython.register_magic_function(render, 'cell')
+
+# def unload_ipython_extension(ipython):
+#     """This function is called when the extension is
+#     loaded. It accepts an IPython InteractiveShell
+#     instance. We can register the magic with the
+#     `register_magic_function` method of the shell
+#     instance."""
+#     print(dir(ipython.magics_manager))
+#     ipython.magics_manager.remove(render)
