@@ -17,24 +17,22 @@ import sys
 from . import handcalcs as hand
 from . import sympy_kit as s_kit
 
-# try: 
-from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
-from IPython import get_ipython
+try: 
+    from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
+    from IPython import get_ipython
 # from IPython.core.magics.namespace import NamespaceMagics
-from IPython.display import Latex, Markdown, display
-from IPython.utils.capture import capture_output
-# except ImportError:
-#     pass
+    from IPython.display import Latex, Markdown, display
+    from IPython.utils.capture import capture_output
+except ImportError:
+    pass
 
 
-# try:
-# _nms = NamespaceMagics()
-ip = get_ipython()
-# _nms.shell = _Jupyter.kernel.shell
-cell_capture = capture_output(stdout=True, stderr=True, display=True)
-# except AttributeError:
-#     raise ImportError("handcalcs.render is intended for a Jupyter environment."
-#     " Use 'from handcalcs import handcalc' for the decorator interface.")
+try:
+    ip = get_ipython()
+    cell_capture = capture_output(stdout=True, stderr=True, display=True)
+except AttributeError:
+    raise ImportError("handcalcs.render is intended for a Jupyter environment."
+    " Use 'from handcalcs import handcalc' for the decorator interface.")
 
 def parse_line_args(line: str) -> dict:
     """

@@ -24,6 +24,7 @@ VERSION = '1.0.0'
 REQUIRED = [
     'pyparsing',
     'innerscope >= 0.2.0',
+    'more-itertools >= 8.5.0'
     # 'requests', 'maya', 'records',
 ]
 
