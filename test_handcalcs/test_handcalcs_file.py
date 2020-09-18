@@ -200,6 +200,10 @@ def test_install_latex_restore():
     TEMPLATES = HERE.parent/ "handcalcs" / "templates"
     MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
     NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    file_list = NBCONVERT_TEMPLATES_DIR.parent.glob("*")
+    for file in file_list:
+        print(file)
+    
     install_latex(restore=True)
     assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
 
