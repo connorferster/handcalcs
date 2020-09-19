@@ -17,10 +17,9 @@ import sys
 from . import handcalcs as hand
 from . import sympy_kit as s_kit
 
-try: 
-    from IPython.core.magic import (Magics, magics_class, cell_magic, register_cell_magic)
+try:
+    from IPython.core.magic import Magics, magics_class, cell_magic, register_cell_magic
     from IPython import get_ipython
-# from IPython.core.magics.namespace import NamespaceMagics
     from IPython.display import Latex, Markdown, display
     from IPython.utils.capture import capture_output
 except ImportError:
@@ -31,8 +30,11 @@ try:
     ip = get_ipython()
     cell_capture = capture_output(stdout=True, stderr=True, display=True)
 except AttributeError:
-    raise ImportError("handcalcs.render is intended for a Jupyter environment."
-    " Use 'from handcalcs import handcalc' for the decorator interface.")
+    raise ImportError(
+        "handcalcs.render is intended for a Jupyter environment."
+        " Use 'from handcalcs import handcalc' for the decorator interface."
+    )
+
 
 def parse_line_args(line: str) -> dict:
     """
@@ -45,7 +47,7 @@ def parse_line_args(line: str) -> dict:
     precision = ""
     for arg in line_parts:
         for valid_arg in valid_args:
-            if arg.lower() in valid_arg: 
+            if arg.lower() in valid_arg:
                 parsed_args.update({"override": valid_arg})
                 break
         try:
@@ -65,10 +67,13 @@ def render(line, cell):
 
     if line_args["override"] == "sympy":
         cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
-    
+
     # Run the cell
     with cell_capture:
-        ip.run_cell(cell)
+        exec_result = ip.run_cell(cell)
+
+    if not exec_result.success:
+        return None
 
     # Retrieve updated variables (after .run_cell(cell))
     user_ns_postrun = ip.user_ns
@@ -92,7 +97,7 @@ def tex(line, cell):
 
     if line_args["override"] == "sympy":
         cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
-    
+
     # Run the cell
     with cell_capture:
         ip.run_cell(cell)
@@ -110,13 +115,15 @@ def tex(line, cell):
     if line_args["override"] == "_testing":
         return latex_code
 
+
 def load_ipython_extension(ipython):
     """This function is called when the extension is
     loaded. It accepts an IPython InteractiveShell
     instance. We can register the magic with the
     `register_magic_function` method of the shell
     instance."""
-    ipython.register_magic_function(render, 'cell')
+    ipython.register_magic_function(render, "cell")
+
 
 # def unload_ipython_extension(ipython):
 #     """This function is called when the extension is
