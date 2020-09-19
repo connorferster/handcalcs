@@ -36,7 +36,7 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 
 ## Basic Demo
 
-![handcalcs demo 1](docs/images/basic_demo.gif)
+![handcalcs demo 1](docs/images/basic_demo1.gif)
 
 
 ## Installing
@@ -214,7 +214,7 @@ _Note: Re-assigning your symbolic variables to numbers will clobber them as symp
 
 `handcalcs` was designed to be used with the units package, [forallpeople](https://github.com/connorferster/forallpeople) (and [forallpeople](https://github.com/connorferster/forallpeople) was designed to be compatible with `handcalcs`). However, it has been recently reported that [pint](pint.readthedocs.org) can work to good effect, also.
 
-
+![display variable demo](docs/images/forallpeople.png)
 
 **For potential compatibility with other units packages, please see [the wiki.](https://github.com/connorferster/handcalcs/wiki)**
 
@@ -272,7 +272,7 @@ If you are creating your own functions, then they will be rendered in Latex as a
 
 If you are using a function with the name `sqrt` (whether your own custom implementation or from `math.sqrt`), then it will be rendered as the radical sign.
 
-![Functions](docs/images/greek.png)
+![Functions](docs/images/functions.png)
 
 ---
 
