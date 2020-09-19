@@ -45,6 +45,7 @@ from test_handcalcs import error_cell
 #     with pytest.raises(ImportError):
 #         import handcalcs.render
 
+
 def remove_imports_defs_and_globals(source: str):
     """
     For "cell" modules used in testing, this function removes
@@ -74,11 +75,13 @@ def remove_imports_defs_and_globals(source: str):
             acc.append(line)
     return "\n".join(acc)
 
+
 @handcalc()
 def func_1(x, y):
     a = 2 * x
     b = 3 * a + y
     return b
+
 
 @handcalc(jupyter_display=True)
 def func_2(x, y):
@@ -106,18 +109,36 @@ cell_7b_source = remove_imports_defs_and_globals(inspect.getsource(cell_7b))
 cell_8_source = remove_imports_defs_and_globals(inspect.getsource(cell_8))
 error_cell_source = remove_imports_defs_and_globals(inspect.getsource(error_cell))
 
-cell_1_renderer = handcalcs.handcalcs.LatexRenderer(cell_1_source, cell_1.calc_results, line_args)
-cell_2_renderer = handcalcs.handcalcs.LatexRenderer(cell_2_source, cell_2.calc_results, line_args)
+cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_1_source, cell_1.calc_results, line_args
+)
+cell_2_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_2_source, cell_2.calc_results, line_args
+)
 cell_2b_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_2b_source, cell_2b.calc_results, line_args
 )
-cell_3_renderer = handcalcs.handcalcs.LatexRenderer(cell_3_source, cell_3.calc_results, line_args)
-cell_4_renderer = handcalcs.handcalcs.LatexRenderer(cell_4_source, cell_4.calc_results, line_args_params)
-cell_5_renderer = handcalcs.handcalcs.LatexRenderer(cell_5_source, cell_5.calc_results, line_args)
-cell_6_renderer = handcalcs.handcalcs.LatexRenderer(cell_6_source, cell_6.calc_results, line_args)
-cell_7_renderer = handcalcs.handcalcs.LatexRenderer(cell_7_source, cell_7.calc_results, line_args_long)
-cell_7b_renderer = handcalcs.handcalcs.LatexRenderer(cell_7b_source, cell_7b.calc_results, line_args_short)
-cell_8_renderer = handcalcs.handcalcs.LatexRenderer(cell_8_source, cell_8.calc_results, line_args_symbolic)
+cell_3_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_3_source, cell_3.calc_results, line_args
+)
+cell_4_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_4_source, cell_4.calc_results, line_args_params
+)
+cell_5_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_5_source, cell_5.calc_results, line_args
+)
+cell_6_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_6_source, cell_6.calc_results, line_args
+)
+cell_7_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_7_source, cell_7.calc_results, line_args_long
+)
+cell_7b_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_7b_source, cell_7b.calc_results, line_args_short
+)
+cell_8_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_8_source, cell_8.calc_results, line_args_symbolic
+)
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
     error_cell_source, error_cell.calc_results, line_args
 )
@@ -129,35 +150,35 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 def test_integration():
     assert (
         cell_1_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 0.019\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 0.019\\;\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 2\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 0.019\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 0.019\\;\n\\end{aligned}\n\\]"
     )
     assert (
         cell_2_renderer.render()
-        == '\\[\n\\begin{aligned}\nx &= 2\\;\n\\\\[10pt]\n&\\text{Since, }x \\geq 1 \\rightarrow \\left( 2 \\geq 1 \\right):\\;\\;\\textrm{(Comment)}\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1 = 2 \\cdot 1 &= 2\n\\\\\nc &= 2\\;\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\nx &= 2\\;\n\\\\[10pt]\n&\\text{Since, }x \\geq 1 \\rightarrow \\left( 2 \\geq 1 \\right):\\;\\;\\textrm{(Comment)}\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1 = 2 \\cdot 1 &= 2\n\\\\\nc &= 2\\;\n\\end{aligned}\n\\]"
     )
     assert (
         cell_2b_renderer.render()
-        == '\\[\n\\begin{aligned}\nx &= 10\\;\n\\\\[10pt]\nb &= x \\cdot 1 = 10 \\cdot 1 &= 10\n\\\\\nc &= 10\\;\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\nx &= 10\\;\n\\\\[10pt]\nb &= x \\cdot 1 = 10 \\cdot 1 &= 10\n\\\\\nc &= 10\\;\n\\end{aligned}\n\\]"
     )
     assert (
         cell_3_renderer.render()
-        == '\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} } = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 0.289\n\\\\[10pt]\nf &= \\operatorname{ceil} { \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 } = \\operatorname{ceil} { \\left( 23 + 1 \\right) \\bmod 2 } &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} } = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 0.289\n\\\\[10pt]\nf &= \\operatorname{ceil} { \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 } = \\operatorname{ceil} { \\left( 23 + 1 \\right) \\bmod 2 } &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]\n\\end{aligned}\n\\]"
     )
     assert (
         cell_4_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2 &b &= 3 &c &= 5\\\\\n y &= 6\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 2 &b &= 3 &c &= 5\\\\\n y &= 6\n\\end{aligned}\n\\]"
     )
     assert (
         cell_5_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\nx &= 5\\;\n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin { \\sin { \\left( \\frac{ 20000002 }{ 30000003 } \\right) } } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\nx &= 5\\;\n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin { \\sin { \\left( \\frac{ 20000002 }{ 30000003 } \\right) } } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
     )
     assert (
         cell_6_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2\\;\n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11\\\\\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 2\\;\n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6\\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11\\\\\n\\end{aligned}\n\\]"
     )
     assert (
         cell_7_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin { \\sin { \\left( \\frac{ 43 }{ 52 } \\right) } } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin { \\sin { \\left( \\frac{ 43 }{ 52 } \\right) } } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
     )
     assert (
         cell_7b_renderer.render()
@@ -165,14 +186,19 @@ def test_integration():
     )
     assert (
         cell_8_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= \\mathrm{23}\\;\n\\\\[10pt]\nb &= \\mathrm{43}\\;\n\\\\[10pt]\nc &= \\mathrm{52}\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= \\mathrm{23}\\;\n\\\\[10pt]\nb &= \\mathrm{43}\\;\n\\\\[10pt]\nc &= \\mathrm{52}\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
+
 
 # Test decorator.py
 
+
 def test_handcalc():
-    assert func_1(4, 5) == ('\n\\begin{aligned}\na &= 2 \\cdot x = 2 \\cdot 4 &= 8\n\\10pt]\nb &= 3 \\cdot a + y = 3 \\cdot 8 + 5 &= 29\n\\end{aligned}\n',
- {'x': 4, 'y': 5, 'a': 8, 'b': 29})
+    assert func_1(4, 5) == (
+        "\n\\begin{aligned}\na &= 2 \\cdot x = 2 \\cdot 4 &= 8\n\\10pt]\nb &= 3 \\cdot a + y = 3 \\cdot 8 + 5 &= 29\n\\end{aligned}\n",
+        {"x": 4, "y": 5, "a": 8, "b": 29},
+    )
+
 
 def test_handcalc2():
     assert func_2(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
@@ -180,47 +206,61 @@ def test_handcalc2():
 
 # Test template.py
 
+
 def test_install_latex(capsys):
     HERE = pathlib.Path(__file__).resolve().parent
-    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
-    MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
-    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    TEMPLATES = HERE.parent / "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "latex" / "t-makaro_classic_romanoutput_noinput.tplx"
+    NBCONVERT_TEMPLATES_DIR = (
+        pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    )
 
     install_latex()
     captured = capsys.readouterr()
-    assert captured.out == "Available templates: \n ['t-makaro_classic_romanoutput_noinput.tplx']\n"
-    install_latex(swap_in ='t-makaro_classic_romanoutput_noinput.tplx')
+    assert (
+        captured.out
+        == "Available templates: \n ['t-makaro_classic_romanoutput_noinput.tplx']\n"
+    )
+    install_latex(swap_in="t-makaro_classic_romanoutput_noinput.tplx")
     assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
+
 
 def test_install_latex_restore():
     HERE = pathlib.Path(__file__).resolve().parent
-    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
-    MAIN_TEMPLATE = TEMPLATES / "latex" / 't-makaro_classic_romanoutput_noinput.tplx'
-    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    TEMPLATES = HERE.parent / "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "latex" / "t-makaro_classic_romanoutput_noinput.tplx"
+    NBCONVERT_TEMPLATES_DIR = (
+        pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
+    )
 
     install_latex(restore=True)
     assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
 
+
 def test_install_html(capsys):
     HERE = pathlib.Path(__file__).resolve().parent
-    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
-    MAIN_TEMPLATE = TEMPLATES / "html" / 'full_html_noinputs.tpl'
-    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
+    TEMPLATES = HERE.parent / "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "html" / "full_html_noinputs.tpl"
+    NBCONVERT_TEMPLATES_DIR = (
+        pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
+    )
 
     install_html()
     captured = capsys.readouterr()
     assert captured.out == "Available templates: \n ['full_html_noinputs.tpl']\n"
-    install_html(swap_in ='full_html_noinputs.tpl')
+    install_html(swap_in="full_html_noinputs.tpl")
     assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "full.tpl")
+
 
 def test_install_html_restore():
     HERE = pathlib.Path(__file__).resolve().parent
-    TEMPLATES = HERE.parent/ "handcalcs" / "templates"
-    MAIN_TEMPLATE = TEMPLATES / "html" / 'full_html_noinputs.tpl'
-    NBCONVERT_TEMPLATES_DIR = pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
+    TEMPLATES = HERE.parent / "handcalcs" / "templates"
+    MAIN_TEMPLATE = TEMPLATES / "html" / "full_html_noinputs.tpl"
+    NBCONVERT_TEMPLATES_DIR = (
+        pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
+    )
     install_html(restore=True)
     assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "full.tpl")
-
 
 
 # Test expected exceptions
@@ -375,7 +415,6 @@ def test_add_result_values_to_lines():
         comment=" Comment",
         latex="",
     )
-
 
 
 def test_round_and_render_line_objects_to_latex():
@@ -1160,18 +1199,39 @@ def test_test_for_scientific_notation_str():
     assert handcalcs.handcalcs.test_for_scientific_notation_str("e10") == False
     assert handcalcs.handcalcs.test_for_scientific_notation_str("-1.23e4") == True
 
+
 def test_swap_scientific_notation_float():
-    assert handcalcs.handcalcs.swap_scientific_notation_float(deque([0.0000001, + 0.132]), 3) == deque(["1.000e-07", 0.132])
-    assert handcalcs.handcalcs.swap_scientific_notation_float(deque([0.000000135, + 2.30]), 3) == deque(["1.350e-07", 2.30])
-    assert handcalcs.handcalcs.swap_scientific_notation_float(deque([0.013546, + 0.132]),5) == deque(["1.35460e-02", '1.32000e-01'])
+    assert handcalcs.handcalcs.swap_scientific_notation_float(
+        deque([0.0000001, +0.132]), 3
+    ) == deque(["1.000e-07", 0.132])
+    assert handcalcs.handcalcs.swap_scientific_notation_float(
+        deque([0.000000135, +2.30]), 3
+    ) == deque(["1.350e-07", 2.30])
+    assert handcalcs.handcalcs.swap_scientific_notation_float(
+        deque([0.013546, +0.132]), 5
+    ) == deque(["1.35460e-02", "1.32000e-01"])
+
 
 def test_swap_comparison_ops():
-    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", ">", "1"])) == deque(["3", "\\gt", "1"])
-    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", ">=", "1"])) == deque(["3", "\\geq", "1"])
-    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", "==", "1"])) == deque(["3", "=", "1"])
-    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", "!=", "1"])) == deque(["3", "\\neq", "1"])
-    assert handcalcs.handcalcs.swap_comparison_ops(deque(["a", "=", deque(["1", "<", "5"])])) == deque(["a", "=", deque(["1", "\\lt", "5"])])
-    assert handcalcs.handcalcs.swap_comparison_ops(deque(["a", "=", deque(["1", "<=", "5"])])) == deque(["a", "=", deque(["1", "\\leq", "5"])])
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", ">", "1"])) == deque(
+        ["3", "\\gt", "1"]
+    )
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", ">=", "1"])) == deque(
+        ["3", "\\geq", "1"]
+    )
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", "==", "1"])) == deque(
+        ["3", "=", "1"]
+    )
+    assert handcalcs.handcalcs.swap_comparison_ops(deque(["3", "!=", "1"])) == deque(
+        ["3", "\\neq", "1"]
+    )
+    assert handcalcs.handcalcs.swap_comparison_ops(
+        deque(["a", "=", deque(["1", "<", "5"])])
+    ) == deque(["a", "=", deque(["1", "\\lt", "5"])])
+    assert handcalcs.handcalcs.swap_comparison_ops(
+        deque(["a", "=", deque(["1", "<=", "5"])])
+    ) == deque(["a", "=", deque(["1", "\\leq", "5"])])
+
 
 def test_test_for_long_var_strs():
     assert handcalcs.handcalcs.test_for_long_var_strs("x_y_a") == False
@@ -1185,97 +1245,274 @@ def test_test_for_long_var_strs():
     assert handcalcs.handcalcs.test_for_long_var_strs("\\frac{") == False
     assert handcalcs.handcalcs.test_for_long_var_strs("\\sin") == False
 
+
 def test_swap_long_var_strs():
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4])) == deque(['\\mathrm{cat}_xy_u', '+', 4])
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"])) == deque(['\\mathrm{RATE}', '*', '4'])
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["\\sin", "\\left(", "apple_cart", "\\right)"])) == deque(['\\sin', '\\left(', '\\mathrm{apple}_cart', '\\right)'])
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["x" , "=", "a", "*", deque(["b", "+", "annual_x"])])) == deque(['x', '=', 'a', '*', deque(['b', '+', '\\mathrm{annual}_x'])])
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4])) == deque(
+        ["\\mathrm{cat}_xy_u", "+", 4]
+    )
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"])) == deque(
+        ["\\mathrm{RATE}", "*", "4"]
+    )
+    assert handcalcs.handcalcs.swap_long_var_strs(
+        deque(["\\sin", "\\left(", "apple_cart", "\\right)"])
+    ) == deque(["\\sin", "\\left(", "\\mathrm{apple}_cart", "\\right)"])
+    assert handcalcs.handcalcs.swap_long_var_strs(
+        deque(["x", "=", "a", "*", deque(["b", "+", "annual_x"])])
+    ) == deque(["x", "=", "a", "*", deque(["b", "+", "\\mathrm{annual}_x"])])
 
 
 def test_test_for_function_special_case():
-    assert handcalcs.handcalcs.test_for_function_special_case(deque(["sin", "45"])) == True
-    assert handcalcs.handcalcs.test_for_function_special_case(deque(["sin", deque(["a", "/", "b"])])) == True
-    assert handcalcs.handcalcs.test_for_function_special_case(deque(["1", "+", "b"])) == False
-    assert handcalcs.handcalcs.test_for_function_special_case(deque(["-", "a"])) == False
-    assert handcalcs.handcalcs.test_for_function_special_case(deque(["sin", deque(["tan", deque(["a", "/", "b"])])])) == True
+    assert (
+        handcalcs.handcalcs.test_for_function_special_case(deque(["sin", "45"])) == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_function_special_case(
+            deque(["sin", deque(["a", "/", "b"])])
+        )
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_function_special_case(deque(["1", "+", "b"]))
+        == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_function_special_case(deque(["-", "a"])) == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_function_special_case(
+            deque(["sin", deque(["tan", deque(["a", "/", "b"])])])
+        )
+        == True
+    )
 
 
 def test_get_function_name():
     assert handcalcs.handcalcs.get_function_name(deque(["sin", "45"])) == "sin"
-    assert handcalcs.handcalcs.get_function_name(deque(["sin", deque(["a", "/", "b"])])) == "sin"
-    assert handcalcs.handcalcs.get_function_name(deque(["1", "+", "b"])) ==""
+    assert (
+        handcalcs.handcalcs.get_function_name(deque(["sin", deque(["a", "/", "b"])]))
+        == "sin"
+    )
+    assert handcalcs.handcalcs.get_function_name(deque(["1", "+", "b"])) == ""
     assert handcalcs.handcalcs.get_function_name(deque(["-", "a"])) == ""
-    assert handcalcs.handcalcs.get_function_name(deque(["double", deque(["tan", deque(["a", "/", "b"])])])) == "double"
+    assert (
+        handcalcs.handcalcs.get_function_name(
+            deque(["double", deque(["tan", deque(["a", "/", "b"])])])
+        )
+        == "double"
+    )
     assert handcalcs.handcalcs.get_function_name(deque(["1", "+", "b", "*", "4"])) == ""
 
 
 def test_test_for_fraction_exception():
-    assert handcalcs.handcalcs.test_for_fraction_exception(deque(['sin', '45']), '/') == True
-    assert handcalcs.handcalcs.test_for_fraction_exception('/', deque(['a', '+', 'b'])) == True
-    assert handcalcs.handcalcs.test_for_fraction_exception(deque(['a', '+', 'b']), '*') == False
-    assert handcalcs.handcalcs.test_for_fraction_exception(deque(['-', '1']), '/') == True
+    assert (
+        handcalcs.handcalcs.test_for_fraction_exception(deque(["sin", "45"]), "/")
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_fraction_exception("/", deque(["a", "+", "b"]))
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_fraction_exception(deque(["a", "+", "b"]), "*")
+        == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_fraction_exception(deque(["-", "1"]), "/") == True
+    )
 
 
 def test_insert_function_parentheses():
-    assert handcalcs.handcalcs.insert_function_parentheses(deque(["sin", "45"])) == deque(["sin", "\\left(", "45", "\\right)"])
-    assert handcalcs.handcalcs.insert_function_parentheses(deque(["sin", deque(["a", "/", "b"])])) == deque(["sin", "\\left(", deque(["a", "/", "b"]), "\\right)"])
-    assert handcalcs.handcalcs.insert_function_parentheses(deque(["double", deque(["tan", deque(["a", "/", "b"])])])) == deque(["double", "\\left(", deque(["tan", deque(["a", "/", "b"])]), "\\right)"])
+    assert handcalcs.handcalcs.insert_function_parentheses(
+        deque(["sin", "45"])
+    ) == deque(["sin", "\\left(", "45", "\\right)"])
+    assert handcalcs.handcalcs.insert_function_parentheses(
+        deque(["sin", deque(["a", "/", "b"])])
+    ) == deque(["sin", "\\left(", deque(["a", "/", "b"]), "\\right)"])
+    assert handcalcs.handcalcs.insert_function_parentheses(
+        deque(["double", deque(["tan", deque(["a", "/", "b"])])])
+    ) == deque(
+        ["double", "\\left(", deque(["tan", deque(["a", "/", "b"])]), "\\right)"]
+    )
 
 
 def test_test_for_unary():
     assert handcalcs.handcalcs.test_for_unary(deque(["-", "1"])) == True
     assert handcalcs.handcalcs.test_for_unary(deque(["+", "5"])) == True
     assert handcalcs.handcalcs.test_for_unary(deque(["1", "+", "5"])) == False
-    assert handcalcs.handcalcs.test_for_unary(deque(["-", deque(["sin", "45"])])) == True
+    assert (
+        handcalcs.handcalcs.test_for_unary(deque(["-", deque(["sin", "45"])])) == True
+    )
 
 
 def test_insert_unary_parentheses():
-    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["-", "1"])) == deque(["\\left(", "-", "1", "\\right)"])
-    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["+", "1"])) == deque(["\\left(", "+", "1", "\\right)"])
-    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["1", "+", "sin", "45"])) == deque(["\\left(", "1", "+", "sin", "45", "\\right)"])
+    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["-", "1"])) == deque(
+        ["\\left(", "-", "1", "\\right)"]
+    )
+    assert handcalcs.handcalcs.insert_unary_parentheses(deque(["+", "1"])) == deque(
+        ["\\left(", "+", "1", "\\right)"]
+    )
+    assert handcalcs.handcalcs.insert_unary_parentheses(
+        deque(["1", "+", "sin", "45"])
+    ) == deque(["\\left(", "1", "+", "sin", "45", "\\right)"])
 
 
 def test_insert_func_braces():
-    assert handcalcs.handcalcs.insert_func_braces(deque(["sin", "\\left(", "45", "\\right)"])) == deque(["sin", "{", "\\left(",  "45",  "\\right)", "}"])
-    assert handcalcs.handcalcs.insert_func_braces(deque(["sin", "\\left(", deque(["a", "/", "b"]), "\\right)"])) == deque(["sin","{", "\\left(",  deque(["a", "/", "b"]), "\\right)", "}"])
-    assert handcalcs.handcalcs.insert_func_braces(deque(['sqrt', deque(['b', '+', 'b'])])) == deque(['sqrt', '{', deque(['b', '+', 'b']), '}'])
+    assert handcalcs.handcalcs.insert_func_braces(
+        deque(["sin", "\\left(", "45", "\\right)"])
+    ) == deque(["sin", "{", "\\left(", "45", "\\right)", "}"])
+    assert handcalcs.handcalcs.insert_func_braces(
+        deque(["sin", "\\left(", deque(["a", "/", "b"]), "\\right)"])
+    ) == deque(["sin", "{", "\\left(", deque(["a", "/", "b"]), "\\right)", "}"])
+    assert handcalcs.handcalcs.insert_func_braces(
+        deque(["sqrt", deque(["b", "+", "b"])])
+    ) == deque(["sqrt", "{", deque(["b", "+", "b"]), "}"])
+
 
 def test_get_func_latex():
     assert handcalcs.handcalcs.get_func_latex("sin") == "\\sin"
     assert handcalcs.handcalcs.get_func_latex("sum") == "\\Sigma"
     assert handcalcs.handcalcs.get_func_latex("double2") == "double2"
 
+
 def test_func_name():
-    assert handcalcs.handcalcs.swap_func_name(deque(["sin", deque(["a", "/", "b"])]), "sin") == deque(["\\sin", deque(["a", "/", "b"])])
-    assert handcalcs.handcalcs.swap_func_name(deque(["tan", "45"]), "tan") == deque(["\\tan", "45"])
-    assert handcalcs.handcalcs.swap_func_name(deque(["sum", deque(["a", ",", "b", "," ,  "c", ",", "d"])]), "sum") == deque(["\\Sigma", deque(["a", ",", "b", "," ,  "c", ",", "d"])])
+    assert handcalcs.handcalcs.swap_func_name(
+        deque(["sin", deque(["a", "/", "b"])]), "sin"
+    ) == deque(["\\sin", deque(["a", "/", "b"])])
+    assert handcalcs.handcalcs.swap_func_name(deque(["tan", "45"]), "tan") == deque(
+        ["\\tan", "45"]
+    )
+    assert handcalcs.handcalcs.swap_func_name(
+        deque(["sum", deque(["a", ",", "b", ",", "c", ",", "d"])]), "sum"
+    ) == deque(["\\Sigma", deque(["a", ",", "b", ",", "c", ",", "d"])])
+
 
 def test_swap_math_funcs():
-    assert handcalcs.handcalcs.swap_math_funcs(deque(["z" , "=", deque(["double", "\\left(", deque(["a", "/", "b"]), "\\right)"])]), dict()) == deque(['z','=',deque(['\\operatorname{double}','{','\\left(',deque(['a', '/', 'b']),'\\right)','}'])])
-    assert handcalcs.handcalcs.swap_math_funcs(deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()) == deque(['rate', '=', deque(['\\sin', '{', '\\left(', 'a', '\\right)', '}'])])  
-    assert handcalcs.handcalcs.swap_math_funcs(deque(["test", "=", deque(["sqrt", deque(["b", "+", "b"])])]), dict()) == deque(["test", "=", deque(["\\sqrt", "{", deque(["b", "+", "b"]), "}"])])
+    assert handcalcs.handcalcs.swap_math_funcs(
+        deque(
+            ["z", "=", deque(["double", "\\left(", deque(["a", "/", "b"]), "\\right)"])]
+        ),
+        dict(),
+    ) == deque(
+        [
+            "z",
+            "=",
+            deque(
+                [
+                    "\\operatorname{double}",
+                    "{",
+                    "\\left(",
+                    deque(["a", "/", "b"]),
+                    "\\right)",
+                    "}",
+                ]
+            ),
+        ]
+    )
+    assert handcalcs.handcalcs.swap_math_funcs(
+        deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()
+    ) == deque(["rate", "=", deque(["\\sin", "{", "\\left(", "a", "\\right)", "}"])])
+    assert handcalcs.handcalcs.swap_math_funcs(
+        deque(["test", "=", deque(["sqrt", deque(["b", "+", "b"])])]), dict()
+    ) == deque(["test", "=", deque(["\\sqrt", "{", deque(["b", "+", "b"]), "}"])])
+
 
 def test_test_for_typ_arithmetic():
     assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["sin", "45"])) == False
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["sin", deque(["a", "/", "b"])])) == False
+    assert (
+        handcalcs.handcalcs.test_for_typ_arithmetic(
+            deque(["sin", deque(["a", "/", "b"])])
+        )
+        == False
+    )
     assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["1", "+", "b"])) == True
     assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["-", "a"])) == False
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["sin", deque(["tan", deque(["a", "/", "b"])])])) == False
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["1", "+", "b", "*", "4"])) == True
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque([deque(["-", "a"]), "+", "b"])) == True
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(['\\left(', 'able', '+', 'b', '\\right)'])) == True
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["double", "\\left(", deque(["a", "/", "b"]), "\\right)"])) == False
-    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(['c', '**', '2'])) == True
+    assert (
+        handcalcs.handcalcs.test_for_typ_arithmetic(
+            deque(["sin", deque(["tan", deque(["a", "/", "b"])])])
+        )
+        == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_typ_arithmetic(deque(["1", "+", "b", "*", "4"]))
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_typ_arithmetic(
+            deque([deque(["-", "a"]), "+", "b"])
+        )
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_typ_arithmetic(
+            deque(["\\left(", "able", "+", "b", "\\right)"])
+        )
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_typ_arithmetic(
+            deque(["double", "\\left(", deque(["a", "/", "b"]), "\\right)"])
+        )
+        == False
+    )
+    assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["c", "**", "2"])) == True
+
 
 def test_expr_parser():
-    assert handcalcs.handcalcs.expr_parser("z = sqrt(5)") == deque(['z', '=', deque(['sqrt', '5'])])
-    assert handcalcs.handcalcs.expr_parser("z = (sqrt(5))") == deque(['z', '=', deque(['sqrt', '5'])])
-    assert handcalcs.handcalcs.expr_parser("z = x**2/sqrt(2)") == deque(['z', '=', deque(['x', '**', '2']), '/', deque(['sqrt', '2'])])
-    assert handcalcs.handcalcs.expr_parser("e1_nu = 1.25e-5 +-1 **2/sum(3,4,5)") == deque(['e1_nu', '=', '1.25e-5', '+', deque(['-', deque(['1', '**', '2'])]), '/', deque(['sum', deque(['3', ',', '4', ',', '5'])])])
-    assert handcalcs.handcalcs.expr_parser("e1_nu = -1.25e5 +- 1") == deque(['e1_nu', '=', deque(['-', '1.25e5']), '+', deque(['-', '1'])])
-    assert handcalcs.handcalcs.expr_parser("e1_nu = kN.to('ksf')") == deque(['e1_nu', '=', 'kN'])
-    assert handcalcs.handcalcs.expr_parser("e1_nu = 1.25e5+1.25e-5j **(a/b**2)/sum(3,4,5)") == deque(['e1_nu', '=', deque(['1.25e5+1.25e-5j', '**', deque(['a', '/', deque(['b', '**', '2'])])]), '/', deque(['sum', deque(['3', ',', '4', ',', '5'])])])
+    assert handcalcs.handcalcs.expr_parser("z = sqrt(5)") == deque(
+        ["z", "=", deque(["sqrt", "5"])]
+    )
+    assert handcalcs.handcalcs.expr_parser("z = (sqrt(5))") == deque(
+        ["z", "=", deque(["sqrt", "5"])]
+    )
+    assert handcalcs.handcalcs.expr_parser("z = x**2/sqrt(2)") == deque(
+        ["z", "=", deque(["x", "**", "2"]), "/", deque(["sqrt", "2"])]
+    )
+    assert handcalcs.handcalcs.expr_parser(
+        "e1_nu = 1.25e-5 +-1 **2/sum(3,4,5)"
+    ) == deque(
+        [
+            "e1_nu",
+            "=",
+            "1.25e-5",
+            "+",
+            deque(["-", deque(["1", "**", "2"])]),
+            "/",
+            deque(["sum", deque(["3", ",", "4", ",", "5"])]),
+        ]
+    )
+    assert handcalcs.handcalcs.expr_parser("e1_nu = -1.25e5 +- 1") == deque(
+        ["e1_nu", "=", deque(["-", "1.25e5"]), "+", deque(["-", "1"])]
+    )
+    assert handcalcs.handcalcs.expr_parser("e1_nu = kN.to('ksf')") == deque(
+        ["e1_nu", "=", "kN"]
+    )
+    assert handcalcs.handcalcs.expr_parser(
+        "e1_nu = 1.25e5+1.25e-5j **(a/b**2)/sum(3,4,5)"
+    ) == deque(
+        [
+            "e1_nu",
+            "=",
+            deque(
+                ["1.25e5+1.25e-5j", "**", deque(["a", "/", deque(["b", "**", "2"])])]
+            ),
+            "/",
+            deque(["sum", deque(["3", ",", "4", ",", "5"])]),
+        ]
+    )
+
 
 def test_swap_prime_notation():
-    assert handcalcs.handcalcs.swap_prime_notation(deque(["sin", deque(["tan", deque(["a", "/", 4])])])) == deque(["sin", deque(["tan", deque(["a", "/", 4])])])
-    assert handcalcs.handcalcs.swap_prime_notation(deque(["f_prime_c", "=" "eta_prime_prime_c", "*", deque(["phi_prime_prime_prime_c", "+", "zeta_pr"])])) == deque(["f'_c", "=" "eta''_c", "*", deque(["phi'''_c", "+", "zeta_pr"])])
+    assert handcalcs.handcalcs.swap_prime_notation(
+        deque(["sin", deque(["tan", deque(["a", "/", 4])])])
+    ) == deque(["sin", deque(["tan", deque(["a", "/", 4])])])
+    assert handcalcs.handcalcs.swap_prime_notation(
+        deque(
+            [
+                "f_prime_c",
+                "=" "eta_prime_prime_c",
+                "*",
+                deque(["phi_prime_prime_prime_c", "+", "zeta_pr"]),
+            ]
+        )
+    ) == deque(["f'_c", "=" "eta''_c", "*", deque(["phi'''_c", "+", "zeta_pr"])])
+
