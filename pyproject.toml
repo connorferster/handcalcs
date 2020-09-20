@@ -11,7 +11,7 @@ show_missing = true
 
 [tool.poetry]
 name = "handcalcs"
-version = "1.0.0"
+version = "1.0.1"
 description = "Sample desc"
 authors = ["Connor Ferster"]
 license = "Apache-2.0"
