@@ -38,6 +38,7 @@ from test_handcalcs import cell_6
 from test_handcalcs import cell_7
 from test_handcalcs import cell_7b
 from test_handcalcs import cell_8
+from test_handcalcs import cell_9
 from test_handcalcs import error_cell
 
 
@@ -107,6 +108,7 @@ cell_6_source = remove_imports_defs_and_globals(inspect.getsource(cell_6))
 cell_7_source = remove_imports_defs_and_globals(inspect.getsource(cell_7))
 cell_7b_source = remove_imports_defs_and_globals(inspect.getsource(cell_7b))
 cell_8_source = remove_imports_defs_and_globals(inspect.getsource(cell_8))
+cell_9_source = remove_imports_defs_and_globals(inspect.getsource(cell_9))
 error_cell_source = remove_imports_defs_and_globals(inspect.getsource(error_cell))
 
 cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
@@ -139,6 +141,9 @@ cell_7b_renderer = handcalcs.handcalcs.LatexRenderer(
 cell_8_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_8_source, cell_8.calc_results, line_args_symbolic
 )
+cell_9_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_9_source, cell_9.calc_results, line_args_symbolic
+)
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
     error_cell_source, error_cell.calc_results, line_args
 )
@@ -162,7 +167,7 @@ def test_integration():
     )
     assert (
         cell_3_renderer.render()
-        == "\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} } = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 0.289\n\\\\[10pt]\nf &= \\operatorname{ceil} { \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 } = \\operatorname{ceil} { \\left( 23 + 1 \\right) \\bmod 2 } &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} } = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 0.289\n\\\\[10pt]\nf &= \\operatorname{ceil} \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 = \\operatorname{ceil} \\left( 23 + 1 \\right) \\bmod 2 &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]\n\\end{aligned}\n\\]'
     )
     assert (
         cell_4_renderer.render()
@@ -170,7 +175,7 @@ def test_integration():
     )
     assert (
         cell_5_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\nx &= 5\\;\n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin { \\sin { \\left( \\frac{ 20000002 }{ 30000003 } \\right) } } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\na &= 10000001\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002\\;\n\\\\[10pt]\nc &= 30000003\\;\n\\\\[10pt]\nx &= 5\\;\n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\left( \\sin { \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin { \\left( \\sin { \\left( \\frac{ 20000002 }{ 30000003 } \\right) } \\right) } + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 10000001 }{ 20000002 } \\right) } \\\\&= 3.975\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
     )
     assert (
         cell_6_renderer.render()
@@ -178,7 +183,7 @@ def test_integration():
     )
     assert (
         cell_7_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin { \\sin { \\left( \\frac{ 43 }{ 52 } \\right) } } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\na &= 23\\;\n\\\\[10pt]\nb &= 43\\;\n\\\\[10pt]\nc &= 52\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33\\;\\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\left( \\sin { \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) } \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin { \\left( \\sin { \\left( \\frac{ 43 }{ 52 } \\right) } \\right) } + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 4.12\\;\\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
     )
     assert (
         cell_7b_renderer.render()
@@ -186,10 +191,12 @@ def test_integration():
     )
     assert (
         cell_8_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= \\mathrm{23}\\;\n\\\\[10pt]\nb &= \\mathrm{43}\\;\n\\\\[10pt]\nc &= \\mathrm{52}\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\sin { \\left( \\frac{ b }{ c } \\right) } } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\na &= \\mathrm{23}\\;\n\\\\[10pt]\nb &= \\mathrm{43}\\;\n\\\\[10pt]\nc &= \\mathrm{52}\\;\n\\\\[10pt]\nf &= \\frac{ c }{ a } + b\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }\\;\\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin { \\left( \\sin { \\left( \\frac{ b }{ c } \\right) } \\right) } + \\left( \\frac{ a }{ b } \\right) ^{ \\mathrm{0.5} } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin { \\left( \\frac{ a }{ b } \\right) }\\;\\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
     )
-
-
+    assert (
+        cell_9_renderer.render()
+        == '\\[\n\\begin{aligned}\n\\mu &= \\mathrm{0.44}\\;\n\\\\[10pt]\n\\mathrm{CritSeg} &= \\mathrm{1.5}\\;\\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= \\mathrm{9.641}\\;\n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ \\mathrm{200} }{ 2 } \\right)\\;\\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin { \\left( \\arctan { \\left( \\mu + 1 \\right) } + 1 \\right) } \\right) ^{ 2 } }\\;\n\\end{aligned}\n\\]'
+    )
 # Test decorator.py
 
 
@@ -1399,11 +1406,9 @@ def test_swap_math_funcs():
             deque(
                 [
                     "\\operatorname{double}",
-                    "{",
                     "\\left(",
                     deque(["a", "/", "b"]),
                     "\\right)",
-                    "}",
                 ]
             ),
         ]
@@ -1455,6 +1460,7 @@ def test_test_for_typ_arithmetic():
         == False
     )
     assert handcalcs.handcalcs.test_for_typ_arithmetic(deque(["c", "**", "2"])) == True
+    # assert handcalcs.handcalcs.test_for_typ_arithmetic(deque([deque(['sin', deque(['atan', 'mu'])]), '**', '2'])) == False
 
 
 def test_expr_parser():
