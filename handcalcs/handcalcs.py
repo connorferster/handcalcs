@@ -1501,9 +1501,10 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
     functions_on_symbolic_expressions = [
         insert_parentheses,
         swap_math_funcs,
+        swap_superscripts,
         swap_frac_divs,
         swap_py_operators,
-        swap_superscripts,
+
         swap_comparison_ops,
         swap_for_greek,
         swap_scientific_notation_str,
@@ -1514,6 +1515,7 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
         flatten_deque,
     ]
     for function in functions_on_symbolic_expressions:
+        # breakpoint()
         if function is swap_math_funcs:
             symbolic_expression = function(symbolic_expression, calc_results)
         else:
@@ -1762,15 +1764,15 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
     swapped_deque = deque([])
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            possible_func = not test_for_typ_arithmetic(item)
+            # possible_func = not test_for_typ_arithmetic(item)
             poss_func_name = get_function_name(item)
             func_name_match = get_func_latex(poss_func_name)
-            if possible_func and (poss_func_name != func_name_match):
+            if (poss_func_name != func_name_match):
                 item = swap_func_name(item, poss_func_name)
                 item = insert_func_braces(item)
                 new_item = swap_math_funcs(item, calc_results)
                 swapped_deque.append(new_item)
-            elif possible_func and poss_func_name == func_name_match:
+            elif poss_func_name == func_name_match:
                 # Begin checking for specialized function names
                 if poss_func_name == "quad":
                     new_item = swap_integrals(item, calc_results)
@@ -1782,7 +1784,8 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
                     ops = "\\operatorname"
                     new_func = f"{ops}{a}{poss_func_name}{b}"
                     item = swap_func_name(item, poss_func_name, new_func)
-                    item = insert_func_braces(item)
+                    if not test_for_typ_arithmetic:
+                        item = insert_func_braces(item)
                     new_item = swap_math_funcs(item, calc_results)
                     swapped_deque.append(new_item)
             else:
@@ -1977,28 +1980,33 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
         next_idx = min(idx + 1, len(pycode_as_deque) - 1)
         next_item = pycode_as_deque[next_idx]
         if isinstance(item, deque) and not close_bracket_token:
-            new_item = swap_superscripts(item)  # recursion!
-            pycode_with_supers.append(new_item)
-        elif not isinstance(next_item, deque) and "**" in str(next_item):
-            pycode_with_supers.append(l_par)
-            pycode_with_supers.append(item)
-            pycode_with_supers.append(r_par)
-        elif not isinstance(item, deque) and "**" in str(item):
-            new_item = f"{ops}{a}"
-            pycode_with_supers.append(new_item)
-            close_bracket_token = True
-        elif (
-            close_bracket_token
-            and not isinstance(prev_item, deque)
-            and "**" in str(prev_item)
-        ):
-            pycode_with_supers.append(item)
-            new_item = f"{b}"
-            pycode_with_supers.append(new_item)
-            close_bracket_token = False
+            if "**" == str(next_item):
+                pycode_with_supers.append(l_par)
+                new_item = swap_superscripts(item)
+                pycode_with_supers.append(new_item)
+                pycode_with_supers.append(r_par)
+            else:
+                new_item = swap_superscripts(item)  # recursion!
+                pycode_with_supers.append(new_item)
+            
         else:
-            pycode_with_supers.append(item)
-        prev_item = item
+            if "**" == str(next_item):
+                pycode_with_supers.append(l_par)
+                pycode_with_supers.append(item)
+                pycode_with_supers.append(r_par)
+            elif str(item) == "**":
+                new_item = f"{ops}{a}"
+                pycode_with_supers.append(new_item)
+                close_bracket_token = True
+            elif close_bracket_token:
+                pycode_with_supers.append(item)
+                new_item = f"{b}"
+                pycode_with_supers.append(new_item)
+                close_bracket_token = False
+            else:
+                pycode_with_supers.append(item)
+                prev_item = item
+
     return pycode_with_supers
 
 
@@ -2024,6 +2032,7 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
             new_item = greek_chainmap.get(item, item)
             swapped_deque.append(new_item)
     return swapped_deque
+
 
 
 def test_for_long_var_strs(elem: Any) -> bool:
@@ -2157,33 +2166,6 @@ def test_for_typ_arithmetic(d: deque) -> bool:
     operators = "+ - * ** / // % , < > >= <= == !=".split()
     any_op = any(elem for elem in d if elem in operators)
     return any_op and not test_for_unary(d)
-    # operators = "+ - * / // % , < > >= <= == !=".split()
-
-    # # Empty bool vars
-    # is_str = False
-    # is_deque = False
-    # poss_var_func = False
-    # is_digit = False
-    # lpar = False
-    # is_op = False
-
-    # # Set bool vars
-    # if isinstance(d[0], str):
-    #     is_str = True
-    #     poss_var_func = d[0].isidentifier()
-    #     is_digit = d[0].isdigit()
-    #     lpar = d[0] == "\\left("
-    # else:
-    #     is_deque = isinstance(d[0], deque)
-    # if isinstance(d[1], str):
-    #     is_op = d[1] in operators
-
-    # # Do the test for typ arithmetic
-    # if (len(d) >= 3
-    #     and ((is_str and (poss_var_func or is_digit or lpar))
-    #         or (is_deque and is_op))):
-    #     return True
-    # return False
 
 
 def get_function_name(d: deque) -> str:
@@ -2243,7 +2225,7 @@ def insert_function_parentheses(d: deque) -> deque:
     last = len(d) - 1
     exclude = ["sqrt", "log", "ceil", "floor"]
     for idx, item in enumerate(d):
-        if idx == 1 and idx == last:
+        if idx == last == 1:
             swapped_deque.append(lpar)
             swapped_deque.append(item)
             swapped_deque.append(rpar)
@@ -2298,16 +2280,17 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
         next_item = peekable_deque.peek(False)
         if isinstance(item, deque):
             poss_func_name = get_function_name(item)
+            typ_arithmetic = test_for_typ_arithmetic(item)
             if poss_func_name:
                 if test_for_fraction_exception(item, next_item):
                     skip_fraction_token = True
-                    if not poss_func_name in func_exclude:
-                        item = insert_function_parentheses(item)
+                if not poss_func_name in func_exclude:
+                    item = insert_function_parentheses(item)
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
 
             elif (
-                test_for_typ_arithmetic(item)
+                typ_arithmetic
                 and not prev_item == lpar
                 and not skip_fraction_token
             ):
@@ -2318,8 +2301,9 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 else:
                     if prev_item not in func_exclude and not test_for_nested_deque(
                         item
-                    ):
+                    ) and next_item != "**": # Allow swap_superscript to handle its parenths
                         item = insert_arithmetic_parentheses(item)
+                    
                     new_item = insert_parentheses(item)
                     swapped_deque.append(new_item)
 

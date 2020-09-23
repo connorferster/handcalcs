@@ -41,11 +41,16 @@ def parse_line_args(line: str) -> dict:
     Returns a dict that represents the validated arguments
     passed in as a line on the %%render or %%tex cell magics.
     """
-    valid_args = ["params", "long", "short", "symbolic", "sympy", "_testing"]
+    valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
+    # valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
+    # sympy_arg = ['sympy']
     line_parts = line.split()
-    parsed_args = {"override": "", "precision": ""}
+    # parsed_args = {"override": "", "precision": "", "sympy": False}
+    parsed_args = {"override": "", "precision": "",}
     precision = ""
     for arg in line_parts:
+        # if arg.lower() in sympy_arg:
+        #     parsed_args["sympy"] = True
         for valid_arg in valid_args:
             if arg.lower() in valid_arg:
                 parsed_args.update({"override": valid_arg})
