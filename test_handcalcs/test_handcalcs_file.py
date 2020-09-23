@@ -1490,7 +1490,7 @@ def test_expr_parser():
         ["e1_nu", "=", deque(["-", "1.25e5"]), "+", deque(["-", "1"])]
     )
     assert handcalcs.handcalcs.expr_parser("e1_nu = kN.to('ksf')") == deque(
-        ["e1_nu", "=", "kN"]
+        ["e1_nu", "=", "kN.to"]
     )
     assert handcalcs.handcalcs.expr_parser(
         "e1_nu = 1.25e5+1.25e-5j **(a/b**2)/sum(3,4,5)"

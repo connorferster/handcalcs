@@ -1630,7 +1630,7 @@ def expr_parser(line: str) -> list:
     sys.setrecursionlimit(3000)
     pp.ParserElement.enablePackrat()
 
-    variable = pp.Word(pp.alphanums + "_")
+    variable = pp.Word(pp.alphanums + "_.")
     numbers = pp.pyparsing_common.fnumber.setParseAction("".join)
     imag = pp.Literal("j")
     plusminus = pp.oneOf("+ -")
