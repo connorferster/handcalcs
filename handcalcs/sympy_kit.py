@@ -67,7 +67,12 @@ def get_sympy_obj(obj_str: str, var_dict: dict) -> Any:
     """
     Returns the object represented by 'obj_str' from 'var_dict'
     """
-    return var_dict[obj_str]
+    sp_obj = var_dict[obj_str]
+    if isinstance(sp_obj, list) and len(sp_obj) == 1:
+        return sp_obj[0]
+    return sp_obj
+        
+
 
 def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
     """
