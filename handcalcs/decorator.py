@@ -11,16 +11,14 @@ def handcalc(
 ):
     # @wraps(func)
     def handcalc_decorator(func):
-        # use innerscope to get the values of locals within the function
-        scoped_func = innerscope.scoped_function(func)
 
         def wrapper(*args, **kwargs):
             line_args = {"override": override, "precision": precision}
             func_source = inspect.getsource(func)
             cell_source = _func_source_to_cell(func_source)
-            scope = scoped_func(*args, **kwargs)
-            calculated_results = scope.inner_scope
-            renderer = LatexRenderer(cell_source, calculated_results, line_args)
+            # use innerscope to get the values of locals, closures, and globals when calling func
+            scope = innerscope.call(func, *args, **kwargs)
+            renderer = LatexRenderer(cell_source, scope, line_args)
             latex_code = renderer.render()
             if jupyter_display:
                 try:
@@ -30,9 +28,9 @@ def handcalc(
                         "jupyter_display option requires IPython.display to be installed."
                     )
                 display(Latex(latex_code))
-                return calculated_results
+                return scope.return_value
             latex_code = latex_code.replace("\\[", "").replace("\\]", "")
-            return (left + latex_code + right, calculated_results)
+            return (left + latex_code + right, scope.inner_scope)
 
         return wrapper
 
