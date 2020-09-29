@@ -200,6 +200,8 @@ def is_number(s: str) -> bool:
 
 # The renderer class ("output" class)
 class LatexRenderer:
+    dec_sep = "."
+
     def __init__(self, python_code_str: str, results: dict, line_args: dict):
         self.source = python_code_str
         self.results = results
@@ -207,6 +209,7 @@ class LatexRenderer:
         self.override = line_args["override"]
 
     def render(self):
+        print(self.dec_sep)
         return latex(self.source, self.results, self.override, self.precision,)
 
 
@@ -833,8 +836,9 @@ def round_and_render_line_objects_to_latex(
 @round_and_render_line_objects_to_latex.register(CalcLine)
 def round_and_render_calc(line: CalcLine, precision: int) -> CalcLine:
     idx_line = line.line
-    # idx_line = swap_scientific_notation_float(idx_line, precision)
-    # idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_float(idx_line, precision)
+    idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -844,8 +848,9 @@ def round_and_render_calc(line: CalcLine, precision: int) -> CalcLine:
 @round_and_render_line_objects_to_latex.register(LongCalcLine)
 def round_and_render_calc(line: LongCalcLine, precision: int) -> LongCalcLine:
     idx_line = line.line
-    # idx_line = swap_scientific_notation_float(idx_line, precision)
-    # idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_float(idx_line, precision)
+    idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -855,8 +860,9 @@ def round_and_render_calc(line: LongCalcLine, precision: int) -> LongCalcLine:
 @round_and_render_line_objects_to_latex.register(ParameterLine)
 def round_and_render_parameter(line: ParameterLine, precision: int) -> ParameterLine:
     idx_line = line.line
-    # idx_line = swap_scientific_notation_float(idx_line, precision)
-    # idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_float(idx_line, precision)
+    idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -870,13 +876,17 @@ def round_and_render_conditional(
     line_break = "\\\\\n"
     outgoing = deque([])
     idx_line = line.true_condition
-    # idx_line = swap_scientific_notation_float(idx_line, precision)
-    # idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_float(idx_line, precision)
+    idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
     line.true_condition = rounded_line
     for (
         expr
     ) in line.true_expressions:  # Each 'expr' item is a CalcLine or other line type
+        expr = swap_scientific_notation_float(expr, precision)
+        expr = swap_scientific_notation_str(expr)
+        expr = swap_scientific_notation_complex(expr, precision)
         outgoing.append(round_and_render_line_objects_to_latex(expr, precision))
     line.true_expressions = outgoing
     line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
@@ -885,7 +895,11 @@ def round_and_render_conditional(
 
 @round_and_render_line_objects_to_latex.register(SymbolicLine)
 def round_and_render_symbolic(line: SymbolicLine, precision: int) -> SymbolicLine:
-    rounded_line = round_and_render(line.line, precision)
+    expr = line.line
+    expr = swap_scientific_notation_float(expr, precision)
+    expr = swap_scientific_notation_str(expr)
+    expr = swap_scientific_notation_complex(expr, precision)
+    rounded_line = round_and_render(expr, precision)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
     return line
@@ -1196,12 +1210,18 @@ def test_for_parameter_line(line: str) -> bool:
     # Exploratory Tests
     _, right_side = line.split("=", 1)
     right_side = right_side.replace(" ", "")
-    right_side_deque = expr_parser(right_side)
+
     if (right_side.find("(") == 0) and (
-        right_side.find(")") == len(right_side) - 1
+        right_side.find(")") == len(right_side)
     ):  # Blocked by parentheses
         return True
-    elif len(right_side_deque) == 1:
+
+    try:
+        right_side_deque = expr_parser(right_side)
+    except pp.ParseException:
+        right_side_deque = deque([right_side])
+
+    if len(right_side_deque) == 1:
         return True
     elif test_for_unary(right_side_deque):
         return True
@@ -1298,20 +1318,61 @@ def test_for_scientific_notation_str(elem: str) -> bool:
     return False
 
 
+def round_complex(elem: complex, precision: int) -> complex:
+    """
+    Returns the complex 'elem' rounded to 'precision'
+    """
+    return complex(round(elem.real, precision), round(elem.imag, precision))
+
+
+def test_for_small_complex(elem: Any, precision: int) -> bool:
+    """
+    Returns True if 'elem' is a complex whose rounded str representation
+    has fewer significant figures than the number in 'precision'.
+    Returns False otherwise.
+    """
+    if isinstance(elem, complex):
+        test = any(
+            [
+                test_for_small_float(elem.real, precision),
+                test_for_small_float(elem.imag, precision),
+            ]
+        )
+        return test
+
+
 def test_for_small_float(elem: Any, precision: int) -> bool:
     """
-    Returns True if elem is a float whose rounded str representation
+    Returns True if 'elem' is a float whose rounded str representation
     has fewer significant figures than the numer in 'precision'. 
-    Return False otherwise
+    Return False otherwise.
     """
-    if not isinstance(elem, (int, float)):
+
+    if not isinstance(elem, (float)):
         return False
-    elem_as_str = str(round(elem, precision))
+    elem_as_str = str(round(abs(elem), precision))
+    if "e" in str(elem):
+        return True
     if "." in elem_as_str:
-        left, _right = elem_as_str.split(".")
+        left, *_right = elem_as_str.split(".")
         if left != "0":
             return False
-    if len(elem_as_str.replace("0", "").replace(".", "")) < precision:
+    if round(elem, precision) != round(elem, precision + 1) or str(
+        abs(round(elem, precision))
+    ).replace("0", "").replace(".", "") == str(abs(round(elem, precision + 1))).replace(
+        "0", ""
+    ).replace(
+        ".", ""
+    ) == "":
+        # if (
+        #     len(elem_as_str.replace(".","").replace("0","")) < precision
+        #     and (
+        #         str(round(elem, precision)).replace("0","").replace(".","")\
+        #             == str(round(elem, precision + 1)).replace("0","").replace(".","")
+        #             or
+        #             round(elem, precision) != round(elem, precision + 1)
+        #     )
+        # ):
         return True
     else:
         return False
@@ -1504,10 +1565,8 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
         swap_superscripts,
         swap_frac_divs,
         swap_py_operators,
-
         swap_comparison_ops,
         swap_for_greek,
-        swap_scientific_notation_str,
         swap_prime_notation,  # Fix problem here
         swap_long_var_strs,
         extend_subscripts,
@@ -1630,7 +1689,7 @@ def expr_parser(line: str) -> list:
     sys.setrecursionlimit(3000)
     pp.ParserElement.enablePackrat()
 
-    variable = pp.Word(pp.alphanums + "_.")
+    variable = pp.Word(pp.alphanums + "_")
     numbers = pp.pyparsing_common.fnumber.setParseAction("".join)
     imag = pp.Literal("j")
     plusminus = pp.oneOf("+ -")
@@ -1641,7 +1700,7 @@ def expr_parser(line: str) -> list:
 
     lpar = pp.Literal("(").suppress()
     rpar = pp.Literal(")").suppress()
-    functor = variable
+    functor = variable + pp.ZeroOrMore(".")
 
     expr = pp.Forward()
     func = pp.Group(functor + lpar + pp.Optional(pp.delimitedList(expr)) + rpar)
@@ -1767,7 +1826,7 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
             # possible_func = not test_for_typ_arithmetic(item)
             poss_func_name = get_function_name(item)
             func_name_match = get_func_latex(poss_func_name)
-            if (poss_func_name != func_name_match):
+            if poss_func_name != func_name_match:
                 item = swap_func_name(item, poss_func_name)
                 item = insert_func_braces(item)
                 new_item = swap_math_funcs(item, calc_results)
@@ -1899,14 +1958,16 @@ def swap_scientific_notation_str(pycode_as_deque: deque) -> deque:
     that are in scientific notation "e" format converted into a Latex 
     scientific notation.
     """
+    b = "}"
     swapped_deque = deque([])
     for item in pycode_as_deque:
         if isinstance(item, deque):
             new_item = swap_scientific_notation_str(item)
             swapped_deque.append(new_item)
         elif test_for_scientific_notation_str(item):
-            new_item = item.replace("e", " \\times 10 ^")
+            new_item = item.replace("e", " \\times 10 ^ {")
             swapped_deque.append(new_item)
+            swapped_deque.append(b)
         else:
             swapped_deque.append(item)
     return swapped_deque
@@ -1931,8 +1992,31 @@ def swap_scientific_notation_float(line: deque, precision: int) -> deque:
     swapped_deque = deque([])
     for item in line:
         if test_for_small_float(item, precision):
-            new_item = "{:.{precision}e}".format(item, precision=precision)
+            new_item = (
+                "{:.{precision}e}".format(item, precision=precision)
+                .replace("e-0", "e-")
+                .replace("e+0", "e+")
+            )
             swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
+
+    return swapped_deque
+
+
+def swap_scientific_notation_complex(line: deque, precision: int) -> deque:
+    swapped_deque = deque([])
+    for item in line:
+        if test_for_small_complex(item, precision):
+            new_complex = swap_scientific_notation_float(
+                [item.real, item.imag], precision
+            )
+            new_complex = list(swap_scientific_notation_str(new_complex))
+            ops = "" if item.imag < 0 else "+"
+            new_complex_str = (
+                f"({new_complex[0]} {new_complex[1]} {ops} {new_complex[-1]}j)"
+            )
+            swapped_deque.append(new_complex_str)
         else:
             swapped_deque.append(item)
     return swapped_deque
@@ -1988,7 +2072,7 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
             else:
                 new_item = swap_superscripts(item)  # recursion!
                 pycode_with_supers.append(new_item)
-            
+
         else:
             if "**" == str(next_item):
                 pycode_with_supers.append(l_par)
@@ -2032,7 +2116,6 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
             new_item = greek_chainmap.get(item, item)
             swapped_deque.append(new_item)
     return swapped_deque
-
 
 
 def test_for_long_var_strs(elem: Any) -> bool:
@@ -2079,7 +2162,7 @@ def swap_long_var_strs(pycode_as_deque: deque) -> deque:
         if isinstance(item, deque):
             new_item = swap_long_var_strs(item)
             swapped_deque.append(new_item)
-        elif test_for_long_var_strs(item):
+        elif test_for_long_var_strs(item) and not is_number(str(item)):
             try:
                 top_level, remainder = item.split("_", 1)
                 new_item = begin + top_level + end + "_" + remainder
@@ -2251,7 +2334,7 @@ def insert_arithmetic_parentheses(d: deque) -> deque:
     last = len(d) - 1
     exp_check = False
     if last > 1:
-        exp_check = d[1] == "**" # Don't double up parenth on exponents
+        exp_check = d[1] == "**"  # Don't double up parenth on exponents
     for idx, item in enumerate(d):
         if idx == 0 and not exp_check:
             swapped_deque.append(lpar)
@@ -2289,21 +2372,19 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
 
-            elif (
-                typ_arithmetic
-                and not prev_item == lpar
-                and not skip_fraction_token
-            ):
+            elif typ_arithmetic and not prev_item == lpar and not skip_fraction_token:
                 if test_for_fraction_exception(item, next_item):
                     skip_fraction_token = True
                     new_item = insert_parentheses(item)
                     swapped_deque.append(new_item)
                 else:
-                    if prev_item not in func_exclude and not test_for_nested_deque(
-                        item
-                    ) and next_item != "**": # Allow swap_superscript to handle its parenths
+                    if (
+                        prev_item not in func_exclude
+                        and not test_for_nested_deque(item)
+                        and next_item != "**"
+                    ):  # Allow swap_superscript to handle its parenths
                         item = insert_arithmetic_parentheses(item)
-                    
+
                     new_item = insert_parentheses(item)
                     swapped_deque.append(new_item)
 
