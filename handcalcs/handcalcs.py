@@ -115,6 +115,8 @@ class ConditionalLine:
     true_condition: deque
     true_expressions: deque
     comment: str
+    latex_condition: str
+    latex_expressions: str
     latex: str
 
 
@@ -209,13 +211,12 @@ class LatexRenderer:
         self.override = line_args["override"]
 
     def render(self):
-        print(self.dec_sep)
-        return latex(self.source, self.results, self.override, self.precision,)
+        return latex(self.source, self.results, self.override, self.precision, LatexRenderer.dec_sep)
 
 
 # Pure functions that do all the work
 def latex(
-    raw_python_source: str, calculated_results: dict, override: str, precision: int = 3
+    raw_python_source: str, calculated_results: dict, override: str, precision: int = 3, dec_sep: str = "."
 ) -> str:
     """
     Returns the Python source as a string that has been converted into latex code.
@@ -224,7 +225,7 @@ def latex(
     cell = categorize_raw_cell(source, calculated_results, override, precision)
     cell = categorize_lines(cell)
     cell = convert_cell(cell)
-    cell = format_cell(cell)
+    cell = format_cell(cell, dec_sep)
     return cell.latex_code
 
 
@@ -312,6 +313,31 @@ def create_calc_cell(
     )
     return cell
 
+
+def create_conditional_line(
+    line: str, calculated_results: dict, override: str, comment: str
+):
+    (
+        condition,
+        condition_type,
+        expression,
+        raw_condition,
+        raw_expression,
+    ) = split_conditional(line, calculated_results, override)
+    categorized_line = ConditionalLine(
+        condition=condition,
+        condition_type=condition_type,
+        expressions=expression,
+        raw_condition=raw_condition,
+        raw_expression=raw_expression.strip(),
+        true_condition=deque([]),
+        true_expressions=deque([]),
+        comment=comment,
+        latex_condition="",
+        latex_expressions="",
+        latex = ""
+    )
+    return categorized_line
 
 def categorize_raw_cell(
     raw_source: str, calculated_results: dict, override: str, precision: int = 3
@@ -414,9 +440,14 @@ def categorize_line(
     # Override behaviour
     if not test_for_blank_line(line):  # True is a blank line
         if override == "parameter":
-            categorized_line = ParameterLine(
-                split_parameter_line(line, calculated_results), comment, ""
-            )
+            if test_for_conditional_line(
+                line
+            ):
+                categorized_line = create_conditional_line(line, calculated_results, override, comment)
+            else:
+                categorized_line = ParameterLine(
+                    split_parameter_line(line, calculated_results), comment, ""
+                )
             return categorized_line
 
         elif override == "long":
@@ -426,15 +457,24 @@ def categorize_line(
                 categorized_line = ParameterLine(
                     split_parameter_line(line, calculated_results), comment, ""
                 )
+            elif test_for_conditional_line(
+                line
+            ): # A conditional line can exist in a long cell, too
+                categorized_line = create_conditional_line(line, calculated_results, override, comment)
             else:
                 categorized_line = LongCalcLine(
                     expr_parser(line), comment, ""
                 )  # code_reader
             return categorized_line
         elif override == "symbolic":
-            categorized_line = SymbolicLine(
-                expr_parser(line), comment, ""
-            )  # code_reader
+            if test_for_conditional_line(
+                line
+            ): # A conditional line can exist in a symbolic cell, too
+                categorized_line = create_conditional_line(line, calculated_results, override, comment)
+            else:
+                categorized_line = SymbolicLine(
+                    expr_parser(line), comment, ""
+                )  # code_reader
             return categorized_line
         elif override == "short":
             categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
@@ -447,29 +487,13 @@ def categorize_line(
         categorized_line = BlankLine(line, "", "")
 
     elif test_for_parameter_line(line):
+
         categorized_line = ParameterLine(
             split_parameter_line(line, calculated_results), comment, ""
         )
 
-    elif ":" in line and ("if" in line or "else" in line):
-        (
-            condition,
-            condition_type,
-            expression,
-            raw_condition,
-            raw_expression,
-        ) = split_conditional(line, calculated_results)
-        categorized_line = ConditionalLine(
-            condition=condition,
-            condition_type=condition_type,
-            expressions=expression,
-            raw_condition=raw_condition,
-            raw_expression=raw_expression.strip(),
-            true_condition=deque([]),
-            true_expressions=deque([]),
-            comment=comment,
-            latex="",
-        )
+    elif test_for_conditional_line(line):
+        categorized_line = create_conditional_line(line, calculated_results, override, comment)
 
     elif "=" in line:
         categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
@@ -684,7 +708,7 @@ def convert_blank(line, calculated_results):
 
 @singledispatch
 def format_cell(
-    cell_object: Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell]
+    cell_object: Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell], dec_sep: str
 ) -> Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell]:
     raise TypeError(
         f"Cell type {type(cell_object)} has not yet been implemented in format_cell()."
@@ -692,7 +716,7 @@ def format_cell(
 
 
 @format_cell.register(ParameterCell)
-def parameters_cell(cell: ParameterCell):
+def format_parameters_cell(cell: ParameterCell, dec_sep: str):
     """
     Returns the input parameters as an \\align environment with 'cols'
     number of columns.
@@ -703,35 +727,50 @@ def parameters_cell(cell: ParameterCell):
     begin = "\\begin{aligned}"
     end = "\\end{aligned}"
     closer = "\\]"
-    line_break = "\\\\\n"
+    line_break = "\\\\[10pt]\n"
     cycle_cols = itertools.cycle(range(1, cols + 1))
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision)
-        latex_param = line.latex
-        if isinstance(line, BlankLine):
-            continue
-        current_col = next(cycle_cols)
-        if current_col % (cols - 1) == 0:
-            line.latex = "&" + latex_param.replace("=", "&=")
-        elif current_col % cols == 0:
-            line.latex = "&" + latex_param.replace("=", "&=") + line_break
+        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
+        line = format_lines(line)
+        if isinstance(line, ConditionalLine):
+            outgoing = deque([])
+            for expr in line.true_expressions:
+                current_col = next(cycle_cols)
+                if current_col % (cols - 1) == 0:
+                    outgoing.append("&" + expr)
+                elif current_col % cols == 0:
+                    outgoing.append("&" + expr + line_break)
+                else:
+                    outgoing.append(expr)
+            line.latex_expressions = " ".join(outgoing)
+            line.latex = line.latex_condition + line.latex_expressions
         else:
-            line.latex = latex_param.replace("=", "&=")
+            latex_param = line.latex
+            
+            current_col = next(cycle_cols)
+            if current_col % (cols - 1) == 0:
+                line.latex = "&" + latex_param
+            elif current_col % cols == 0:
+                line.latex = "&" + latex_param + line_break
+            else:
+                line.latex = latex_param
 
     latex_block = " ".join(
         [line.latex for line in cell.lines if not isinstance(line, BlankLine)]
     ).rstrip()  # .rstrip(): Hack to solve another problem of empty lines in {aligned} environment
-    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
+        "\n" + end, end
+    )
     return cell
 
 
 @format_cell.register(CalcCell)
-def format_calc_cell(cell: CalcCell) -> str:
+def format_calc_cell(cell: CalcCell, dec_sep: str) -> str:
     line_break = "\\\\[10pt]\n"
     precision = cell.precision
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision)
+        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
         line = convert_applicable_long_lines(line)
         line = format_lines(line)
         incoming.append(line)
@@ -749,12 +788,12 @@ def format_calc_cell(cell: CalcCell) -> str:
 
 
 @format_cell.register(ShortCalcCell)
-def format_shortcalc_cell(cell: ShortCalcCell) -> str:
+def format_shortcalc_cell(cell: ShortCalcCell, dec_sep: str) -> str:
     line_break = "\\\\[10pt]\n"
     precision = cell.precision
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision)
+        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
         line = format_lines(line)
         incoming.append(line)
     cell.lines = incoming
@@ -771,12 +810,12 @@ def format_shortcalc_cell(cell: ShortCalcCell) -> str:
 
 
 @format_cell.register(LongCalcCell)
-def format_longcalc_cell(cell: LongCalcCell) -> str:
+def format_longcalc_cell(cell: LongCalcCell, dec_sep: str) -> str:
     line_break = "\\\\[10pt]\n"
     precision = cell.precision
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision)
+        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
         line = convert_applicable_long_lines(line)
         line = format_lines(line)
         incoming.append(line)
@@ -794,12 +833,12 @@ def format_longcalc_cell(cell: LongCalcCell) -> str:
 
 
 @format_cell.register(SymbolicCell)
-def format_symbolic_cell(cell: SymbolicCell) -> str:
+def format_symbolic_cell(cell: SymbolicCell, dec_sep: str) -> str:
     line_break = "\\\\[10pt]\n"
     precision = cell.precision
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision)
+        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
         line = format_lines(line)
         incoming.append(line)
     cell.lines = incoming
@@ -817,7 +856,7 @@ def format_symbolic_cell(cell: SymbolicCell) -> str:
 
 @singledispatch
 def round_and_render_line_objects_to_latex(
-    line: Union[CalcLine, ConditionalLine, ParameterLine], precision: int
+    line: Union[CalcLine, ConditionalLine, ParameterLine], precision: int, dec_sep: str
 ):  # Not called for symbolic lines; see format_symbolic_cell()
     """
     Returns 'line' with the elements of the deque in its .line attribute
@@ -834,36 +873,39 @@ def round_and_render_line_objects_to_latex(
 
 
 @round_and_render_line_objects_to_latex.register(CalcLine)
-def round_and_render_calc(line: CalcLine, precision: int) -> CalcLine:
+def round_and_render_calc(line: CalcLine, precision: int, dec_sep: str) -> CalcLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, precision)
     idx_line = swap_scientific_notation_str(idx_line)
     idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
+    rounded_line = swap_dec_sep(rounded_line, dec_sep)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(LongCalcLine)
-def round_and_render_calc(line: LongCalcLine, precision: int) -> LongCalcLine:
+def round_and_render_longcalc(line: LongCalcLine, precision: int, dec_sep: str) -> LongCalcLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, precision)
     idx_line = swap_scientific_notation_str(idx_line)
     idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
+    rounded_line = swap_dec_sep(rounded_line, dec_sep)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(ParameterLine)
-def round_and_render_parameter(line: ParameterLine, precision: int) -> ParameterLine:
+def round_and_render_parameter(line: ParameterLine, precision: int, dec_sep: str) -> ParameterLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, precision)
     idx_line = swap_scientific_notation_str(idx_line)
     idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
+    rounded_line = swap_dec_sep(rounded_line, dec_sep)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
     return line
@@ -871,7 +913,7 @@ def round_and_render_parameter(line: ParameterLine, precision: int) -> Parameter
 
 @round_and_render_line_objects_to_latex.register(ConditionalLine)
 def round_and_render_conditional(
-    line: ConditionalLine, precision: int
+    line: ConditionalLine, precision: int, dec_sep: str
 ) -> ConditionalLine:
     line_break = "\\\\\n"
     outgoing = deque([])
@@ -880,33 +922,35 @@ def round_and_render_conditional(
     idx_line = swap_scientific_notation_str(idx_line)
     idx_line = swap_scientific_notation_complex(idx_line, precision)
     rounded_line = round_and_render(idx_line, precision)
+    rounded_line = swap_dec_sep(rounded_line, dec_sep)
     line.true_condition = rounded_line
     for (
         expr
     ) in line.true_expressions:  # Each 'expr' item is a CalcLine or other line type
-        expr = swap_scientific_notation_float(expr, precision)
-        expr = swap_scientific_notation_str(expr)
-        expr = swap_scientific_notation_complex(expr, precision)
-        outgoing.append(round_and_render_line_objects_to_latex(expr, precision))
+        expr.line = swap_scientific_notation_float(expr.line, precision)
+        expr.line = swap_scientific_notation_str(expr.line)
+        expr.line = swap_scientific_notation_complex(expr.line, precision)
+        outgoing.append(round_and_render_line_objects_to_latex(expr, precision, dec_sep))
     line.true_expressions = outgoing
     line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
     return line
 
 
 @round_and_render_line_objects_to_latex.register(SymbolicLine)
-def round_and_render_symbolic(line: SymbolicLine, precision: int) -> SymbolicLine:
+def round_and_render_symbolic(line: SymbolicLine, precision: int, dec_sep: str) -> SymbolicLine:
     expr = line.line
     expr = swap_scientific_notation_float(expr, precision)
     expr = swap_scientific_notation_str(expr)
     expr = swap_scientific_notation_complex(expr, precision)
     rounded_line = round_and_render(expr, precision)
+    rounded_line = swap_dec_sep(rounded_line, dec_sep)
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(BlankLine)
-def round_and_render_blank(line, precision):
+def round_and_render_blank(line, precision, dec_sep):
     return line
 
 
@@ -1096,6 +1140,7 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
     """
     Returns the conditional line as a string of latex_code
     """
+
     if line.true_condition:
         latex_condition = " ".join(line.true_condition)
         a = "{"
@@ -1109,16 +1154,19 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         first_line = f"&\\text{a}Since, {b}{latex_condition}:{comment_space}{comment}{new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        line_break = "\\\\\n"
+        line_break = "\\\\[10pt]\n"
+        line.latex_condition = first_line
 
         outgoing = deque([])
         for calc_line in line.true_expressions:
             outgoing.append((format_lines(calc_line)).latex)
-        latex_exprs = line_break.join(outgoing)
-        line.latex = first_line + latex_exprs
+        line.true_expressions = outgoing
+        line.latex_expressions = line_break.join(line.true_expressions)
+        line.latex = line.latex_condition + line.latex_expressions
         return line
     else:
-        line.latex = ""
+        line.condition_latex = ""
+        line.true_expressions = deque([])
         return line
 
 
@@ -1143,10 +1191,16 @@ def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
 
 @format_lines.register(ParameterLine)
 def format_param_line(line: ParameterLine) -> ParameterLine:
-    replaced = line.latex.replace("=", "&=")
     comment_space = "\\;"
-    comment = format_strings(line.comment, comment=True)
-    line.latex = f"{replaced}{comment_space}{comment}\n"
+    line_break = "\n"
+    if "=" in line.latex:
+        replaced = line.latex.replace("=", "&=")
+        comment = format_strings(line.comment, comment=True)
+        line.latex = f"{replaced}{comment_space}{comment}{line_break}"
+    else: # To handle sympy symbols displayed alone
+        replaced = line.latex.replace(" ", comment_space)
+        comment = format_strings(line.comment, comment=True)
+        line.latex = f"{replaced}{comment_space}{comment}{line_break}"
     return line
 
 
@@ -1165,7 +1219,7 @@ def format_blank_line(line: BlankLine) -> BlankLine:
     return line
 
 
-def split_conditional(line: str, calculated_results):
+def split_conditional(line: str,calculated_results: dict, override: str):
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
     try:
@@ -1182,7 +1236,7 @@ def split_conditional(line: str, calculated_results):
 
     expr_acc = deque([])
     for line in expr_deque:
-        categorized = categorize_line(line, calculated_results)
+        categorized = categorize_line(line, calculated_results, override=override)
         expr_acc.append(categorized)
 
     return (
@@ -1332,13 +1386,11 @@ def test_for_small_complex(elem: Any, precision: int) -> bool:
     Returns False otherwise.
     """
     if isinstance(elem, complex):
-        test = any(
-            [
+        test = [
                 test_for_small_float(elem.real, precision),
                 test_for_small_float(elem.imag, precision),
             ]
-        )
-        return test
+        return any(test)
 
 
 def test_for_small_float(elem: Any, precision: int) -> bool:
@@ -1364,15 +1416,6 @@ def test_for_small_float(elem: Any, precision: int) -> bool:
     ).replace(
         ".", ""
     ) == "":
-        # if (
-        #     len(elem_as_str.replace(".","").replace("0","")) < precision
-        #     and (
-        #         str(round(elem, precision)).replace("0","").replace(".","")\
-        #             == str(round(elem, precision + 1)).replace("0","").replace(".","")
-        #             or
-        #             round(elem, precision) != round(elem, precision + 1)
-        #     )
-        # ):
         return True
     else:
         return False
@@ -1426,6 +1469,9 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
                 outgoing.append(latex_repr(rounded))
             except:
                 rounded = item
+        elif isinstance(item, complex):
+            rounded = round_complex(item, precision)
+            outgoing.append(latex_repr(rounded))
         elif not isinstance(item, (str, int)):
             try:
                 rounded = round(item, precision)  # Rounding
@@ -2007,7 +2053,7 @@ def swap_scientific_notation_float(line: deque, precision: int) -> deque:
 def swap_scientific_notation_complex(line: deque, precision: int) -> deque:
     swapped_deque = deque([])
     for item in line:
-        if test_for_small_complex(item, precision):
+        if isinstance(item, complex) and test_for_small_complex(item, precision):
             new_complex = swap_scientific_notation_float(
                 [item.real, item.imag], precision
             )
@@ -2413,3 +2459,19 @@ def test_for_nested_deque(d: deque) -> bool:
     False otherwise
     """
     return next(isinstance(i, deque) for i in d)
+
+
+def swap_dec_sep(d: deque, dec_sep: str) -> deque:
+    """
+    Returns 'd' with numerical elements with the "." decimal separator,
+    replaced with 'dec_sep'.
+    """
+    swapped_deque = deque([])
+    for item in d:
+        #if is_number(item):
+        item = item.replace(".", dec_sep)
+        swapped_deque.append(item)
+
+        # else:
+        #     swapped_deque.append(item)
+    return swapped_deque

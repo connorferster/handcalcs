@@ -7,7 +7,7 @@ from handcalcs.handcalcs import LatexRenderer
 
 
 def handcalc(
-    override: str = "", precision: int = 3, left: str = "", right: str = "", jupyter_display: bool = False
+    override: str = "", precision: int = 3, left: str = "", right: str = "", decimal_separator:str = ".", jupyter_display: bool = False
 ):
     # @wraps(func)
     def handcalc_decorator(func):
@@ -18,6 +18,7 @@ def handcalc(
             cell_source = _func_source_to_cell(func_source)
             # use innerscope to get the values of locals, closures, and globals when calling func
             scope = innerscope.call(func, *args, **kwargs)
+            LatexRenderer.dec_sep = decimal_separator
             renderer = LatexRenderer(cell_source, scope, line_args)
             latex_code = renderer.render()
             if jupyter_display:
@@ -29,8 +30,10 @@ def handcalc(
                     )
                 display(Latex(latex_code))
                 return scope.return_value
-            latex_code = latex_code.replace("\\[", "").replace("\\]", "")
-            return (left + latex_code + right, scope.inner_scope)
+
+            # https://stackoverflow.com/questions/9943504/right-to-left-string-replace-in-python
+            latex_code = "".join(latex_code.replace("\\[", "", 1).rsplit("\\]", 1))
+            return (left + latex_code + right, scope.return_value)
 
         return wrapper
 
@@ -46,14 +49,15 @@ def _func_source_to_cell(source: str):
     """
     source_lines = source.split("\n")
     acc = []
+    doc_string = False
     for line in source_lines:
-        doc_string = False
         if not doc_string and '"""' in line:
             doc_string = True
             continue
         elif doc_string and '"""' in line:
             doc_string = False
             continue
+        
         if (
             "def" not in line
             and not doc_string

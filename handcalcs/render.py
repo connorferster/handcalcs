@@ -18,7 +18,7 @@ from . import handcalcs as hand
 from . import sympy_kit as s_kit
 
 try:
-    from IPython.core.magic import Magics, magics_class, cell_magic, register_cell_magic
+    from IPython.core.magic import Magics, magics_class, cell_magic, register_cell_magic, register_line_magic
     from IPython import get_ipython
     from IPython.display import Latex, Markdown, display
     from IPython.utils.capture import capture_output
@@ -63,6 +63,10 @@ def parse_line_args(line: str) -> dict:
             parsed_args.update({"precision": precision})
     return parsed_args
 
+@register_line_magic
+def decimal_separator(line):
+    if len(line) == 1:
+        hand.LatexRenderer.dec_sep = line
 
 @register_cell_magic
 def render(line, cell):
