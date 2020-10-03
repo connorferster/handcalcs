@@ -30,6 +30,21 @@ def test_sympy_parents(sympy_cls: str, parents: tuple) -> bool:
     return any([sympy_cls in str(parent) for parent in parents])
 
 
+def test_for_sympy_symbol(obj_str: str, var_dict: dict) -> bool:
+    """
+    Return True if 'obj_str' is in 'var_dict' and 'obj_str' represents
+    a sympy object.
+    """
+    if obj_str not in var_dict: False
+    else:
+        obj = var_dict[obj_str]
+        obj_type = type(obj)
+        parents = obj_type.__mro__
+        sympy_obj_test = test_sympy_parents("sympy.core.basic.Basic", parents)
+        sympy_sym_test = test_sympy_parents("sympy.core.symbol.Symbol", parents)
+        return sympy_obj_test and sympy_sym_test
+
+
 def test_for_sympy_expr(obj_str: str, var_dict: dict) -> bool:
     """
     Return True if 'obj_str' is in 'var_dict' and 'obj_str' represents
@@ -41,7 +56,6 @@ def test_for_sympy_expr(obj_str: str, var_dict: dict) -> bool:
         obj_type = type(obj)
         parents = obj_type.__mro__
         return test_sympy_parents("sympy.core.basic.Basic", parents)
-    return False
 
 def test_for_sympy_eqn(obj_str: str, var_dict: dict) -> bool:
     """
@@ -54,7 +68,6 @@ def test_for_sympy_eqn(obj_str: str, var_dict: dict) -> bool:
         obj_type = type(obj)
         parents = obj_type.__mro__
         return test_sympy_parents("sympy.core.relational.Equality", parents)
-    return False
 
 def convert_sympy_obj_to_py_str(obj_str: str, var_dict: dict) -> str:
     """
@@ -104,6 +117,9 @@ def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
                 lhs = sym_obj.lhs
                 rhs = sym_obj.rhs
                 acc.append(str(lhs) + "=" + str(rhs))
+            elif test_for_sympy_symbol(obj_str, var_dict):
+                sym_obj = get_sympy_obj(obj_str, var_dict)
+                acc.append(str(sym_obj))
             elif test_for_sympy_expr(obj_str, var_dict):
                 raise ValueError(f"The result of a sympy expr must be assigned to a new variable, e.g. x = {line}")
             else:
