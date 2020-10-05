@@ -2251,7 +2251,7 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
             new_item = swap_for_greek(item)
             swapped_deque.append(new_item)
         elif "_" in str(item):
-            components = item.split("_")
+            components = str(item).split("_")
             swapped_components = [
                 dict_get(greek_chainmap, component) for component in components
             ]
@@ -2309,7 +2309,7 @@ def swap_long_var_strs(pycode_as_deque: deque) -> deque:
             swapped_deque.append(new_item)
         elif test_for_long_var_strs(item) and not is_number(str(item)):
             try:
-                top_level, remainder = item.split("_", 1)
+                top_level, remainder = str(item).split("_", 1)
                 new_item = begin + top_level + end + "_" + remainder
                 swapped_deque.append(new_item)
             except:
