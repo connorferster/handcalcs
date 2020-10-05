@@ -200,6 +200,16 @@ def is_number(s: str) -> bool:
         return False
 
 
+def dict_get(d: dict, item: Any) -> Any:
+    """
+    Return the item from the dict, 'd'.
+    """
+    try:
+        return d.get(item, item)
+    except TypeError:
+        return item
+
+
 # The renderer class ("output" class)
 class LatexRenderer:
     dec_sep = "."
@@ -211,12 +221,22 @@ class LatexRenderer:
         self.override = line_args["override"]
 
     def render(self):
-        return latex(self.source, self.results, self.override, self.precision, LatexRenderer.dec_sep)
+        return latex(
+            self.source,
+            self.results,
+            self.override,
+            self.precision,
+            LatexRenderer.dec_sep,
+        )
 
 
 # Pure functions that do all the work
 def latex(
-    raw_python_source: str, calculated_results: dict, override: str, precision: int = 3, dec_sep: str = "."
+    raw_python_source: str,
+    calculated_results: dict,
+    override: str,
+    precision: int = 3,
+    dec_sep: str = ".",
 ) -> str:
     """
     Returns the Python source as a string that has been converted into latex code.
@@ -335,9 +355,10 @@ def create_conditional_line(
         comment=comment,
         latex_condition="",
         latex_expressions="",
-        latex = ""
+        latex="",
     )
     return categorized_line
+
 
 def categorize_raw_cell(
     raw_source: str, calculated_results: dict, override: str, precision: int = 3
@@ -440,10 +461,10 @@ def categorize_line(
     # Override behaviour
     if not test_for_blank_line(line):  # True is a blank line
         if override == "parameter":
-            if test_for_conditional_line(
-                line
-            ):
-                categorized_line = create_conditional_line(line, calculated_results, override, comment)
+            if test_for_conditional_line(line):
+                categorized_line = create_conditional_line(
+                    line, calculated_results, override, comment
+                )
             else:
                 categorized_line = ParameterLine(
                     split_parameter_line(line, calculated_results), comment, ""
@@ -459,8 +480,10 @@ def categorize_line(
                 )
             elif test_for_conditional_line(
                 line
-            ): # A conditional line can exist in a long cell, too
-                categorized_line = create_conditional_line(line, calculated_results, override, comment)
+            ):  # A conditional line can exist in a long cell, too
+                categorized_line = create_conditional_line(
+                    line, calculated_results, override, comment
+                )
             else:
                 categorized_line = LongCalcLine(
                     expr_parser(line), comment, ""
@@ -469,8 +492,10 @@ def categorize_line(
         elif override == "symbolic":
             if test_for_conditional_line(
                 line
-            ): # A conditional line can exist in a symbolic cell, too
-                categorized_line = create_conditional_line(line, calculated_results, override, comment)
+            ):  # A conditional line can exist in a symbolic cell, too
+                categorized_line = create_conditional_line(
+                    line, calculated_results, override, comment
+                )
             else:
                 categorized_line = SymbolicLine(
                     expr_parser(line), comment, ""
@@ -493,7 +518,9 @@ def categorize_line(
         )
 
     elif test_for_conditional_line(line):
-        categorized_line = create_conditional_line(line, calculated_results, override, comment)
+        categorized_line = create_conditional_line(
+            line, calculated_results, override, comment
+        )
 
     elif "=" in line:
         categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
@@ -524,7 +551,7 @@ def add_result_values_to_line(line_object, calculated_results: dict):
 @add_result_values_to_line.register(CalcLine)
 def results_for_calcline(line_object, calculated_results):
     parameter_name = line_object.line[0]
-    resulting_value = calculated_results.get(parameter_name, parameter_name)
+    resulting_value = dict_get(calculated_results, parameter_name)
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
 
@@ -532,7 +559,7 @@ def results_for_calcline(line_object, calculated_results):
 @add_result_values_to_line.register(LongCalcLine)
 def results_for_longcalcline(line_object, calculated_results):
     parameter_name = line_object.line[0]
-    resulting_value = calculated_results.get(parameter_name, parameter_name)
+    resulting_value = dict_get(calculated_results, parameter_name)
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
 
@@ -708,7 +735,8 @@ def convert_blank(line, calculated_results):
 
 @singledispatch
 def format_cell(
-    cell_object: Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell], dec_sep: str
+    cell_object: Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell],
+    dec_sep: str,
 ) -> Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell]:
     raise TypeError(
         f"Cell type {type(cell_object)} has not yet been implemented in format_cell()."
@@ -746,7 +774,7 @@ def format_parameters_cell(cell: ParameterCell, dec_sep: str):
             line.latex = line.latex_condition + line.latex_expressions
         else:
             latex_param = line.latex
-            
+
             current_col = next(cycle_cols)
             if current_col % (cols - 1) == 0:
                 line.latex = "&" + latex_param
@@ -886,7 +914,9 @@ def round_and_render_calc(line: CalcLine, precision: int, dec_sep: str) -> CalcL
 
 
 @round_and_render_line_objects_to_latex.register(LongCalcLine)
-def round_and_render_longcalc(line: LongCalcLine, precision: int, dec_sep: str) -> LongCalcLine:
+def round_and_render_longcalc(
+    line: LongCalcLine, precision: int, dec_sep: str
+) -> LongCalcLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, precision)
     idx_line = swap_scientific_notation_str(idx_line)
@@ -899,7 +929,9 @@ def round_and_render_longcalc(line: LongCalcLine, precision: int, dec_sep: str) 
 
 
 @round_and_render_line_objects_to_latex.register(ParameterLine)
-def round_and_render_parameter(line: ParameterLine, precision: int, dec_sep: str) -> ParameterLine:
+def round_and_render_parameter(
+    line: ParameterLine, precision: int, dec_sep: str
+) -> ParameterLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, precision)
     idx_line = swap_scientific_notation_str(idx_line)
@@ -930,14 +962,18 @@ def round_and_render_conditional(
         expr.line = swap_scientific_notation_float(expr.line, precision)
         expr.line = swap_scientific_notation_str(expr.line)
         expr.line = swap_scientific_notation_complex(expr.line, precision)
-        outgoing.append(round_and_render_line_objects_to_latex(expr, precision, dec_sep))
+        outgoing.append(
+            round_and_render_line_objects_to_latex(expr, precision, dec_sep)
+        )
     line.true_expressions = outgoing
     line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
     return line
 
 
 @round_and_render_line_objects_to_latex.register(SymbolicLine)
-def round_and_render_symbolic(line: SymbolicLine, precision: int, dec_sep: str) -> SymbolicLine:
+def round_and_render_symbolic(
+    line: SymbolicLine, precision: int, dec_sep: str
+) -> SymbolicLine:
     expr = line.line
     expr = swap_scientific_notation_float(expr, precision)
     expr = swap_scientific_notation_str(expr)
@@ -1197,7 +1233,7 @@ def format_param_line(line: ParameterLine) -> ParameterLine:
         replaced = line.latex.replace("=", "&=")
         comment = format_strings(line.comment, comment=True)
         line.latex = f"{replaced}{comment_space}{comment}{line_break}"
-    else: # To handle sympy symbols displayed alone
+    else:  # To handle sympy symbols displayed alone
         replaced = line.latex.replace(" ", comment_space)
         comment = format_strings(line.comment, comment=True)
         line.latex = f"{replaced}{comment_space}{comment}{line_break}"
@@ -1219,7 +1255,7 @@ def format_blank_line(line: BlankLine) -> BlankLine:
     return line
 
 
-def split_conditional(line: str,calculated_results: dict, override: str):
+def split_conditional(line: str, calculated_results: dict, override: str):
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
     try:
@@ -1387,9 +1423,9 @@ def test_for_small_complex(elem: Any, precision: int) -> bool:
     """
     if isinstance(elem, complex):
         test = [
-                test_for_small_float(elem.real, precision),
-                test_for_small_float(elem.imag, precision),
-            ]
+            test_for_small_float(elem.real, precision),
+            test_for_small_float(elem.imag, precision),
+        ]
         return any(test)
 
 
@@ -1409,13 +1445,12 @@ def test_for_small_float(elem: Any, precision: int) -> bool:
         left, *_right = elem_as_str.split(".")
         if left != "0":
             return False
-    if round(elem, precision) != round(elem, precision + 1) or str(
-        abs(round(elem, precision))
-    ).replace("0", "").replace(".", "") == str(abs(round(elem, precision + 1))).replace(
-        "0", ""
-    ).replace(
-        ".", ""
-    ) == "":
+    if (
+        round(elem, precision) != round(elem, precision + 1)
+        or str(abs(round(elem, precision))).replace("0", "").replace(".", "")
+        == str(abs(round(elem, precision + 1))).replace("0", "").replace(".", "")
+        == ""
+    ):
         return True
     else:
         return False
@@ -1638,6 +1673,7 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
         swap_comparison_ops,
         swap_values,
         swap_superscripts,
+        extend_subscripts,
         flatten_deque,
     ]
     for function in functions_on_numeric_expressions:
@@ -1657,7 +1693,7 @@ def swap_integrals(d: deque, calc_results: dict) -> deque:
     if "integrate" == d[0] or "quad" == d[0]:
         args_deque = d[1]
         function_name = args_deque[0]
-        function = calc_results.get(function_name, function_name)
+        function = dict_get(calc_results, function_name)
         function_source = (
             inspect.getsource(function).split("\n")[1].replace("return", "")
         )
@@ -1677,6 +1713,66 @@ def swap_integrals(d: deque, calc_results: dict) -> deque:
         return swapped_deque
     else:
         return d
+
+
+def swap_log_func(d: deque, calc_results: dict) -> deque:
+    """
+    Returns a new deque representing 'd' but with any log functions swapped 
+    out for the appropriate Latex equivalent.
+    """
+    swapped_deque = deque([])
+    base = ""
+    if isinstance(d[2], deque) or hasattr(d[2], "__len__"):
+        if "," in d[2]:
+            try:
+                base = d[2][-1]
+                operand = swap_math_funcs(deque(list(d[2])[:-2]), calc_results)
+            except IndexError:
+                base = ""
+                operand = swap_math_funcs(d[2], calc_results)
+        elif d[0] in ["log10", "log2"]:
+            base = d[0].replace("log", "")
+            operand = swap_math_funcs(d[2], calc_results)
+        else:
+            operand = swap_math_funcs(d[2], calc_results)
+    elif len(d) == 2:
+        operand = d[2]
+    if base == "e":
+        base = ""
+
+    base = dict_get(calc_results, base)
+
+    if base:
+        log_func = "\\log_"
+    else:
+        log_func = "\\ln"
+
+    swapped_deque.append(log_func + str(base))
+    swapped_deque.append(d[1])
+    swapped_deque.append(operand)
+    swapped_deque.append(d[3])
+    return swapped_deque
+
+
+def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
+    """
+    Return a deque representing 'd' but with the functions floor(...)
+    and ceil(...) swapped out for floor and ceiling Latex brackets. 
+    """
+    swapped_deque = deque([])
+    for item in d:
+        if isinstance(item, deque):
+            new_item = swap_math_funcs(item, calc_results)
+            swapped_deque.append(new_item)
+        elif item == func_name:
+            continue
+        elif item == "\\left(":
+            swapped_deque.append(f"\\left \\l{func_name}")
+        elif item == "\\right)":
+            swapped_deque.append(f"\\right \\r{func_name}")
+        else:
+            swapped_deque.append(item)
+    return swapped_deque
 
 
 def flatten_deque(d: deque) -> deque:
@@ -1883,8 +1979,12 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
                     new_item = swap_integrals(item, calc_results)
                     # new_item = swap_math_funcs(item, calc_results)
                     swapped_deque.append(new_item)
-                elif poss_func_name == "log":
-                    pass
+                elif "log" in poss_func_name:
+                    new_item = swap_log_func(item, calc_results)
+                    swapped_deque.append(new_item)
+                elif poss_func_name == "ceil" or poss_func_name == "floor":
+                    new_item = swap_floor_ceil(item, poss_func_name, calc_results)
+                    swapped_deque.append(new_item)
                 else:
                     ops = "\\operatorname"
                     new_func = f"{ops}{a}{poss_func_name}{b}"
@@ -1910,7 +2010,6 @@ def get_func_latex(func: str) -> str:
         "cos": "\\cos",
         "tan": "\\tan",
         "sqrt": "\\sqrt",
-        "log": "\\log",
         "exp": "\\exp",
         "sinh": "\\sinh",
         "tanh": "\\tanh",
@@ -1924,7 +2023,7 @@ def get_func_latex(func: str) -> str:
         "atanh": "\\arctanh",
         "sum": "\\Sigma",
     }
-    return latex_math_funcs.get(func, func)
+    return dict_get(latex_math_funcs, func)
 
 
 def insert_func_braces(d: deque) -> deque:
@@ -2088,7 +2187,7 @@ def swap_comparison_ops(pycode_as_deque: deque) -> deque:
             new_item = swap_comparison_ops(item)
             swapped_deque.append(new_item)
         else:
-            new_item = py_ops.get(item, item)
+            new_item = dict_get(py_ops, item)
             swapped_deque.append(new_item)
     return swapped_deque
 
@@ -2154,12 +2253,12 @@ def swap_for_greek(pycode_as_deque: deque) -> deque:
         elif "_" in str(item):
             components = item.split("_")
             swapped_components = [
-                greek_chainmap.get(component, component) for component in components
+                dict_get(greek_chainmap, component) for component in components
             ]
             new_item = "_".join(swapped_components)
             swapped_deque.append(new_item)
         else:
-            new_item = greek_chainmap.get(item, item)
+            new_item = dict_get(greek_chainmap, item)
             swapped_deque.append(new_item)
     return swapped_deque
 
@@ -2250,7 +2349,7 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
         if isinstance(item, deque):
             outgoing.append(swap_values(item, tex_results))
         else:
-            swapped_value = tex_results.get(item, item)
+            swapped_value = dict_get(tex_results, item)
             if isinstance(swapped_value, str) and swapped_value != item:
                 swapped_value = format_strings(swapped_value, comment=False)
             outgoing.append(swapped_value)
@@ -2402,7 +2501,7 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
     peekable_deque = more_itertools.peekable(pycode_as_deque)
     lpar = "\\left("
     prev_item = None
-    func_exclude = ["sqrt", "quad", "integrate", "log", "ceil", "floor"]
+    func_exclude = ["sqrt", "quad", "integrate"]
     skip_fraction_token = False
     for item in peekable_deque:
         # breakpoint()
@@ -2468,7 +2567,7 @@ def swap_dec_sep(d: deque, dec_sep: str) -> deque:
     """
     swapped_deque = deque([])
     for item in d:
-        #if is_number(item):
+        # if is_number(item):
         item = item.replace(".", dec_sep)
         swapped_deque.append(item)
 

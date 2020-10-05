@@ -204,7 +204,7 @@ def test_integration():
     )
     assert (
         cell_3_renderer.render()
-        == "\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} } = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 2.887 \\times 10 ^ {-1 }\n\\\\[10pt]\nf &= \\operatorname{ceil} \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 = \\operatorname{ceil} \\left( 23 + 1 \\right) \\bmod 2 &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\ny &= -2\\;\n\\\\[10pt]\nb &= 3\\;\n\\\\[10pt]\nc &= 4\\;\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23\\;\n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} } = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 2.887 \\times 10 ^ {-1 }\n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0\n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]\n\\end{aligned}\n\\]'
     )
     assert (
         cell_4_renderer.render()
