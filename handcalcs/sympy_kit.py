@@ -14,13 +14,17 @@
 
 from typing import List, Any
 
+
 def sympy_cell_line_lists(cell: str) -> List[List[str]]:
     """
     Converts sympy cell to list of lists of str
     """
     raw_lines = cell.split("\n")
-    raw_line_components = [[elem.strip() for elem in line.split("=")] for line in raw_lines]
+    raw_line_components = [
+        [elem.strip() for elem in line.split("=")] for line in raw_lines
+    ]
     return raw_line_components
+
 
 def test_sympy_parents(sympy_cls: str, parents: tuple) -> bool:
     """
@@ -35,7 +39,8 @@ def test_for_sympy_symbol(obj_str: str, var_dict: dict) -> bool:
     Return True if 'obj_str' is in 'var_dict' and 'obj_str' represents
     a sympy object.
     """
-    if obj_str not in var_dict: False
+    if obj_str not in var_dict:
+        False
     else:
         obj = var_dict[obj_str]
         obj_type = type(obj)
@@ -50,31 +55,36 @@ def test_for_sympy_expr(obj_str: str, var_dict: dict) -> bool:
     Return True if 'obj_str' is in 'var_dict' and 'obj_str' represents
     a sympy object.
     """
-    if obj_str not in var_dict: False
+    if obj_str not in var_dict:
+        False
     else:
         obj = var_dict[obj_str]
         obj_type = type(obj)
         parents = obj_type.__mro__
         return test_sympy_parents("sympy.core.basic.Basic", parents)
 
+
 def test_for_sympy_eqn(obj_str: str, var_dict: dict) -> bool:
     """
     Return True if 'obj_str' is in 'var_dict' and 'obj_str' represents
     a sympy object.
     """
-    if obj_str not in var_dict: False
+    if obj_str not in var_dict:
+        False
     else:
         obj = var_dict[obj_str]
         obj_type = type(obj)
         parents = obj_type.__mro__
         return test_sympy_parents("sympy.core.relational.Equality", parents)
 
+
 def convert_sympy_obj_to_py_str(obj_str: str, var_dict: dict) -> str:
     """
     Returns the sympy obj represented by the dict key 'obj_str', retrieved from
     'var_dict' as a python code string.
     """
-    return str(var_dict['obj_str'])
+    return str(var_dict["obj_str"])
+
 
 def get_sympy_obj(obj_str: str, var_dict: dict) -> Any:
     """
@@ -84,7 +94,6 @@ def get_sympy_obj(obj_str: str, var_dict: dict) -> Any:
     if isinstance(sp_obj, list) and len(sp_obj) == 1:
         return sp_obj[0]
     return sp_obj
-        
 
 
 def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
@@ -96,8 +105,8 @@ def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
     acc = []
     lines = cell.split("\n")
     for line in lines:
-        #try:
-        if "=" in line: 
+        # try:
+        if "=" in line:
             lhs, rhs = line.split("=", 1)
             obj_str = rhs.strip()
             if test_for_sympy_eqn(obj_str, var_dict):
@@ -121,10 +130,11 @@ def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
                 sym_obj = get_sympy_obj(obj_str, var_dict)
                 acc.append(str(sym_obj))
             elif test_for_sympy_expr(obj_str, var_dict):
-                raise ValueError(f"The result of a sympy expr must be assigned to a new variable, e.g. x = {line}")
+                raise ValueError(
+                    f"The result of a sympy expr must be assigned to a new variable, e.g. x = {line}"
+                )
             else:
                 acc.append(line)
-        #except:
+        # except:
         #    raise ValueError(f"%%render sympy: Should only be used for a cell filled with sympy objects, not: {line}")
-    return "\n".join(acc) 
-    
+    return "\n".join(acc)

@@ -1167,7 +1167,7 @@ def format_calc_line(line: CalcLine) -> CalcLine:
     if line.comment:
         comment_space = "\\;"
         comment = format_strings(line.comment, comment=True)
-    line.latex = f"{latex_code[0:second_equals + 1]}{latex_code[second_equals + 2:]}{comment_space}{comment}\n"
+    line.latex = f"{latex_code[0:second_equals + 1]} {latex_code[second_equals + 2:]} {comment_space} {comment}\n"
     return line
 
 
@@ -1187,7 +1187,7 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
             comment_space = "\\;"
             comment = format_strings(line.comment, comment=True)
         new_math_env = "\n\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\n"
-        first_line = f"&\\text{a}Since, {b}{latex_condition}:{comment_space}{comment}{new_math_env}"
+        first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {new_math_env}"
         if line.condition_type == "else":
             first_line = ""
         line_break = "\\\\[10pt]\n"
@@ -1221,7 +1221,7 @@ def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
     if line.comment:
         comment_space = "\\;"
         comment = format_strings(line.comment, comment=True)
-    line.latex = f"{long_latex}{comment_space}{comment}{line_break}"
+    line.latex = f"{long_latex} {comment_space} {comment}{line_break}"
     return line
 
 
@@ -1232,11 +1232,11 @@ def format_param_line(line: ParameterLine) -> ParameterLine:
     if "=" in line.latex:
         replaced = line.latex.replace("=", "&=")
         comment = format_strings(line.comment, comment=True)
-        line.latex = f"{replaced}{comment_space}{comment}{line_break}"
+        line.latex = f"{replaced} {comment_space} {comment}{line_break}"
     else:  # To handle sympy symbols displayed alone
         replaced = line.latex.replace(" ", comment_space)
         comment = format_strings(line.comment, comment=True)
-        line.latex = f"{replaced}{comment_space}{comment}{line_break}"
+        line.latex = f"{replaced} {comment_space} {comment}{line_break}"
     return line
 
 
@@ -1245,7 +1245,7 @@ def format_symbolic_line(line: SymbolicLine) -> SymbolicLine:
     replaced = line.latex.replace("=", "&=")
     comment_space = "\\;"
     comment = format_strings(line.comment, comment=True)
-    line.latex = f"{replaced}{comment_space}{comment}\n"
+    line.latex = f"{replaced} {comment_space} {comment}\n"
     return line
 
 
@@ -1437,6 +1437,8 @@ def test_for_small_float(elem: Any, precision: int) -> bool:
     """
 
     if not isinstance(elem, (float)):
+        return False
+    if elem == 0:
         return False
     elem_as_str = str(round(abs(elem), precision))
     if "e" in str(elem):
@@ -1831,7 +1833,7 @@ def expr_parser(line: str) -> list:
     sys.setrecursionlimit(3000)
     pp.ParserElement.enablePackrat()
 
-    variable = pp.Word(pp.alphanums + "_")
+    variable = pp.Word(pp.alphanums + "_.")
     numbers = pp.pyparsing_common.fnumber.setParseAction("".join)
     imag = pp.Literal("j")
     plusminus = pp.oneOf("+ -")
@@ -2153,13 +2155,20 @@ def swap_scientific_notation_complex(line: deque, precision: int) -> deque:
     swapped_deque = deque([])
     for item in line:
         if isinstance(item, complex) and test_for_small_complex(item, precision):
-            new_complex = swap_scientific_notation_float(
-                [item.real, item.imag], precision
+            real = swap_scientific_notation_float(
+                [item.real], precision
             )
-            new_complex = list(swap_scientific_notation_str(new_complex))
+            imag = swap_scientific_notation_float(
+                [item.imag], precision
+            )
+            swapped_real = list(swap_scientific_notation_str(real))
+            swapped_imag = list(swap_scientific_notation_str(imag))
+
             ops = "" if item.imag < 0 else "+"
+            real_str = f"{swapped_real[0]}" if len(swapped_real) == 1 else ' '.join(swapped_real)
+            imag_str = f"{swapped_imag[0]}" if len(swapped_imag) == 1 else ' '.join(swapped_imag)
             new_complex_str = (
-                f"({new_complex[0]} {new_complex[1]} {ops} {new_complex[-1]}j)"
+                f"( {real_str} {ops} {imag_str}j )"
             )
             swapped_deque.append(new_complex_str)
         else:
@@ -2519,6 +2528,7 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
 
             elif typ_arithmetic and not prev_item == lpar and not skip_fraction_token:
                 if test_for_fraction_exception(item, next_item):
+
                     skip_fraction_token = True
                     new_item = insert_parentheses(item)
                     swapped_deque.append(new_item)
@@ -2557,7 +2567,12 @@ def test_for_nested_deque(d: deque) -> bool:
     Returns true if 'd' has a deque as its first item.
     False otherwise
     """
-    return next(isinstance(i, deque) for i in d)
+    nested_deque_bool = next(isinstance(i, deque) for i in d)
+    try:
+        not_exponent = d[0][1] != "**" # Nested deques are permitted if first item is raised to power
+    except IndexError:
+        not_exponent = True
+    return nested_deque_bool and not_exponent
 
 
 def swap_dec_sep(d: deque, dec_sep: str) -> deque:
@@ -2567,10 +2582,16 @@ def swap_dec_sep(d: deque, dec_sep: str) -> deque:
     """
     swapped_deque = deque([])
     for item in d:
-        # if is_number(item):
-        item = item.replace(".", dec_sep)
-        swapped_deque.append(item)
-
-        # else:
-        #     swapped_deque.append(item)
+        if is_number(item):
+            item = item.replace(".", dec_sep)
+            swapped_deque.append(item)
+        elif is_number(item.replace("\\","")):
+            item = item.replace(".", dec_sep)
+            swapped_deque.append(item)
+        elif " " in item:
+            components = deque(item.split())
+            swapped_components = swap_dec_sep(components, dec_sep)
+            swapped_deque.append(" ".join(swapped_components))
+        else:
+            swapped_deque.append(item)
     return swapped_deque
