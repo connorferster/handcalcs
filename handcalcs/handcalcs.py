@@ -1833,7 +1833,7 @@ def expr_parser(line: str) -> list:
     sys.setrecursionlimit(3000)
     pp.ParserElement.enablePackrat()
 
-    variable = pp.Word(pp.alphanums + "_.")
+    variable = pp.Word(pp.alphanums + "_")
     numbers = pp.pyparsing_common.fnumber.setParseAction("".join)
     imag = pp.Literal("j")
     plusminus = pp.oneOf("+ -")
@@ -2155,21 +2155,23 @@ def swap_scientific_notation_complex(line: deque, precision: int) -> deque:
     swapped_deque = deque([])
     for item in line:
         if isinstance(item, complex) and test_for_small_complex(item, precision):
-            real = swap_scientific_notation_float(
-                [item.real], precision
-            )
-            imag = swap_scientific_notation_float(
-                [item.imag], precision
-            )
+            real = swap_scientific_notation_float([item.real], precision)
+            imag = swap_scientific_notation_float([item.imag], precision)
             swapped_real = list(swap_scientific_notation_str(real))
             swapped_imag = list(swap_scientific_notation_str(imag))
 
             ops = "" if item.imag < 0 else "+"
-            real_str = f"{swapped_real[0]}" if len(swapped_real) == 1 else ' '.join(swapped_real)
-            imag_str = f"{swapped_imag[0]}" if len(swapped_imag) == 1 else ' '.join(swapped_imag)
-            new_complex_str = (
-                f"( {real_str} {ops} {imag_str}j )"
+            real_str = (
+                f"{swapped_real[0]}"
+                if len(swapped_real) == 1
+                else " ".join(swapped_real)
             )
+            imag_str = (
+                f"{swapped_imag[0]}"
+                if len(swapped_imag) == 1
+                else " ".join(swapped_imag)
+            )
+            new_complex_str = f"( {real_str} {ops} {imag_str}j )"
             swapped_deque.append(new_complex_str)
         else:
             swapped_deque.append(item)
@@ -2569,7 +2571,9 @@ def test_for_nested_deque(d: deque) -> bool:
     """
     nested_deque_bool = next(isinstance(i, deque) for i in d)
     try:
-        not_exponent = d[0][1] != "**" # Nested deques are permitted if first item is raised to power
+        not_exponent = (
+            d[0][1] != "**"
+        )  # Nested deques are permitted if first item is raised to power
     except IndexError:
         not_exponent = True
     return nested_deque_bool and not_exponent
@@ -2585,7 +2589,7 @@ def swap_dec_sep(d: deque, dec_sep: str) -> deque:
         if is_number(item):
             item = item.replace(".", dec_sep)
             swapped_deque.append(item)
-        elif is_number(item.replace("\\","")):
+        elif is_number(item.replace("\\", "")):
             item = item.replace(".", dec_sep)
             swapped_deque.append(item)
         elif " " in item:
