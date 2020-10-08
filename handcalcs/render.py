@@ -18,7 +18,13 @@ from . import handcalcs as hand
 from . import sympy_kit as s_kit
 
 try:
-    from IPython.core.magic import Magics, magics_class, cell_magic, register_cell_magic, register_line_magic
+    from IPython.core.magic import (
+        Magics,
+        magics_class,
+        cell_magic,
+        register_cell_magic,
+        register_line_magic,
+    )
     from IPython import get_ipython
     from IPython.display import Latex, Markdown, display
     from IPython.utils.capture import capture_output
@@ -43,14 +49,18 @@ def parse_line_args(line: str) -> dict:
     """
     valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
     # valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
-    # sympy_arg = ['sympy']
+    sympy_arg = ['sympy']
     line_parts = line.split()
-    # parsed_args = {"override": "", "precision": "", "sympy": False}
-    parsed_args = {"override": "", "precision": "",}
+    parsed_args = {"override": "", "precision": "", "sympy": False}
+    # parsed_args = {
+    #     "override": "",
+    #     "precision": "",
+    # }
     precision = ""
     for arg in line_parts:
-        # if arg.lower() in sympy_arg:
-        #     parsed_args["sympy"] = True
+        if arg.lower() in sympy_arg:
+            parsed_args["sympy"] = True
+            continue
         for valid_arg in valid_args:
             if arg.lower() in valid_arg:
                 parsed_args.update({"override": valid_arg})
@@ -63,10 +73,12 @@ def parse_line_args(line: str) -> dict:
             parsed_args.update({"precision": precision})
     return parsed_args
 
+
 @register_line_magic
 def decimal_separator(line):
     if len(line) == 1:
         hand.LatexRenderer.dec_sep = line
+
 
 @register_cell_magic
 def render(line, cell):
@@ -74,7 +86,7 @@ def render(line, cell):
     user_ns_prerun = ip.user_ns
     line_args = parse_line_args(line)
 
-    if line_args["override"] == "sympy":
+    if line_args["sympy"]:
         cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
 
     # Run the cell
