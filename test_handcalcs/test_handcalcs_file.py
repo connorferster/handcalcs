@@ -192,7 +192,7 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 def test_integration():
     assert (
         cell_1_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2 } \\; \n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2 } \\; \n\\end{aligned}\n\\]"
     )
     assert (
         cell_2_renderer.render()
@@ -212,7 +212,7 @@ def test_integration():
     )
     assert (
         cell_5_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 10000001 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002 \\; \n\\\\[10pt]\nc &= 30000003 \\; \n\\\\[10pt]\nx &= 5 \\; \n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin \\left( \\sin \\left( \\frac{ 20000002 }{ 30000003 } \\right) \\right) + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 10000001 }{ 20000002 } \\right) \\\\&= 3.975 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 10000001 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002 \\; \n\\\\[10pt]\nc &= 30000003 \\; \n\\\\[10pt]\nx &= 5 \\; \n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin \\left( \\sin \\left( \\frac{ 20000002 }{ 30000003 } \\right) \\right) + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 10000001 }{ 20000002 } \\right) \\\\&= 3.975 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
     )
     assert (
         cell_6_renderer.render()
@@ -220,7 +220,7 @@ def test_integration():
     )
     assert (
         cell_7_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) \\\\&= 4.12 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) \\\\&= 4.12 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
     )
     assert (
         cell_7b_renderer.render()
@@ -228,11 +228,11 @@ def test_integration():
     )
     assert (
         cell_8_renderer.render()
-        == '\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
         cell_9_renderer.render()
-        == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]"
     )
 
 
@@ -1324,22 +1324,15 @@ def test_swap_long_var_strs():
 
 
 def test_test_for_function_name():
-    assert (
-        handcalcs.handcalcs.test_for_function_name(deque(["sin", "45"])) == True
-    )
+    assert handcalcs.handcalcs.test_for_function_name(deque(["sin", "45"])) == True
     assert (
         handcalcs.handcalcs.test_for_function_name(
             deque(["sin", deque(["a", "/", "b"])])
         )
         == True
     )
-    assert (
-        handcalcs.handcalcs.test_for_function_name(deque(["1", "+", "b"]))
-        == False
-    )
-    assert (
-        handcalcs.handcalcs.test_for_function_name(deque(["-", "a"])) == False
-    )
+    assert handcalcs.handcalcs.test_for_function_name(deque(["1", "+", "b"])) == False
+    assert handcalcs.handcalcs.test_for_function_name(deque(["-", "a"])) == False
     assert (
         handcalcs.handcalcs.test_for_function_name(
             deque(["sin", deque(["tan", deque(["a", "/", "b"])])])
@@ -1397,9 +1390,9 @@ def test_insert_function_parentheses():
         deque(["sin", deque(["a", "/", "b"])])
     ) == deque(["sin", deque(["\\left(", "a", "/", "b", "\\right)"])])
     assert handcalcs.handcalcs.insert_function_parentheses(
-        deque(['double', deque(['tan', deque(['4', '/', 'a'])])])
+        deque(["double", deque(["tan", deque(["4", "/", "a"])])])
     ) == deque(
-        ["double", deque([ "\\left(", "tan", deque(["4", "/", "a"]), "\\right)"])]
+        ["double", deque(["\\left(", "tan", deque(["4", "/", "a"]), "\\right)"])]
     )
 
 
@@ -1494,7 +1487,7 @@ def test_swap_math_funcs():
 
     assert handcalcs.handcalcs.swap_math_funcs(
         deque(
-            ["z", "=", deque(["double",deque([ "\\left(", "a", "/", "b", "\\right)"])])]
+            ["z", "=", deque(["double", deque(["\\left(", "a", "/", "b", "\\right)"])])]
         ),
         dict(),
     ) == deque(
@@ -1504,14 +1497,14 @@ def test_swap_math_funcs():
             deque(
                 [
                     "\\operatorname{double}",
-                    deque(["\\left(","a", "/", "b", "\\right)"]),
+                    deque(["\\left(", "a", "/", "b", "\\right)"]),
                 ]
             ),
         ]
     )
     assert handcalcs.handcalcs.swap_math_funcs(
         deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()
-    ) == deque(["rate", "=", deque(["\\sin","\\left(", "a", "\\right)"])])
+    ) == deque(["rate", "=", deque(["\\sin", "\\left(", "a", "\\right)"])])
     assert handcalcs.handcalcs.swap_math_funcs(
         deque(["test", "=", deque(["sqrt", deque(["b", "+", "b"])])]), dict()
     ) == deque(["test", "=", deque(["\\sqrt", "{", deque(["b", "+", "b"]), "}"])])

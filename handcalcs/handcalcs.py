@@ -1781,8 +1781,6 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
             swapped_deque.append(item)
     return swapped_deque
 
-
-
     lpar = "\\left("
     rpar = "\\right)"
     swapped_deque = deque([])
@@ -1799,9 +1797,6 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
         else:
             swapped_deque.append(item)
     return swapped_deque
-
-
-
 
 
 def flatten_deque(d: deque) -> deque:
@@ -2395,9 +2390,6 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
     return outgoing
 
 
-
-
-
 def test_for_unary(d: deque) -> bool:
     """
     Returns True if 'd' represents a unary expression, e.g. -1.
@@ -2430,7 +2422,7 @@ def get_function_name(d: deque) -> str:
         return d[0]
     elif test_for_function_name(dummy_deque):
         return dummy_deque[0]
-    # elif (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]) 
+    # elif (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0])
     #     and isinstance(d[1], deque)# and d[1][0] == "\\left("
     # ):
     #     return d[0]
@@ -2453,17 +2445,17 @@ def test_for_function_name(d: deque) -> bool:
         (len(d) == 2 or len(d) == 4)
         and (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]))
         and (
-            isinstance(d[1], str) and re.match(r"^[A-Za-z0-9_]+$", d[1])
-            or d[1] == "\\left(")
+            isinstance(d[1], str)
+            and re.match(r"^[A-Za-z0-9_]+$", d[1])
+            or d[1] == "\\left("
+        )
     ):
         return True
     elif (
         len(d) > 1
         and isinstance(d[0], str)
         and re.match(r"^[A-Za-z0-9_]+$", d[0])
-        and isinstance(
-        d[1], deque
-        )
+        and isinstance(d[1], deque)
     ):
         return True
     else:
@@ -2573,11 +2565,12 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
 
-            elif (typ_arithmetic 
-               # and not prev_item == lpar 
+            elif (
+                typ_arithmetic
+                # and not prev_item == lpar
                 and not skip_fraction_token
             ):
-                
+
                 if test_for_fraction_exception(item, next_item):
 
                     skip_fraction_token = True
@@ -2586,7 +2579,7 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 else:
                     if (
                         prev_item not in func_exclude
-                        #and not test_for_nested_deque(item)
+                        # and not test_for_nested_deque(item)
                         and next_item != "**"
                     ):  # Allow swap_superscript to handle its parenths
                         item = insert_arithmetic_parentheses(item)
@@ -2636,7 +2629,8 @@ def swap_dec_sep(d: deque, dec_sep: str) -> deque:
     swapped_deque = deque([])
     a = "{"
     b = "}"
-    if dec_sep == ".": return d
+    if dec_sep == ".":
+        return d
     for item in d:
         if is_number(item):
             item = item.replace(".", f"{a}{dec_sep}{b}")
