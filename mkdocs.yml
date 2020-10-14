@@ -1,0 +1,10 @@
+site_name: handcalcs documentation
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Interfaces:
+    - Cell Magic: cell_magic.md
+    - Function Decorator: decorator.md
+  - Override tags: overrides.md
+
+theme: readthedocs
