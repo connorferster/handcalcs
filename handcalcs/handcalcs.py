@@ -28,13 +28,7 @@ from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
 # TODO:
-# Test for sci. notation str X
-# Convert str sci. notation to latex sci. notation X
-# Convert small rendered floats to latex sci. notation X
-# Convert comparison operators X
-# Change greeks detection to a regex for exact substitution X
-# Multi-character var names to text X
-# PRE_INSERT APPROPRIATE PARENTH and Simplify FLatten function
+# Re-write tests
 
 GREEK_LOWER = {
     "alpha": "\\alpha",
@@ -760,6 +754,8 @@ def format_parameters_cell(cell: ParameterCell, dec_sep: str):
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
         line = format_lines(line)
+        if isinstance(line, BlankLine):
+            continue
         if isinstance(line, ConditionalLine):
             outgoing = deque([])
             for expr in line.true_expressions:
@@ -1302,7 +1298,7 @@ def test_for_parameter_line(line: str) -> bool:
     right_side = right_side.replace(" ", "")
 
     if (right_side.find("(") == 0) and (
-        right_side.find(")") == len(right_side)
+        right_side.find(")") == len(right_side) - 1
     ):  # Blocked by parentheses
         return True
 
@@ -1650,7 +1646,7 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
         swap_py_operators,
         swap_comparison_ops,
         swap_for_greek,
-        swap_prime_notation,  # Fix problem here
+        swap_prime_notation,
         swap_long_var_strs,
         extend_subscripts,
         swap_superscripts,
@@ -1674,6 +1670,8 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
         swap_py_operators,
         swap_comparison_ops,
         swap_values,
+        swap_for_greek,
+        swap_prime_notation,
         swap_superscripts,
         extend_subscripts,
         flatten_deque,
@@ -1761,20 +1759,49 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
     Return a deque representing 'd' but with the functions floor(...)
     and ceil(...) swapped out for floor and ceiling Latex brackets. 
     """
+    lpar = f"\\left \\l{func_name}"
+    rpar = f"\\right \\r{func_name}"
     swapped_deque = deque([])
-    for item in d:
+    peekable_deque = more_itertools.peekable(d)
+    for item in peekable_deque:
+        next_item = peekable_deque.peek(False)
         if isinstance(item, deque):
             new_item = swap_math_funcs(item, calc_results)
             swapped_deque.append(new_item)
-        elif item == func_name:
-            continue
-        elif item == "\\left(":
-            swapped_deque.append(f"\\left \\l{func_name}")
-        elif item == "\\right)":
-            swapped_deque.append(f"\\right \\r{func_name}")
+        elif item == func_name and isinstance(next_item, deque):
+            next_item.popleft()
+            next_item.appendleft(lpar)
+            next_item.pop()
+            next_item.append(rpar)
+        # elif item == "\\left(":
+        #     swapped_deque.append(lpar)
+        # elif item == "\\right)":
+        #     swapped_deque.append(rpar)
         else:
             swapped_deque.append(item)
     return swapped_deque
+
+
+
+    lpar = "\\left("
+    rpar = "\\right)"
+    swapped_deque = deque([])
+    last = len(d) - 1
+    for idx, item in enumerate(d):
+        if idx == last == 1 and not isinstance(item, deque):
+            swapped_deque.append(lpar)
+            swapped_deque.append(item)
+            swapped_deque.append(rpar)
+        elif idx == 1 and isinstance(item, deque):
+            item.appendleft(lpar)
+            item.append(rpar)
+            swapped_deque.append(item)
+        else:
+            swapped_deque.append(item)
+    return swapped_deque
+
+
+
 
 
 def flatten_deque(d: deque) -> deque:
@@ -1833,7 +1860,7 @@ def expr_parser(line: str) -> list:
     sys.setrecursionlimit(3000)
     pp.ParserElement.enablePackrat()
 
-    variable = pp.Word(pp.alphanums + "_")
+    variable = pp.Word(pp.alphanums + "_.")
     numbers = pp.pyparsing_common.fnumber.setParseAction("".join)
     imag = pp.Literal("j")
     plusminus = pp.oneOf("+ -")
@@ -1879,7 +1906,7 @@ def list_to_deque(los: List[str]) -> deque:
             acc.append(list_to_deque(s))
         else:
             acc.append(s)
-    return deque(acc)
+    return acc
 
 
 def extend_subscripts(pycode_as_deque: deque) -> deque:
@@ -1972,7 +1999,8 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
             func_name_match = get_func_latex(poss_func_name)
             if poss_func_name != func_name_match:
                 item = swap_func_name(item, poss_func_name)
-                item = insert_func_braces(item)
+                if poss_func_name == "sqrt":
+                    item = insert_func_braces(item)
                 new_item = swap_math_funcs(item, calc_results)
                 swapped_deque.append(new_item)
             elif poss_func_name == func_name_match:
@@ -2367,23 +2395,7 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
     return outgoing
 
 
-def test_for_function_special_case(d: deque) -> bool:
-    """
-    Returns True if 'd' qualifies for a typical function that should have 
-    some form of function brackets around it.
-    """
-    if (
-        len(d) == 2
-        and (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]))
-        and (isinstance(d[1], str) and re.match(r"^[A-Za-z0-9_]+$", d[1]))
-    ):
-        return True
-    elif (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0])) and isinstance(
-        d[1], deque
-    ):
-        return True
-    else:
-        return False
+
 
 
 def test_for_unary(d: deque) -> bool:
@@ -2412,14 +2424,50 @@ def get_function_name(d: deque) -> str:
     Returns the function name if 'd' represents a deque containing a function
     name (both typical case and special case).
     """
-    if test_for_function_special_case(d):
+    dummy_deque = copy.deepcopy(d)
+    dummy_deque.popleft()
+    if test_for_function_name(d):
         return d[0]
-    elif (isinstance(d[0], str) and d[0].isidentifier()) and (
-        isinstance(d[1], deque) or d[1] == "\\left("
-    ):
-        return d[0]
+    elif test_for_function_name(dummy_deque):
+        return dummy_deque[0]
+    # elif (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]) 
+    #     and isinstance(d[1], deque)# and d[1][0] == "\\left("
+    # ):
+    #     return d[0]
+    # elif (
+    #     d[0] == "\\left("
+    #     and (isinstance(d[1], str) and re.match(r"^[A-Za-z0-9_]+$", d[1])
+    #     )
+    # ):
+    #     return d[1]
     else:
         return ""
+
+
+def test_for_function_name(d: deque) -> bool:
+    """
+    Returns True if 'd' qualifies for a typical function that should have 
+    some form of function brackets around it.
+    """
+    if (
+        (len(d) == 2 or len(d) == 4)
+        and (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]))
+        and (
+            isinstance(d[1], str) and re.match(r"^[A-Za-z0-9_]+$", d[1])
+            or d[1] == "\\left(")
+    ):
+        return True
+    elif (
+        len(d) > 1
+        and isinstance(d[0], str)
+        and re.match(r"^[A-Za-z0-9_]+$", d[0])
+        and isinstance(
+        d[1], deque
+        )
+    ):
+        return True
+    else:
+        return False
 
 
 def insert_unary_parentheses(d: deque) -> deque:
@@ -2462,18 +2510,16 @@ def insert_function_parentheses(d: deque) -> deque:
     rpar = "\\right)"
     swapped_deque = deque([])
     last = len(d) - 1
-    exclude = ["sqrt", "log", "ceil", "floor"]
     for idx, item in enumerate(d):
-        if idx == last == 1:
+        if idx == last == 1 and not isinstance(item, deque):
             swapped_deque.append(lpar)
             swapped_deque.append(item)
             swapped_deque.append(rpar)
-        elif idx == 1:
-            swapped_deque.append(lpar)
-            swapped_deque.append(item)
-        elif idx == last:
-            swapped_deque.append(item)
-            swapped_deque.append(rpar)
+        elif idx == 1 and isinstance(item, deque):
+            new_item = copy.deepcopy(item)
+            new_item.appendleft(lpar)
+            new_item.append(rpar)
+            swapped_deque.append(new_item)
         else:
             swapped_deque.append(item)
     return swapped_deque
@@ -2492,10 +2538,10 @@ def insert_arithmetic_parentheses(d: deque) -> deque:
     if last > 1:
         exp_check = d[1] == "**"  # Don't double up parenth on exponents
     for idx, item in enumerate(d):
-        if idx == 0 and not exp_check:
+        if idx == 0 and not exp_check and d[idx] != lpar:
             swapped_deque.append(lpar)
             swapped_deque.append(item)
-        elif idx == last and not exp_check:
+        elif idx == last and not exp_check and d[idx] != rpar:
             swapped_deque.append(item)
             swapped_deque.append(rpar)
         else:
@@ -2515,7 +2561,6 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
     func_exclude = ["sqrt", "quad", "integrate"]
     skip_fraction_token = False
     for item in peekable_deque:
-        # breakpoint()
         next_item = peekable_deque.peek(False)
         if isinstance(item, deque):
             poss_func_name = get_function_name(item)
@@ -2528,7 +2573,11 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
 
-            elif typ_arithmetic and not prev_item == lpar and not skip_fraction_token:
+            elif (typ_arithmetic 
+               # and not prev_item == lpar 
+                and not skip_fraction_token
+            ):
+                
                 if test_for_fraction_exception(item, next_item):
 
                     skip_fraction_token = True
@@ -2537,7 +2586,7 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
                 else:
                     if (
                         prev_item not in func_exclude
-                        and not test_for_nested_deque(item)
+                        #and not test_for_nested_deque(item)
                         and next_item != "**"
                     ):  # Allow swap_superscript to handle its parenths
                         item = insert_arithmetic_parentheses(item)
@@ -2585,12 +2634,15 @@ def swap_dec_sep(d: deque, dec_sep: str) -> deque:
     replaced with 'dec_sep'.
     """
     swapped_deque = deque([])
+    a = "{"
+    b = "}"
+    if dec_sep == ".": return d
     for item in d:
         if is_number(item):
-            item = item.replace(".", dec_sep)
+            item = item.replace(".", f"{a}{dec_sep}{b}")
             swapped_deque.append(item)
         elif is_number(item.replace("\\", "")):
-            item = item.replace(".", dec_sep)
+            item = item.replace(".", f"{a}{dec_sep}{b}")
             swapped_deque.append(item)
         elif " " in item:
             components = deque(item.split())

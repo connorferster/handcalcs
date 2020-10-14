@@ -212,7 +212,7 @@ _Note: Re-assigning your symbolic variables to numbers will clobber them as symp
 
 ## Units Packages Compatibility
 
-`handcalcs` was designed to be used with the units package, [forallpeople](https://github.com/connorferster/forallpeople) (and [forallpeople](https://github.com/connorferster/forallpeople) was designed to be compatible with `handcalcs`). However, it has been recently reported that [pint](pint.readthedocs.org) can work to good effect, also.
+`handcalcs` was designed to be used with the units package, [forallpeople](https://github.com/connorferster/forallpeople) (and [forallpeople](https://github.com/connorferster/forallpeople) was designed to be compatible with `handcalcs`). However, it has been recently reported that [pint](https://pint.readthedocs.org) can work to good effect, also.
 
 ![display variable demo](docs/images/forallpeople.png)
 
