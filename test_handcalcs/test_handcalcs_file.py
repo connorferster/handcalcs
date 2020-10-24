@@ -204,7 +204,7 @@ def test_integration():
     )
     assert (
         cell_3_renderer.render()
-        == "\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ \\frac{ b }{ c }} }  = \\sqrt { \\frac{ 1 }{ \\frac{ 3 }{ 4 }} } &= 2.887 \\times 10 ^ {-1 }  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]  \n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1 }  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]  \n\\end{aligned}\n\\]'
     )
     assert (
         cell_4_renderer.render()
@@ -1683,4 +1683,36 @@ def test_swap_dec_sep():
     assert handcalcs.handcalcs.swap_dec_sep(
         deque(["sin", "\\left(", "45", "\\right)"]), ","
     ) == deque(["sin", "\\left(", "45", "\\right)"])
+
+
+def test_swap_chained_fracs():
+    assert handcalcs.handcalcs.swap_chained_fracs( # Test for basic functionality
+        deque(["d", "=", "a", "/", "b", "/", "3"])
+    ) == deque(["d", "=", "a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}"])
+    assert handcalcs.handcalcs.swap_chained_fracs( # Test for chained div followed by non-chained div
+        deque(["d", "=", "a", "/", "b", "/", "3", "+", "c", "/", "e"])
+    ) == deque(["d", "=", "a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}", "+", "c", "/", "e"])
+    assert handcalcs.handcalcs.swap_chained_fracs( # Test for nested chained divs
+        deque(["d", "=", "a", "/", "b", "/", deque(["a", "/", "b", "/", "3"])])
+    ) == deque(["d", "=", "a", "/", "b", "\\cdot", "\\frac{1}", "{", deque(["a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}"]), "}"])
+
+def test_test_for_py_operator():
+    assert handcalcs.handcalcs.test_for_py_operator("*") == True
+    assert handcalcs.handcalcs.test_for_py_operator("+") == True
+    assert handcalcs.handcalcs.test_for_py_operator("-") == True
+    assert handcalcs.handcalcs.test_for_py_operator("*") == True
+    assert handcalcs.handcalcs.test_for_py_operator("**") == True
+    assert handcalcs.handcalcs.test_for_py_operator("%") == True
+    assert handcalcs.handcalcs.test_for_py_operator("/") == False
+    assert handcalcs.handcalcs.test_for_py_operator("//") == True
+    assert handcalcs.handcalcs.test_for_py_operator(">") == True
+    assert handcalcs.handcalcs.test_for_py_operator(">=") == True
+    assert handcalcs.handcalcs.test_for_py_operator("==") == True
+    assert handcalcs.handcalcs.test_for_py_operator("<") == True
+    assert handcalcs.handcalcs.test_for_py_operator("<=") == True
+    assert handcalcs.handcalcs.test_for_py_operator("!=") == True
+    assert handcalcs.handcalcs.test_for_py_operator("sin") == False
+    assert handcalcs.handcalcs.test_for_py_operator(12) == False
+    assert handcalcs.handcalcs.test_for_py_operator(True) == False
+
 
