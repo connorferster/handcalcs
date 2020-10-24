@@ -2,9 +2,11 @@ site_name: handcalcs documentation
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Interfaces:
+  - API:
     - Cell Magic: cell_magic.md
     - Function Decorator: decorator.md
+  - Features: features.md
   - Override tags: overrides.md
+  - Using Sympy: sympy.md
 
 theme: readthedocs

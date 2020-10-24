@@ -1502,6 +1502,7 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
                 outgoing.append(latex_repr(rounded))
             except:
                 rounded = item
+                outgoing.append(latex_repr(rounded))
         elif isinstance(item, complex):
             rounded = round_complex(item, precision)
             outgoing.append(latex_repr(rounded))
@@ -1642,6 +1643,7 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
         insert_parentheses,
         swap_math_funcs,
         swap_superscripts,
+        swap_chained_fracs,
         swap_frac_divs,
         swap_py_operators,
         swap_comparison_ops,
@@ -1666,6 +1668,7 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
     functions_on_numeric_expressions = [
         insert_parentheses,
         swap_math_funcs,
+        swap_chained_fracs,
         swap_frac_divs,
         swap_py_operators,
         swap_comparison_ops,
@@ -1934,6 +1937,81 @@ def extend_subscripts(pycode_as_deque: deque) -> deque:
         else:
             swapped_deque.append(item)
     return swapped_deque
+
+
+def swap_chained_fracs(d: deque) -> deque:
+    """
+    Swaps out the division symbol, "/", with a Latex fraction.
+    The numerator is the symbol before the "/" and the denominator follows.
+    If either is a string, then that item alone is in the fraction.
+    If either is a deque, then all the items in the deque are in that part of the fraction.
+    
+    If a "chained division" is encountered, e.g. 4 / 2 / 2, these are rendered as 
+    fractions that retain the original order of operations meaning.
+    
+    Returns a deque.
+    """
+    a = "{"
+    b = "}"
+    swapped_deque = deque([])
+    ops = "\\frac{1}"
+    cdot = "\\cdot"
+    past_first_frac = False
+    close_bracket_token = False
+    for item in d:
+        if isinstance(item, deque):
+            swapped_deque.append(swap_chained_fracs(item))  # recursion!
+
+        elif item == "/" and not past_first_frac:
+            past_first_frac = True
+            swapped_deque.append(item)
+            continue
+
+        elif item == "/" and past_first_frac:
+            swapped_deque.append(cdot)
+            swapped_deque.append(ops)
+            swapped_deque.append(a)
+            close_bracket_token = True
+            continue
+
+        elif test_for_py_operator(item) and past_first_frac:
+            past_first_frac = False
+            swapped_deque.append(item)
+
+        else:
+            swapped_deque.append(item)
+
+        if close_bracket_token:
+            swapped_deque.append(b)
+            close_bracket_token = False
+
+    return swapped_deque
+
+
+def test_for_py_operator(item: str):
+    """
+    Returns True if `item` represents a str that can be used as
+    a Python arithmetic or binary operator. Return False otherwise.
+
+    Python arithmetic operators:
+    +, -, *, %, **
+    (note `/`, and `//` is not considered b/c they will be 
+    swapped out as fractions)
+
+    Python binary operators:
+    >, <, =
+    """
+    py_ops = ["+", "-", "*", "%", "//", "**"]
+    for op in py_ops:
+        if op == str(item):
+            return True
+
+    bin_ops = "<>="
+    for op in bin_ops:
+        if op in str(item):
+            return True
+
+    return False
 
 
 def swap_frac_divs(code: deque) -> deque:
