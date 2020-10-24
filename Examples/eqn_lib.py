@@ -1,5 +1,5 @@
 from handcalcs.decorator import handcalc
-from IPython.display import HTML
+from IPython.display import display, HTML
 
 @handcalc(jupyter_display = True)
 def NBCC2015LC(
