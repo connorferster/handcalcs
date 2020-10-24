@@ -7,12 +7,13 @@ First, import the module and run the cell:
 import handcalcs.render
 ```
 
-This imports the following two cell magics:
+This imports two cell magics:
 
 * `%%render`
 * `%%tex`
 
 And one line magic:
+
 * `%decimal_separator`
 
 ## Using `%%render`
