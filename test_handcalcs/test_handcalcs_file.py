@@ -1716,3 +1716,20 @@ def test_test_for_py_operator():
     assert handcalcs.handcalcs.test_for_py_operator(True) == False
 
 
+def test_for_numeric_line():
+    assert handcalcs.handcalcs.test_for_numeric_line(
+        deque(["=", "2", "*", "4"])
+    ) == True
+    assert handcalcs.handcalcs.test_for_numeric_line(
+        deque(["=", "2", "*", "b"])
+    ) == False
+    assert handcalcs.handcalcs.test_for_numeric_line(
+        deque(["=", "2", "*", deque(["2", "*", "4"])])
+    ) == True
+    assert handcalcs.handcalcs.test_for_numeric_line(
+        deque(["=", "2", "*", deque(["b", "*", "4"])])
+    ) == False
+    assert handcalcs.handcalcs.test_for_numeric_line(
+        deque(["=", "2", "*", deque(["sin", "4"])])
+    ) == True
+
