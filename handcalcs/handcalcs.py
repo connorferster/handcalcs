@@ -1725,36 +1725,80 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     """
     swapped_deque = deque([])
     base = ""
-    if isinstance(d[2], deque) or hasattr(d[2], "__len__"):
-        if "," in d[2]:
-            try:
-                base = d[2][-1]
-                operand = swap_math_funcs(deque(list(d[2])[:-2]), calc_results)
-            except IndexError:
-                base = ""
-                operand = swap_math_funcs(d[2], calc_results)
-        elif d[0] in ["log10", "log2"]:
-            base = d[0].replace("log", "")
-            operand = swap_math_funcs(d[2], calc_results)
+    has_deque = isinstance(d[1], deque)
+    log_func = d[0]
+    base = ""
+    if log_func in ["log10", "log2"]:
+        base = log_func.replace("log", "")
+    if has_deque:
+        sub_deque = d[1]
+
+        if "," in sub_deque:
+            base = sub_deque[-2]  # Last arg in d before "\\right)"
+            operand = swap_math_funcs(
+                deque(list(sub_deque)[:-3] + ["\\right)"]), calc_results
+            )
         else:
-            operand = swap_math_funcs(d[2], calc_results)
-    elif len(d) == 2:
-        operand = d[2]
+            operand = swap_math_funcs(sub_deque, calc_results)
+    else:
+        operand = swap_math_funcs(d[2], calc_results)
+
     if base == "e":
         base = ""
-
+    if isinstance(base, deque):
+        raise ValueError(
+            "Cannot use an expression as the log base in handcalcs."
+            " Try assigning the base to a variable first."
+        )
     base = dict_get(calc_results, base)
-
     if base:
         log_func = "\\log_"
     else:
         log_func = "\\ln"
 
     swapped_deque.append(log_func + str(base))
-    swapped_deque.append(d[1])
     swapped_deque.append(operand)
-    swapped_deque.append(d[3])
+
     return swapped_deque
+
+    # if isinstance(d[1], deque) or (
+    #     hasattr(d[1], "__len__") and not isinstance(d[1], str)
+    # ):
+    #     if "," in d[1]:
+    #         try:
+    #             base = d[1][-1] # Last argument in log func
+    #             operand = swap_math_funcs(deque(list(d[1])[:-2]), calc_results) # First arg in log func
+    #         except IndexError:
+    #             base = ""
+    #             operand = swap_math_funcs(d[2], calc_results)
+    #     elif d[0] in ["log10", "log2"]:
+    #         base = d[0].replace("log", "")
+    #         operand = swap_math_funcs(d[1], calc_results)
+    #     elif len(d) == 2:
+    #         operand = d[1]
+    #     else:
+    #         operand = swap_math_funcs(d[1], calc_results)
+    # else:
+    #     base = ""
+    #     if d[0] in ["log10", "log2"]:
+    #         base = d[0].replace("log", "")
+    #     operand = d[1]
+    # if base == "e":
+    #     base = ""
+
+    # base = dict_get(calc_results, base)
+
+    # if base:
+    #     log_func = "\\log_"
+    # else:
+    #     log_func = "\\ln"
+
+    # swapped_deque.append(log_func + str(base))
+    # swapped_deque.append(d[1])
+    # swapped_deque.append(operand)
+    # # swapped_deque.append(d[3])
+    # print("Outgoing: ", swapped_deque)
+    # return swapped_deque
 
 
 def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
@@ -2638,7 +2682,7 @@ def insert_parentheses(pycode_as_deque: deque) -> deque:
             if poss_func_name:
                 if test_for_fraction_exception(item, next_item):
                     skip_fraction_token = True
-                if not poss_func_name in func_exclude:
+                if poss_func_name not in func_exclude:
                     item = insert_function_parentheses(item)
                 new_item = insert_parentheses(item)
                 swapped_deque.append(new_item)
