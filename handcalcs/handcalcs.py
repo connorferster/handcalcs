@@ -582,7 +582,7 @@ def results_for_calcline(line_object, calculated_results):
 
 
 @add_result_values_to_line.register(NumericCalcLine)
-def results_for_calcline(line_object, calculated_results):
+def results_for_numericcalcline(line_object, calculated_results):
     parameter_name = line_object.line[0]
     resulting_value = dict_get(calculated_results, parameter_name)
     line_object.line.append(deque(["=", resulting_value]))
