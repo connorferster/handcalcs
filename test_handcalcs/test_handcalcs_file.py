@@ -42,6 +42,7 @@ from test_handcalcs import cell_7
 from test_handcalcs import cell_7b
 from test_handcalcs import cell_8
 from test_handcalcs import cell_9
+from test_handcalcs import cell_10
 from test_handcalcs import error_cell
 
 
@@ -145,6 +146,7 @@ cell_7_source = remove_imports_defs_and_globals(inspect.getsource(cell_7))
 cell_7b_source = remove_imports_defs_and_globals(inspect.getsource(cell_7b))
 cell_8_source = remove_imports_defs_and_globals(inspect.getsource(cell_8))
 cell_9_source = remove_imports_defs_and_globals(inspect.getsource(cell_9))
+cell_10_source = remove_imports_defs_and_globals(inspect.getsource(cell_10))
 error_cell_source = remove_imports_defs_and_globals(inspect.getsource(error_cell))
 
 cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
@@ -179,6 +181,9 @@ cell_8_renderer = handcalcs.handcalcs.LatexRenderer(
 )
 cell_9_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_9_source, cell_9.calc_results, line_args_symbolic,
+)
+cell_10_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_10_source, cell_10.calc_results, line_args,
 )
 # error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
@@ -232,9 +237,12 @@ def test_integration():
     )
     assert (
         cell_9_renderer.render()
-        == "\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
     )
-
+    assert (
+        cell_10_renderer.render()
+        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 44.504  \n\\end{aligned}\n\\]'
+    )
 
 # Test decorator.py
 
