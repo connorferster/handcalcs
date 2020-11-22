@@ -2360,11 +2360,10 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
     b = "}"
     l_par = "\\left("
     r_par = "\\right)"
-    prev_item = ""
     for idx, item in enumerate(pycode_as_deque):
         next_idx = min(idx + 1, len(pycode_as_deque) - 1)
         next_item = pycode_as_deque[next_idx]
-        if isinstance(item, deque) and not close_bracket_token:
+        if isinstance(item, deque):# and not close_bracket_token:
             if "**" == str(next_item):
                 pycode_with_supers.append(l_par)
                 new_item = swap_superscripts(item)
@@ -2373,6 +2372,9 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
             else:
                 new_item = swap_superscripts(item)  # recursion!
                 pycode_with_supers.append(new_item)
+            if close_bracket_token:
+                pycode_with_supers.append(b)
+                close_bracket_token = False
 
         else:
             if "**" == str(next_item):
@@ -2385,8 +2387,7 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
                 close_bracket_token = True
             elif close_bracket_token:
                 pycode_with_supers.append(item)
-                new_item = f"{b}"
-                pycode_with_supers.append(new_item)
+                pycode_with_supers.append(b)
                 close_bracket_token = False
             else:
                 pycode_with_supers.append(item)

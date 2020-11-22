@@ -45,6 +45,10 @@ from test_handcalcs import cell_9
 from test_handcalcs import error_cell
 
 
+# TODO: Integration tests with nested log, nested exponents
+
+
+
 class MockLatexObj1:
     def __init__(self, s: str):
         self.s = s
