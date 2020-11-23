@@ -129,6 +129,13 @@ class LongCalcLine:
 
 
 @dataclass
+class NumericCalcLine:
+    line: deque
+    comment: str
+    latex: str
+
+
+@dataclass
 class BlankLine:  # Attributes not used on BlankLine but still req'd
     line: deque
     comment: str
@@ -478,11 +485,19 @@ def categorize_line(
                 categorized_line = create_conditional_line(
                     line, calculated_results, override, comment
                 )
+            elif test_for_numeric_line(
+                deque(list(expr_parser(line))[1:]) # Leave off the declared variable, e.g. _x_ = ...
+            ):
+                categorized_line = NumericCalcLine(
+                    expr_parser(line), comment, ""
+                )
+            
             else:
                 categorized_line = LongCalcLine(
                     expr_parser(line), comment, ""
                 )  # code_reader
             return categorized_line
+
         elif override == "symbolic":
             if test_for_conditional_line(
                 line
@@ -495,8 +510,17 @@ def categorize_line(
                     expr_parser(line), comment, ""
                 )  # code_reader
             return categorized_line
+
         elif override == "short":
-            categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
+            if test_for_numeric_line(
+                deque(list(line)[1:]) # Leave off the declared variable
+            ):
+                categorized_line = NumericCalcLine(
+                    expr_parser(line), comment, ""
+                )
+            else:
+                categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
+
             return categorized_line
         elif True:
             pass  # Future override conditions to match new cell types can be put here
@@ -514,6 +538,13 @@ def categorize_line(
     elif test_for_conditional_line(line):
         categorized_line = create_conditional_line(
             line, calculated_results, override, comment
+        )
+
+    elif test_for_numeric_line(
+        deque(list(expr_parser(line))[1:]) # Leave off the declared variable
+    ):
+        categorized_line = NumericCalcLine(
+            expr_parser(line), comment, ""
         )
 
     elif "=" in line:
@@ -549,6 +580,13 @@ def results_for_calcline(line_object, calculated_results):
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
 
+
+@add_result_values_to_line.register(NumericCalcLine)
+def results_for_numericcalcline(line_object, calculated_results):
+    parameter_name = line_object.line[0]
+    resulting_value = dict_get(calculated_results, parameter_name)
+    line_object.line.append(deque(["=", resulting_value]))
+    return line_object
 
 @add_result_values_to_line.register(LongCalcLine)
 def results_for_longcalcline(line_object, calculated_results):
@@ -653,10 +691,10 @@ def convert_symbolic_cell(cell: SymbolicCell) -> SymbolicCell:
 @singledispatch
 def convert_line(
     line_object: Union[
-        CalcLine, ConditionalLine, ParameterLine, SymbolicLine, BlankLine
+        CalcLine, ConditionalLine, ParameterLine, SymbolicLine, NumericCalcLine, BlankLine
     ],
     calculated_results: dict,
-) -> Union[CalcLine, ConditionalLine, ParameterLine, SymbolicLine, BlankLine]:
+) -> Union[CalcLine, ConditionalLine, ParameterLine, SymbolicLine, NumericCalcLine, BlankLine]:
     """
     Returns 'line_object' with its .line attribute converted into a 
     deque with elements that have been converted to their appropriate
@@ -678,6 +716,17 @@ def convert_calc(line, calculated_results):
     ) = line.line  # Unpack deque of form [[calc_line, ...], ['=', 'result']]
     symbolic_portion, numeric_portion = swap_calculation(line_deque, calculated_results)
     line.line = symbolic_portion + numeric_portion + result
+    return line
+
+
+@convert_line.register(NumericCalcLine)
+def convert_numericcalc(line, calculated_results):
+    (
+        *line_deque,
+        result,
+    ) = line.line  # Unpack deque of form [[calc_line, ...], ['=', 'result']]
+    symbolic_portion, _ = swap_calculation(line_deque, calculated_results)
+    line.line = symbolic_portion + result
     return line
 
 
@@ -909,6 +958,19 @@ def round_and_render_calc(line: CalcLine, precision: int, dec_sep: str) -> CalcL
     return line
 
 
+@round_and_render_line_objects_to_latex.register(NumericCalcLine)
+def round_and_render_calc(line: NumericCalcLine, precision: int, dec_sep: str) -> NumericCalcLine:
+    idx_line = line.line
+    idx_line = swap_scientific_notation_float(idx_line, precision)
+    idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_complex(idx_line, precision)
+    rounded_line = round_and_render(idx_line, precision)
+    rounded_line = swap_dec_sep(rounded_line, dec_sep)
+    line.line = rounded_line
+    line.latex = " ".join(rounded_line)
+    return line
+
+
 @round_and_render_line_objects_to_latex.register(LongCalcLine)
 def round_and_render_longcalc(
     line: LongCalcLine, precision: int, dec_sep: str
@@ -998,7 +1060,13 @@ def convert_applicable_long_lines(
 @convert_applicable_long_lines.register(CalcLine)
 def convert_calc_to_long(line: CalcLine):
     if test_for_long_lines(line):
+        return convert_calc_line_to_long(line)
+    return line
 
+
+@convert_applicable_long_lines.register(NumericCalcLine)
+def convert_calc_to_long(line: NumericCalcLine):
+    if test_for_long_lines(line):
         return convert_calc_line_to_long(line)
     return line
 
@@ -1048,6 +1116,11 @@ def test_for_long_longcalcline(line: LongCalcLine) -> bool:
     # No need to return True since it's already a LongCalcLine
     return False
 
+
+@test_for_long_lines.register(NumericCalcLine)
+def test_for_long_numericcalcline(line: NumericCalcLine) -> bool:
+    # No need to return True since it's already a LongCalcLine
+    return False
 
 @test_for_long_lines.register(CalcLine)
 def test_for_long_calc_lines(line: CalcLine) -> bool:
@@ -1164,6 +1237,19 @@ def format_calc_line(line: CalcLine) -> CalcLine:
         comment_space = "\\;"
         comment = format_strings(line.comment, comment=True)
     line.latex = f"{latex_code[0:second_equals + 1]} {latex_code[second_equals + 2:]} {comment_space} {comment}\n"
+    return line
+
+
+@format_lines.register(NumericCalcLine)
+def format_calc_line(line: NumericCalcLine) -> NumericCalcLine:
+    latex_code = line.latex
+    latex_code = latex_code.replace("=", "&=")  # Align with ampersands for '\align'
+    comment_space = ""
+    comment = ""
+    if line.comment:
+        comment_space = "\\;"
+        comment = format_strings(line.comment, comment=True)
+    line.latex = f"{latex_code} {comment_space} {comment}\n"
     return line
 
 
@@ -1373,6 +1459,60 @@ def test_for_conditional_line(source: str) -> bool:
     Returns True if 'source' appears to be conditional expression.
     """
     return ":" in source and ("if" in source or "else" in source)
+
+
+def test_for_numeric_line(d: deque,
+   # func_deque: bool = False
+    ) -> bool:
+    """
+    Returns True if 'source' appears to be a calculation in
+    consisting entirely of numerals, operators, and functions.
+    In other words, the calculation has no "variables" in it,
+    whatsoever.
+    """
+    bool_acc = []
+    func_flag = False
+    if get_function_name(d):
+        print("func: ", get_function_name(d))
+        func_flag = True
+        # bool_acc.append((item, True))
+    for item in d:
+        # if func_deque:
+        if func_flag:
+            func_flag = False
+            print("Func flag append: ", item)
+            bool_acc.append(True)
+            continue
+        if is_number(item):
+            print("num: ", item)
+            bool_acc.append(True)
+        elif test_for_py_operator(item):
+            print("op: ", item)
+            bool_acc.append(True)
+        elif item == "/" or item == "//": # Not tested in test_for_py_operator, for reasons
+            print("div: ", item)
+            bool_acc.append(True)
+        elif isinstance(item, deque):
+            print("deque: ", item)
+            if get_function_name(item):
+                print("func name: ", get_function_name(item))
+                bool_acc.append(True)
+                bool_acc.append(test_for_numeric_line(
+                        d=item, 
+                        #func_deque=True
+                    )
+                )
+            else:
+                print("Recurse: ", item)
+                bool_acc.append(test_for_numeric_line(d=item))
+        else:
+            print("No match: ", item)
+            bool_acc.append(False)
+    print("Return: ", bool_acc)
+    return all(bool_acc)
+        
+        
+            
 
 
 def test_for_single_dict(source: str, calc_results: dict) -> bool:
@@ -2569,7 +2709,7 @@ def test_for_function_name(d: deque) -> bool:
         and (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]))
         and (
             isinstance(d[1], str)
-            and re.match(r"^[A-Za-z0-9_]+$", d[1])
+            and (re.match(r"^[A-Za-z0-9_]+$", d[1]) or is_number(d[1]))
             or d[1] == "\\left("
         )
     ):
