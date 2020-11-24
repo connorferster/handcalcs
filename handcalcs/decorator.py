@@ -51,13 +51,20 @@ def _func_source_to_cell(source: str):
     acc = []
     doc_string = False
     for line in source_lines:
-        if not doc_string and '"""' in line:
-            doc_string = True
-            continue
-        elif doc_string and '"""' in line:
+        if (not doc_string
+            and line.lstrip(' \t').startswith('"""')
+            and line.rstrip().endswith('"""')):
             doc_string = False
             continue
-        
+        elif (not doc_string
+            and line.lstrip(' \t').startswith('"""')
+            and not line.endswith('"""')):
+            doc_string = True
+            continue
+        elif (doc_string
+            and line.rstrip().endswith('"""')):
+            doc_string = False
+            continue
         if (
             "def" not in line
             and not doc_string
