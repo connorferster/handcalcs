@@ -53,12 +53,12 @@ def _func_source_to_cell(source: str):
     for line in source_lines:
         if (not doc_string
             and line.lstrip(' \t').startswith('"""')
-            and line.lstrip().rstrip().endswith('"""',3)):
+            and line.lstrip(' \t').rstrip().endswith('"""',3)):
             doc_string = False
             continue
         elif (not doc_string
             and line.lstrip(' \t').startswith('"""')
-            and not line.lstrip().rstrip().endswith('"""',3)):
+            and not line.lstrip(' \t').rstrip().endswith('"""',3)):
             doc_string = True
             continue
         elif doc_string and '"""' in line:
