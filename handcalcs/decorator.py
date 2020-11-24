@@ -58,7 +58,7 @@ def _func_source_to_cell(source: str):
             continue
         elif (not doc_string
             and line.lstrip(' \t').startswith('"""')
-            and not line.endswith('"""')):
+            and not line.rstrip().endswith('"""')):
             doc_string = True
             continue
         elif (doc_string
