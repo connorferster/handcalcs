@@ -93,13 +93,18 @@ def remove_imports_defs_and_globals(source: str):
     acc = []
     doc_string = False
     for line in source_lines:
-        if not doc_string and '"""' in line:
+        if (not doc_string
+            and line.lstrip(' \t').startswith('"""')
+            and line.lstrip(' \t').rstrip().endswith('"""',3)):
+            doc_string = False
+            continue
+        elif (not doc_string
+            and line.lstrip(' \t').startswith('"""')
+            and not line.lstrip(' \t').rstrip().endswith('"""',3)):
             doc_string = True
             continue
         elif doc_string and '"""' in line:
             doc_string = False
-            continue
-        elif doc_string:
             continue
         if (
             "def" not in line
@@ -111,7 +116,6 @@ def remove_imports_defs_and_globals(source: str):
         ):
             acc.append(line)
     return "\n".join(acc)
-
 
 @handcalc()
 def func_1(x, y):
@@ -130,6 +134,12 @@ def func_2(x, y):
     b = 3 * a + y
     return locals()  # not necessary, but allowed
 
+@handcalc(jupyter_display=True)
+def func_3(x, y):
+    """My single line docstring"""
+    a = 2 * x
+    b = 3 * a + y
+    return locals()  # not necessary, but allowed
 
 line_args = {"override": "", "precision": ""}
 line_args_params = {"override": "params", "precision": ""}
@@ -261,6 +271,8 @@ def test_handcalc():
 def test_handcalc2():
     assert func_2(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
 
+def test_handcalcs3():
+    assert func_3(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
 
 # Test template.py
 
