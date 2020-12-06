@@ -1473,29 +1473,22 @@ def test_for_numeric_line(d: deque,
     bool_acc = []
     func_flag = False
     if get_function_name(d):
-        print("func: ", get_function_name(d))
         func_flag = True
         # bool_acc.append((item, True))
     for item in d:
         # if func_deque:
         if func_flag:
             func_flag = False
-            print("Func flag append: ", item)
             bool_acc.append(True)
             continue
         if is_number(item):
-            print("num: ", item)
             bool_acc.append(True)
         elif test_for_py_operator(item):
-            print("op: ", item)
             bool_acc.append(True)
         elif item == "/" or item == "//": # Not tested in test_for_py_operator, for reasons
-            print("div: ", item)
             bool_acc.append(True)
         elif isinstance(item, deque):
-            print("deque: ", item)
             if get_function_name(item):
-                print("func name: ", get_function_name(item))
                 bool_acc.append(True)
                 bool_acc.append(test_for_numeric_line(
                         d=item, 
@@ -1503,12 +1496,9 @@ def test_for_numeric_line(d: deque,
                     )
                 )
             else:
-                print("Recurse: ", item)
                 bool_acc.append(test_for_numeric_line(d=item))
         else:
-            print("No match: ", item)
             bool_acc.append(False)
-    print("Return: ", bool_acc)
     return all(bool_acc)
         
         
@@ -1866,22 +1856,32 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     swapped_deque = deque([])
     base = ""
     has_deque = isinstance(d[1], deque)
-    log_func = d[0]
+    has_nested_deque = (
+        len(d) > 2
+        and isinstance(d[2], deque) 
+        and d[0] == "\\left("
+    )
+    log_func = d[0] if d[0] != "\\left(" else d[1]
     base = ""
+    has_lpar = d[0] == "\\left("
+    has_rpar = d[-1] == "\\right)"
     if log_func in ["log10", "log2"]:
         base = log_func.replace("log", "")
     if has_deque:
         sub_deque = d[1]
+    elif has_nested_deque:
+        sub_deque = d[2]
 
+    if has_deque or has_nested_deque:
         if "," in sub_deque:
             base = sub_deque[-2]  # Last arg in d before "\\right)"
             operand = swap_math_funcs(
                 deque(list(sub_deque)[:-3] + ["\\right)"]), calc_results
             )
         else:
-            operand = swap_math_funcs(sub_deque, calc_results)
+            operand = swap_math_funcs(deque([sub_deque]), calc_results)
     else:
-        operand = swap_math_funcs(d[2], calc_results)
+        operand = d[2]#swap_math_funcs(d, calc_results)
 
     if base == "e":
         base = ""
@@ -1898,47 +1898,11 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
 
     swapped_deque.append(log_func + str(base))
     swapped_deque.append(operand)
+    
+    if has_lpar: swapped_deque.appendleft("\\left(")
+    if has_rpar: swapped_deque.append("\\right)")
 
     return swapped_deque
-
-    # if isinstance(d[1], deque) or (
-    #     hasattr(d[1], "__len__") and not isinstance(d[1], str)
-    # ):
-    #     if "," in d[1]:
-    #         try:
-    #             base = d[1][-1] # Last argument in log func
-    #             operand = swap_math_funcs(deque(list(d[1])[:-2]), calc_results) # First arg in log func
-    #         except IndexError:
-    #             base = ""
-    #             operand = swap_math_funcs(d[2], calc_results)
-    #     elif d[0] in ["log10", "log2"]:
-    #         base = d[0].replace("log", "")
-    #         operand = swap_math_funcs(d[1], calc_results)
-    #     elif len(d) == 2:
-    #         operand = d[1]
-    #     else:
-    #         operand = swap_math_funcs(d[1], calc_results)
-    # else:
-    #     base = ""
-    #     if d[0] in ["log10", "log2"]:
-    #         base = d[0].replace("log", "")
-    #     operand = d[1]
-    # if base == "e":
-    #     base = ""
-
-    # base = dict_get(calc_results, base)
-
-    # if base:
-    #     log_func = "\\log_"
-    # else:
-    #     log_func = "\\ln"
-
-    # swapped_deque.append(log_func + str(base))
-    # swapped_deque.append(d[1])
-    # swapped_deque.append(operand)
-    # # swapped_deque.append(d[3])
-    # print("Outgoing: ", swapped_deque)
-    # return swapped_deque
 
 
 def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
@@ -1960,10 +1924,6 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
             next_item.appendleft(lpar)
             next_item.pop()
             next_item.append(rpar)
-        # elif item == "\\left(":
-        #     swapped_deque.append(lpar)
-        # elif item == "\\right)":
-        #     swapped_deque.append(rpar)
         else:
             swapped_deque.append(item)
     return swapped_deque
@@ -2251,7 +2211,6 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
     swapped_deque = deque([])
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            # possible_func = not test_for_typ_arithmetic(item)
             poss_func_name = get_function_name(item)
             func_name_match = get_func_latex(poss_func_name)
             if poss_func_name != func_name_match:
@@ -2264,7 +2223,6 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
                 # Begin checking for specialized function names
                 if poss_func_name == "quad":
                     new_item = swap_integrals(item, calc_results)
-                    # new_item = swap_math_funcs(item, calc_results)
                     swapped_deque.append(new_item)
                 elif "log" in poss_func_name:
                     new_item = swap_log_func(item, calc_results)
@@ -2705,12 +2663,13 @@ def test_for_function_name(d: deque) -> bool:
     some form of function brackets around it.
     """
     if (
-        (len(d) == 2 or len(d) == 4)
+        (len(d) == 2 or len(d) == 4 or len(d) == 3)
         and (isinstance(d[0], str) and re.match(r"^[A-Za-z0-9_]+$", d[0]))
         and (
             isinstance(d[1], str)
             and (re.match(r"^[A-Za-z0-9_]+$", d[1]) or is_number(d[1]))
             or d[1] == "\\left("
+            or d[-1] == "\\right)"
         )
     ):
         return True
@@ -2771,6 +2730,11 @@ def insert_function_parentheses(d: deque) -> deque:
             swapped_deque.append(item)
             swapped_deque.append(rpar)
         elif idx == 1 and isinstance(item, deque):
+            new_item = copy.deepcopy(item)
+            new_item.appendleft(lpar)
+            new_item.append(rpar)
+            swapped_deque.append(new_item)
+        elif idx == 2 and isinstance(item, deque) and d[0] == "\\left(":
             new_item = copy.deepcopy(item)
             new_item.appendleft(lpar)
             new_item.append(rpar)
