@@ -255,7 +255,7 @@ def test_integration():
     )
     assert (
         cell_10_renderer.render()
-        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 44.504  \n\\end{aligned}\n\\]'
+        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 44.504 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
     )
 
 # Test decorator.py
@@ -1514,18 +1514,12 @@ def test_swap_math_funcs():
             ["z", "=", deque(["double", deque(["\\left(", "a", "/", "b", "\\right)"])])]
         ),
         dict(),
-    ) == deque(
-        [
-            "z",
-            "=",
-            deque(
-                [
-                    "\\operatorname{double}",
-                    deque(["\\left(", "a", "/", "b", "\\right)"]),
-                ]
-            ),
-        ]
-    )
+    ) == deque(['z',
+       '=',
+       deque(['\\operatorname{double}',
+              '{',
+              deque(['\\left(', 'a', '/', 'b', '\\right)']),
+              '}'])])
     assert handcalcs.handcalcs.swap_math_funcs(
         deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()
     ) == deque(["rate", "=", deque(["\\sin", "\\left(", "a", "\\right)"])])

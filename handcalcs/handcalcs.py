@@ -1465,7 +1465,7 @@ def test_for_numeric_line(d: deque,
    # func_deque: bool = False
     ) -> bool:
     """
-    Returns True if 'source' appears to be a calculation in
+    Returns True if 'd' appears to be a calculation in
     consisting entirely of numerals, operators, and functions.
     In other words, the calculation has no "variables" in it,
     whatsoever.
@@ -1487,6 +1487,8 @@ def test_for_numeric_line(d: deque,
             bool_acc.append(True)
         elif item == "/" or item == "//": # Not tested in test_for_py_operator, for reasons
             bool_acc.append(True)
+        elif item == ",": # Numbers separated with commas: ok
+            bool_acc.append(True)
         elif isinstance(item, deque):
             if get_function_name(item):
                 bool_acc.append(True)
@@ -1501,9 +1503,6 @@ def test_for_numeric_line(d: deque,
             bool_acc.append(False)
     return all(bool_acc)
         
-        
-            
-
 
 def test_for_single_dict(source: str, calc_results: dict) -> bool:
     """
@@ -1853,6 +1852,7 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     Returns a new deque representing 'd' but with any log functions swapped 
     out for the appropriate Latex equivalent.
     """
+    # Checks to figure out where things are and where they go
     swapped_deque = deque([])
     base = ""
     has_deque = isinstance(d[1], deque)
@@ -1863,22 +1863,27 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     )
     log_func = d[0] if d[0] != "\\left(" else d[1]
     base = ""
-    has_lpar = d[0] == "\\left("
+    has_nested_lpar = d[0] == "\\left("
     has_rpar = d[-1] == "\\right)"
+    has_single_lpar = d[1] == "\\left("
+
+    # For specialized functions
     if log_func in ["log10", "log2"]:
         base = log_func.replace("log", "")
-    if has_deque:
+
+    if has_deque: # Arithmetic expression as argument in sub-deque
         sub_deque = d[1]
-    elif has_nested_deque:
+    elif has_nested_deque: # Nested function in sub-deque
         sub_deque = d[2]
 
     if has_deque or has_nested_deque:
-        if "," in sub_deque:
+        if "," in sub_deque: # Log base argument provided
             base = sub_deque[-2]  # Last arg in d before "\\right)"
             operand = swap_math_funcs(
                 deque(list(sub_deque)[:-3] + ["\\right)"]), calc_results
-            )
+            ) # Operand is everything before the base argument
         else:
+            # No Log base argument, recurse everything in the sub-deque
             operand = swap_math_funcs(deque([sub_deque]), calc_results)
     else:
         operand = d[2]#swap_math_funcs(d, calc_results)
@@ -1897,9 +1902,10 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
         log_func = "\\ln"
 
     swapped_deque.append(log_func + str(base))
+    if has_single_lpar: swapped_deque.append("\\left(")
     swapped_deque.append(operand)
     
-    if has_lpar: swapped_deque.appendleft("\\left(")
+    if has_nested_lpar: swapped_deque.appendleft("\\left(")
     if has_rpar: swapped_deque.append("\\right)")
 
     return swapped_deque
@@ -2211,6 +2217,7 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
     swapped_deque = deque([])
     for item in pycode_as_deque:
         if isinstance(item, deque):
+            possible_func = not test_for_typ_arithmetic(item)
             poss_func_name = get_function_name(item)
             func_name_match = get_func_latex(poss_func_name)
             if poss_func_name != func_name_match:
@@ -2230,16 +2237,23 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
                 elif poss_func_name == "ceil" or poss_func_name == "floor":
                     new_item = swap_floor_ceil(item, poss_func_name, calc_results)
                     swapped_deque.append(new_item)
-                else:
+                #
+                #  elif possible_func and poss_func_name:
+                # elif possible_func:
+                elif possible_func:
                     ops = "\\operatorname"
+                    print("Op: ", poss_func_name, possible_func)
                     new_func = f"{ops}{a}{poss_func_name}{b}"
                     item = swap_func_name(item, poss_func_name, new_func)
-                    if not test_for_typ_arithmetic:
+                    print("Item: ", item)
+                    if possible_func:
+                        print("Passing")
                         item = insert_func_braces(item)
                     new_item = swap_math_funcs(item, calc_results)
                     swapped_deque.append(new_item)
-            else:
-                swapped_deque.append(item)
+
+                else:
+                    swapped_deque.append(swap_math_funcs(item, calc_results))
         else:
             swapped_deque.append(item)
     return swapped_deque
