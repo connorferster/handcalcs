@@ -18,7 +18,7 @@ URL = 'https://github.com/connorferster/handcalcs'
 EMAIL = 'connorferster@gmail.com'
 AUTHOR = 'Connor Ferster'
 REQUIRES_PYTHON = '>=3.7.0'
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 
 # What packages are required for this module to be executed?
 REQUIRED = [

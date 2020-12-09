@@ -486,12 +486,12 @@ def categorize_line(
                     line, calculated_results, override, comment
                 )
             elif test_for_numeric_line(
-                deque(list(expr_parser(line))[1:]) # Leave off the declared variable, e.g. _x_ = ...
+                deque(
+                    list(expr_parser(line))[1:]
+                )  # Leave off the declared variable, e.g. _x_ = ...
             ):
-                categorized_line = NumericCalcLine(
-                    expr_parser(line), comment, ""
-                )
-            
+                categorized_line = NumericCalcLine(expr_parser(line), comment, "")
+
             else:
                 categorized_line = LongCalcLine(
                     expr_parser(line), comment, ""
@@ -513,13 +513,13 @@ def categorize_line(
 
         elif override == "short":
             if test_for_numeric_line(
-                deque(list(line)[1:]) # Leave off the declared variable
+                deque(list(line)[1:])  # Leave off the declared variable
             ):
-                categorized_line = NumericCalcLine(
-                    expr_parser(line), comment, ""
-                )
+                categorized_line = NumericCalcLine(expr_parser(line), comment, "")
             else:
-                categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
+                categorized_line = CalcLine(
+                    expr_parser(line), comment, ""
+                )  # code_reader
 
             return categorized_line
         elif True:
@@ -541,11 +541,9 @@ def categorize_line(
         )
 
     elif test_for_numeric_line(
-        deque(list(expr_parser(line))[1:]) # Leave off the declared variable
+        deque(list(expr_parser(line))[1:])  # Leave off the declared variable
     ):
-        categorized_line = NumericCalcLine(
-            expr_parser(line), comment, ""
-        )
+        categorized_line = NumericCalcLine(expr_parser(line), comment, "")
 
     elif "=" in line:
         categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
@@ -587,6 +585,7 @@ def results_for_numericcalcline(line_object, calculated_results):
     resulting_value = dict_get(calculated_results, parameter_name)
     line_object.line.append(deque(["=", resulting_value]))
     return line_object
+
 
 @add_result_values_to_line.register(LongCalcLine)
 def results_for_longcalcline(line_object, calculated_results):
@@ -691,10 +690,17 @@ def convert_symbolic_cell(cell: SymbolicCell) -> SymbolicCell:
 @singledispatch
 def convert_line(
     line_object: Union[
-        CalcLine, ConditionalLine, ParameterLine, SymbolicLine, NumericCalcLine, BlankLine
+        CalcLine,
+        ConditionalLine,
+        ParameterLine,
+        SymbolicLine,
+        NumericCalcLine,
+        BlankLine,
     ],
     calculated_results: dict,
-) -> Union[CalcLine, ConditionalLine, ParameterLine, SymbolicLine, NumericCalcLine, BlankLine]:
+) -> Union[
+    CalcLine, ConditionalLine, ParameterLine, SymbolicLine, NumericCalcLine, BlankLine
+]:
     """
     Returns 'line_object' with its .line attribute converted into a 
     deque with elements that have been converted to their appropriate
@@ -959,7 +965,9 @@ def round_and_render_calc(line: CalcLine, precision: int, dec_sep: str) -> CalcL
 
 
 @round_and_render_line_objects_to_latex.register(NumericCalcLine)
-def round_and_render_calc(line: NumericCalcLine, precision: int, dec_sep: str) -> NumericCalcLine:
+def round_and_render_calc(
+    line: NumericCalcLine, precision: int, dec_sep: str
+) -> NumericCalcLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, precision)
     idx_line = swap_scientific_notation_str(idx_line)
@@ -1121,6 +1129,7 @@ def test_for_long_longcalcline(line: LongCalcLine) -> bool:
 def test_for_long_numericcalcline(line: NumericCalcLine) -> bool:
     # No need to return True since it's already a LongCalcLine
     return False
+
 
 @test_for_long_lines.register(CalcLine)
 def test_for_long_calc_lines(line: CalcLine) -> bool:
@@ -1461,9 +1470,10 @@ def test_for_conditional_line(source: str) -> bool:
     return ":" in source and ("if" in source or "else" in source)
 
 
-def test_for_numeric_line(d: deque,
-   # func_deque: bool = False
-    ) -> bool:
+def test_for_numeric_line(
+    d: deque,
+    # func_deque: bool = False
+) -> bool:
     """
     Returns True if 'd' appears to be a calculation in
     consisting entirely of numerals, operators, and functions.
@@ -1485,16 +1495,19 @@ def test_for_numeric_line(d: deque,
             bool_acc.append(True)
         elif test_for_py_operator(item):
             bool_acc.append(True)
-        elif item == "/" or item == "//": # Not tested in test_for_py_operator, for reasons
+        elif (
+            item == "/" or item == "//"
+        ):  # Not tested in test_for_py_operator, for reasons
             bool_acc.append(True)
-        elif item == ",": # Numbers separated with commas: ok
+        elif item == ",":  # Numbers separated with commas: ok
             bool_acc.append(True)
         elif isinstance(item, deque):
             if get_function_name(item):
                 bool_acc.append(True)
-                bool_acc.append(test_for_numeric_line(
-                        d=item, 
-                        #func_deque=True
+                bool_acc.append(
+                    test_for_numeric_line(
+                        d=item,
+                        # func_deque=True
                     )
                 )
             else:
@@ -1502,7 +1515,7 @@ def test_for_numeric_line(d: deque,
         else:
             bool_acc.append(False)
     return all(bool_acc)
-        
+
 
 def test_for_single_dict(source: str, calc_results: dict) -> bool:
     """
@@ -1856,11 +1869,7 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     swapped_deque = deque([])
     base = ""
     has_deque = isinstance(d[1], deque)
-    has_nested_deque = (
-        len(d) > 2
-        and isinstance(d[2], deque) 
-        and d[0] == "\\left("
-    )
+    has_nested_deque = len(d) > 2 and isinstance(d[2], deque) and d[0] == "\\left("
     log_func = d[0] if d[0] != "\\left(" else d[1]
     base = ""
     has_nested_lpar = d[0] == "\\left("
@@ -1871,22 +1880,22 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     if log_func in ["log10", "log2"]:
         base = log_func.replace("log", "")
 
-    if has_deque: # Arithmetic expression as argument in sub-deque
+    if has_deque:  # Arithmetic expression as argument in sub-deque
         sub_deque = d[1]
-    elif has_nested_deque: # Nested function in sub-deque
+    elif has_nested_deque:  # Nested function in sub-deque
         sub_deque = d[2]
 
     if has_deque or has_nested_deque:
-        if "," in sub_deque: # Log base argument provided
+        if "," in sub_deque:  # Log base argument provided
             base = sub_deque[-2]  # Last arg in d before "\\right)"
             operand = swap_math_funcs(
                 deque(list(sub_deque)[:-3] + ["\\right)"]), calc_results
-            ) # Operand is everything before the base argument
+            )  # Operand is everything before the base argument
         else:
             # No Log base argument, recurse everything in the sub-deque
             operand = swap_math_funcs(deque([sub_deque]), calc_results)
     else:
-        operand = d[2]#swap_math_funcs(d, calc_results)
+        operand = d[2]  # swap_math_funcs(d, calc_results)
 
     if base == "e":
         base = ""
@@ -1902,11 +1911,14 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
         log_func = "\\ln"
 
     swapped_deque.append(log_func + str(base))
-    if has_single_lpar: swapped_deque.append("\\left(")
+    if has_single_lpar:
+        swapped_deque.append("\\left(")
     swapped_deque.append(operand)
-    
-    if has_nested_lpar: swapped_deque.appendleft("\\left(")
-    if has_rpar: swapped_deque.append("\\right)")
+
+    if has_nested_lpar:
+        swapped_deque.appendleft("\\left(")
+    if has_rpar:
+        swapped_deque.append("\\right)")
 
     return swapped_deque
 
@@ -2242,12 +2254,9 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
                 # elif possible_func:
                 elif possible_func:
                     ops = "\\operatorname"
-                    print("Op: ", poss_func_name, possible_func)
                     new_func = f"{ops}{a}{poss_func_name}{b}"
                     item = swap_func_name(item, poss_func_name, new_func)
-                    print("Item: ", item)
                     if possible_func:
-                        print("Passing")
                         item = insert_func_braces(item)
                     new_item = swap_math_funcs(item, calc_results)
                     swapped_deque.append(new_item)
@@ -2475,7 +2484,7 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
     for idx, item in enumerate(pycode_as_deque):
         next_idx = min(idx + 1, len(pycode_as_deque) - 1)
         next_item = pycode_as_deque[next_idx]
-        if isinstance(item, deque):# and not close_bracket_token:
+        if isinstance(item, deque):  # and not close_bracket_token:
             if "**" == str(next_item):
                 pycode_with_supers.append(l_par)
                 new_item = swap_superscripts(item)
