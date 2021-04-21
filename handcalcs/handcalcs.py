@@ -1946,22 +1946,22 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
             swapped_deque.append(item)
     return swapped_deque
 
-    lpar = "\\left("
-    rpar = "\\right)"
-    swapped_deque = deque([])
-    last = len(d) - 1
-    for idx, item in enumerate(d):
-        if idx == last == 1 and not isinstance(item, deque):
-            swapped_deque.append(lpar)
-            swapped_deque.append(item)
-            swapped_deque.append(rpar)
-        elif idx == 1 and isinstance(item, deque):
-            item.appendleft(lpar)
-            item.append(rpar)
-            swapped_deque.append(item)
-        else:
-            swapped_deque.append(item)
-    return swapped_deque
+    # lpar = "\\left("
+    # rpar = "\\right)"
+    # swapped_deque = deque([])
+    # last = len(d) - 1
+    # for idx, item in enumerate(d):
+    #     if idx == last == 1 and not isinstance(item, deque):
+    #         swapped_deque.append(lpar)
+    #         swapped_deque.append(item)
+    #         swapped_deque.append(rpar)
+    #     elif idx == 1 and isinstance(item, deque):
+    #         item.appendleft(lpar)
+    #         item.append(rpar)
+    #         swapped_deque.append(item)
+    #     else:
+    #         swapped_deque.append(item)
+    # return swapped_deque
 
 
 def flatten_deque(d: deque) -> deque:
