@@ -23,6 +23,7 @@ VERSION = '1.2.1'
 # What packages are required for this module to be executed?
 REQUIRED = [
     'pyparsing',
+    'nbconvert>=6.0.0',
     'innerscope >= 0.2.0',
     'more-itertools >= 8.5.0'
     # 'requests', 'maya', 'records',
@@ -109,12 +110,14 @@ setup(
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     package_data={'': ['*.json']},
     include_package_data=True,
-    # If your package is a single module, use this instead of 'packages':
-    #py_modules=['forallpeople'],
+    entry_points={
+        'nbconvert.exporters': [
+            'HTML_noinput  = handcalcs.exporters:HTMLHideInputExporter',
+            'PDF_noinput  = handcalcs.exporters:PDFHideInputExporter',
+            'LaTeX_noinput  = handcalcs.exporters:LatexHideInputExporter',
+        ],
+    },
 
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
-    # },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     license='GNU General Public License v3 (GPLv3)',
