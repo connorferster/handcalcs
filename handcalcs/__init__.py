@@ -14,6 +14,6 @@
 
 __version__ = "1.2.1" #
 from handcalcs.decorator import handcalc
-from handcalcs.install_templates import install_html, install_latex
+# from handcalcs.install_templates import install_html, install_latex
 __all__ = ["handcalc"]
 

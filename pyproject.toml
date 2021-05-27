@@ -31,7 +31,7 @@ nbconvert = "^5.6.1"
 pytest-cov = "^2.9.0"
 coverage = {extras = ["toml"], version = "^5.1"}
 jupyterlab = "^2.1.5"
-nbconvert = "^5.6.1"
+nbconvert = "^6.0.0"
 pdbpp = "^0.10.2"
 ipython = "^7.18.1"
 sympy = "^1.6.2"
