@@ -134,6 +134,12 @@ class NumericCalcLine:
     comment: str
     latex: str
 
+@dataclass
+class IntertextLine:
+    line: deque
+    comment: str
+    latex: str
+
 
 @dataclass
 class BlankLine:  # Attributes not used on BlankLine but still req'd
@@ -365,7 +371,7 @@ def categorize_raw_cell(
     raw_source: str, calculated_results: dict, override: str, precision: int = 3
 ) -> Union[ParameterCell, CalcCell]:
     """
-    Return a "Cell" type depending on the source of the cell.
+    Return a "Cell" type depending on the source code of the cell.
     """
     if override:
         if override == "params":
@@ -397,7 +403,8 @@ def strip_cell_code(raw_source: str) -> str:
     than a CalcCell.
     """
     split_lines = deque(raw_source.split("\n"))
-    if split_lines[0].startswith("#"):
+    first_line = split_lines[0]
+    if first_line.startswith("#") and not first_line.startswith("##"): ## for intertext line
         split_lines.popleft()
         return "\n".join(split_lines)
     return raw_source
@@ -529,6 +536,9 @@ def categorize_line(
     if line == "\n" or line == "":
         categorized_line = BlankLine(line, "", "")
 
+    elif line.startswith("##"):
+        categorized_line = IntertextLine(line, "", "")
+
     elif test_for_parameter_line(line):
 
         categorized_line = ParameterLine(
@@ -554,6 +564,7 @@ def categorize_line(
         )
 
     else:
+        # TODO: Raise this error in a test
         raise ValueError(
             f"Line: {line} is not recognized for rendering.\n"
             "Lines must either:\n"
@@ -615,6 +626,11 @@ def results_for_symbolicline(line_object, calculated_results):
 
 @add_result_values_to_line.register(BlankLine)
 def results_for_blank(line_object, calculated_results):
+    return line_object
+
+
+@add_result_values_to_line.register(IntertextLine)
+def results_for_intertext(line_object, calculated_results):
     return line_object
 
 
@@ -774,6 +790,11 @@ def convert_parameter(line, calculated_results):
 @convert_line.register(SymbolicLine)
 def convert_symbolic_line(line, calculated_results):
     line.line = swap_symbolic_calcs(line.line, calculated_results)
+    return line
+
+
+@convert_line.register(IntertextLine)
+def convert_intertext(line, calculated_results):
     return line
 
 
@@ -1056,6 +1077,11 @@ def round_and_render_blank(line, precision, dec_sep):
     return line
 
 
+@round_and_render_line_objects_to_latex.register(IntertextLine)
+def round_and_render_intertext(line, precision, dec_sep):
+    return line
+
+
 @singledispatch
 def convert_applicable_long_lines(
     line: Union[ConditionalLine, CalcLine]
@@ -1097,6 +1123,11 @@ def convert_param_to_long(line: ParameterLine):
     return line
 
 
+@convert_applicable_long_lines.register(ParameterLine)
+def convert_param_to_long(line: ParameterLine):
+    return line
+
+
 @convert_applicable_long_lines.register(BlankLine)
 def convert_blank_to_long(line: BlankLine):
     return line
@@ -1116,6 +1147,11 @@ def test_for_long_param_lines(line: ParameterLine) -> bool:
 
 @test_for_long_lines.register(BlankLine)
 def test_for_long_blank(line: BlankLine) -> bool:
+    return False
+
+
+@test_for_long_lines.register(IntertextLine)
+def test_for_long_intertext(line: IntertextLine) -> bool:
     return False
 
 
@@ -1337,6 +1373,13 @@ def format_symbolic_line(line: SymbolicLine) -> SymbolicLine:
     comment_space = "\\;"
     comment = format_strings(line.comment, comment=True)
     line.latex = f"{replaced} {comment_space} {comment}\n"
+    return line
+
+
+@format_lines.register(IntertextLine)
+def format_intertext_line(line: IntertextLine) -> IntertextLine:
+    cleaned_line = line.line.replace("##", "")
+    line.latex = f"\\intertext{cleaned_line}\\\n"
     return line
 
 
@@ -1757,15 +1800,6 @@ class ConditionalEvaluator:
 swap_conditional = (
     ConditionalEvaluator()
 )  # Instantiate the callable helper class at "Cell" level scope
-
-
-# def swap_params(parameter: deque) -> deque:
-#     """
-#     Returns the python code elements in the 'parameter' deque converted
-#     into latex code elements in the deque. This primarily involves operating
-#     on the variable name.
-#     """
-#     return swap_symbolic_calcs(parameter)
 
 
 def swap_calculation(calculation: deque, calc_results: dict) -> tuple:
