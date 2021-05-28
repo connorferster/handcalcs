@@ -29,7 +29,13 @@ innerscope = "^0.2.0"
 [tool.poetry.dev-dependencies]
 pytest-cov = "^2.9.0"
 coverage = {extras = ["toml"], version = "^5.1"}
+<<<<<<< HEAD
 jupyterlab = "^3.0.0"
+=======
+jupyterlab = "^2.1.5"
+nbconvert = "^6.0.0"
+pdbpp = "^0.10.2"
+>>>>>>> f6b78140879f6ed864f7a9befda98932d8260aa6
 ipython = "^7.18.1"
 sympy = "^1.6.2"
 forallpeople = "^2.0.1"
