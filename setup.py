@@ -18,14 +18,15 @@ URL = 'https://github.com/connorferster/handcalcs'
 EMAIL = 'connorferster@gmail.com'
 AUTHOR = 'Connor Ferster'
 REQUIRES_PYTHON = '>=3.7.0'
-VERSION = '1.3.0'
+VERSION = '1.4.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
     'pyparsing',
     'nbconvert>=6.0.0',
     'innerscope >= 0.2.0',
-    'more-itertools >= 8.5.0'
+    'more-itertools >= 8.5.0',
+    'jupyterlab >= 3.0.0'
     # 'requests', 'maya', 'records',
 ]
 

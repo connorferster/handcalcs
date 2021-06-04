@@ -1123,8 +1123,8 @@ def convert_param_to_long(line: ParameterLine):
     return line
 
 
-@convert_applicable_long_lines.register(ParameterLine)
-def convert_param_to_long(line: ParameterLine):
+@convert_applicable_long_lines.register(IntertextLine)
+def convert_intertext_to_long(line: IntertextLine):
     return line
 
 
@@ -1379,7 +1379,7 @@ def format_symbolic_line(line: SymbolicLine) -> SymbolicLine:
 @format_lines.register(IntertextLine)
 def format_intertext_line(line: IntertextLine) -> IntertextLine:
     cleaned_line = line.line.replace("##", "")
-    line.latex = f"\\intertext{cleaned_line}\\\n"
+    line.latex = f"& \\textrm{{{cleaned_line}}}"
     return line
 
 

@@ -30,7 +30,6 @@ si.environment("default")
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
 from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
 from handcalcs.decorator import handcalc
-from handcalcs.install_templates import install_html, install_latex
 
 
 # When writing a new test create a new "cell" .py file
@@ -281,87 +280,18 @@ def test_handcalcs3():
 
 
 def test_latex_exporter():
-    """
-
-    """
-
     exporter = LatexHideInputExporter()
     assert exporter.exclude_input == True
 
 
 def test_pdf_exporter():
-    """
-
-    """
-
     exporter = PDFHideInputExporter()
     assert exporter.exclude_input == True
 
 
 def test_html_exporter():
-    """
-
-    """
-
     exporter = HTMLHideInputExporter()
     assert exporter.exclude_input == True
-
-
-# def test_install_latex(capsys):
-#     HERE = pathlib.Path(__file__).resolve().parent
-#     TEMPLATES = HERE.parent / "handcalcs" / "templates"
-#     MAIN_TEMPLATE = TEMPLATES / "latex" / "t-makaro_classic_romanoutput_noinput.tplx"
-#     NBCONVERT_TEMPLATES_DIR = (
-#         pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
-#     )
-#
-#     install_latex()
-#     captured = capsys.readouterr()
-#     assert (
-#         captured.out
-#         == "Available templates: \n ['t-makaro_classic_romanoutput_noinput.tplx']\n"
-#     )
-#     install_latex(swap_in="t-makaro_classic_romanoutput_noinput.tplx")
-#     assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
-#
-#
-# def test_install_latex_restore():
-#     HERE = pathlib.Path(__file__).resolve().parent
-#     TEMPLATES = HERE.parent / "handcalcs" / "templates"
-#     MAIN_TEMPLATE = TEMPLATES / "latex" / "t-makaro_classic_romanoutput_noinput.tplx"
-#     NBCONVERT_TEMPLATES_DIR = (
-#         pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "latex"
-#     )
-#
-#     install_latex(restore=True)
-#     assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "article.tplx")
-#
-#
-# def test_install_html(capsys):
-#     HERE = pathlib.Path(__file__).resolve().parent
-#     TEMPLATES = HERE.parent / "handcalcs" / "templates"
-#     MAIN_TEMPLATE = TEMPLATES / "html" / "full_html_noinputs.tpl"
-#     NBCONVERT_TEMPLATES_DIR = (
-#         pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
-#     )
-#
-#     install_html()
-#     captured = capsys.readouterr()
-#     assert captured.out == "Available templates: \n ['full_html_noinputs.tpl']\n"
-#     install_html(swap_in="full_html_noinputs.tpl")
-#     assert filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "full.tpl")
-#
-#
-# def test_install_html_restore():
-#     HERE = pathlib.Path(__file__).resolve().parent
-#     TEMPLATES = HERE.parent / "handcalcs" / "templates"
-#     MAIN_TEMPLATE = TEMPLATES / "html" / "full_html_noinputs.tpl"
-#     NBCONVERT_TEMPLATES_DIR = (
-#         pathlib.Path(nbconvert.__file__).resolve().parent / "templates" / "html"
-#     )
-#     install_html(restore=True)
-#     assert not filecmp.cmp(MAIN_TEMPLATE, NBCONVERT_TEMPLATES_DIR / "full.tpl")
-
 
 # Test expected exceptions
 
