@@ -60,43 +60,6 @@ else:
     about['__version__'] = VERSION
 
 
-class UploadCommand(Command):
-    """Support setup.py upload."""
-
-    description = 'Build and publish the package.'
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status('Removing previous builds…')
-            rmtree(os.path.join(here, 'dist'))
-        except OSError:
-            pass
-
-        self.status('Building Source and Wheel (universal) distribution…')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
-
-        self.status('Uploading the package to PyPI via Twine…')
-        os.system('twine upload dist/*')
-
-        self.status('Pushing git tags…')
-        os.system('git tag v{0}'.format(about['__version__']))
-        os.system('git push --tags')
-        
-        sys.exit()
-
-
 # Where the magic happens:
 setup(
     name=NAME,
@@ -113,26 +76,22 @@ setup(
     include_package_data=True,
     entry_points={
         'nbconvert.exporters': [
-            'HTML_noinput  = handcalcs.exporters:HTMLHideInputExporter',
-            'PDF_noinput  = handcalcs.exporters:PDFHideInputExporter',
-            'LaTeX_noinput  = handcalcs.exporters:LatexHideInputExporter',
+            'HTML_noinput = handcalcs.exporters:HTMLHideInputExporter',
+            'PDF_noinput = handcalcs.exporters:PDFHideInputExporter',
+            'LaTeX_noinput = handcalcs.exporters:LatexHideInputExporter',
         ],
     },
 
     install_requires=REQUIRED,
     extras_require=EXTRAS,
-    license='GNU General Public License v3 (GPLv3)',
+    license='Apache',
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Development Status :: 3 - Alpha",
         "Topic :: Scientific/Engineering :: Mathematics",
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
-    # $ setup.py publish support.
-    cmdclass={
-        'upload': UploadCommand,
-    },
 )

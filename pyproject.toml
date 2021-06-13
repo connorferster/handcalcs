@@ -1,3 +1,43 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.metadata]
+module = "handcalcs"
+author = "Connor Ferster"
+author-email = "connorferster@gmail.com"
+home-page = "https://github.com/connorferster/handcalcs"
+classifiers = [ "License :: OSI Approved :: Apache Software License",]
+description-file = "README.md"
+requires = [
+    "pyparsing >= 2.4.7",
+    "more-itertools >= 8.5.0",
+    "innerscope >= 0.2.0",
+    "nbconvert >= 6.0.0",
+]
+
+[tool.flit.metadata.requires-extra]
+test = [
+    "pytest >= 6.0.0",
+    "pytest-cov >= 2.9.0",
+    "coverage[toml] >= 5.5.0",
+]
+
+dev = [
+    "jupyterlab >= 3.0.0",
+    "sympy",
+    "forallpeople >= 2.1.0",    
+]
+
+docs = [
+    "sphinx", 
+]
+
+[tool.flit.entrypoints."nbconvert.exporters"]
+HTML_noinput = 'handcalcs.exporters:HTMLHideInputExporter'
+PDF_noinput = 'handcalcs.exporters:PDFHideInputExporter'
+LaTeX_noinput = 'handcalcs.exporters:LatexHideInputExporter'
+
 [tool.coverage.paths]
 source = ['handcalcs', '*/site-packages']
 
@@ -7,35 +47,3 @@ source = ['handcalcs']
 
 [tool.coverage.report]
 show_missing = true
-
-
-[tool.poetry]
-name = "handcalcs"
-version = "1.4.0"
-description = "Python calculations in Jupyter as though you wrote them by hand."
-authors = ["Connor Ferster"]
-license = "Apache-2.0"
-homepage = "https://github.com/connorferster/handcalcs"
-repository = "https://github.com/connorferster/handcalcs"
-documentation = "https://github.com/connorferster/handcalcs"
-
-
-[tool.poetry.dependencies]
-python = "^3.7"
-pyparsing = "^2.4.7"
-more-itertools = "^8.5.0"
-innerscope = "^0.2.0"
-
-[tool.poetry.dev-dependencies]
-pytest-cov = "^2.9.0"
-coverage = {extras = ["toml"], version = "^5.1"}
-jupyterlab = "^3.0.0"
-nbconvert = "^6.0.0"
-pdbpp = "^0.10.2"
-ipython = "^7.18.1"
-sympy = "^1.6.2"
-forallpeople = "^2.0.1"
-
-[build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"

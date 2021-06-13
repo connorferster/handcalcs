@@ -3,7 +3,7 @@ __all__ = ["handcalc"]
 from functools import wraps
 import inspect
 import innerscope
-from handcalcs.handcalcs import LatexRenderer
+from .handcalcs import LatexRenderer
 
 
 def handcalc(

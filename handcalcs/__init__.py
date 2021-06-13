@@ -11,8 +11,10 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-
+"""
+Render arithmetic calucations in Jupyter as though they were written by hand.
+"""
 __version__ = "1.4.0" #
-from handcalcs.decorator import handcalc
+from .decorator import handcalc
 __all__ = ["handcalc"]
 
