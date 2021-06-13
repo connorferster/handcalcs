@@ -12,9 +12,10 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 """
-Render arithmetic calucations in Jupyter as though they were written by hand.
+Converts your Python calculation script into beautifully rendered Latex, 
+similar to how you would write a calculation by hand.
 """
-__version__ = "1.4.0" #
+__version__ = "1.4.1" #
 from .decorator import handcalc
 __all__ = ["handcalc"]
 
