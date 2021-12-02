@@ -1684,21 +1684,23 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
         if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
             try:
                 rounded = [round(v, precision) for v in item]
-                outgoing.append(latex_repr(rounded))
             except:
-                rounded = item
-                outgoing.append(latex_repr(rounded))
+                try:
+                    # Objects like Quantity (from pint) have a __len__ wrapper
+                    # even if the wrapped magnitude object is not iterable.
+                    rounded = round(item, precision)
+                except:
+                    rounded = item
         elif isinstance(item, complex):
             rounded = round_complex(item, precision)
-            outgoing.append(latex_repr(rounded))
         elif not isinstance(item, (str, int)):
             try:
-                rounded = round(item, precision)  # Rounding
+                rounded = round(item, precision)
             except:
                 rounded = item
-            outgoing.append(latex_repr(rounded))  # Rendering
         else:
-            outgoing.append(latex_repr(item))
+            rounded = item
+        outgoing.append(latex_repr(rounded))
     return outgoing
 
 
