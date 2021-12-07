@@ -1,3 +1,5 @@
+from copy import copy
+
 from nbconvert import PDFExporter, HTMLExporter, LatexExporter
 
 
@@ -7,7 +9,7 @@ class HTMLHideInputExporter(HTMLExporter):
     """
 
     export_from_notebook = "HTML Hide Input"
-    exclude_input = HTMLExporter.exclude_input
+    exclude_input = copy(HTMLExporter.exclude_input)
     exclude_input.default_value = True
 
 
@@ -17,7 +19,7 @@ class PDFHideInputExporter(PDFExporter):
     """
 
     export_from_notebook = "PDF Hide Input"
-    exclude_input = PDFExporter.exclude_input
+    exclude_input = copy(PDFExporter.exclude_input)
     exclude_input.default_value = True
 
 
@@ -27,5 +29,5 @@ class LatexHideInputExporter(LatexExporter):
     """
 
     export_from_notebook = "LaTeX Hide Input"
-    exclude_input = LatexExporter.exclude_input
+    exclude_input = copy(LatexExporter.exclude_input)
     exclude_input.default_value = True
