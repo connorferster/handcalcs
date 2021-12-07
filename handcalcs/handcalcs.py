@@ -1596,6 +1596,20 @@ def round_complex(elem: complex, precision: int) -> complex:
     return complex(round(elem.real, precision), round(elem.imag, precision))
 
 
+def round_sympy(elem: Any, precision: int) -> Any:
+    """
+    Returns the Sympy expression 'elem' rounded to 'precision'
+    """
+    from sympy import Float
+    rounded = elem.xreplace(
+        {n: round(n, precision) for n in elem.atoms(Float)}
+    )
+    if hasattr(elem, 'units') and not hasattr(rounded, 'units'):
+        # Add back pint units lost during rounding.
+        rounded = rounded * elem.units
+    return rounded
+
+
 def test_for_small_complex(elem: Any, precision: int) -> bool:
     """
     Returns True if 'elem' is a complex whose rounded str representation
@@ -1674,6 +1688,32 @@ def format_strings(string: str, comment: bool) -> deque:
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
 
+def round_(item: Any, precision: int, depth: int = 0) -> Any:
+    """
+    Recursively round an object and its elements to a given precision.
+    """
+    if depth > 3:
+        # Limit maximum recursion depth.
+        return item
+    if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+        try:
+            return [round_(v, precision, depth + 1) for v in item]
+        except:
+            # Objects like Quantity (from pint) have a __len__ wrapper
+            # even if the wrapped magnitude object is not iterable.
+            pass
+    if isinstance(item, complex):
+        return round_complex(item, precision)
+    if hasattr(item, "__sympy__"):
+        return round_sympy(item, precision)
+    if not isinstance(item, (str, int)):
+        try:
+            return round(item, precision)
+        except:
+            pass
+    return item
+
+
 def round_and_render(line_of_code: deque, precision: int) -> deque:
     """
     Returns a rounded str based on the latex_repr of an object in
@@ -1681,25 +1721,7 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
     """
     outgoing = deque([])
     for item in line_of_code:
-        if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-            try:
-                rounded = [round(v, precision) for v in item]
-            except:
-                try:
-                    # Objects like Quantity (from pint) have a __len__ wrapper
-                    # even if the wrapped magnitude object is not iterable.
-                    rounded = round(item, precision)
-                except:
-                    rounded = item
-        elif isinstance(item, complex):
-            rounded = round_complex(item, precision)
-        elif not isinstance(item, (str, int)):
-            try:
-                rounded = round(item, precision)
-            except:
-                rounded = item
-        else:
-            rounded = item
+        rounded = round_(item, precision)
         outgoing.append(latex_repr(rounded))
     return outgoing
 
