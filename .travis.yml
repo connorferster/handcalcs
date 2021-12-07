@@ -9,7 +9,7 @@ before_install:
   - pip install --upgrade pip
   - python setup.py install
   - pip install "nbconvert==5.6.1"
-  - pip install coverage[toml] coveralls flake8 ipython pytest-cov innerscope sympy forallpeople
+  - pip install coverage[toml] coveralls flake8 ipython pytest-cov innerscope sympy forallpeople pint
   - pip install ipython
 before_script: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 script: pytest --cov-report term --cov
