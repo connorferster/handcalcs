@@ -1,5 +1,8 @@
 import inspect
 from collections import deque
+from handcalcs.handcalcs import (
+    CalcLine, round_and_render_line_objects_to_latex
+)
 import handcalcs.sympy_kit as sk
 import pathlib
 import pytest
@@ -49,3 +52,15 @@ def test_convert_sympy_cell_to_py_cell():
     )
     with pytest.raises(ValueError):
         sk.convert_sympy_cell_to_py_cell("c", {"x": 9, "y": 10, "c": c})
+
+
+def test_sympy_rounding():
+    expr = 12.3456789 * a + 1.23456789e-55 * b
+
+    assert round_and_render_line_objects_to_latex(
+        CalcLine([expr], '', ''), precision=3, dec_sep='.'
+    ).latex == r'\displaystyle 12.346 a + 1.235 \cdot 10^{-55} b'
+
+    assert round_and_render_line_objects_to_latex(
+        CalcLine([expr], '', ''), precision=4, dec_sep='.'
+    ).latex == r'\displaystyle 12.3457 a + 1.2346 \cdot 10^{-55} b'
