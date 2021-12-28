@@ -1601,9 +1601,17 @@ def round_sympy(elem: Any, precision: int) -> Any:
     Returns the Sympy expression 'elem' rounded to 'precision'
     """
     from sympy import Float
-    rounded = elem.xreplace(
-        {n: round(n, precision) for n in elem.atoms(Float)}
-    )
+    rule = {}
+    for n in elem.atoms(Float):
+        if test_for_small_float(float(n), precision):
+            # Equivalent to:
+            # > rule[n] = round(n, precision - int(math.log10(abs(n))) + 1)
+            rule[n] = float(
+                swap_scientific_notation_float([float(n)], precision)[0]
+            )
+        else:
+            rule[n] = round(n, precision)
+    rounded = elem.xreplace(rule)
     if hasattr(elem, 'units') and not hasattr(rounded, 'units'):
         # Add back pint units lost during rounding.
         rounded = rounded * elem.units
