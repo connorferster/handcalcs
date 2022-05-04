@@ -858,9 +858,7 @@ def format_parameters_cell(cell: ParameterCell, dec_sep: str):
     latex_block = " ".join(
         [line.latex for line in cell.lines if not isinstance(line, BlankLine)]
     ).rstrip()  # .rstrip(): Hack to solve another problem of empty lines in {aligned} environment
-    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
-        "\n" + end, end
-    )
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
     return cell
 
 
