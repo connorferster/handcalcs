@@ -2351,8 +2351,8 @@ def insert_func_braces(d: deque) -> deque:
             swapped_deque.append(a)
             swapped_deque.append(elem)
         elif idx == last_idx:  # brace at end
-            swapped_deque.append(elem)
             swapped_deque.append(b)
+            swapped_deque.append(elem)
         else:
             swapped_deque.append(elem)
     return swapped_deque
