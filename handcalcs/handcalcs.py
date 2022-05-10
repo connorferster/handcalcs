@@ -2340,21 +2340,27 @@ def insert_func_braces(d: deque) -> deque:
     swapped_deque = deque([])
     d_len = len(d)
     last_idx = d_len - 1
-    for idx, elem in enumerate(d):
-        if last_idx == 1:  # Special case, func is sqrt or other non-parenth func
-            swapped_deque.append(d[0])
-            swapped_deque.append(a)
-            swapped_deque.append(d[1])
-            swapped_deque.append(b)
-            return swapped_deque
-        elif idx == 1:  # func name is 0, brace at 1
-            swapped_deque.append(a)
-            swapped_deque.append(elem)
-        elif idx == last_idx:  # brace at end
-            swapped_deque.append(b)
-            swapped_deque.append(elem)
-        else:
-            swapped_deque.append(elem)
+    if last_idx == 1:  # Special case, func is sqrt or other non-parenth func
+        swapped_deque.append(d[0])
+        swapped_deque.append(a)
+        swapped_deque.append(d[1])
+        swapped_deque.append(b)
+        return swapped_deque
+    elif last_idx == 3 and d[0] == '\\left(' and d[last_idx] == '\\right)': # Special case, func is inside another func with parenth
+        swapped_deque.append(a)
+        swapped_deque += d
+        swapped_deque.append(b)
+        return swapped_deque
+    else:
+        for idx, elem in enumerate(d):
+            if idx == 1:  # func name is 0, brace at 1
+                swapped_deque.append(a)
+                swapped_deque.append(elem)
+            elif idx == last_idx:  # brace at end
+                swapped_deque.append(elem)
+                swapped_deque.append(b)
+            else:
+                swapped_deque.append(elem)
     return swapped_deque
 
 
