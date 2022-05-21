@@ -229,7 +229,7 @@ def test_integration():
     )
     assert (
         cell_4_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n &b &= 3 \\; \n &c &= 5 \\; \n\\\\[10pt]\n y &= 6 \\; \\;\\textrm{(Comment)}\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n &b &= 3 \\; \n &c &= 5 \\; \n\\\\[10pt]\n y &= 6 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
         cell_5_renderer.render()
