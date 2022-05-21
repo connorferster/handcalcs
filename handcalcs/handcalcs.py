@@ -858,9 +858,7 @@ def format_parameters_cell(cell: ParameterCell, dec_sep: str):
     latex_block = " ".join(
         [line.latex for line in cell.lines if not isinstance(line, BlankLine)]
     ).rstrip()  # .rstrip(): Hack to solve another problem of empty lines in {aligned} environment
-    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
-        "\n" + end, end
-    )
+    cell.latex_code = "\n".join([opener, begin, latex_block, end, closer])
     return cell
 
 
@@ -1596,6 +1594,28 @@ def round_complex(elem: complex, precision: int) -> complex:
     return complex(round(elem.real, precision), round(elem.imag, precision))
 
 
+def round_sympy(elem: Any, precision: int) -> Any:
+    """
+    Returns the Sympy expression 'elem' rounded to 'precision'
+    """
+    from sympy import Float
+    rule = {}
+    for n in elem.atoms(Float):
+        if test_for_small_float(float(n), precision):
+            # Equivalent to:
+            # > rule[n] = round(n, precision - int(math.log10(abs(n))) + 1)
+            rule[n] = float(
+                swap_scientific_notation_float([float(n)], precision)[0]
+            )
+        else:
+            rule[n] = round(n, precision)
+    rounded = elem.xreplace(rule)
+    if hasattr(elem, 'units') and not hasattr(rounded, 'units'):
+        # Add back pint units lost during rounding.
+        rounded = rounded * elem.units
+    return rounded
+
+
 def test_for_small_complex(elem: Any, precision: int) -> bool:
     """
     Returns True if 'elem' is a complex whose rounded str representation
@@ -1674,6 +1694,32 @@ def format_strings(string: str, comment: bool) -> deque:
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
 
+def round_(item: Any, precision: int, depth: int = 0) -> Any:
+    """
+    Recursively round an object and its elements to a given precision.
+    """
+    if depth > 3:
+        # Limit maximum recursion depth.
+        return item
+    if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+        try:
+            return [round_(v, precision, depth + 1) for v in item]
+        except:
+            # Objects like Quantity (from pint) have a __len__ wrapper
+            # even if the wrapped magnitude object is not iterable.
+            pass
+    if isinstance(item, complex):
+        return round_complex(item, precision)
+    if hasattr(item, "__sympy__"):
+        return round_sympy(item, precision)
+    if not isinstance(item, (str, int)):
+        try:
+            return round(item, precision)
+        except:
+            pass
+    return item
+
+
 def round_and_render(line_of_code: deque, precision: int) -> deque:
     """
     Returns a rounded str based on the latex_repr of an object in
@@ -1681,24 +1727,8 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
     """
     outgoing = deque([])
     for item in line_of_code:
-        if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-            try:
-                rounded = [round(v, precision) for v in item]
-                outgoing.append(latex_repr(rounded))
-            except:
-                rounded = item
-                outgoing.append(latex_repr(rounded))
-        elif isinstance(item, complex):
-            rounded = round_complex(item, precision)
-            outgoing.append(latex_repr(rounded))
-        elif not isinstance(item, (str, int)):
-            try:
-                rounded = round(item, precision)  # Rounding
-            except:
-                rounded = item
-            outgoing.append(latex_repr(rounded))  # Rendering
-        else:
-            outgoing.append(latex_repr(item))
+        rounded = round_(item, precision)
+        outgoing.append(latex_repr(rounded))
     return outgoing
 
 
@@ -2340,21 +2370,25 @@ def insert_func_braces(d: deque) -> deque:
     swapped_deque = deque([])
     d_len = len(d)
     last_idx = d_len - 1
-    for idx, elem in enumerate(d):
-        if last_idx == 1:  # Special case, func is sqrt or other non-parenth func
-            swapped_deque.append(d[0])
-            swapped_deque.append(a)
-            swapped_deque.append(d[1])
-            swapped_deque.append(b)
-            return swapped_deque
-        elif idx == 1:  # func name is 0, brace at 1
-            swapped_deque.append(a)
-            swapped_deque.append(elem)
-        elif idx == last_idx:  # brace at end
-            swapped_deque.append(elem)
-            swapped_deque.append(b)
-        else:
-            swapped_deque.append(elem)
+    if last_idx == 1:  # Special case, func is sqrt or other non-parenth func
+        swapped_deque.append(d[0])
+        swapped_deque.append(a)
+        swapped_deque.append(d[1])
+        swapped_deque.append(b)
+    elif last_idx == 3 and d[0] == '\\left(' and d[last_idx] == '\\right)': # Special case, func is inside another func with parenth
+        swapped_deque.append(a)
+        swapped_deque += d
+        swapped_deque.append(b)
+    else:
+        for idx, elem in enumerate(d):
+            if idx == 1:  # func name is 0, brace at 1
+                swapped_deque.append(a)
+                swapped_deque.append(elem)
+            elif idx == last_idx:  # brace at end
+                swapped_deque.append(elem)
+                swapped_deque.append(b)
+            else:
+                swapped_deque.append(elem)
     return swapped_deque
 
 
