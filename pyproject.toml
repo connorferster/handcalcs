@@ -1,40 +1,35 @@
 [build-system]
-requires = ["flit_core >=2,<4"]
+requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
-[tool.flit.metadata]
-module = "handcalcs"
-author = "Connor Ferster"
-author-email = "connorferster@gmail.com"
-home-page = "https://github.com/connorferster/handcalcs"
-classifiers = [ "License :: OSI Approved :: Apache Software License",]
-description-file = "README.md"
-requires = [
-    "pyparsing >= 2.4.7",
-    "more-itertools >= 8.5.0",
-    "innerscope >= 0.2.0",
-    "nbconvert >= 6.5.0",
-]
+[project]
+name = "handcalcs"
+authors = [{name = "Connor Ferster", email = "connorferster@gmail.com"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: Apache Software License"]
+dynamic = ["version", "description"]
 
-[tool.flit.metadata.requires-extra]
+[project.urls]
+Home = "https://github.com/connorferster/handcalcs"
+
+[project.optional-dependencies]
 test = [
     "pytest >= 6.0.0",
     "pytest-cov >= 2.9.0",
     "coverage[toml] >= 5.5.0",
-    "pint"
+    "pint >= 0.18",
 ]
 
 dev = [
     "jupyterlab >= 3.0.0",
     "sympy",
-    "forallpeople >= 2.1.0",    
+    "forallpeople >= 2.0",    
 ]
 
-docs = [
-    "sphinx", 
-]
+doc = ["sphinx"]
 
-[tool.flit.entrypoints."nbconvert.exporters"]
+[project.entry-points."nbconvert.exporters"]
 HTML_noinput = 'handcalcs.exporters:HTMLHideInputExporter'
 PDF_noinput = 'handcalcs.exporters:PDFHideInputExporter'
 LaTeX_noinput = 'handcalcs.exporters:LatexHideInputExporter'
