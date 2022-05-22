@@ -27,62 +27,8 @@ import re
 from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
-# TODO:
-# Re-write tests
-
-GREEK_LOWER = {
-    "alpha": "\\alpha",
-    "beta": "\\beta",
-    "gamma": "\\gamma",
-    "delta": "\\delta",
-    "epsilon": "\\epsilon",
-    "zeta": "\\zeta",
-    "theta": "\\theta",
-    "iota": "\\iota",
-    "kappa": "\\kappa",
-    "mu": "\\mu",
-    "nu": "\\nu",
-    "xi": "\\xi",
-    "omicron": "\\omicron",
-    "pi": "\\pi",
-    "rho": "\\rho",
-    "sigma": "\\sigma",
-    "tau": "\\tau",
-    "upsilon": "\\upsilon",
-    "phi": "\\phi",
-    "chi": "\\chi",
-    "omega": "\\omega",
-    "eta": "\\eta",
-    "psi": "\\psi",
-    "lamb": "\\lambda",
-}
-
-GREEK_UPPER = {
-    "Alpha": "\\Alpha",
-    "Beta": "\\Beta",
-    "Gamma": "\\Gamma",
-    "Delta": "\\Delta",
-    "Epsilon": "\\Epsilon",
-    "Zeta": "\\Zeta",
-    "Theta": "\\Theta",
-    "Iota": "\\Iota",
-    "Kappa": "\\Kappa",
-    "Mu": "\\Mu",
-    "Nu": "\\Nu",
-    "Xi": "\\Xi",
-    "Omicron": "\\Omicron",
-    "Pi": "\\Pi",
-    "Rho": "\\Rho",
-    "Sigma": "\\Sigma",
-    "Tau": "\\Tau",
-    "Upsilon": "\\Upsilon",
-    "Phi": "\\Phi",
-    "Chi": "\\Chi",
-    "Omega": "\\Omega",
-    "Eta": "\\Eta",
-    "Psi": "\\Psi",
-    "Lamb": "\\Lambda",
-}
+from constants import GREEK_UPPER, GREEK_LOWER
+import global_config
 
 # Six basic line types
 @dataclass
@@ -219,7 +165,7 @@ def dict_get(d: dict, item: Any) -> Any:
 
 # The renderer class ("output" class)
 class LatexRenderer:
-    dec_sep = "."
+    # dec_sep = "."
 
     def __init__(self, python_code_str: str, results: dict, line_args: dict):
         self.source = python_code_str
@@ -229,11 +175,11 @@ class LatexRenderer:
 
     def render(self):
         return latex(
-            self.source,
-            self.results,
-            self.override,
-            self.precision,
-            LatexRenderer.dec_sep,
+            raw_python_source=self.source,
+            calculated_results=self.results,
+            override=self.override,
+            precision=self.precision,
+            config_options=global_config._config,
         )
 
 
@@ -242,8 +188,8 @@ def latex(
     raw_python_source: str,
     calculated_results: dict,
     override: str,
-    precision: int = 3,
-    dec_sep: str = ".",
+    precision: int,
+    config_options: dict,
 ) -> str:
     """
     Returns the Python source as a string that has been converted into latex code.
