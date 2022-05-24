@@ -7,6 +7,6 @@
     "display_precision": 3,
     "underscore_subscripts": true,
     "zero_tolerance": 8,
-    "greek_exclusions": "",
+    "greek_exclusions": [],
     "param_columns": 3
 }
