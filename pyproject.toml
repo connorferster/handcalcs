@@ -9,19 +9,18 @@ readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
-
-[project.urls]
-Source = "https://github.com/connorferster/handcalcs"
-
-
-[project.optional-dependencies]
-
 dependencies = [
     "more_itertools",
     "nbconvert",
     "innerscope",
     "pyparsing"
 ]
+
+[project.urls]
+Source = "https://github.com/connorferster/handcalcs"
+
+
+[project.optional-dependencies]
 
 test = [
     "pytest >= 6.0.0",
