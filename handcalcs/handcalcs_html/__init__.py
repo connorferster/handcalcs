@@ -5,9 +5,10 @@ import pathlib
 from traitlets.config import Config
 from nbconvert.exporters.html import HTMLExporter
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Classes
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 class MyExporter(HTMLExporter):
     """
@@ -36,4 +37,4 @@ class MyExporter(HTMLExporter):
         """
         We want to use the new template we ship with our library.
         """
-        return 'handcalcs_html' # full
+        return "handcalcs_html"  # full

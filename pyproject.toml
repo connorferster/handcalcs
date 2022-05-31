@@ -11,9 +11,18 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
 
 [project.urls]
-Home = "https://github.com/connorferster/handcalcs"
+Source = "https://github.com/connorferster/handcalcs"
+
 
 [project.optional-dependencies]
+
+dependencies = [
+    "more_itertools",
+    "nbconvert",
+    "innerscope",
+    "pyparsing"
+]
+
 test = [
     "pytest >= 6.0.0",
     "pytest-cov >= 2.9.0",
@@ -24,7 +33,8 @@ test = [
 dev = [
     "jupyterlab >= 3.0.0",
     "sympy",
-    "forallpeople >= 2.0",    
+    "forallpeople >= 2.0",
+    "black"  
 ]
 
 doc = ["sphinx"]
