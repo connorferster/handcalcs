@@ -1669,6 +1669,11 @@ def test_swap_dec_sep():
     ) == deque(["sin", "\\left(", "45", "\\right)"])
 
 
+def test_replace_underscores():
+    assert handcalcs.handcalcs.replace_underscores(
+        deque(["cat_a", "+", deque(["\\Delta_T", "\\cdot", 234.4])])
+    ) == deque(["cat a", "+", deque(["\\Delta T", "\\cdot", 234.4])])
+
 def test_swap_chained_fracs():
     assert handcalcs.handcalcs.swap_chained_fracs( # Test for basic functionality
         deque(["d", "=", "a", "/", "b", "/", "3"])

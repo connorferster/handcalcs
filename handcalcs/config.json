@@ -1,12 +1,14 @@
 {
     "decimal_separator": ".",
-    "latex_block_start": "\\[\n",
-    "latex_block_end": "\\]\n",
+    "latex_block_start": "\\[",
+    "latex_block_end": "\\]",
     "latex_math_environment": "aligned",
+    "line_break": "\\\\[10pt]\n",
     "use_sci_notation": false,
     "display_precision": 3,
     "underscore_subscripts": true,
     "zero_tolerance": 8,
     "greek_exclusions": [],
-    "param_columns": 3
+    "param_columns": 3,
+    "latex_method_preference": "_repr_latex_" 
 }

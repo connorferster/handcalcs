@@ -14,6 +14,7 @@
 
 import json
 from typing import Any
+import pathlib
 
 _config = {}
 
@@ -22,8 +23,10 @@ def _load_global_config(config_file_name: str):
         _config_data = json.load(config_file)
     return _config_data
 
-_config_file = "config.json"
+here = pathlib.Path(__file__).parent
+_config_file = here / "config.json"
 _config = _load_global_config(_config_file)
+
 _OPTIONS = [f"{key} -> {type(value)} (default = {value})" for key, value in _config.items()]
 _OPTIONS_TEXT = (
     "Configuration can be set on the following options:\n"
