@@ -856,11 +856,11 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
     """
     cols = cell.cols
     precision = cell.precision or config_options["display_precision"]
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
-    line_break = "\\\\[10pt]\n"
+    opener = config_options['latex_block_start']
+    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
+    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    closer = config_options['latex_block_end']
+    line_break = config_options['line_break']
     cycle_cols = itertools.cycle(range(1, cols + 1))
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
@@ -899,7 +899,7 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
 
 @format_cell.register(CalcCell)
 def format_calc_cell(cell: CalcCell, **config_options) -> str:
-    line_break = "\\\\[10pt]\n"
+    line_break = config_options['line_break']
     precision = cell.precision or config_options["display_precision"]
     incoming = deque([])
     for line in cell.lines:
@@ -910,10 +910,10 @@ def format_calc_cell(cell: CalcCell, **config_options) -> str:
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options['latex_block_start']
+    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
+    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -923,7 +923,7 @@ def format_calc_cell(cell: CalcCell, **config_options) -> str:
 @format_cell.register(ShortCalcCell)
 def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
     incoming = deque([])
-    line_break = "\\\\[10pt]\n"
+    line_break = config_options['line_break']
     precision = cell.precision or config_options["display_precision"]
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
@@ -932,10 +932,10 @@ def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options['latex_block_start']
+    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
+    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -955,10 +955,10 @@ def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options['latex_block_start']
+    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
+    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -977,10 +977,10 @@ def format_symbolic_cell(cell: SymbolicCell, **config_options) -> str:
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options['latex_block_start']
+    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
+    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -1067,7 +1067,7 @@ def round_and_render_parameter(
 def round_and_render_conditional(
     line: ConditionalLine, cell_precision: int, **config_options
 ) -> ConditionalLine:
-    line_break = "\\\\\n"
+    conditional_line_break = "\\\\\n"
     outgoing = deque([])
     idx_line = line.true_condition
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
@@ -1086,7 +1086,7 @@ def round_and_render_conditional(
             round_and_render_line_objects_to_latex(expr, cell_precision, config_options["decimal_separator"])
         )
     line.true_expressions = outgoing
-    line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
+    line.latex = conditional_line_break.join([calc_line.latex for calc_line in outgoing])
     return line
 
 
@@ -1910,7 +1910,7 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict, **config_options
         if function is swap_math_funcs:
             symbolic_expression = function(symbolic_expression, calc_results)
         elif function is extend_subscripts and not config_options["underscore_subscripts"]:
-            continue
+            symbolic_expression = replace_underscores(symbolic_expression)
         else:
             symbolic_expression = function(symbolic_expression)
     return symbolic_expression
@@ -1935,6 +1935,8 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict, **config_options)
     for function in functions_on_numeric_expressions:
         if function is swap_values or function is swap_math_funcs:
             numeric_expression = function(numeric_expression, calc_results, **config_options)
+        elif function is extend_subscripts and not config_options["underscore_subscripts"]:
+            symbolic_expression = replace_underscores(symbolic_expression)
         else:
             numeric_expression = function(numeric_expression, **config_options)
     return numeric_expression
