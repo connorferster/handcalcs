@@ -98,8 +98,8 @@ def get_sympy_obj(obj_str: str, var_dict: dict) -> Any:
 
 def convert_sympy_cell_to_py_cell(cell: str, var_dict: dict) -> str:
     """
-    Returns 'cell' converted from a multiline string representing a bunch 
-    of sympy expressions and equality objects to a multiline string of 
+    Returns 'cell' converted from a multiline string representing a bunch
+    of sympy expressions and equality objects to a multiline string of
     equivalent, representative python code for rendering by handcalcs.
     """
     acc = []

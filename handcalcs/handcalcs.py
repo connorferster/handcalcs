@@ -80,6 +80,7 @@ class NumericCalcLine:
     comment: str
     latex: str
 
+
 @dataclass
 class IntertextLine:
     line: deque
@@ -266,7 +267,9 @@ def strip_cell_code(raw_source: str) -> str:
     """
     split_lines = deque(raw_source.split("\n"))
     first_line = split_lines[0]
-    if first_line.startswith("#") and not first_line.startswith("##"): ## for intertext line
+    if first_line.startswith("#") and not first_line.startswith(
+        "##"
+    ):  ## for intertext line
         split_lines.popleft()
         return "\n".join(split_lines)
     return raw_source
@@ -282,7 +285,7 @@ def categorize_lines(
     * ParameterLine
     * ConditionalLine
 
-    categorize_lines(calc_cell) is considered the default behaviour for the 
+    categorize_lines(calc_cell) is considered the default behaviour for the
     singledispatch categorize_lines function.
     """
     incoming = cell.source.rstrip().split("\n")
@@ -613,9 +616,9 @@ def convert_cell(
     **config_options,
     ):
     """
-    Return the cell_object with all of its lines run through the function, 
+    Return the cell_object with all of its lines run through the function,
     'convert_lines()', effectively converting each python element in the parsed
-    deque in the equivalent element in latex. 
+    deque in the equivalent element in latex.
 
     The result remains stored in cell.lines
     """
@@ -720,7 +723,7 @@ def convert_line(
 
 ):
     """
-    Returns 'line_object' with its .line attribute converted into a 
+    Returns 'line_object' with its .line attribute converted into a
     deque with elements that have been converted to their appropriate
     Latex counterparts.
 
@@ -993,7 +996,7 @@ def round_and_render_line_objects_to_latex(
     """
     Returns 'line' with the elements of the deque in its .line attribute
     converted into their final string form for rendering (thereby preserving
-    its intermediate step) and populates the 
+    its intermediate step) and populates the
     .latex attribute with the joined string from .line.
 
     'precision' is the number of decimal places that each object should
@@ -1200,11 +1203,11 @@ def test_for_long_numericcalcline(line: NumericCalcLine) -> bool:
 @test_for_long_lines.register(CalcLine)
 def test_for_long_calc_lines(line: CalcLine) -> bool:
     """
-    Return True if 'calc_line' passes the criteria to be considered, 
+    Return True if 'calc_line' passes the criteria to be considered,
     as a "LongCalcLine". False otherwise.
 
     Function goes through all of the code in the CalcLine and maintains
-    several (imperfect) tallies of characters to determine if the 
+    several (imperfect) tallies of characters to determine if the
     calculation is too long to exist on a single line.
 
     This is attempted by counting actual characters that will appear
@@ -1213,7 +1216,7 @@ def test_for_long_calc_lines(line: CalcLine) -> bool:
     and by also "discounting" characters that are in a fraction, since
     the overall length of the fraction (on the page) is determined by
     whichever is longer, the numerator or denominator. As such, characters
-    in a fraction (single level of fraction, only) are counted and 
+    in a fraction (single level of fraction, only) are counted and
     discounted from the total tally.
 
     This is a (very) imperfect work-in-progress.
@@ -1290,8 +1293,8 @@ def format_lines(line_object, **config_options):
     """
     format_lines adds small, context-dependent pieces of latex code in
     amongst the latex string in the line_object.latex attribute. This involves
-    things like inserting "&" or linebreak characters for equation alignment, 
-    formatting comments stored in the .comment attribute and putting them at 
+    things like inserting "&" or linebreak characters for equation alignment,
+    formatting comments stored in the .comment attribute and putting them at
     the end of the calculation, or the distinctive "Since, <condition> ..."
     text that occurs when a conditional calculation is rendered.
     """
@@ -1535,7 +1538,7 @@ def test_for_symbolic_cell(raw_python_source: str) -> bool:
 
 def test_for_blank_line(source: str) -> bool:
     """
-    Returns True if 'source' is effectively a blank line, 
+    Returns True if 'source' is effectively a blank line,
     either "\n", " ", or "", or any combination thereof.
     Returns False, otherwise.
     """
@@ -1599,7 +1602,7 @@ def test_for_numeric_line(
 def test_for_single_dict(source: str, calc_results: dict) -> bool:
     """
     Returns True if 'source' is a str representing a variable name
-    within 'calc_results' whose value itself is a single-level 
+    within 'calc_results' whose value itself is a single-level
     dictionary of keyword values.
     """
     gotten = calc_results.get(source, "")
@@ -1637,18 +1640,17 @@ def round_sympy(elem: Any, precision: int) -> Any:
     Returns the Sympy expression 'elem' rounded to 'precision'
     """
     from sympy import Float
+
     rule = {}
     for n in elem.atoms(Float):
         if test_for_small_float(float(n), precision):
             # Equivalent to:
             # > rule[n] = round(n, precision - int(math.log10(abs(n))) + 1)
-            rule[n] = float(
-                swap_scientific_notation_float([float(n)], precision)[0]
-            )
+            rule[n] = float(swap_scientific_notation_float([float(n)], precision)[0])
         else:
             rule[n] = round(n, precision)
     rounded = elem.xreplace(rule)
-    if hasattr(elem, 'units') and not hasattr(rounded, 'units'):
+    if hasattr(elem, "units") and not hasattr(rounded, "units"):
         # Add back pint units lost during rounding.
         rounded = rounded * elem.units
     return rounded
@@ -1671,7 +1673,7 @@ def test_for_small_complex(elem: Any, precision: int) -> bool:
 def test_for_small_float(elem: Any, precision: int) -> bool:
     """
     Returns True if 'elem' is a float whose rounded str representation
-    has fewer significant figures than the numer in 'precision'. 
+    has fewer significant figures than the numer in 'precision'.
     Return False otherwise.
     """
 
@@ -1699,7 +1701,7 @@ def test_for_small_float(elem: Any, precision: int) -> bool:
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
     """
-    Return 'line' as a deque that represents the line as: 
+    Return 'line' as a deque that represents the line as:
         deque([<parameter>, "&=", <value>])
     """
     param = line.replace(" ", "").split("=", 1)[0]
@@ -1858,7 +1860,7 @@ class ConditionalEvaluator:
 
     def check_prev_cond_type(self, cond_type: str) -> bool:
         """
-        Returns True if cond_type is a legal conditional type to 
+        Returns True if cond_type is a legal conditional type to
         follow self.prev_cond_type. Returns False otherwise.
         e.g. cond_type = "elif", self.prev_cond_type = "if" -> True
         e.g. cond_type = "if", self.prev_cond_type = "elif" -> False
@@ -1975,7 +1977,7 @@ def swap_integrals(d: deque, calc_results: dict, **config_options) -> deque:
 
 def swap_log_func(d: deque, calc_results: dict, **config_options) -> deque:
     """
-    Returns a new deque representing 'd' but with any log functions swapped 
+    Returns a new deque representing 'd' but with any log functions swapped
     out for the appropriate Latex equivalent.
     """
     # Checks to figure out where things are and where they go
@@ -2039,7 +2041,7 @@ def swap_log_func(d: deque, calc_results: dict, **config_options) -> deque:
 def swap_floor_ceil(d: deque, func_name: str, calc_results: dict, **config_options) -> deque:
     """
     Return a deque representing 'd' but with the functions floor(...)
-    and ceil(...) swapped out for floor and ceiling Latex brackets. 
+    and ceil(...) swapped out for floor and ceiling Latex brackets.
     """
     lpar = f"\\left \\l{func_name}"
     rpar = f"\\right \\r{func_name}"
@@ -2238,10 +2240,10 @@ def swap_chained_fracs(d: deque, **config_options) -> deque:
     The numerator is the symbol before the "/" and the denominator follows.
     If either is a string, then that item alone is in the fraction.
     If either is a deque, then all the items in the deque are in that part of the fraction.
-    
-    If a "chained division" is encountered, e.g. 4 / 2 / 2, these are rendered as 
+
+    If a "chained division" is encountered, e.g. 4 / 2 / 2, these are rendered as
     fractions that retain the original order of operations meaning.
-    
+
     Returns a deque.
     """
     a = "{"
@@ -2288,7 +2290,7 @@ def test_for_py_operator(item: str):
 
     Python arithmetic operators:
     +, -, *, %, **
-    (note `/`, and `//` is not considered b/c they will be 
+    (note `/`, and `//` is not considered b/c they will be
     swapped out as fractions)
 
     Python binary operators:
@@ -2442,7 +2444,9 @@ def insert_func_braces(d: deque, **config_options) -> deque:
         swapped_deque.append(a)
         swapped_deque.append(d[1])
         swapped_deque.append(b)
-    elif last_idx == 3 and d[0] == '\\left(' and d[last_idx] == '\\right)': # Special case, func is inside another func with parenth
+    elif (
+        last_idx == 3 and d[0] == "\\left(" and d[last_idx] == "\\right)"
+    ):  # Special case, func is inside another func with parenth
         swapped_deque.append(a)
         swapped_deque += d
         swapped_deque.append(b)
@@ -2501,9 +2505,9 @@ def swap_py_operators(pycode_as_deque: deque, **config_options) -> deque:
 
 def swap_scientific_notation_str(pycode_as_deque: deque, precision: int, **config_options) -> deque:
     """
-    Returns a deque representing 'line' with any python 
+    Returns a deque representing 'line' with any python
     float elements in the deque
-    that are in scientific notation "e" format converted into a Latex 
+    that are in scientific notation "e" format converted into a Latex
     scientific notation.
     """
     b = "}"
@@ -2524,14 +2528,14 @@ def swap_scientific_notation_str(pycode_as_deque: deque, precision: int, **confi
 def swap_scientific_notation_float(line: deque, precision: int, **config_options) -> deque:
     """
     Returns a deque representing 'pycode_as_deque' with any python floats that
-    will get "cut-off" by the 'precision' arg when they are rounded as being 
+    will get "cut-off" by the 'precision' arg when they are rounded as being
     rendered as strings in python's "e format" scientific notation.
 
     A float is "cut-off" by 'precision' when it's number of significant digits will
-    be less than those required by precision. 
+    be less than those required by precision.
 
     e.g. elem = 0.001353 with precision=3 will round to 0.001, with only one
-    significant digit (1 < 3). Therefore this float is "cut off" and will be 
+    significant digit (1 < 3). Therefore this float is "cut off" and will be
     formatted instead as "1.353e-3"
 
     elem = 0.1353 with precision=3 will round to 0.135 with three significant digits
@@ -2581,8 +2585,8 @@ def swap_scientific_notation_complex(line: deque, precision: int, **config_optio
 
 def swap_comparison_ops(pycode_as_deque: deque, **config_options) -> deque:
     """
-    Returns a deque representing 'pycode_as_deque' with any python 
-    comparison operators, eg. ">", ">=", "!=", "==" swapped with 
+    Returns a deque representing 'pycode_as_deque' with any python
+    comparison operators, eg. ">", ">=", "!=", "==" swapped with
     their latex equivalent.
     """
     py_ops = {
@@ -2708,8 +2712,8 @@ def test_for_long_var_strs(elem: Any) -> bool:
 def swap_long_var_strs(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns a new deque that represents 'pycode_as_deque' but
-    with all long variable names "escaped" so that they do not 
-    render as italic variables but rather upright text. 
+    with all long variable names "escaped" so that they do not
+    render as italic variables but rather upright text.
 
     ***Must be just before swap_subscripts in stack.***
     """
@@ -2817,7 +2821,7 @@ def get_function_name(d: deque) -> str:
 
 def test_for_function_name(d: deque) -> bool:
     """
-    Returns True if 'd' qualifies for a typical function that should have 
+    Returns True if 'd' qualifies for a typical function that should have
     some form of function brackets around it.
     """
     if (
@@ -2861,7 +2865,7 @@ def test_for_fraction_exception(item: Any, next_item: Any) -> bool:
     """
     Returns True if a combination 'item' and 'next_item' appear to indicate
     a fraction in the symbolic deque. False otherwise.
-    
+
     e.g. item=deque([...]), next_item="/" -> True
          item="/", next_item=deque -> True
          False otherwise

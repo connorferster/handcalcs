@@ -7,11 +7,15 @@ from .handcalcs import LatexRenderer
 
 
 def handcalc(
-    override: str = "", precision: int = 3, left: str = "", right: str = "", decimal_separator:str = ".", jupyter_display: bool = False
+    override: str = "",
+    precision: int = 3,
+    left: str = "",
+    right: str = "",
+    decimal_separator: str = ".",
+    jupyter_display: bool = False,
 ):
     # @wraps(func)
     def handcalc_decorator(func):
-
         def wrapper(*args, **kwargs):
             line_args = {"override": override, "precision": precision}
             func_source = inspect.getsource(func)
@@ -44,21 +48,25 @@ def _func_source_to_cell(source: str):
     """
     Returns a string that represents `source` but with no signature, doc string,
     or return statement.
-    
+
     `source` is a string representing a function's complete source code.
     """
     source_lines = source.split("\n")
     acc = []
     doc_string = False
     for line in source_lines:
-        if (not doc_string
-            and line.lstrip(' \t').startswith('"""')
-            and line.lstrip(' \t').rstrip().endswith('"""',3)):
+        if (
+            not doc_string
+            and line.lstrip(" \t").startswith('"""')
+            and line.lstrip(" \t").rstrip().endswith('"""', 3)
+        ):
             doc_string = False
             continue
-        elif (not doc_string
-            and line.lstrip(' \t').startswith('"""')
-            and not line.lstrip(' \t').rstrip().endswith('"""',3)):
+        elif (
+            not doc_string
+            and line.lstrip(" \t").startswith('"""')
+            and not line.lstrip(" \t").rstrip().endswith('"""', 3)
+        ):
             doc_string = True
             continue
         elif doc_string and '"""' in line:

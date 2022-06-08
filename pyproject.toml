@@ -9,11 +9,19 @@ readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
+dependencies = [
+    "more_itertools",
+    "nbconvert",
+    "innerscope",
+    "pyparsing"
+]
 
 [project.urls]
-Home = "https://github.com/connorferster/handcalcs"
+Source = "https://github.com/connorferster/handcalcs"
+
 
 [project.optional-dependencies]
+
 test = [
     "pytest >= 6.0.0",
     "pytest-cov >= 2.9.0",
@@ -24,7 +32,8 @@ test = [
 dev = [
     "jupyterlab >= 3.0.0",
     "sympy",
-    "forallpeople >= 2.0",    
+    "forallpeople >= 2.0",
+    "black"  
 ]
 
 doc = ["sphinx"]
