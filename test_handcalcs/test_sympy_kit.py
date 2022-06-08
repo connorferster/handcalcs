@@ -58,9 +58,9 @@ def test_sympy_rounding():
     expr = 12.3456789 * a + 1.23456789e-55 * b
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([expr], '', ''), precision=3, dec_sep='.'
+        CalcLine([expr], '', ''), cell_precision=3, decimal_separator='.',         latex_method_preference="_repr_latex_",
     ).latex == r'\displaystyle 12.346 a + 1.235 \cdot 10^{-55} b'
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([expr], '', ''), precision=4, dec_sep='.'
+        CalcLine([expr], '', ''), cell_precision=4, decimal_separator='.',         latex_method_preference="_repr_latex_",
     ).latex == r'\displaystyle 12.3457 a + 1.2346 \cdot 10^{-55} b'

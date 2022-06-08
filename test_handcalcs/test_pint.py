@@ -16,15 +16,15 @@ def test_pint_rounding():
     M = L * d
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([L], '', ''), precision=2, dec_sep='.'
+        CalcLine([L], '', ''), cell_precision=2, decimal_separator=".",         latex_method_preference="_repr_latex_",
     ).latex == '1.23\\ \\mathrm{kip}'
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([d], '', ''), precision=2, dec_sep='.'
+        CalcLine([d], '', ''), cell_precision=2, decimal_separator=".",         latex_method_preference="_repr_latex_",
     ).latex == '2\\ \\mathrm{ft}'
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([M], '', ''), precision=2, dec_sep='.'
+        CalcLine([M], '', ''), cell_precision=2, decimal_separator=".",         latex_method_preference="_repr_latex_",
     ).latex == '2.47\\ \\mathrm{ft} \\cdot \\mathrm{kip}'
 
 
@@ -37,5 +37,5 @@ def test_pint_with_sympy():
     )
     L = 1.23456789 * sympy.symbols('a') * kip
     assert round_and_render_line_objects_to_latex(
-        CalcLine([L], '', ''), precision=3, dec_sep='.'
+        CalcLine([L], '', ''), cell_precision=3, decimal_separator=".",         latex_method_preference="_repr_latex_",
     ).latex == r'\displaystyle 1.235 a\ \mathrm{kip}'

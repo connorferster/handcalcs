@@ -206,7 +206,6 @@ def latex(
     # param_columns = config_options.get("param_columns")
 
     source = raw_python_source
-    print(config_options)
 
     cell = categorize_raw_cell(
         source, 
@@ -1011,7 +1010,7 @@ def round_and_render_calc(line: CalcLine, cell_precision: int, **config_options)
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
     idx_line = swap_scientific_notation_str(idx_line, cell_precision)
     idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
-    rounded_line = round_and_render(idx_line, cell_precision)
+    rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options['decimal_separator'])
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -1019,14 +1018,14 @@ def round_and_render_calc(line: CalcLine, cell_precision: int, **config_options)
 
 
 @round_and_render_line_objects_to_latex.register(NumericCalcLine)
-def round_and_render_calc(
+def round_and_render_numericcalc(
     line: NumericCalcLine,  cell_precision: int, **config_options
 ) -> NumericCalcLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
     idx_line = swap_scientific_notation_str(idx_line, cell_precision)
     idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
-    rounded_line = round_and_render(idx_line, cell_precision)
+    rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -1041,7 +1040,7 @@ def round_and_render_longcalc(
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
     idx_line = swap_scientific_notation_str(idx_line)
     idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
-    rounded_line = round_and_render(idx_line, cell_precision)
+    rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -1056,7 +1055,7 @@ def round_and_render_parameter(
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
     idx_line = swap_scientific_notation_str(idx_line, cell_precision)
     idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
-    rounded_line = round_and_render(idx_line, cell_precision)
+    rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -1073,7 +1072,7 @@ def round_and_render_conditional(
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
     idx_line = swap_scientific_notation_str(idx_line, cell_precision)
     idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
-    rounded_line = round_and_render(idx_line, cell_precision)
+    rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.true_condition = rounded_line
     for (
@@ -1098,7 +1097,7 @@ def round_and_render_symbolic(
     expr = swap_scientific_notation_float(expr, cell_precision)
     expr = swap_scientific_notation_str(expr, cell_precision)
     expr = swap_scientific_notation_complex(expr, cell_precision)
-    rounded_line = round_and_render(expr, cell_precision)
+    rounded_line = round_and_render(expr, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
     line.latex = " ".join(rounded_line)
@@ -1426,7 +1425,7 @@ def format_blank_line(line: BlankLine, **config_options) -> BlankLine:
     return line
 
 
-def split_conditional(line: str, calculated_results: dict, override: str):
+def split_conditional(line: str, calculated_results: dict, cell_override: str):
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
     try:
@@ -1443,7 +1442,7 @@ def split_conditional(line: str, calculated_results: dict, override: str):
 
     expr_acc = deque([])
     for line in expr_deque:
-        categorized = categorize_line(line, calculated_results, override=override)
+        categorized = categorize_line(line, calculated_results, cell_override=cell_override)
         expr_acc.append(categorized)
 
     return (
@@ -1759,7 +1758,7 @@ def round_(item: Any, precision: int, depth: int = 0) -> Any:
     return item
 
 
-def round_and_render(line_of_code: deque, precision: int) -> deque:
+def round_and_render(line_of_code: deque, precision: int, **config_options) -> deque:
     """
     Returns a rounded str based on the latex_repr of an object in
     'line_of_code'
@@ -1767,7 +1766,7 @@ def round_and_render(line_of_code: deque, precision: int) -> deque:
     outgoing = deque([])
     for item in line_of_code:
         rounded = round_(item, precision)
-        outgoing.append(latex_repr(rounded))
+        outgoing.append(latex_repr(rounded, **config_options))
     return outgoing
 
 
@@ -1820,6 +1819,7 @@ class ConditionalEvaluator:
         conditional_type: str,
         raw_conditional: str,
         calc_results: dict,
+        **config_options
     ) -> deque:
         if conditional_type == "if":  # Reset
             self.prev_cond_type = ""
@@ -3006,7 +3006,7 @@ def test_for_nested_deque(d: deque) -> bool:
     return nested_deque_bool and not_exponent
 
 
-def swap_dec_sep(d: deque, **config_options) -> deque:
+def swap_dec_sep(d: deque, dec_sep: str) -> deque:
     """
     Returns 'd' with numerical elements with the "." decimal separator,
     replaced with 'dec_sep'.

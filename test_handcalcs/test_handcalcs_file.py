@@ -330,7 +330,7 @@ def test_format_cell_error():
 def test_round_and_render_line_objects_to_latex_error():
     with pytest.raises(TypeError):
         handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-            ["Line data"], precision=3, dec_sep="."
+            ["Line data"], cell_precision=3, decimal_separator=".",         latex_method_preference="_repr_latex_",
         )
 
 
@@ -500,8 +500,9 @@ def test_round_and_render_line_objects_to_latex():
             comment=" Comment",
             latex="",
         ),
-        3,
-        ".",
+        cell_precision=3,
+        decimal_separator=".",
+                latex_method_preference="_repr_latex_",
     ) == CalcLine(
         line=deque(
             [
@@ -551,8 +552,9 @@ def test_round_and_render_line_objects_to_latex():
             comment="",
             latex="",
         ),
-        3,
-        ".",
+        cell_precision=3,
+        decimal_separator=".",
+        latex_method_preference="_repr_latex_",
     ) == ParameterLine(
         line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2", "}"]),
         comment="",
@@ -560,7 +562,8 @@ def test_round_and_render_line_objects_to_latex():
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), 3, ".",
+        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), cell_precision=3, decimal_separator=".",
+                latex_method_preference="_repr_latex_",
     ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
@@ -711,8 +714,9 @@ def test_round_and_render_line_objects_to_latex():
             comment=" Comment",
             latex="",
         ),
-        3,
-        ".",
+        cell_precision=3,
+        decimal_separator=".",
+                latex_method_preference="_repr_latex_",
     ) == CalcLine(
         line=deque(
             [
@@ -1635,10 +1639,10 @@ def test_test_for_small_float():
 def test_latex_repr():
     mock_obj_1 = MockLatexObj1("test string")
     mock_obj_2 = MockLatexObj2("23 23")
-    assert handcalcs.handcalcs.latex_repr(123) == "123"
-    assert handcalcs.handcalcs.latex_repr(20 * si.Pa) == "20.000\\ \\text{Pa}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_1) == "\\text{test string}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_2) == "\\text{23 23}"
+    assert handcalcs.handcalcs.latex_repr(123, latex_method_preference="_repr_latex_") == "123"
+    assert handcalcs.handcalcs.latex_repr(20 * si.Pa, latex_method_preference="_repr_latex_") == "20.000\\ \\text{Pa}"
+    assert handcalcs.handcalcs.latex_repr(mock_obj_1, latex_method_preference="_repr_latex_") == "\\text{test string}"
+    assert handcalcs.handcalcs.latex_repr(mock_obj_2, latex_method_preference="_repr_latex_") == "\\text{23 23}"
 
 
 def test_swap_integrals():
