@@ -493,7 +493,7 @@ def create_short_cell(
 
 
 def create_symbolic_cell(
-    raw_source: str, calculated_result: dict,
+    raw_source: str, calculated_result: dict, cell_precision: Optional[int] = None,
 ) -> SymbolicCell:
     """
     Returns a SymbolicCell
@@ -856,17 +856,17 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
     Returns the input parameters as an \\align environment with 'cols'
     number of columns.
     """
-    cols = cell.cols
+    cols = config_options['param_columns']
     precision = cell.precision or config_options["display_precision"]
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
-    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment']}}}"
+    end = f"\\end{{{config_options['math_environment']}}}"
     closer = config_options['latex_block_end']
     line_break = config_options['line_break']
     cycle_cols = itertools.cycle(range(1, cols + 1))
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         if isinstance(line, BlankLine):
             continue
         if isinstance(line, ConditionalLine):
@@ -907,14 +907,14 @@ def format_calc_cell(cell: CalcCell, **config_options) -> str:
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
         line = convert_applicable_long_lines(line)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
-    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment']}}}"
+    end = f"\\end{{{config_options['math_environment']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -929,14 +929,14 @@ def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
     precision = cell.precision or config_options["display_precision"]
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
-    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment']}}}"
+    end = f"\\end{{{config_options['math_environment']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -952,14 +952,14 @@ def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
         line = convert_applicable_long_lines(line)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
-    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment']}}}"
+    end = f"\\end{{{config_options['math_environment']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -974,14 +974,14 @@ def format_symbolic_cell(cell: SymbolicCell, **config_options) -> str:
     incoming = deque([])
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['latex_math_environment']}}}"
-    end = f"\\end{{{config_options['latex_math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment']}}}"
+    end = f"\\end{{{config_options['math_environment']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -1085,7 +1085,7 @@ def round_and_render_conditional(
         expr.line = swap_scientific_notation_str(expr.line, cell_precision)
         expr.line = swap_scientific_notation_complex(expr.line, cell_precision)
         outgoing.append(
-            round_and_render_line_objects_to_latex(expr, cell_precision, config_options["decimal_separator"])
+            round_and_render_line_objects_to_latex(expr, cell_precision, **config_options)
         )
     line.true_expressions = outgoing
     line.latex = conditional_line_break.join([calc_line.latex for calc_line in outgoing])
@@ -1838,8 +1838,8 @@ class ConditionalEvaluator:
             l_par = "\\left("
             r_par = "\\right)"
             if conditional_type != "else":
-                symbolic_portion = swap_symbolic_calcs(conditional, calc_results)
-                numeric_portion = swap_numeric_calcs(conditional, calc_results)
+                symbolic_portion = swap_symbolic_calcs(conditional, calc_results, **config_options)
+                numeric_portion = swap_numeric_calcs(conditional, calc_results, **config_options)
                 resulting_latex = (
                     symbolic_portion
                     + deque(["\\rightarrow"])
@@ -1848,7 +1848,7 @@ class ConditionalEvaluator:
                     + deque([r_par])
                 )
             else:
-                numeric_portion = swap_numeric_calcs(conditional, calc_results)
+                numeric_portion = swap_numeric_calcs(conditional, calc_results, **config_options)
                 resulting_latex = numeric_portion
             self.prev_cond_type = conditional_type
             self.prev_result = result
