@@ -3,7 +3,7 @@
     "latex_block_start": "\\[",
     "latex_block_end": "\\]",
     "math_environment": "aligned",
-    "line_break": "\\\\[10pt]\n",
+    "line_break": "\\\\[10pt]",
     "use_sci_notation": false,
     "display_precision": 3,
     "underscore_subscripts": true,

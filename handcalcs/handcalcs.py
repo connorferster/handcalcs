@@ -862,7 +862,7 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
     begin = f"\\begin{{{config_options['math_environment']}}}"
     end = f"\\end{{{config_options['math_environment']}}}"
     closer = config_options['latex_block_end']
-    line_break = config_options['line_break']
+    line_break = f"{config_options['line_break']}\n"
     cycle_cols = itertools.cycle(range(1, cols + 1))
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
@@ -901,7 +901,7 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
 
 @format_cell.register(CalcCell)
 def format_calc_cell(cell: CalcCell, **config_options) -> str:
-    line_break = config_options['line_break']
+    line_break = f"{config_options['line_break']}\n"
     precision = cell.precision or config_options["display_precision"]
     incoming = deque([])
     for line in cell.lines:
@@ -925,7 +925,7 @@ def format_calc_cell(cell: CalcCell, **config_options) -> str:
 @format_cell.register(ShortCalcCell)
 def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
     incoming = deque([])
-    line_break = config_options['line_break']
+    line_break = f"{config_options['line_break']}\n"
     precision = cell.precision or config_options["display_precision"]
     for line in cell.lines:
         line = round_and_render_line_objects_to_latex(line, precision, **config_options)
@@ -946,7 +946,7 @@ def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
 
 @format_cell.register(LongCalcCell)
 def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
-    line_break = "\\\\[10pt]\n"
+    line_break = f"{config_options['line_break']}\n"
     precision = cell.precision or config_options["display_precision"]
     incoming = deque([])
     for line in cell.lines:
@@ -969,7 +969,7 @@ def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
 
 @format_cell.register(SymbolicCell)
 def format_symbolic_cell(cell: SymbolicCell, **config_options) -> str:
-    line_break = "\\\\[10pt]\n"
+    line_break = f"{config_options['line_break']}\n"
     precision = cell.precision or config_options["display_precision"]
     incoming = deque([])
     for line in cell.lines:
@@ -1069,7 +1069,7 @@ def round_and_render_parameter(
 def round_and_render_conditional(
     line: ConditionalLine, cell_precision: int, **config_options
 ) -> ConditionalLine:
-    conditional_line_break = "\\\\\n"
+    conditional_line_break = f"{config_options['line_break']}\n"
     outgoing = deque([])
     idx_line = line.true_condition
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
@@ -1356,7 +1356,7 @@ def format_conditional_line(line: ConditionalLine, **config_options) -> Conditio
         first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        line_break = config_options['line_break']
+        line_break = f"{config_options['line_break']}\n"
         line.latex_condition = first_line
 
         outgoing = deque([])
@@ -1381,7 +1381,7 @@ def format_long_calc_line(line: LongCalcLine, **config_options) -> LongCalcLine:
     latex_code = line.latex
     long_latex = latex_code.replace("=", "\\\\&=")  # Change all...
     long_latex = long_latex.replace("\\\\&=", "&=", 1)  # ...except the first one
-    line_break = config_options["line_break"]
+    line_break = f"{config_options['line_break']}\n"
     comment_space = ""
     comment = ""
     if line.comment:

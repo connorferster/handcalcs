@@ -29,16 +29,11 @@ _config = _load_global_config(_config_file)
 
 _OPTIONS = [f"{key} -> {type(value)} (default = {value})" for key, value in _config.items()]
 _OPTIONS_TEXT = (
-    "Configuration can be set on the following options:\n"
-     + "\n".join(_OPTIONS)
+    "Configuration can be set on the following options:\n\t"
+     + "\n\t".join(_OPTIONS)
 )
 
 def set_option(option: str, value: Any) -> None:
-    f"""
-    Returns None. Sets the value of 'option' to 'value' in the global config.
-
-    {_OPTIONS_TEXT}
-    """
     if option in _config and isinstance(value, type(_config[option])):
         _config[option] = value
     elif option in _config and not isinstance(value, type(_config[option])):
@@ -60,3 +55,9 @@ def save_config() -> None:
     with open(_config_file, 'w', newline="") as config_file:
         json.dump(_config, config_file)
         config_file.truncate()
+
+set_option.__doc__ = f"""
+    Returns None. Sets the value of 'option' to 'value' in the global config.
+
+    {_OPTIONS_TEXT}
+    """
