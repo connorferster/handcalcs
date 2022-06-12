@@ -885,7 +885,6 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
             latex_param = line.latex
 
             current_col = next(cycle_cols)
-            print(current_col)
             if current_col % cols == 0:
                 line.latex = "&" + latex_param + line_break
             elif current_col % cols != 1:
