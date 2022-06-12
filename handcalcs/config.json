@@ -3,12 +3,12 @@
     "latex_block_start": "\\[",
     "latex_block_end": "\\]",
     "math_environment": "aligned",
-    "line_break": "\\\\[8pt]\n",
+    "line_break": "\\\\[10pt]\n",
     "use_sci_notation": false,
     "display_precision": 3,
     "underscore_subscripts": true,
-    "zero_tolerance": 8,
+    "zero_tolerance": 16,
     "greek_exclusions": [],
-    "param_columns": 4,
+    "param_columns": 3,
     "latex_method_preference": "_repr_latex_" 
 }

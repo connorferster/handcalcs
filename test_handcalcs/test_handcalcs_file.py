@@ -115,6 +115,7 @@ def remove_imports_defs_and_globals(source: str):
             and "@" not in line
             and "globals" not in line
             and "import" not in line
+            and line
         ):
             acc.append(line)
     return "\n".join(acc)
@@ -233,15 +234,15 @@ def test_integration():
     )
     assert (
         cell_5_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 10000001 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002 \\; \n\\\\[10pt]\nc &= 30000003 \\; \n\\\\[10pt]\nx &= 5 \\; \n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin \\left( \\sin \\left( \\frac{ 20000002 }{ 30000003 } \\right) \\right) + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 10000001 }{ 20000002 } \\right) \\\\&= 3.975 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\na &= 10000001 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002 \\; \n\\\\[10pt]\nc &= 30000003 \\; \n\\\\[10pt]\nx &= 5 \\; \n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin \\left( \\sin \\left( \\frac{ 20000002 }{ 30000003 } \\right) \\right) + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 10000001 }{ 20000002 } \\right) \\\\&= 3.975 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
         cell_6_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 2 \\; \n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6  \\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11  \\\\\n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\na &= 2 \\; \n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6  \\\\[10pt]\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11  \\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
         cell_7_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) \\\\&= 4.12 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) \\\\&= 4.12 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
         cell_7b_renderer.render()

@@ -326,7 +326,7 @@ def categorize_line(
     desired behavior to categorize_line().
     """
     if test_for_blank_line(line):
-        return None
+        return BlankLine(line, "", "")
 
     try:
         line, comment = line.split("#", 1)
@@ -1041,7 +1041,7 @@ def round_and_render_longcalc(
 ) -> LongCalcLine:
     idx_line = line.line
     idx_line = swap_scientific_notation_float(idx_line, cell_precision)
-    idx_line = swap_scientific_notation_str(idx_line)
+    idx_line = swap_scientific_notation_str(idx_line, cell_precision)
     idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
     rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
@@ -1351,7 +1351,7 @@ def format_conditional_line(line: ConditionalLine, **config_options) -> Conditio
             f"\n\\end{{{config_options['math_environment']}}}\n"
             f"{config_options['latex_block_end']}\n"
             f"{config_options['latex_block_start']}\n"
-            f"\\bgin{{{config_options['math_environment']}}}\n"
+            f"\\begin{{{config_options['math_environment']}}}\n"
         )
         first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {new_math_env}"
         if line.condition_type == "else":
@@ -1381,7 +1381,7 @@ def format_long_calc_line(line: LongCalcLine, **config_options) -> LongCalcLine:
     latex_code = line.latex
     long_latex = latex_code.replace("=", "\\\\&=")  # Change all...
     long_latex = long_latex.replace("\\\\&=", "&=", 1)  # ...except the first one
-    line_break = config_options[line_break]
+    line_break = config_options["line_break"]
     comment_space = ""
     comment = ""
     if line.comment:
@@ -1781,33 +1781,35 @@ def latex_repr(item: Any, **config_options) -> str:
 
     if hasattr(item, preferred_latex_method):
         method = getattr(item, preferred_latex_method)
-        return method()
+        rendered_string = method()
 
     elif hasattr(item, "_repr_latex_"):
-        return item._repr_latex_().replace("$", "")
+        rendered_string = item._repr_latex_()
 
     elif hasattr(item, "latex"):
         try:
-            return item.latex().replace("$", "")
+            rendered_string = item.latex()
         except TypeError:
-            return str(item)
+            rendered_string = str(item)
 
     elif hasattr(item, "to_latex"):
         try:
-            return item.to_latex().replace("$", "")
+            rendered_string = item.to_latex()
         except TypeError:
-            return str(item)
+            rendered_string = str(item)
 
-    elif hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
+    elif hasattr(item, "__len__") and not isinstance(item, (str, dict)):
         comma_space = ",\\ "
         try:
             array = "[" + comma_space.join([str(v) for v in item]) + "]"
-            return array
+            rendered_string = array
         except TypeError:
-            return str(item)
+            rendered_string = str(item)
 
     else:
-        return str(item)
+        rendered_string = str(item)
+
+    return rendered_string.replace("$", "")
 
 
 class ConditionalEvaluator:
