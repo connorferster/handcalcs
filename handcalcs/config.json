@@ -2,13 +2,14 @@
     "decimal_separator": ".",
     "latex_block_start": "\\[",
     "latex_block_end": "\\]",
-    "math_environment": "aligned",
+    "math_environment_start": "aligned",
+    "math_environment_end": "aligned",
     "line_break": "\\\\[10pt]",
     "use_sci_notation": false,
     "display_precision": 3,
     "underscore_subscripts": true,
     "zero_tolerance": 16,
     "greek_exclusions": [],
-    "param_columns": 2,
+    "param_columns": 3,
     "latex_method_preference": "_repr_latex_"
 }

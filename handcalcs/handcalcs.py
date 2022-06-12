@@ -859,8 +859,8 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
     cols = config_options['param_columns']
     precision = cell.precision or config_options["display_precision"]
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['math_environment']}}}"
-    end = f"\\end{{{config_options['math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
     closer = config_options['latex_block_end']
     line_break = f"{config_options['line_break']}\n"
     cycle_cols = itertools.cycle(range(1, cols + 1))
@@ -913,8 +913,8 @@ def format_calc_cell(cell: CalcCell, **config_options) -> str:
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['math_environment']}}}"
-    end = f"\\end{{{config_options['math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -935,8 +935,8 @@ def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['math_environment']}}}"
-    end = f"\\end{{{config_options['math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -958,8 +958,8 @@ def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['math_environment']}}}"
-    end = f"\\end{{{config_options['math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -980,8 +980,8 @@ def format_symbolic_cell(cell: SymbolicCell, **config_options) -> str:
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
     opener = config_options['latex_block_start']
-    begin = f"\\begin{{{config_options['math_environment']}}}"
-    end = f"\\end{{{config_options['math_environment']}}}"
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
     closer = config_options['latex_block_end']
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
@@ -1348,10 +1348,10 @@ def format_conditional_line(line: ConditionalLine, **config_options) -> Conditio
             comment = format_strings(line.comment, comment=True)
         
         new_math_env = (
-            f"\n\\end{{{config_options['math_environment']}}}\n"
+            f"\n\\end{{{config_options['math_environment_start']}}}\n"
             f"{config_options['latex_block_end']}\n"
             f"{config_options['latex_block_start']}\n"
-            f"\\begin{{{config_options['math_environment']}}}\n"
+            f"\\begin{{{config_options['math_environment_end']}}}\n"
         )
         first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {new_math_env}"
         if line.condition_type == "else":
