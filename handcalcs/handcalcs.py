@@ -873,10 +873,10 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
             outgoing = deque([])
             for expr in line.true_expressions:
                 current_col = next(cycle_cols)
-                if current_col % (cols - 1) == 0:
-                    outgoing.append("&" + expr)
-                elif current_col % cols == 0:
+                if current_col % cols == 0:
                     outgoing.append("&" + expr + line_break)
+                elif current_col % cols != 1:
+                    outgoing.append("&" + expr)
                 else:
                     outgoing.append(expr)
             line.latex_expressions = " ".join(outgoing)
@@ -885,10 +885,11 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
             latex_param = line.latex
 
             current_col = next(cycle_cols)
-            if current_col % (cols - 1) == 0:
-                line.latex = "&" + latex_param
-            elif current_col % cols == 0:
+            print(current_col)
+            if current_col % cols == 0:
                 line.latex = "&" + latex_param + line_break
+            elif current_col % cols != 1:
+                line.latex = "&" + latex_param
             else:
                 line.latex = latex_param
 

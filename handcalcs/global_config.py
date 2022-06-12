@@ -27,7 +27,16 @@ _here = pathlib.Path(__file__).parent
 _config_file = _here / "config.json"
 _config = _load_global_config(_config_file)
 
-_OPTIONS = [f"{key} -> {type(value)} (default = {value})" for key, value in _config.items()]
+_OPTIONS = []
+for key, value in _config.items():
+    if isinstance(value, str):
+        str_value = f"\'{value}\'"
+        if "\n" in str_value:
+            str_value = str_value.replace("\n", "\\n")
+    else:
+        str_value = str(value)
+    _OPTIONS.append(f"{key} -> {type(value)} (default = {str_value})")
+# _OPTIONS = [f"{key} -> {type(value)} (default = {value})" for key, value in _config.items()]
 _OPTIONS_TEXT = (
     "Configuration can be set on the following options:\n\t"
      + "\n\t".join(_OPTIONS)
@@ -53,7 +62,7 @@ def save_config() -> None:
     that will be loaded upon module import.
     """
     with open(_config_file, 'w', newline="") as config_file:
-        json.dump(_config, config_file)
+        json.dump(_config, config_file, indent=4)
         config_file.truncate()
 
 set_option.__doc__ = f"""

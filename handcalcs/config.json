@@ -9,6 +9,6 @@
     "underscore_subscripts": true,
     "zero_tolerance": 16,
     "greek_exclusions": [],
-    "param_columns": 3,
-    "latex_method_preference": "_repr_latex_" 
+    "param_columns": 2,
+    "latex_method_preference": "_repr_latex_"
 }
