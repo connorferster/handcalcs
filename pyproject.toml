@@ -11,7 +11,7 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
 dependencies = [
     "more_itertools",
-    "nbconvert",
+    "nbconvert >= 6.0",
     "innerscope",
     "pyparsing"
 ]
