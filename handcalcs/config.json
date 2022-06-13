@@ -5,7 +5,7 @@
     "math_environment_start": "aligned",
     "math_environment_end": "aligned",
     "line_break": "\\\\[10pt]",
-    "use_sci_notation": false,
+    "use_scientific_notation": false,
     "display_precision": 3,
     "underscore_subscripts": true,
     "zero_tolerance": 16,
