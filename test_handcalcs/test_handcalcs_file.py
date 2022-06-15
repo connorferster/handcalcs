@@ -30,6 +30,7 @@ si.environment("default")
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
 from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
 from handcalcs.decorator import handcalc
+import handcalcs.global_config
 
 
 # When writing a new test create a new "cell" .py file
@@ -47,6 +48,7 @@ from test_handcalcs import cell_9
 from test_handcalcs import cell_10
 from test_handcalcs import error_cell
 
+config_options = handcalcs.global_config._config
 
 # TODO: Integration tests with nested log, nested exponents
 
@@ -331,7 +333,7 @@ def test_format_cell_error():
 def test_round_and_render_line_objects_to_latex_error():
     with pytest.raises(TypeError):
         handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-            ["Line data"], cell_precision=3, decimal_separator=".",         latex_method_preference="_repr_latex_",
+            ["Line data"], cell_precision=3, **config_options
         )
 
 
@@ -502,8 +504,7 @@ def test_round_and_render_line_objects_to_latex():
             latex="",
         ),
         cell_precision=3,
-        decimal_separator=".",
-                latex_method_preference="_repr_latex_",
+        **config_options,
     ) == CalcLine(
         line=deque(
             [
@@ -554,8 +555,7 @@ def test_round_and_render_line_objects_to_latex():
             latex="",
         ),
         cell_precision=3,
-        decimal_separator=".",
-        latex_method_preference="_repr_latex_",
+        **config_options,
     ) == ParameterLine(
         line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2", "}"]),
         comment="",
@@ -563,7 +563,7 @@ def test_round_and_render_line_objects_to_latex():
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), cell_precision=3, decimal_separator=".",
+        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), **config_options,
                 latex_method_preference="_repr_latex_",
     ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
 
@@ -716,8 +716,7 @@ def test_round_and_render_line_objects_to_latex():
             latex="",
         ),
         cell_precision=3,
-        decimal_separator=".",
-                latex_method_preference="_repr_latex_",
+        **config_options,
     ) == CalcLine(
         line=deque(
             [
@@ -1631,10 +1630,10 @@ def test_format_strings():
     )
 
 
-def test_test_for_small_float():
-    assert handcalcs.handcalcs.test_for_small_float(1e3, 2) == False
-    assert handcalcs.handcalcs.test_for_small_float(0.1239, 2) == True
-    assert handcalcs.handcalcs.test_for_small_float(0.1239, 5) == False
+def test_test_for_float():
+    assert handcalcs.handcalcs.test_for_float(1e3, 2) == False
+    assert handcalcs.handcalcs.test_for_float(0.1239, 2) == True
+    assert handcalcs.handcalcs.test_for_float(0.1239, 5) == False
 
 
 def test_latex_repr():

@@ -1011,9 +1011,9 @@ def round_and_render_line_objects_to_latex(
 def round_and_render_calc(line: CalcLine, cell_precision: int, **config_options) -> CalcLine:
     idx_line = line.line
     if config_options["use_scientific_notation"]:
-        idx_line = swap_scientific_notation_float(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_str(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
+        idx_line = swap_scientific_notation_float(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_str(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_complex(idx_line, cell_precision, **config_options)
     rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options['decimal_separator'])
     line.line = rounded_line
@@ -1027,9 +1027,9 @@ def round_and_render_numericcalc(
 ) -> NumericCalcLine:
     idx_line = line.line
     if config_options["use_scientific_notation"]:
-        idx_line = swap_scientific_notation_float(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_str(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
+        idx_line = swap_scientific_notation_float(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_str(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_complex(idx_line, cell_precision, **config_options)
     rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
@@ -1043,9 +1043,9 @@ def round_and_render_longcalc(
 ) -> LongCalcLine:
     idx_line = line.line
     if config_options["use_scientific_notation"]:
-        idx_line = swap_scientific_notation_float(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_str(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
+        idx_line = swap_scientific_notation_float(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_str(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_complex(idx_line, cell_precision, **config_options)
     rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
@@ -1059,9 +1059,9 @@ def round_and_render_parameter(
 ) -> ParameterLine:
     idx_line = line.line
     if config_options["use_scientific_notation"]:
-        idx_line = swap_scientific_notation_float(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_str(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
+        idx_line = swap_scientific_notation_float(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_str(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_complex(idx_line, cell_precision, **config_options)
     rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
@@ -1077,9 +1077,9 @@ def round_and_render_conditional(
     outgoing = deque([])
     idx_line = line.true_condition
     if config_options["use_scientific_notation"]:
-        idx_line = swap_scientific_notation_float(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_str(idx_line, cell_precision)
-        idx_line = swap_scientific_notation_complex(idx_line, cell_precision)
+        idx_line = swap_scientific_notation_float(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_str(idx_line, cell_precision, **config_options)
+        idx_line = swap_scientific_notation_complex(idx_line, cell_precision, **config_options)
     rounded_line = round_and_render(idx_line, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.true_condition = rounded_line
@@ -1087,9 +1087,9 @@ def round_and_render_conditional(
         expr
     ) in line.true_expressions:  # Each 'expr' item is a CalcLine or other line type
         if config_options["use_scientific_notation"]:
-            expr.line = swap_scientific_notation_float(expr.line, cell_precision)
-            expr.line = swap_scientific_notation_str(expr.line, cell_precision)
-            expr.line = swap_scientific_notation_complex(expr.line, cell_precision)
+            expr.line = swap_scientific_notation_float(idx_line, cell_precision, **config_options)
+            expr.line = swap_scientific_notation_str(idx_line, cell_precision, **config_options)
+            expr.line = swap_scientific_notation_complex(idx_line, cell_precision, **config_options)
         outgoing.append(
             round_and_render_line_objects_to_latex(expr, cell_precision, **config_options)
         )
@@ -1104,9 +1104,9 @@ def round_and_render_symbolic(
 ) -> SymbolicLine:
     expr = line.line
     if config_options["use_scientific_notation"]:
-        expr = swap_scientific_notation_float(expr, cell_precision)
-        expr = swap_scientific_notation_str(expr, cell_precision)
-        expr = swap_scientific_notation_complex(expr, cell_precision)
+        expr = swap_scientific_notation_float(expr, cell_precision, **config_options)
+        expr = swap_scientific_notation_str(expr, cell_precision, **config_options)
+        expr = swap_scientific_notation_complex(expr, cell_precision, **config_options)
     rounded_line = round_and_render(expr, cell_precision, **config_options)
     rounded_line = swap_dec_sep(rounded_line, config_options["decimal_separator"])
     line.line = rounded_line
@@ -1652,7 +1652,7 @@ def round_sympy(elem: Any, precision: int) -> Any:
 
     rule = {}
     for n in elem.atoms(Float):
-        if test_for_small_float(float(n), precision):
+        if test_for_float(float(n), precision):
             # Equivalent to:
             # > rule[n] = round(n, precision - int(math.log10(abs(n))) + 1)
             rule[n] = float(swap_scientific_notation_float([float(n)], precision)[0])
