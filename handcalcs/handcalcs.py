@@ -1700,8 +1700,7 @@ def test_for_float(elem: Any, precision: int) -> bool:
     has fewer significant figures than the numer in 'precision'.
     Return False otherwise.
     """
-
-    if not isinstance(elem, (float)):
+    if not isinstance(elem, float):
         return False
     if elem == 0:
         return False
@@ -1768,7 +1767,7 @@ def round_(item: Any, precision: int, depth: int = 0) -> Any:
     if hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
         try:
             return [round_(v, precision, depth + 1) for v in item]
-        except ValueError:
+        except (ValueError, TypeError):
             # Objects like Quantity (from pint) have a __len__ wrapper
             # even if the wrapped magnitude object is not iterable.
             pass
@@ -1784,11 +1783,14 @@ def round_(item: Any, precision: int, depth: int = 0) -> Any:
     return item
 
 
-def round_and_render(line_of_code: deque, precision: int, **config_options) -> deque:
+def round_and_render(line_of_code: deque, cell_precision: Optional[int] = None, **config_options) -> deque:
     """
     Returns a rounded str based on the latex_repr of an object in
     'line_of_code'
     """
+    precision = cell_precision
+    if cell_precision is None:
+        precision = config_options['display_precision']
     outgoing = deque([])
     for item in line_of_code:
         rounded = round_(item, precision)

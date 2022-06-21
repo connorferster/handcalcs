@@ -1651,9 +1651,9 @@ def test_format_strings():
 
 
 def test_test_for_float():
-    assert handcalcs.handcalcs.test_for_float(1e3, 2) == False
+    assert handcalcs.handcalcs.test_for_float(1000, 2) == False
     assert handcalcs.handcalcs.test_for_float(0.1239, 2) == True
-    assert handcalcs.handcalcs.test_for_float(0.1239, 5) == False
+    assert handcalcs.handcalcs.test_for_float(0.1239, 5) == True
 
 
 def test_latex_repr():
