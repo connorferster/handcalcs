@@ -1734,11 +1734,7 @@ def round_sympy(elem: Any, precision: int, use_scientific_notation: bool) -> Any
     from sympy import Float
     rule = {}
     for n in elem.atoms(Float):
-        if use_scientific_notation:
             rule[n] = round_for_scientific_notation(n, precision)
-        else:
-            rule[n] = round(n, precision)
-
     rounded = elem.xreplace(rule)
     if hasattr(elem, "units") and not hasattr(rounded, "units"):
         # Add back pint units lost during rounding.
