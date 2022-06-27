@@ -64,4 +64,4 @@ def test_sympy_rounding():
 
     assert round_and_render_line_objects_to_latex(
         CalcLine([expr], '', ''), cell_precision=4, cell_notation=False, **config_options
-    ).latex == '\\displaystyle 12.3457 a'
+    ).latex == '\\displaystyle 12.346 a + 1.2346 \\cdot 10^{-55} b'
