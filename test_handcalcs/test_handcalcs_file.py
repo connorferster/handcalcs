@@ -160,13 +160,16 @@ def func_3(x, y):
     b = 3 * a + y
     return locals()  # not necessary, but allowed
 
-line_args = {"override": "", "precision": ""}
-line_args_params = {"override": "params", "precision": ""}
-line_args_symbolic = {"override": "symbolic", "precision": ""}
-line_args_long = {"override": "long", "precision": 2}
-line_args_short = {"override": "short", "precision": 3}
-line_args_1 = {"override": "", "precision": 5}
-
+line_args = {"override": "", "precision": "", "sci_not": False}
+line_args_params = {"override": "params", "precision": "", "sci_not": False}
+line_args_symbolic = {"override": "symbolic", "precision": "", "sci_not": False}
+line_args_long = {"override": "long", "precision": 2, "sci_not": False}
+line_args_short = {"override": "short", "precision": 3, "sci_not": False}
+line_args_1 = {"override": "", "precision": 5, "sci_not": True}
+line_args_2 = {"override": "", "precision": "", "sci_not": False}
+line_args_3 = {"override": "", "precision": "", "sci_not": True}
+line_args_4 = {"override": "params", "precision": "", "sci_not": False}
+line_args_10 = {"override": "", "precision": "", "sci_not": True}
 
 cell_1_source = remove_imports_defs_and_globals(inspect.getsource(cell_1))
 cell_2_source = remove_imports_defs_and_globals(inspect.getsource(cell_2))
@@ -186,13 +189,13 @@ cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_1_source, cell_1.calc_results, line_args_1,
 )
 cell_2_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_2_source, cell_2.calc_results, line_args,
+    cell_2_source, cell_2.calc_results, line_args_2,
 )
 cell_2b_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_2b_source, cell_2b.calc_results, line_args,
+    cell_2b_source, cell_2b.calc_results, line_args_2,
 )
 cell_3_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_3_source, cell_3.calc_results, line_args,
+    cell_3_source, cell_3.calc_results, line_args_3,
 )
 cell_4_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_4_source, cell_4.calc_results, line_args_params,
@@ -216,7 +219,7 @@ cell_9_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_9_source, cell_9.calc_results, line_args_symbolic,
 )
 cell_10_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_10_source, cell_10.calc_results, line_args,
+    cell_10_source, cell_10.calc_results, line_args_10,
 )
 # error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
@@ -228,12 +231,10 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 
 
 def test_integration():
-    config_options['use_scientific_notation'] = True
     assert (
         cell_1_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2 } \\; \n\\end{aligned}\n\\]"
     )
-    config_options['use_scientific_notation'] = False
     assert (
         cell_2_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\nx &= 2 \\; \n\\\\[10pt]\n&\\text{Since, } x \\geq 1 \\rightarrow \\left( 2 \\geq 1 \\right) : \\; \\;\\textrm{(Comment)} \\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1  = 2 \\cdot 1 &= 2  \n\\\\[10pt]\nc &= 2 \\; \n\\end{aligned}\n\\]"
@@ -242,12 +243,10 @@ def test_integration():
         cell_2b_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\nx &= 10 \\; \n\\\\[10pt]\nb &= x \\cdot 1  = 10 \\cdot 1 &= 10  \n\\\\[10pt]\nc &= 10 \\; \n\\end{aligned}\n\\]"
     )
-    config_options['use_scientific_notation'] = True
     assert (
         cell_3_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1 }  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]  \n\\end{aligned}\n\\]'
     )
-    config_options['use_scientific_notation'] = False
     assert (
         cell_4_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n &b &= 3 \\; \n &c &= 5 \\; \n\\\\[10pt]\n y &= 6 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
@@ -276,7 +275,7 @@ def test_integration():
         cell_9_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
     )
-    config_options['use_scientific_notation'] = True
+    print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
@@ -352,7 +351,7 @@ def test_format_cell_error():
 def test_round_and_render_line_objects_to_latex_error():
     with pytest.raises(TypeError):
         handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-            ["Line data"], cell_precision=3, **config_options
+            ["Line data"], cell_precision=3, cell_notation=False, **config_options
         )
 
 
@@ -480,7 +479,6 @@ def test_add_result_values_to_lines():
 
 
 def test_round_and_render_line_objects_to_latex():
-    config_options["use_scientific_notation"] = True
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
         CalcLine(
             line=deque(
@@ -524,6 +522,7 @@ def test_round_and_render_line_objects_to_latex():
             latex="",
         ),
         cell_precision=3,
+        cell_notation=True,
         **config_options,
     ) == CalcLine(
         line=deque(
@@ -575,6 +574,7 @@ def test_round_and_render_line_objects_to_latex():
             latex="",
         ),
         cell_precision=3,
+        cell_notation=True,
         **config_options,
     ) == ParameterLine(
         line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2", "}"]),
@@ -583,10 +583,10 @@ def test_round_and_render_line_objects_to_latex():
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), cell_precision=3, **config_options,
+        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), cell_precision=3, cell_notation=True, **config_options,
     ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
 
-    config_options['use_scientific_notation'] = False
+
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
         CalcLine(
             line=deque(
@@ -736,6 +736,7 @@ def test_round_and_render_line_objects_to_latex():
             latex="",
         ),
         cell_precision=3,
+        cell_notation=False,
         **config_options,
     ) == CalcLine(
         line=deque(

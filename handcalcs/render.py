@@ -51,7 +51,7 @@ def parse_line_args(line: str) -> dict:
     # valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
     sympy_arg = ["sympy"]
     line_parts = line.split()
-    parsed_args = {"override": "", "precision": None, "sympy": False}
+    parsed_args = {"override": "", "precision": None, "sympy": False, "sci_not": None}
     # parsed_args = {
     #     "override": "",
     #     "precision": "",
@@ -61,6 +61,8 @@ def parse_line_args(line: str) -> dict:
         if arg.lower() in sympy_arg:
             parsed_args["sympy"] = True
             continue
+        if arg.lower() == "sci_not":
+            parsed_args['sci_not'] = True
         for valid_arg in valid_args:
             if arg.lower() in valid_arg:
                 parsed_args.update({"override": valid_arg})
@@ -116,12 +118,15 @@ def tex(line, cell):
     user_ns_prerun = ip.user_ns
     line_args = parse_line_args(line)
 
-    if line_args["override"] == "sympy":
+    if line_args["sympy"]:
         cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
 
     # Run the cell
     with cell_capture:
-        ip.run_cell(cell)
+        exec_result = ip.run_cell(cell)
+
+    if not exec_result.success:
+        return None
 
     # Retrieve updated variables (after .run_cell(cell))
     user_ns_postrun = ip.user_ns
@@ -130,7 +135,7 @@ def tex(line, cell):
     renderer = hand.LatexRenderer(cell, user_ns_postrun, line_args)
     latex_code = renderer.render()
 
-    # Print Latex Code
+    # Display, but not as an "output"
     print(latex_code)
 
     if line_args["override"] == "_testing":

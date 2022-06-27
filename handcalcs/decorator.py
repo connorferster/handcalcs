@@ -1,5 +1,6 @@
 __all__ = ["handcalc"]
 
+from typing import Optional
 from functools import wraps
 import inspect
 import innerscope
@@ -11,13 +12,14 @@ def handcalc(
     precision: int = 3,
     left: str = "",
     right: str = "",
+    scientific_notation: Optional[bool] = None,
     decimal_separator: str = ".",
     jupyter_display: bool = False,
 ):
     # @wraps(func)
     def handcalc_decorator(func):
         def wrapper(*args, **kwargs):
-            line_args = {"override": override, "precision": precision}
+            line_args = {"override": override, "precision": precision, "sci_not": scientific_notation}
             func_source = inspect.getsource(func)
             cell_source = _func_source_to_cell(func_source)
             # use innerscope to get the values of locals, closures, and globals when calling func

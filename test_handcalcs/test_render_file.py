@@ -41,20 +41,24 @@ def test_parse_line_args():
         "override": "params",
         "precision": 5,
         "sympy": False,
+        "sci_not": None,
     }
     assert handcalcs.render.parse_line_args("symbolic") == {
         "override": "symbolic",
         "precision": None,
         "sympy": False,
+        "sci_not": None,
     }
     assert handcalcs.render.parse_line_args("short long 3") == {
         "override": "long",
         "precision": 3,
         "sympy": False,
+        "sci_not": None,
     }
-    assert handcalcs.render.parse_line_args("symbolical, 1") == {
+    assert handcalcs.render.parse_line_args("symbolical, 1 sci_not") == {
         "override": "",
         "precision": 1,
         "sympy": False,
+        "sci_not": True
     }
 
