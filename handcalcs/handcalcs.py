@@ -1746,10 +1746,8 @@ def round_for_scientific_notation(elem, precision):
     """
     Returns a float rounded so that the decimals behind the coefficient are rounded to 'precision'.
     """
-    print("Orig: ", elem)
     adjusted_precision = calculate_adjusted_precision(elem, precision)
     rounded = round(elem, adjusted_precision)
-    print("Rounded to: ", rounded)
     return rounded
 
 
@@ -1849,19 +1847,14 @@ def round_(item: Any, precision: int, depth: int = 0, use_scientific_notation: b
         return item
 
     if hasattr(item, "__sympy__"):
-        print("Rounding sympy")
         return round_sympy(item, precision, use_scientific_notation)
 
     if hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
-        print("Rounding a thing, maybe pint")
-        print(f"{item=}")
         try: # For catching arrays
             return [round_(v, precision=precision, depth=depth + 1, use_scientific_notation=use_scientific_notation) for v in item]
         except (ValueError, TypeError):
             # Objects like Quantity (from pint) have a __len__ wrapper
             # even if the wrapped magnitude object is not iterable.
-            print("Pint passed?")
-            print(f"{item=}")
             return round_float(item, precision, use_scientific_notation)
 
     if isinstance(item, complex):
@@ -1882,7 +1875,6 @@ def render_latex_str(line_of_code: deque, **config_options) -> deque:
     outgoing = deque([])
     for item in line_of_code:
         rendered_str = latex_repr(item, **config_options)
-        # print(f"{rendered_str=}", f"{type(rendered_str)}")
         outgoing.append(rendered_str)
     return outgoing
 
@@ -2029,9 +2021,9 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict, **config_options
         if function is swap_math_funcs:
             symbolic_expression = function(symbolic_expression, calc_results)
         elif function is extend_subscripts and not config_options["underscore_subscripts"]:
-            symbolic_expression = replace_underscores(symbolic_expression)
+            symbolic_expression = replace_underscores(symbolic_expression, **config_options)
         else:
-            symbolic_expression = function(symbolic_expression)
+            symbolic_expression = function(symbolic_expression, **config_options)
     return symbolic_expression
 
 
@@ -2055,7 +2047,7 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict, **config_options)
         if function is swap_values or function is swap_math_funcs:
             numeric_expression = function(numeric_expression, calc_results, **config_options)
         elif function is extend_subscripts and not config_options["underscore_subscripts"]:
-            symbolic_expression = replace_underscores(symbolic_expression)
+            numeric_expression = replace_underscores(numeric_expression, **config_options)
         else:
             numeric_expression = function(numeric_expression, **config_options)
     return numeric_expression
@@ -2333,7 +2325,7 @@ def extend_subscripts(pycode_as_deque: deque, **config_options) -> deque:
     return swapped_deque
 
 
-def replace_underscores(pycode_as_deque: deque) -> deque:
+def replace_underscores(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns 'pycode_as_deque' with underscores replaced with spaces.
     Used when global_config['underscore_subscripts'] == False
@@ -2663,14 +2655,12 @@ def swap_scientific_notation_float(line: deque, precision: int, **config_options
     """
     swapped_deque = deque([])
     for item in line:
-        print("Item to swap:", item)
         if test_for_float(item, precision):
             new_item = (
                 "{:.{precision}e}".format(item, precision=precision)
                 .replace("e-0", "e-")
                 .replace("e+0", "e+")
             )
-            print("Swapped item: ", new_item)
             swapped_deque.append(new_item)
         else:
             swapped_deque.append(item)
@@ -2802,7 +2792,7 @@ def swap_for_greek(pycode_as_deque: deque, **config_options) -> deque:
     return swapped_deque
 
 
-def test_for_long_var_strs(elem: Any) -> bool:
+def test_for_long_var_strs(elem: Any, **config_options) -> bool:
     """
     Returns True if 'elem' is a variable string that has more than one character
     in it's "top-level" name (as opposed to it's subscript).
@@ -2844,9 +2834,9 @@ def swap_long_var_strs(pycode_as_deque: deque, **config_options) -> deque:
     end = "}"
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            new_item = swap_long_var_strs(item)
+            new_item = swap_long_var_strs(item, **config_options)
             swapped_deque.append(new_item)
-        elif test_for_long_var_strs(item) and not is_number(str(item)):
+        elif test_for_long_var_strs(item, **config_options) and not is_number(str(item)):
             try:
                 top_level, remainder = str(item).split("_", 1)
                 new_item = begin + top_level + end + "_" + remainder
