@@ -167,7 +167,7 @@ line_args_long = {"override": "long", "precision": 2, "sci_not": False}
 line_args_short = {"override": "short", "precision": 3, "sci_not": False}
 line_args_1 = {"override": "", "precision": 5, "sci_not": True}
 line_args_2 = {"override": "", "precision": "", "sci_not": False}
-line_args_3 = {"override": "", "precision": "", "sci_not": True}
+line_args_3 = {"override": "", "precision": "3", "sci_not": True}
 line_args_4 = {"override": "params", "precision": "", "sci_not": False}
 line_args_10 = {"override": "", "precision": "", "sci_not": True}
 

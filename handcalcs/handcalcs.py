@@ -1746,15 +1746,28 @@ def round_for_scientific_notation(elem, precision):
     """
     Returns a float rounded so that the decimals behind the coefficient are rounded to 'precision'.
     """
+    print("Orig: ", elem)
+    adjusted_precision = calculate_adjusted_precision(elem, precision)
+    rounded = round(elem, adjusted_precision)
+    print("Rounded to: ", rounded)
+    return rounded
+
+
+def calculate_adjusted_precision(elem, precision):
+    """
+    Returns the number of decimal places 'elem' should be rounded to
+    to achieve a final 'precision' in scientific notation.
+    """
     try:
         power_of_ten = int(math.log10(abs(elem)))
     except (DimensionalityError, TypeError):
         elem_float = float(str(elem).split(" ")[0])
         power_of_ten = int(math.log10(abs(elem_float)))
-    if power_of_ten < 0:
-        return round(elem, precision - power_of_ten + 1)
+    if power_of_ten < 1:
+        return precision - power_of_ten + 1
     else:
-        return round(elem, precision - power_of_ten)
+        return precision - power_of_ten
+
 
 
 def test_for_small_complex(elem: Any, precision: int) -> bool:
@@ -1777,26 +1790,7 @@ def test_for_float(elem: Any, precision: int) -> bool:
     has fewer significant figures than the numer in 'precision'.
     Return False otherwise.
     """
-    if not isinstance(elem, float):
-        return False
-    if elem == 0:
-        return False
-    elem_as_str = str(round(abs(elem), precision))
-    if "e" in str(elem):
-        return True
-    # if "." in elem_as_str:
-    #     left, *_right = elem_as_str.split(".")
-    #     if left != "0":
-    #         return False
-    # # if (
-    #     round(elem, precision) != round(elem, precision + 1)
-    #     or str(abs(round(elem, precision))).replace("0", "").replace(".", "")
-    #     == str(abs(round(elem, precision + 1))).replace("0", "").replace(".", "")
-    #     == ""
-    # ):
-    #     return True
-    else:
-        return True
+    return isinstance(elem, float)
 
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
@@ -2669,14 +2663,14 @@ def swap_scientific_notation_float(line: deque, precision: int, **config_options
     """
     swapped_deque = deque([])
     for item in line:
-        # print(f"{item=}")
+        print("Item to swap:", item)
         if test_for_float(item, precision):
-            # print(f"{test_for_float(item, precision)=}")
             new_item = (
                 "{:.{precision}e}".format(item, precision=precision)
                 .replace("e-0", "e-")
                 .replace("e+0", "e+")
             )
+            print("Swapped item: ", new_item)
             swapped_deque.append(new_item)
         else:
             swapped_deque.append(item)

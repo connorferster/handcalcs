@@ -39,6 +39,12 @@ def test_pint_with_sympy():
         if hasattr(s.m, '_repr_latex_') else '${:~L}$'.format(s)
     )
     L = 1.23456789 * sympy.symbols('a') * kip
-    assert round_and_render_line_objects_to_latex(
+
+    # NOTE: Pint in sympy objects do not accept float format strings. While pint has its own
+    # format strings which kinda work like float format strings, they DO NOT work
+    # when pint objects are in sympy objects. Therefore, pint objects in sympy
+    # objects will typically be rounded to one extra decimal place. This is just
+    # the way it is.
+    assert round_and_render_line_objects_to_latex( # cell_precision=3 -> four decimal places
         CalcLine([L], '', ''), cell_precision=3, cell_notation=True, **config_options
-    ).latex == r'\displaystyle 1.235 a\ \mathrm{kip}'
+    ).latex == r'\displaystyle 1.2346 a\ \mathrm{kip}'
