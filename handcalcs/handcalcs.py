@@ -2744,22 +2744,26 @@ def swap_for_greek(pycode_as_deque: deque, **config_options) -> deque:
     Returns full line of code as deque with any Greek terms swapped in for words describing
     Greek terms, e.g. 'beta' -> 'β'
     """
+    greeks_to_exclude = config_options['greek_exclusions']
     swapped_deque = deque([])
     greek_chainmap = ChainMap(GREEK_LOWER, GREEK_UPPER)
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            new_item = swap_for_greek(item)
+            new_item = swap_for_greek(item, **config_options)
             swapped_deque.append(new_item)
         elif "_" in str(item):
             components = str(item).split("_")
             swapped_components = [
-                dict_get(greek_chainmap, component) for component in components
+                dict_get(greek_chainmap, component) if component not in greeks_to_exclude else component 
+                for component in components
             ]
             new_item = "_".join(swapped_components)
             swapped_deque.append(new_item)
-        else:
+        elif item not in greeks_to_exclude:
             new_item = dict_get(greek_chainmap, item)
             swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
     return swapped_deque
 
 

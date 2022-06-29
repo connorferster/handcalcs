@@ -1254,12 +1254,12 @@ def test_swap_values():
 
 def test_swap_for_greek():
     assert handcalcs.handcalcs.swap_for_greek(
-        deque(["eta", "=", "beta", "+", "theta"])
+        deque(["eta", "=", "beta", "+", "theta"]), **config_options
     ) == deque(["\\eta", "=", "\\beta", "+", "\\theta"])
     assert handcalcs.handcalcs.swap_for_greek(
-        deque(["M_r", "=", "phi", "\\cdot", deque(["psi", "\\cdot", "F_y"])])
+        deque(["M_r", "=", "phi", "\\cdot", deque(["psi", "\\cdot", "F_y"])]), **config_options
     ) == deque(["M_r", "=", "\\phi", "\\cdot", deque(["\\psi", "\\cdot", "F_y"])])
-    assert handcalcs.handcalcs.swap_for_greek(deque(["lamb", "=", 3])) == deque(
+    assert handcalcs.handcalcs.swap_for_greek(deque(["lamb", "=", 3]), **config_options) == deque(
         ["\\lambda", "=", 3]
     )
 
