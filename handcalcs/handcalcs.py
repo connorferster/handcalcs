@@ -1991,7 +1991,6 @@ swap_conditional = (
 def swap_calculation(calculation: deque, calc_results: dict, **config_options) -> tuple:
     """Returns the python code elements in the deque converted into
     latex code elements in the deque"""
-    # calc_w_integrals_preswapped = swap_integrals(calculation, calc_results)
     symbolic_portion = swap_symbolic_calcs(calculation, calc_results, **config_options)
     calc_drop_decl = deque(list(calculation)[1:])  # Drop the variable declaration
     numeric_portion = swap_numeric_calcs(calc_drop_decl, calc_results, **config_options)
@@ -2170,23 +2169,6 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict, **config_optio
             swapped_deque.append(item)
     return swapped_deque
 
-    # lpar = "\\left("
-    # rpar = "\\right)"
-    # swapped_deque = deque([])
-    # last = len(d) - 1
-    # for idx, item in enumerate(d):
-    #     if idx == last == 1 and not isinstance(item, deque):
-    #         swapped_deque.append(lpar)
-    #         swapped_deque.append(item)
-    #         swapped_deque.append(rpar)
-    #     elif idx == 1 and isinstance(item, deque):
-    #         item.appendleft(lpar)
-    #         item.append(rpar)
-    #         swapped_deque.append(item)
-    #     else:
-    #         swapped_deque.append(item)
-    # return swapped_deque
-
 
 def flatten_deque(d: deque, **config_options) -> deque:
     new_deque = deque([])
@@ -2225,17 +2207,6 @@ def eval_conditional(conditional_str: str, **kwargs) -> str:
         return eval(conditional_str)
     except SyntaxError:
         return conditional_str
-
-
-# def code_reader(pycode_as_str: str) -> deque:
-#     """
-#     Returns full line of code parsed into deque items
-#     """
-#     breakpoint()
-#     var_name, expression = pycode_as_str.split("=", 1)
-#     var_name, expression = var_name.strip(), expression.strip()
-#     expression_as_deque = expr_parser(expression)
-#     return deque([var_name]) + deque(["=",]) + expression_as_deque
 
 
 def expr_parser(line: str) -> list:
@@ -2336,7 +2307,7 @@ def replace_underscores(pycode_as_deque: deque, **config_options) -> deque:
             new_item = replace_underscores(item)
             swapped_deque.append(new_item)
         elif isinstance(item, str):
-            new_item = item.replace("_", " ")
+            new_item = item.replace("_", "\\ ")
             swapped_deque.append(new_item)
         else:
             swapped_deque.append(item)
@@ -2812,10 +2783,16 @@ def test_for_long_var_strs(elem: Any, **config_options) -> bool:
     components = elem.replace("'", "").split("_")
     if len(components) != 1:
         top_level, *_remainders = components
-        if len(top_level) == 1:
-            return False
+        if not config_options['underscore_subscripts']:
+            if len(top_level) + len(_remainders) == 1:
+                return False
+            else:
+                return True
         else:
-            return True
+            if len(top_level) > 1:
+                return True
+            else:
+                return False
     if len(components[0]) == 1:
         return False
     return True
@@ -2837,9 +2814,13 @@ def swap_long_var_strs(pycode_as_deque: deque, **config_options) -> deque:
             new_item = swap_long_var_strs(item, **config_options)
             swapped_deque.append(new_item)
         elif test_for_long_var_strs(item, **config_options) and not is_number(str(item)):
+            print("Passed item: ", item)
             try:
                 top_level, remainder = str(item).split("_", 1)
-                new_item = begin + top_level + end + "_" + remainder
+                if config_options["underscore_subscripts"]:
+                    new_item = begin + top_level + end + "_" + remainder
+                else:
+                    new_item = begin + top_level + "_" + remainder + end
                 swapped_deque.append(new_item)
             except:
                 new_item = begin + item + end
