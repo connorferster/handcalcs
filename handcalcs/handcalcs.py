@@ -339,6 +339,12 @@ def categorize_line(
     if test_for_blank_line(line):
         return BlankLine(line, "", "")
 
+    if test_for_intertext_line(line):
+        return IntertextLine(line, "", "")
+
+    if line.startswith("#"):
+        return BlankLine(line, "", "")
+
     try:
         line, comment = line.split("#", 1)
     except ValueError:
@@ -396,7 +402,7 @@ def categorize_line(
             )  # code_reader
         return categorized_line
 
-    elif cell_override == "short":
+    elif cell_override == "short":        
         if test_for_numeric_line(
             deque(list(line)[1:])  # Leave off the declared variable
         ):
@@ -413,9 +419,6 @@ def categorize_line(
     # Standard behaviour
     if line == "\n" or line == "":
         categorized_line = BlankLine(line, "", "")
-
-    elif line.startswith("##"):
-        categorized_line = IntertextLine(line, "", "")
 
     elif test_for_parameter_line(line):
         categorized_line = ParameterLine(
@@ -1612,6 +1615,13 @@ def test_for_conditional_line(source: str) -> bool:
     Returns True if 'source' appears to be conditional expression.
     """
     return ":" in source and ("if" in source or "else" in source)
+
+
+def test_for_intertext_line(source: str) -> bool:
+    """
+    Returns True if 'source' appears to be an intertext line
+    """
+    return source.startswith("##")
 
 
 def test_for_numeric_line(
@@ -2818,7 +2828,6 @@ def swap_long_var_strs(pycode_as_deque: deque, **config_options) -> deque:
             new_item = swap_long_var_strs(item, **config_options)
             swapped_deque.append(new_item)
         elif test_for_long_var_strs(item, **config_options) and not is_number(str(item)):
-            print("Passed item: ", item)
             try:
                 top_level, remainder = str(item).split("_", 1)
                 if config_options["underscore_subscripts"]:
