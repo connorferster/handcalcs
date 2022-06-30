@@ -275,7 +275,7 @@ def test_integration():
         cell_9_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
     )
-    print(cell_10_renderer.render(config_options=config_options))
+    # print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'

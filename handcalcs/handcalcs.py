@@ -1702,17 +1702,10 @@ def test_for_scientific_notation_str(elem: str) -> bool:
     e.g. 1.23e-3, 0.09e5
     Returns False otherwise
     """
-    test_for_float = False
-    try:
-        float(elem)
-        test_for_float = True
-    except (ValueError, DimensionalityError, TypeError):
-        pass
-
-    if "e" in str(elem).lower():
-        return True and test_for_float
-    # elif "e" in str("{:e}".format(float(elem))):
-    #     return True
+    if "e-" in str(elem).lower():
+        return True
+    elif "e+" in str(elem).lower():
+        return True
     return False
 
 
@@ -1798,7 +1791,30 @@ def test_for_float(elem: Any, precision: int) -> bool:
     has fewer significant figures than the numer in 'precision'.
     Return False otherwise.
     """
-    return isinstance(elem, float)
+    if isinstance(elem, float):
+        return True
+    elif not test_for_int(elem) and not isinstance(elem, str):
+        try:
+            float(elem)
+            return True
+        except (TypeError, DimensionalityError, ValueError):
+            return False
+    else:
+        return False
+
+
+
+def test_for_int(elem: Any) -> bool:
+    """
+    Returns True if 'elem' can be expressed as an integer. 
+    Returns False otherwise.
+    """
+    if isinstance(elem, int):
+        return True
+    if isinstance(elem, str) and elem.replace("-","").isnumeric():
+        return True
+    return False
+
 
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
@@ -2607,12 +2623,20 @@ def swap_scientific_notation_str(pycode_as_deque: deque, precision: int, **confi
             new_item = swap_scientific_notation_str(item, precision=precision)
             swapped_deque.append(new_item)
         elif test_for_scientific_notation_str(item):
-            if "e+" in item:
-                new_item = item.replace("e+", " \\times 10 ^ {")
-            else:
-                new_item = item.replace("e", " \\times 10 ^ {")
+            components = []
+            for component in item.split(" "):
+                if "e+" in component:
+                    new_component = component.replace("e+", " \\times 10 ^ {")
+                    components.append(new_component)
+                    components.append(b)
+                elif "e-" in component:
+                    new_component = component.replace("e-", " \\times 10 ^ {")
+                    components.append(new_component)
+                    components.append(b)
+                else:
+                    components.append(component)
+            new_item = "\\ ".join(components)
             swapped_deque.append(new_item)
-            swapped_deque.append(b)
         else:
             swapped_deque.append(item)
     return swapped_deque
