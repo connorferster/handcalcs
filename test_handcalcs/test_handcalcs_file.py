@@ -167,7 +167,7 @@ line_args_long = {"override": "long", "precision": 2, "sci_not": False}
 line_args_short = {"override": "short", "precision": 3, "sci_not": False}
 line_args_1 = {"override": "", "precision": 5, "sci_not": True}
 line_args_2 = {"override": "", "precision": "", "sci_not": False}
-line_args_3 = {"override": "", "precision": "3", "sci_not": True}
+line_args_3 = {"override": "", "precision": 3, "sci_not": True}
 line_args_4 = {"override": "params", "precision": "", "sci_not": False}
 line_args_10 = {"override": "", "precision": "", "sci_not": True}
 
@@ -233,7 +233,7 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 def test_integration():
     assert (
         cell_1_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2 } \\; \n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2} \\; \n\\end{aligned}\n\\]'
     )
     assert (
         cell_2_renderer.render(config_options=config_options)
@@ -245,7 +245,7 @@ def test_integration():
     )
     assert (
         cell_3_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1 }  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]  \n\\end{aligned}\n\\]'
+        == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1}  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\ 1.000 \\times 10 ^ {-3}]  \n\\end{aligned}\n\\]'
     )
     assert (
         cell_4_renderer.render(config_options=config_options)
@@ -265,7 +265,7 @@ def test_integration():
     )
     assert (
         cell_7b_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984 \\; \n\\\\[10pt]\nb'_{c} &= 43 \\; \n\\\\[10pt]\n\\mathrm{causal} &= (4.2+3.2j) \\; \n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c}  = \\frac{ (4.2+3.2j) }{ 0.984 } + 43 &= (47.268+3.252j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} }  = (4.2+3.2j) \\cdot \\frac{ (47.268+3.252j) }{ 0.984 } &= (191.179+167.599j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^ {3 } \\right) ^{ 2 } } } + \\sin \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right)  = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23 \\times 10 ^ {3 } \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 0.984 }{ 43 } \\right) &= 6.333 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984 \\; \n\\\\[10pt]\nb'_{c} &= 43 \\; \n\\\\[10pt]\n\\mathrm{causal} &= (4.200+3.200j) \\; \n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c}  = \\frac{ (4.200+3.200j) }{ 0.984 } + 43 &= (47.268+3.252j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} }  = (4.2+3.2j) \\cdot \\frac{ (47.268+3.252j) }{ 0.984 } &= (191.179+167.599j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^ {3 } \\right) ^{ 2 } } } + \\sin \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right)  = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23 \\times 10 ^ {3} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 0.984 }{ 43 } \\right) &= 6.333 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
         cell_8_renderer.render(config_options=config_options)

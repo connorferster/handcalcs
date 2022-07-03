@@ -1878,6 +1878,7 @@ def latex_repr(item: Any, use_scientific_notation: bool, precision: int, preferr
                 + "]"
             )
             rendered_string = array
+            return rendered_string
         except TypeError:
             pass
 
