@@ -1889,11 +1889,13 @@ def latex_repr(item: Any, use_scientific_notation: bool, precision: int, preferr
             rendered_string = f"{item:.{precision}f{preferred_formatter}}"
     except (ValueError):
         try:
-            if use_scientific_notation:
+            if use_scientific_notation and not isinstance(item, int):
                 rendered_string = f"{item:.{precision}e}"
                 rendered_string = swap_scientific_notation_str(rendered_string)
-            else:
+            elif not isinstance(item, int):
                 rendered_string = f"{item:.{precision}f}"
+            else:
+                rendered_string = str(item)
         except (ValueError):
             try:
                 rendered_string = item._repr_latex_()
@@ -2613,13 +2615,11 @@ def swap_scientific_notation_str(item: str) -> str:
     components = []
     for component in item.split(" "):
         if "e+" in component:
-            new_component = component.replace("e+", " \\times 10 ^ {")
-            components.append(new_component)
-            components.append(b)
+            new_component = component.replace("e+0", "e+").replace("e+", " \\times 10 ^ {")
+            components.append(new_component + b)
         elif "e-" in component:
-            new_component = component.replace("e-", " \\times 10 ^ {")
-            components.append(new_component)
-            components.append(b)
+            new_component = component.replace("e-0", "e-").replace("e-", " \\times 10 ^ {-")
+            components.append(new_component + b)
         else:
             components.append(component)
     new_item = "\\ ".join(components)

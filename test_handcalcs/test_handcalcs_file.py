@@ -61,7 +61,7 @@ config_options = {
     "zero_tolerance": 16,
     "greek_exclusions": [],
     "param_columns": 3,
-    "latex_method_preference": "_repr_latex_"
+    "preferred_string_formatter": "L"
 }
 
 # TODO: Integration tests with nested log, nested exponents
