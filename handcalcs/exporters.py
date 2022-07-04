@@ -13,6 +13,7 @@
 #    limitations under the License.
 
 from nbconvert import PDFExporter, HTMLExporter, LatexExporter
+from copy import deepcopy
 
 
 class HTMLHideInputExporter(HTMLExporter):
@@ -21,7 +22,8 @@ class HTMLHideInputExporter(HTMLExporter):
     """
 
     export_from_notebook = "HTML Hide Input"
-    exclude_input = HTMLExporter.exclude_input
+
+    exclude_input = deepcopy(HTMLExporter.exclude_input)
     exclude_input.default_value = True
 
 
@@ -31,7 +33,7 @@ class PDFHideInputExporter(PDFExporter):
     """
 
     export_from_notebook = "PDF Hide Input"
-    exclude_input = PDFExporter.exclude_input
+    exclude_input = deepcopy(PDFExporter.exclude_input)
     exclude_input.default_value = True
 
 
@@ -41,5 +43,5 @@ class LatexHideInputExporter(LatexExporter):
     """
 
     export_from_notebook = "LaTeX Hide Input"
-    exclude_input = LatexExporter.exclude_input
+    exclude_input = deepcopy(LatexExporter.exclude_input)
     exclude_input.default_value = True

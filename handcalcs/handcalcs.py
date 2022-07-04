@@ -211,11 +211,11 @@ def latex(
     # use_sci_notation = config_options.get("use_sci_notation")
     # display_precision = config_options.get("display_precision")
     # underscore_subscripts = config_options.get("underscore_subscripts")
-    # zero_tolerance = config_options.get("zero_tolerance")
     # greek_exclusions = config_options.get("greek_exclusions")
     # param_columns = config_options.get("param_columns")
 
     source = raw_python_source
+    
 
     cell = categorize_raw_cell(
         source, 

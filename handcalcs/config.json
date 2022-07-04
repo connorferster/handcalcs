@@ -8,7 +8,6 @@
     "use_scientific_notation": false,
     "display_precision": 3,
     "underscore_subscripts": true,
-    "zero_tolerance": 16,
     "greek_exclusions": [],
     "param_columns": 3,
     "preferred_string_formatter": "L"
