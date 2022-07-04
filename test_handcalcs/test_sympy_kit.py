@@ -60,13 +60,8 @@ def test_sympy_rounding():
 
     assert round_and_render_line_objects_to_latex(
         CalcLine([expr], '', ''), cell_precision=3, cell_notation=True, **config_options
-    ).latex == '\\displaystyle 12.35 a + 1.235 \\cdot 10^{-55} b'
+    ).latex == '12.35 a + 1.235 \\cdot 10^{-55} b'
 
-    # This test intentionally displays the inconsistent behaviour with rounding sympy objects
-    # that are log10(n) >= 1. Sympy does not have the option to format numbers in scientific
-    # notation. The numbers are being rounded as though sympy DOES have scientific notation
-    # capability which means that the correct amount of signficant figures is being rendered
-    # but the number of significant digits (decimals) is not.
     assert round_and_render_line_objects_to_latex(
         CalcLine([expr], '', ''), cell_precision=4, cell_notation=False, **config_options
-    ).latex == '\\displaystyle 12.346 a + 1.2346 \\cdot 10^{-55} b'
+    ).latex == '12.3457 a'

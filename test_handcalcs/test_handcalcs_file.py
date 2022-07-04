@@ -74,8 +74,9 @@ class MockLatexObj1:
         self.a = "{"
         self.b = "}"
 
-    def to_latex(self):
-        return f"\\text{self.a}{self.s}{self.b}"
+    def __format__(self, formatter: str):
+        if "L" in formatter:
+            return f"\\mathrm{self.a}{self.s}{self.b}"
 
 
 class MockLatexObj2:
@@ -84,7 +85,7 @@ class MockLatexObj2:
         self.b = "}"
         self.s = s
 
-    def latex(self):
+    def _repr_latex_(self):
         return f"\\text{self.a}{self.s}{self.b}"
 
 
@@ -265,7 +266,7 @@ def test_integration():
     )
     assert (
         cell_7b_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984 \\; \n\\\\[10pt]\nb'_{c} &= 43 \\; \n\\\\[10pt]\n\\mathrm{causal} &= (4.200+3.200j) \\; \n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c}  = \\frac{ (4.200+3.200j) }{ 0.984 } + 43 &= (47.268+3.252j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} }  = (4.2+3.2j) \\cdot \\frac{ (47.268+3.252j) }{ 0.984 } &= (191.179+167.599j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^ {3 } \\right) ^{ 2 } } } + \\sin \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right)  = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23 \\times 10 ^ {3} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 0.984 }{ 43 } \\right) &= 6.333 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984 \\; \n\\\\[10pt]\nb'_{c} &= 43 \\; \n\\\\[10pt]\n\\mathrm{causal} &= 4.200+3.200j \\; \n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c}  = \\frac{ 4.200+3.200j }{ 0.984 } + 43 &= 47.268+3.252j \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} }  = 4.200+3.200j \\cdot \\frac{ 47.268+3.252j }{ 0.984 } &= 191.179+167.599j \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^ {3} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right)  = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23 \\times 10 ^ {3} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 0.984 }{ 43 } \\right) &= 6.333 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
         cell_8_renderer.render(config_options=config_options)
@@ -278,7 +279,7 @@ def test_integration():
     # print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
+        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
     )
 
 # Test decorator.py
@@ -559,12 +560,11 @@ def test_round_and_render_line_objects_to_latex():
                 "}",
                 "}",
                 "=",
-                "1.852 \\times 10 ^ {-2",
-                "}",
+                "1.852 \\times 10 ^ {-2}",
             ]
         ),
         comment=" Comment",
-        latex="\\alpha_{\\eta_{\\psi}} = \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } = 1.852 \\times 10 ^ {-2 }",
+        latex="\\alpha_{\\eta_{\\psi}} = \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } = 1.852 \\times 10 ^ {-2}",
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
@@ -577,9 +577,9 @@ def test_round_and_render_line_objects_to_latex():
         cell_notation=True,
         **config_options,
     ) == ParameterLine(
-        line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2", "}"]),
+        line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2}"]),
         comment="",
-        latex="\\alpha_{\\eta_{\\psi}} = 1.852 \\times 10 ^ {-2 }",
+        latex="\\alpha_{\\eta_{\\psi}} = 1.852 \\times 10 ^ {-2}",
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
@@ -1264,11 +1264,11 @@ def test_swap_for_greek():
     )
 
 
-def test_test_for_scientific_notation_str():
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("1.233e-3") == True
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("0.090e10") == True
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("e10") == False
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("-1.23e4") == True
+def test_test_for_scientific_float():
+    assert handcalcs.handcalcs.test_for_scientific_float("1.233e-3") == True
+    assert handcalcs.handcalcs.test_for_scientific_float("0.090e10") == True
+    assert handcalcs.handcalcs.test_for_scientific_float("e10") == False
+    assert handcalcs.handcalcs.test_for_scientific_float("-1.23e4") == True
 
 
 def test_swap_scientific_notation_float():
@@ -1651,19 +1651,13 @@ def test_format_strings():
     )
 
 
-def test_test_for_float():
-    assert handcalcs.handcalcs.test_for_float(1000, 2) == False
-    assert handcalcs.handcalcs.test_for_float(0.1239, 2) == True
-    assert handcalcs.handcalcs.test_for_float(0.1239, 5) == True
-
-
 def test_latex_repr():
     mock_obj_1 = MockLatexObj1("test string")
     mock_obj_2 = MockLatexObj2("23 23")
-    assert handcalcs.handcalcs.latex_repr(123, latex_method_preference="_repr_latex_") == "123"
-    assert handcalcs.handcalcs.latex_repr(20 * si.Pa, latex_method_preference="_repr_latex_") == "20.000\\ \\text{Pa}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_1, latex_method_preference="_repr_latex_") == "\\text{test string}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_2, latex_method_preference="_repr_latex_") == "\\text{23 23}"
+    assert handcalcs.handcalcs.latex_repr(123, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "123"
+    assert handcalcs.handcalcs.latex_repr(20 * si.Pa, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "2.000 \\times 10^ {1}\\ \\mathrm{Pa}"
+    assert handcalcs.handcalcs.latex_repr(mock_obj_1, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "\\mathrm{test string}"
+    assert handcalcs.handcalcs.latex_repr(mock_obj_2, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "\\text{23 23}"
 
 
 def test_swap_integrals():

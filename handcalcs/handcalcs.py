@@ -1141,66 +1141,81 @@ def round_and_render_intertext(line,  cell_precision: int, cell_notation: bool, 
     return line
 
 
-def round_elements(line_of_code: deque, cell_precision: Optional[int] = None,  cell_notation: bool = False) -> deque:
+def render_latex_str(line_of_code: deque, use_scientific_notation: bool, precision: int, preferred_formatter: str) -> deque:
     """
-    Returns a rounded float
+    Returns a rounded str based on the latex_repr of an object in
+    'line_of_code'
     """
     outgoing = deque([])
-    for item in line_of_code:
-        rounded = round_(item, precision=cell_precision, use_scientific_notation=cell_notation)
-        outgoing.append(rounded)
+    for item in line_of_code:      
+        rendered_str = latex_repr(item, use_scientific_notation, precision, preferred_formatter)
+        outgoing.append(rendered_str)
     return outgoing
 
 
-def round_(item: Any, precision: int, depth: int = 0, use_scientific_notation: bool = False) -> Any:
+def latex_repr(item: Any, use_scientific_notation: bool, precision: int, preferred_formatter: str) -> str:
     """
-    Recursively round an object and its elements to a given precision.
-    """
-    round_notation = use_scientific_notation
-    if depth > 3:
-        # Limit maximum recursion depth.
-        return item
-
-    if hasattr(item, "__sympy__"):
-        return round_sympy(item, precision, use_scientific_notation)
-
-    if hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
-        try: # For catching arrays
-            return [round_(v, precision=precision, depth=depth + 1, use_scientific_notation=use_scientific_notation) for v in item]
-        except (ValueError, TypeError):
-            # Objects like Quantity (from pint) have a __len__ wrapper
-            # even if the wrapped magnitude object is not iterable.
-            return round_float(item, precision, use_scientific_notation)
-
-    if isinstance(item, complex):
-        return round_complex(item, precision, use_scientific_notation)
-    if not isinstance(item, (str, int)):
+    Return a str if the object, 'item', has a special repr method
+    for rendering itself in latex. If not, returns str(result).
+    """    
+    # Check for arrays
+    if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+        comma_space = ",\\ "
         try:
-            return round_float(item, precision, use_scientific_notation)
-        except (ValueError, TypeError):
+            array = (
+                "[" + comma_space.join(
+                    [latex_repr(v, use_scientific_notation, precision, preferred_formatter) for v in item]) 
+                + "]"
+            )
+            rendered_string = array
+            return rendered_string
+        except TypeError:
             pass
-    return item
 
+    # Check for sympy objects
+    if hasattr(item, "__sympy__"):
+        return render_sympy(round_sympy(item, precision, use_scientific_notation))
 
-def round_float(elem: Any, precision: int, use_scientific_notation: bool) -> Any:
-    """
-    Returns 'elem', presumed to be float-like, to 'precision', where 'precision' varies
-    depending on whether 'use_scientific_notation' is True or not.
-    """
-    if use_scientific_notation:
-        return round_for_scientific_notation(elem, precision)
-    else:
-        return round(elem, precision)
+    # Check for scientific notation strings
+    if isinstance(item, str) and test_for_scientific_float(item):
+        if "e-" in item:
+            rendered_string = swap_scientific_notation_str(item)
+        elif "e+" in item:
+            rendered_string = swap_scientific_notation_str(item)
+        elif "e" in item:
+            rendered_string = swap_scientific_notation_str(item.replace("e", "e+"))
+        return rendered_string
 
+    # Procedure for atomic data items
+    try:
+        if use_scientific_notation:
+            rendered_string = f"{item:.{precision}e{preferred_formatter}}"
+        else:
+            rendered_string = f"{item:.{precision}f{preferred_formatter}}"
+    except (ValueError, TypeError):
+        try:
+            if use_scientific_notation and isinstance(item, complex):
+                rendered_real = f"{item.real:.{precision}e}"
+                rendered_real = swap_scientific_notation_str(rendered_real)
 
-def round_complex(elem: complex, precision: int, use_scientific_notation: bool) -> complex:
-    """
-    Returns the complex 'elem' rounded to 'precision'
-    """
-    return complex(
-        round_float(elem.real, precision, use_scientific_notation), 
-        round_float(elem.imag, precision, use_scientific_notation)
-    )
+                rendered_imag = f"{item.imag:.{precision}e}"
+                rendered_imag = swap_scientific_notation_str(rendered_imag)
+
+                rendered_string = f"\\left( {rendered_real} + {rendered_imag} j \\right)"
+            elif use_scientific_notation and not isinstance(item, int):
+                rendered_string = f"{item:.{precision}e}"
+                rendered_string = swap_scientific_notation_str(rendered_string)
+            elif not isinstance(item, int):
+                rendered_string = f"{item:.{precision}f}"
+            else:
+                rendered_string = str(item)
+        except (ValueError, TypeError):
+            try:
+                rendered_string = item._repr_latex_()
+            except AttributeError:
+                rendered_string = str(item)
+    
+    return rendered_string.replace("$", "")
 
 
 def round_sympy(elem: Any, precision: int, use_scientific_notation: bool) -> Any:
@@ -1210,12 +1225,23 @@ def round_sympy(elem: Any, precision: int, use_scientific_notation: bool) -> Any
     from sympy import Float
     rule = {}
     for n in elem.atoms(Float):
+        if use_scientific_notation:
             rule[n] = round_for_scientific_notation(n, precision)
+        else:
+            rule[n] = round(n, precision)
     rounded = elem.xreplace(rule)
     if hasattr(elem, "units") and not hasattr(rounded, "units"):
         # Add back pint units lost during rounding.
         rounded = rounded * elem.units
     return rounded
+
+
+def render_sympy(elem: Any) -> str:
+    """
+    Returns a string of the Latex representation of the sympy object, 'elem'.
+    """
+    from sympy import latex
+    return latex(elem)
 
 
 def round_for_scientific_notation(elem, precision):
@@ -1241,6 +1267,69 @@ def calculate_adjusted_precision(elem, precision):
         return precision - power_of_ten + 1
     else:
         return precision - power_of_ten
+
+
+# def round_elements(line_of_code: deque, cell_precision: Optional[int] = None,  cell_notation: bool = False) -> deque:
+#     """
+#     Returns a rounded float
+#     """
+#     outgoing = deque([])
+#     for item in line_of_code:
+#         rounded = round_(item, precision=cell_precision, use_scientific_notation=cell_notation)
+#         outgoing.append(rounded)
+#     return outgoing
+
+
+# def round_(item: Any, precision: int, depth: int = 0, use_scientific_notation: bool = False) -> Any:
+#     """
+#     Recursively round an object and its elements to a given precision.
+#     """
+#     round_notation = use_scientific_notation
+#     if depth > 3:
+#         # Limit maximum recursion depth.
+#         return item
+
+#     if hasattr(item, "__sympy__"):
+#         return round_sympy(item, precision, use_scientific_notation)
+
+#     if hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
+#         try: # For catching arrays
+#             return [round_(v, precision=precision, depth=depth + 1, use_scientific_notation=use_scientific_notation) for v in item]
+#         except (ValueError, TypeError):
+#             # Objects like Quantity (from pint) have a __len__ wrapper
+#             # even if the wrapped magnitude object is not iterable.
+#             return round_float(item, precision, use_scientific_notation)
+
+#     if isinstance(item, complex):
+#         return round_complex(item, precision, use_scientific_notation)
+#     if not isinstance(item, (str, int)):
+#         try:
+#             return round_float(item, precision, use_scientific_notation)
+#         except (ValueError, TypeError):
+#             pass
+#     return item
+
+
+# def round_float(elem: Any, precision: int, use_scientific_notation: bool) -> Any:
+#     """
+#     Returns 'elem', presumed to be float-like, to 'precision', where 'precision' varies
+#     depending on whether 'use_scientific_notation' is True or not.
+#     """
+#     if use_scientific_notation:
+#         return round_for_scientific_notation(elem, precision)
+#     else:
+#         return round(elem, precision)
+
+
+# def round_complex(elem: complex, precision: int, use_scientific_notation: bool) -> complex:
+#     """
+#     Returns the complex 'elem' rounded to 'precision'
+#     """
+#     return complex(
+#         round_float(elem.real, precision, use_scientific_notation), 
+#         round_float(elem.imag, precision, use_scientific_notation)
+#     )
+
 
 
 @singledispatch
@@ -1756,64 +1845,20 @@ def test_for_single_dict(source: str, calc_results: dict) -> bool:
     return isinstance(gotten, dict)
 
 
-def test_for_scientific_notation_str(elem: str) -> bool:
+def test_for_scientific_float(elem: str) -> bool:
     """
-    Returns True if 'elem' represents a python float in scientific
-    "e notation".
-    e.g. 1.23e-3, 0.09e5
-    Returns False otherwise
+    Returns True if 'elem' is a str representation of a float
+    in scientific notation
     """
-    if "e-" in str(elem).lower():
-        return True
-    elif "e+" in str(elem).lower():
-        return True
-    return False
-
-
-def test_for_small_complex(elem: Any, precision: int) -> bool:
-    """
-    Returns True if 'elem' is a complex whose rounded str representation
-    has fewer significant figures than the number in 'precision'.
-    Returns False otherwise.
-    """
-    if isinstance(elem, complex):
-        test = [
-            test_for_float(elem.real, precision),
-            test_for_float(elem.imag, precision),
-        ]
-        return any(test)
-
-
-def test_for_float(elem: Any, precision: int) -> bool:
-    """
-    Returns True if 'elem' is a float whose rounded str representation
-    has fewer significant figures than the numer in 'precision'.
-    Return False otherwise.
-    """
-    if isinstance(elem, float):
-        return True
-    elif not test_for_int(elem) and not isinstance(elem, str):
-        try:
-            float(elem)
+    if isinstance(elem, str) and "e" in elem.lower():
+        left, right = elem.lower().split("e", 1)
+        if (
+            left.replace("-","").replace("+", "").replace(".", "").isnumeric()
+            and
+            right.replace("-", "").replace("+", "").replace(".", "").isnumeric()
+        ):
             return True
-        except (TypeError, DimensionalityError, ValueError):
-            return False
-    else:
-        return False
-
-
-
-def test_for_int(elem: Any) -> bool:
-    """
-    Returns True if 'elem' can be expressed as an integer. 
-    Returns False otherwise.
-    """
-    if isinstance(elem, int):
-        return True
-    if isinstance(elem, str) and elem.replace("-","").isnumeric():
-        return True
     return False
-
 
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
@@ -1851,94 +1896,41 @@ def format_strings(string: str, comment: bool) -> deque:
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
 
-def render_latex_str(line_of_code: deque, use_scientific_notation: bool, precision: int, preferred_formatter: str) -> deque:
-    """
-    Returns a rounded str based on the latex_repr of an object in
-    'line_of_code'
-    """
-    outgoing = deque([])
-    for item in line_of_code:
-        rendered_str = latex_repr(item, use_scientific_notation, precision, preferred_formatter)
-        outgoing.append(rendered_str)
-    return outgoing
-
-
-def latex_repr(item: Any, use_scientific_notation: bool, precision: int, preferred_formatter: str) -> str:
-    """
-    Return a str if the object, 'item', has a special repr method
-    for rendering itself in latex. If not, returns str(result).
-    """    
-    # Check for arrays
-    if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-        comma_space = ",\\ "
-        try:
-            array = (
-                "[" + comma_space.join(
-                    [latex_repr(v, use_scientific_notation, precision, preferred_formatter) for v in item]) 
-                + "]"
-            )
-            rendered_string = array
-            return rendered_string
-        except TypeError:
-            pass
-
-    # Procedure for atomic data items
-    try:
-        if use_scientific_notation:
-            rendered_string = f"{item:.{precision}e{preferred_formatter}}"
-        else:
-            rendered_string = f"{item:.{precision}f{preferred_formatter}}"
-    except (ValueError):
-        try:
-            if use_scientific_notation and not isinstance(item, int):
-                rendered_string = f"{item:.{precision}e}"
-                rendered_string = swap_scientific_notation_str(rendered_string)
-            elif not isinstance(item, int):
-                rendered_string = f"{item:.{precision}f}"
-            else:
-                rendered_string = str(item)
-        except (ValueError):
-            try:
-                rendered_string = item._repr_latex_()
-            except AttributeError:
-                rendered_string = str(item)
-    
-    return rendered_string.replace("$", "")
 
 
 
 
-    if hasattr(item, preferred_latex_method):
-        method = getattr(item, preferred_latex_method)
-        rendered_string = method()
+    # if hasattr(item, preferred_latex_method):
+    #     method = getattr(item, preferred_latex_method)
+    #     rendered_string = method()
 
-    elif hasattr(item, "_repr_latex_"):
-        rendered_string = item._repr_latex_()
+    # elif hasattr(item, "_repr_latex_"):
+    #     rendered_string = item._repr_latex_()
 
-    elif hasattr(item, "latex"):
-        try:
-            rendered_string = item.latex()
-        except TypeError:
-            rendered_string = str(item)
+    # elif hasattr(item, "latex"):
+    #     try:
+    #         rendered_string = item.latex()
+    #     except TypeError:
+    #         rendered_string = str(item)
 
-    elif hasattr(item, "to_latex"):
-        try:
-            rendered_string = item.to_latex()
-        except TypeError:
-            rendered_string = str(item)
+    # elif hasattr(item, "to_latex"):
+    #     try:
+    #         rendered_string = item.to_latex()
+    #     except TypeError:
+    #         rendered_string = str(item)
 
-    elif hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-        comma_space = ",\\ "
-        try:
-            array = "[" + comma_space.join([str(v) for v in item]) + "]"
-            rendered_string = array
-        except TypeError:
-            rendered_string = str(item)
+    # elif hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+    #     comma_space = ",\\ "
+    #     try:
+    #         array = "[" + comma_space.join([str(v) for v in item]) + "]"
+    #         rendered_string = array
+    #     except TypeError:
+    #         rendered_string = str(item)
 
-    else:
-        rendered_string = str(item)
+    # else:
+    #     rendered_string = str(item)
 
-    return rendered_string.replace("$", "")
+    # return rendered_string.replace("$", "")
 
 
 class ConditionalEvaluator:
@@ -2268,9 +2260,21 @@ def expr_parser(line: str) -> list:
         ],
     )
 
-    return list_to_deque(
+    parsed = list_to_deque(
         more_itertools.collapse(expr.parseString(line).asList(), levels=1)
     )
+    return parsed
+
+
+# def convert_to_number(x: str):
+#     x = "".join(x)
+#     try:
+#         return int(x)
+#     except ValueError:
+#         try:
+#             return float(x)
+#         except ValueError:
+#             return x
 
 
 def list_to_deque(los: List[str]) -> deque:
@@ -2658,31 +2662,31 @@ def swap_scientific_notation_float(line: deque, precision: int, **config_options
     return swapped_deque
 
 
-def swap_scientific_notation_complex(line: deque, precision: int, **config_options) -> deque:
-    swapped_deque = deque([])
-    for item in line:
-        if isinstance(item, complex) and test_for_small_complex(item, precision):
-            real = swap_scientific_notation_float([item.real], precision)
-            imag = swap_scientific_notation_float([item.imag], precision)
-            swapped_real = list(swap_scientific_notation_str(real, precision=precision))
-            swapped_imag = list(swap_scientific_notation_str(imag, precision=precision))
+# def swap_scientific_notation_complex(line: deque, precision: int, **config_options) -> deque:
+#     swapped_deque = deque([])
+#     for item in line:
+#         if isinstance(item, complex) and test_for_small_complex(item, precision):
+#             real = swap_scientific_notation_float([item.real], precision)
+#             imag = swap_scientific_notation_float([item.imag], precision)
+#             swapped_real = list(swap_scientific_notation_str(real, precision=precision))
+#             swapped_imag = list(swap_scientific_notation_str(imag, precision=precision))
 
-            ops = "" if item.imag < 0 else "+"
-            real_str = (
-                f"{swapped_real[0]}"
-                if len(swapped_real) == 1
-                else " ".join(swapped_real)
-            )
-            imag_str = (
-                f"{swapped_imag[0]}"
-                if len(swapped_imag) == 1
-                else " ".join(swapped_imag)
-            )
-            new_complex_str = f"( {real_str} {ops} {imag_str}j )"
-            swapped_deque.append(new_complex_str)
-        else:
-            swapped_deque.append(item)
-    return swapped_deque
+#             ops = "" if item.imag < 0 else "+"
+#             real_str = (
+#                 f"{swapped_real[0]}"
+#                 if len(swapped_real) == 1
+#                 else " ".join(swapped_real)
+#             )
+#             imag_str = (
+#                 f"{swapped_imag[0]}"
+#                 if len(swapped_imag) == 1
+#                 else " ".join(swapped_imag)
+#             )
+#             new_complex_str = f"( {real_str} {ops} {imag_str}j )"
+#             swapped_deque.append(new_complex_str)
+#         else:
+#             swapped_deque.append(item)
+#     return swapped_deque
 
 
 def swap_comparison_ops(pycode_as_deque: deque, **config_options) -> deque:
