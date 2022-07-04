@@ -62,7 +62,7 @@ def parse_line_args(line: str) -> dict:
             parsed_args["sympy"] = True
             continue
         if arg.lower() == "sci_not":
-            parsed_args['sci_not'] = True
+            parsed_args["sci_not"] = True
         for valid_arg in valid_args:
             if arg.lower() in valid_arg:
                 parsed_args.update({"override": valid_arg})

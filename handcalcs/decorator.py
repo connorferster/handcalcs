@@ -19,7 +19,11 @@ def handcalc(
     # @wraps(func)
     def handcalc_decorator(func):
         def wrapper(*args, **kwargs):
-            line_args = {"override": override, "precision": precision, "sci_not": scientific_notation}
+            line_args = {
+                "override": override,
+                "precision": precision,
+                "sci_not": scientific_notation,
+            }
             func_source = inspect.getsource(func)
             cell_source = _func_source_to_cell(func_source)
             # use innerscope to get the values of locals, closures, and globals when calling func

@@ -18,10 +18,12 @@ import pathlib
 
 _config = {}
 
+
 def _load_global_config(config_file_name: str):
     with open(config_file_name, "r") as config_file:
         _config_data = json.load(config_file)
     return _config_data
+
 
 _here = pathlib.Path(__file__).parent
 _config_file = _here / "config.json"
@@ -30,17 +32,17 @@ _config = _load_global_config(_config_file)
 _OPTIONS = []
 for key, value in _config.items():
     if isinstance(value, str):
-        str_value = f"\'{value}\'"
+        str_value = f"'{value}'"
         if "\n" in str_value:
             str_value = str_value.replace("\n", "\\n")
     else:
         str_value = str(value)
     _OPTIONS.append(f"{key} -> {type(value)} (default = {str_value})")
 # _OPTIONS = [f"{key} -> {type(value)} (default = {value})" for key, value in _config.items()]
-_OPTIONS_TEXT = (
-    "Configuration can be set on the following options:\n\t"
-     + "\n\t".join(_OPTIONS)
+_OPTIONS_TEXT = "Configuration can be set on the following options:\n\t" + "\n\t".join(
+    _OPTIONS
 )
+
 
 def set_option(option: str, value: Any) -> None:
     if option in _config and isinstance(value, type(_config[option])):
@@ -51,9 +53,7 @@ def set_option(option: str, value: Any) -> None:
             f" not {type(value)}."
         )
     else:
-        raise ValueError(
-            f"{option} is not a valid option that can be set."
-        )
+        raise ValueError(f"{option} is not a valid option that can be set.")
 
 
 def save_config() -> None:
@@ -61,9 +61,10 @@ def save_config() -> None:
     Returns None. Saves the current global configuration as the default configuration
     that will be loaded upon module import.
     """
-    with open(_config_file, 'w', newline="") as config_file:
+    with open(_config_file, "w", newline="") as config_file:
         json.dump(_config, config_file, indent=4)
         config_file.truncate()
+
 
 set_option.__doc__ = f"""
     Returns None. Sets the value of 'option' to 'value' in the global config.
