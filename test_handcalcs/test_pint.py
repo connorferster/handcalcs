@@ -1,14 +1,17 @@
 import pint
+import handcalcs.global_config
 
 from handcalcs.handcalcs import (
     CalcLine, round_and_render_line_objects_to_latex
 )
+
 
 ureg = pint.UnitRegistry(auto_reduce_dimensions=True)
 ureg.default_format = '~'
 ft = ureg.ft
 kip = ureg.kip
 
+config_options = handcalcs.global_config._config
 
 def test_pint_rounding():
     L = (1.23456789 * kip)
@@ -16,16 +19,16 @@ def test_pint_rounding():
     M = L * d
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([L], '', ''), precision=2, dec_sep='.'
+        CalcLine([L], '', ''), cell_precision=2, cell_notation=False, **config_options
     ).latex == '1.23\\ \\mathrm{kip}'
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([d], '', ''), precision=2, dec_sep='.'
-    ).latex == '2\\ \\mathrm{ft}'
+        CalcLine([d], '', ''), cell_precision=2, cell_notation=True, **config_options
+    ).latex == '2.00\\times 10^{0}\\ \\mathrm{foot}'
 
     assert round_and_render_line_objects_to_latex(
-        CalcLine([M], '', ''), precision=2, dec_sep='.'
-    ).latex == '2.47\\ \\mathrm{ft} \\cdot \\mathrm{kip}'
+        CalcLine([M], '', ''), cell_precision=2, cell_notation=False, **config_options
+    ).latex == '2.47\\ \\mathrm{foot} \\cdot \\mathrm{kip}'
 
 
 def test_pint_with_sympy():
@@ -36,6 +39,12 @@ def test_pint_with_sympy():
         if hasattr(s.m, '_repr_latex_') else '${:~L}$'.format(s)
     )
     L = 1.23456789 * sympy.symbols('a') * kip
-    assert round_and_render_line_objects_to_latex(
-        CalcLine([L], '', ''), precision=3, dec_sep='.'
-    ).latex == r'\displaystyle 1.235 a\ \mathrm{kip}'
+
+    # NOTE: Pint in sympy objects do not accept float format strings. While pint has its own
+    # format strings which kinda work like float format strings, they DO NOT work
+    # when pint objects are in sympy objects. Therefore, pint objects in sympy
+    # objects will typically be rounded to one extra decimal place. This is just
+    # the way it is.
+    assert round_and_render_line_objects_to_latex( # cell_precision=3 -> four decimal places
+        CalcLine([L], '', ''), cell_precision=3, cell_notation=True, **config_options
+    ).latex == '\\mathtt{\\text{1.2346*a kip}}'

@@ -27,62 +27,9 @@ import re
 from typing import Any, Union, Optional, Tuple, List
 import pyparsing as pp
 
-# TODO:
-# Re-write tests
-
-GREEK_LOWER = {
-    "alpha": "\\alpha",
-    "beta": "\\beta",
-    "gamma": "\\gamma",
-    "delta": "\\delta",
-    "epsilon": "\\epsilon",
-    "zeta": "\\zeta",
-    "theta": "\\theta",
-    "iota": "\\iota",
-    "kappa": "\\kappa",
-    "mu": "\\mu",
-    "nu": "\\nu",
-    "xi": "\\xi",
-    "omicron": "\\omicron",
-    "pi": "\\pi",
-    "rho": "\\rho",
-    "sigma": "\\sigma",
-    "tau": "\\tau",
-    "upsilon": "\\upsilon",
-    "phi": "\\phi",
-    "chi": "\\chi",
-    "omega": "\\omega",
-    "eta": "\\eta",
-    "psi": "\\psi",
-    "lamb": "\\lambda",
-}
-
-GREEK_UPPER = {
-    "Alpha": "\\Alpha",
-    "Beta": "\\Beta",
-    "Gamma": "\\Gamma",
-    "Delta": "\\Delta",
-    "Epsilon": "\\Epsilon",
-    "Zeta": "\\Zeta",
-    "Theta": "\\Theta",
-    "Iota": "\\Iota",
-    "Kappa": "\\Kappa",
-    "Mu": "\\Mu",
-    "Nu": "\\Nu",
-    "Xi": "\\Xi",
-    "Omicron": "\\Omicron",
-    "Pi": "\\Pi",
-    "Rho": "\\Rho",
-    "Sigma": "\\Sigma",
-    "Tau": "\\Tau",
-    "Upsilon": "\\Upsilon",
-    "Phi": "\\Phi",
-    "Chi": "\\Chi",
-    "Omega": "\\Omega",
-    "Eta": "\\Eta",
-    "Psi": "\\Psi",
-    "Lamb": "\\Lambda",
-}
+from handcalcs.constants import GREEK_UPPER, GREEK_LOWER
+from handcalcs import global_config
+from handcalcs.integrations import DimensionalityError
 
 # Six basic line types
 @dataclass
@@ -154,7 +101,8 @@ class BlankLine:  # Attributes not used on BlankLine but still req'd
 class CalcCell:
     source: str
     calculated_results: dict
-    precision: int
+    precision: Optional[int]
+    scientific_notation: Optional[bool]
     lines: deque
     latex_code: str
 
@@ -163,7 +111,8 @@ class CalcCell:
 class ShortCalcCell:
     source: str
     calculated_results: dict
-    precision: int
+    precision: Optional[int]
+    scientific_notation: Optional[bool]
     lines: deque
     latex_code: str
 
@@ -172,7 +121,8 @@ class ShortCalcCell:
 class SymbolicCell:
     source: str
     calculated_results: dict
-    precision: int
+    precision: Optional[int]
+    scientific_notation: Optional[bool]
     lines: deque
     latex_code: str
 
@@ -182,8 +132,9 @@ class ParameterCell:
     source: str
     calculated_results: dict
     lines: deque
-    precision: int
-    cols: int
+    precision: Optional[int]
+    scientific_notation: Optional[bool]
+    # cols: int
     latex_code: str
 
 
@@ -192,7 +143,8 @@ class LongCalcCell:
     source: str
     calculated_results: dict
     lines: deque
-    precision: int
+    precision: Optional[int]
+    scientific_notation: Optional[bool]
     latex_code: str
 
 
@@ -220,21 +172,23 @@ def dict_get(d: dict, item: Any) -> Any:
 
 # The renderer class ("output" class)
 class LatexRenderer:
-    dec_sep = "."
+    # dec_sep = "."
 
     def __init__(self, python_code_str: str, results: dict, line_args: dict):
         self.source = python_code_str
         self.results = results
-        self.precision = line_args["precision"] or 3
-        self.override = line_args["override"]
+        self.override_precision = line_args["precision"]
+        self.override_scientific_notation = line_args["sci_not"]
+        self.override_commands = line_args["override"]
 
-    def render(self):
+    def render(self, config_options: dict = global_config._config):
         return latex(
-            self.source,
-            self.results,
-            self.override,
-            self.precision,
-            LatexRenderer.dec_sep,
+            raw_python_source=self.source,
+            calculated_results=self.results,
+            override_commands=self.override_commands,
+            config_options=config_options,
+            cell_precision=self.override_precision,
+            cell_notation=self.override_scientific_notation,
         )
 
 
@@ -242,158 +196,94 @@ class LatexRenderer:
 def latex(
     raw_python_source: str,
     calculated_results: dict,
-    override: str,
-    precision: int = 3,
-    dec_sep: str = ".",
+    override_commands: str,
+    config_options: dict,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
 ) -> str:
     """
     Returns the Python source as a string that has been converted into latex code.
     """
+    # decimal_separator = config_options.get("decimal_separator")
+    # latex_block_start = config_options.get("latex_block_start")
+    # latex_block_end = config_options.get("latex_block_end")
+    # latex_math_environment = config_options.get("latex_math_environment")
+    # use_sci_notation = config_options.get("use_sci_notation")
+    # display_precision = config_options.get("display_precision")
+    # underscore_subscripts = config_options.get("underscore_subscripts")
+    # greek_exclusions = config_options.get("greek_exclusions")
+    # param_columns = config_options.get("param_columns")
+
     source = raw_python_source
-    cell = categorize_raw_cell(source, calculated_results, override, precision)
+
+    cell = categorize_raw_cell(
+        source,
+        calculated_results,
+        override_commands,
+        cell_precision,
+        cell_notation,
+    )
     cell = categorize_lines(cell)
-    cell = convert_cell(cell)
-    cell = format_cell(cell, dec_sep)
+    cell = convert_cell(
+        cell,
+        **config_options,
+    )
+    cell = format_cell(
+        cell,
+        **config_options,
+        # dec_sep
+    )
     return cell.latex_code
 
 
-def create_param_cell(
-    raw_source: str, calculated_result: dict, precision: int
-) -> ParameterCell:
-    """
-    Returns a ParameterCell.
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = ParameterCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        lines=deque([]),
-        precision=precision,
-        cols=3,
-        latex_code="",
-    )
-    return cell
-
-
-def create_long_cell(
-    raw_source: str, calculated_result: dict, precision: int
-) -> LongCalcCell:
-    """
-    Returns a LongCalcCell.
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = LongCalcCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        lines=deque([]),
-        precision=precision,
-        latex_code="",
-    )
-    return cell
-
-
-def create_short_cell(
-    raw_source: str, calculated_result: dict, precision: int
-) -> ShortCalcCell:
-    """
-    Returns a ShortCell
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = ShortCalcCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        lines=deque([]),
-        precision=precision,
-        latex_code="",
-    )
-    return cell
-
-
-def create_symbolic_cell(
-    raw_source: str, calculated_result: dict, precision: int
-) -> SymbolicCell:
-    """
-    Returns a SymbolicCell
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = SymbolicCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        lines=deque([]),
-        precision=precision,
-        latex_code="",
-    )
-    return cell
-
-
-def create_calc_cell(
-    raw_source: str, calculated_result: dict, precision: int
-) -> CalcCell:
-    """
-    Returns a CalcCell
-    """
-    cell = CalcCell(
-        source=raw_source,
-        calculated_results=calculated_result,
-        precision=precision,
-        lines=deque([]),
-        latex_code="",
-    )
-    return cell
-
-
-def create_conditional_line(
-    line: str, calculated_results: dict, override: str, comment: str
-):
-    (
-        condition,
-        condition_type,
-        expression,
-        raw_condition,
-        raw_expression,
-    ) = split_conditional(line, calculated_results, override)
-    categorized_line = ConditionalLine(
-        condition=condition,
-        condition_type=condition_type,
-        expressions=expression,
-        raw_condition=raw_condition,
-        raw_expression=raw_expression.strip(),
-        true_condition=deque([]),
-        true_expressions=deque([]),
-        comment=comment,
-        latex_condition="",
-        latex_expressions="",
-        latex="",
-    )
-    return categorized_line
-
-
 def categorize_raw_cell(
-    raw_source: str, calculated_results: dict, override: str, precision: int = 3
+    raw_source: str,
+    calculated_results: dict,
+    override_commands: str,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
 ) -> Union[ParameterCell, CalcCell]:
     """
     Return a "Cell" type depending on the source code of the cell.
     """
-    if override:
-        if override == "params":
-            return create_param_cell(raw_source, calculated_results, precision)
-        elif override == "long":
-            return create_long_cell(raw_source, calculated_results, precision)
-        elif override == "short":
-            return create_short_cell(raw_source, calculated_results, precision)
-        elif override == "symbolic":
-            return create_symbolic_cell(raw_source, calculated_results, precision)
+    if override_commands:
+        if override_commands == "params":
+            return create_param_cell(
+                raw_source, calculated_results, cell_precision, cell_notation
+            )
+        elif override_commands == "long":
+            return create_long_cell(
+                raw_source, calculated_results, cell_precision, cell_notation
+            )
+        elif override_commands == "short":
+            return create_short_cell(
+                raw_source, calculated_results, cell_precision, cell_notation
+            )
+        elif override_commands == "symbolic":
+            return create_symbolic_cell(
+                raw_source, calculated_results, cell_precision, cell_notation
+            )
 
     if test_for_parameter_cell(raw_source):
-        return create_param_cell(raw_source, calculated_results, precision)
+        return create_param_cell(
+            raw_source, calculated_results, cell_precision, cell_notation
+        )
     elif test_for_long_cell(raw_source):
-        return create_long_cell(raw_source, calculated_results, precision)
+        return create_long_cell(
+            raw_source, calculated_results, cell_precision, cell_notation
+        )
     elif test_for_short_cell(raw_source):
-        return create_short_cell(raw_source, calculated_results, precision)
+        return create_short_cell(
+            raw_source, calculated_results, cell_precision, cell_notation
+        )
     elif test_for_symbolic_cell(raw_source):
-        return create_symbolic_cell(raw_source, calculated_results, precision)
+        return create_symbolic_cell(
+            raw_source, calculated_results, cell_precision, cell_notation
+        )
     else:
-        return create_calc_cell(raw_source, calculated_results, precision)
+        return create_calc_cell(
+            raw_source, calculated_results, cell_precision, cell_notation
+        )
 
 
 def strip_cell_code(raw_source: str) -> str:
@@ -426,28 +316,28 @@ def categorize_lines(
     categorize_lines(calc_cell) is considered the default behaviour for the
     singledispatch categorize_lines function.
     """
-    outgoing = cell.source.rstrip().split("\n")
-    incoming = deque([])
+    incoming = cell.source.rstrip().split("\n")
+    outgoing = deque([])
     calculated_results = cell.calculated_results
-    override = ""
-    for line in outgoing:
+    cell_override = ""
+    for line in incoming:
         if isinstance(cell, ParameterCell):
-            override = "parameter"
+            cell_override = "parameter"
         elif isinstance(cell, LongCalcCell):
-            override = "long"
+            cell_override = "long"
         elif isinstance(cell, SymbolicCell):
-            override = "symbolic"
-        categorized = categorize_line(line, calculated_results, override)
+            cell_override = "symbolic"
+        categorized = categorize_line(line, calculated_results, cell_override)
         categorized_w_result_appended = add_result_values_to_line(
             categorized, calculated_results
         )
-        incoming.append(categorized_w_result_appended)
-    cell.lines = incoming
+        outgoing.append(categorized_w_result_appended)
+    cell.lines = outgoing
     return cell
 
 
 def categorize_line(
-    line: str, calculated_results: dict, override: str = ""
+    line: str, calculated_results: dict, cell_override: str = ""
 ) -> Union[CalcLine, ParameterLine, ConditionalLine]:
     """
     Return 'line' as either a CalcLine, ParameterLine, or ConditionalLine if 'line'
@@ -463,94 +353,94 @@ def categorize_line(
     function has the information of the cell type and can pass along any
     desired behavior to categorize_line().
     """
+    if test_for_blank_line(line):
+        return BlankLine(line, "", "")
+
+    if test_for_intertext_line(line):
+        return IntertextLine(line, "", "")
+
+    if line.startswith("#"):
+        return BlankLine(line, "", "")
+
     try:
-        line, comment = line.split("#")
+        line, comment = line.split("#", 1)
     except ValueError:
         comment = ""
-    categorized_line = None
 
     # Override behaviour
-    if not test_for_blank_line(line):  # True is a blank line
-        if override == "parameter":
-            if test_for_conditional_line(line):
-                categorized_line = create_conditional_line(
-                    line, calculated_results, override, comment
-                )
-            else:
-                categorized_line = ParameterLine(
-                    split_parameter_line(line, calculated_results), comment, ""
-                )
-            return categorized_line
+    categorized_line = None
+    if cell_override == "parameter":
+        if test_for_conditional_line(line):
+            categorized_line = create_conditional_line(
+                line, calculated_results, cell_override, comment
+            )
+        else:
+            categorized_line = ParameterLine(
+                split_parameter_line(line, calculated_results), comment, ""
+            )
+        return categorized_line
 
-        elif override == "long":
-            if test_for_parameter_line(
-                line
-            ):  # A parameter can exist in a long cell, too
-                categorized_line = ParameterLine(
-                    split_parameter_line(line, calculated_results), comment, ""
-                )
-            elif test_for_conditional_line(
-                line
-            ):  # A conditional line can exist in a long cell, too
-                categorized_line = create_conditional_line(
-                    line, calculated_results, override, comment
-                )
-            elif test_for_numeric_line(
-                deque(
-                    list(expr_parser(line))[1:]
-                )  # Leave off the declared variable, e.g. _x_ = ...
-            ):
-                categorized_line = NumericCalcLine(expr_parser(line), comment, "")
+    elif cell_override == "long":
+        if test_for_parameter_line(line):  # A parameter can exist in a long cell, too
+            categorized_line = ParameterLine(
+                split_parameter_line(line, calculated_results), comment, ""
+            )
+        elif test_for_conditional_line(
+            line
+        ):  # A conditional line can exist in a long cell, too
+            categorized_line = create_conditional_line(
+                line, calculated_results, cell_override, comment
+            )
+        elif test_for_numeric_line(
+            deque(
+                list(expr_parser(line))[1:]
+            )  # Leave off the declared variable, e.g. _x_ = ...
+        ):
+            categorized_line = NumericCalcLine(expr_parser(line), comment, "")
 
-            else:
-                categorized_line = LongCalcLine(
-                    expr_parser(line), comment, ""
-                )  # code_reader
-            return categorized_line
+        else:
+            categorized_line = LongCalcLine(
+                expr_parser(line), comment, ""
+            )  # code_reader
+        return categorized_line
 
-        elif override == "symbolic":
-            if test_for_conditional_line(
-                line
-            ):  # A conditional line can exist in a symbolic cell, too
-                categorized_line = create_conditional_line(
-                    line, calculated_results, override, comment
-                )
-            else:
-                categorized_line = SymbolicLine(
-                    expr_parser(line), comment, ""
-                )  # code_reader
-            return categorized_line
+    elif cell_override == "symbolic":
+        if test_for_conditional_line(
+            line
+        ):  # A conditional line can exist in a symbolic cell, too
+            categorized_line = create_conditional_line(
+                line, calculated_results, cell_override, comment
+            )
+        else:
+            categorized_line = SymbolicLine(
+                expr_parser(line), comment, ""
+            )  # code_reader
+        return categorized_line
 
-        elif override == "short":
-            if test_for_numeric_line(
-                deque(list(line)[1:])  # Leave off the declared variable
-            ):
-                categorized_line = NumericCalcLine(expr_parser(line), comment, "")
-            else:
-                categorized_line = CalcLine(
-                    expr_parser(line), comment, ""
-                )  # code_reader
+    elif cell_override == "short":
+        if test_for_numeric_line(
+            deque(list(line)[1:])  # Leave off the declared variable
+        ):
+            categorized_line = NumericCalcLine(expr_parser(line), comment, "")
+        else:
+            categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
 
-            return categorized_line
-        elif True:
-            pass  # Future override conditions to match new cell types can be put here
+        return categorized_line
+    elif True:
+        pass  # Future override conditions to match new cell types can be put here
 
     # Standard behaviour
     if line == "\n" or line == "":
         categorized_line = BlankLine(line, "", "")
 
-    elif line.startswith("##"):
-        categorized_line = IntertextLine(line, "", "")
-
     elif test_for_parameter_line(line):
-
         categorized_line = ParameterLine(
             split_parameter_line(line, calculated_results), comment, ""
         )
 
     elif test_for_conditional_line(line):
         categorized_line = create_conditional_line(
-            line, calculated_results, override, comment
+            line, calculated_results, cell_override, comment
         )
 
     elif test_for_numeric_line(
@@ -575,6 +465,136 @@ def categorize_line(
             "\t * Be an arithmetic variable assignment (i.e. calculation that uses '=' in the line)\n"
             "\t * Be a conditional arithmetic assignment (i.e. uses 'if', 'elif', or 'else', each on a single line)"
         )
+    return categorized_line
+
+
+def create_param_cell(
+    raw_source: str,
+    calculated_result: dict,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
+) -> ParameterCell:
+    """
+    Returns a ParameterCell.
+    """
+    comment_tag_removed = strip_cell_code(raw_source)
+    cell = ParameterCell(
+        source=comment_tag_removed,
+        calculated_results=calculated_result,
+        precision=cell_precision,
+        scientific_notation=cell_notation,
+        lines=deque([]),
+        latex_code="",
+    )
+    return cell
+
+
+def create_long_cell(
+    raw_source: str,
+    calculated_result: dict,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
+) -> LongCalcCell:
+    """
+    Returns a LongCalcCell.
+    """
+    comment_tag_removed = strip_cell_code(raw_source)
+    cell = LongCalcCell(
+        source=comment_tag_removed,
+        calculated_results=calculated_result,
+        precision=cell_precision,
+        scientific_notation=cell_notation,
+        lines=deque([]),
+        latex_code="",
+    )
+    return cell
+
+
+def create_short_cell(
+    raw_source: str,
+    calculated_result: dict,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
+) -> ShortCalcCell:
+    """
+    Returns a ShortCell
+    """
+    comment_tag_removed = strip_cell_code(raw_source)
+    cell = ShortCalcCell(
+        source=comment_tag_removed,
+        calculated_results=calculated_result,
+        precision=cell_precision,
+        scientific_notation=cell_notation,
+        lines=deque([]),
+        latex_code="",
+    )
+    return cell
+
+
+def create_symbolic_cell(
+    raw_source: str,
+    calculated_result: dict,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
+) -> SymbolicCell:
+    """
+    Returns a SymbolicCell
+    """
+    comment_tag_removed = strip_cell_code(raw_source)
+    cell = SymbolicCell(
+        source=comment_tag_removed,
+        calculated_results=calculated_result,
+        precision=cell_precision,
+        scientific_notation=cell_notation,
+        lines=deque([]),
+        latex_code="",
+    )
+    return cell
+
+
+def create_calc_cell(
+    raw_source: str,
+    calculated_result: dict,
+    cell_precision: Optional[int] = None,
+    cell_notation: Optional[bool] = None,
+) -> CalcCell:
+    """
+    Returns a CalcCell
+    """
+    cell = CalcCell(
+        source=raw_source,
+        calculated_results=calculated_result,
+        precision=cell_precision,
+        scientific_notation=cell_notation,
+        lines=deque([]),
+        latex_code="",
+    )
+    return cell
+
+
+def create_conditional_line(
+    line: str, calculated_results: dict, override: str, comment: str
+):
+    (
+        condition,
+        condition_type,
+        expression,
+        raw_condition,
+        raw_expression,
+    ) = split_conditional(line, calculated_results, override)
+    categorized_line = ConditionalLine(
+        condition=condition,
+        condition_type=condition_type,
+        expressions=expression,
+        raw_condition=raw_condition,
+        raw_expression=raw_expression.strip(),
+        true_condition=deque([]),
+        true_expressions=deque([]),
+        comment=comment,
+        latex_condition="",
+        latex_expressions="",
+        latex="",
+    )
     return categorized_line
 
 
@@ -638,7 +658,10 @@ def results_for_intertext(line_object, calculated_results):
 
 
 @singledispatch
-def convert_cell(cell_object):
+def convert_cell(
+    cell_object,
+    **config_options,
+):
     """
     Return the cell_object with all of its lines run through the function,
     'convert_lines()', effectively converting each python element in the parsed
@@ -652,74 +675,75 @@ def convert_cell(cell_object):
 
 
 @convert_cell.register(CalcCell)
-def convert_calc_cell(cell: CalcCell) -> CalcCell:
+def convert_calc_cell(
+    cell: CalcCell,
+    **config_options,
+) -> CalcCell:
     outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        incoming.append(convert_line(line, calculated_results))
+        incoming.append(
+            convert_line(
+                line,
+                calculated_results,
+                **config_options,
+            )
+        )
     cell.lines = incoming
     return cell
 
 
 @convert_cell.register(ShortCalcCell)
-def convert_calc_cell(cell: ShortCalcCell) -> ShortCalcCell:
+def convert_calc_cell(cell: ShortCalcCell, **config_options) -> ShortCalcCell:
     outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        incoming.append(convert_line(line, calculated_results))
+        incoming.append(convert_line(line, calculated_results, **config_options))
     cell.lines = incoming
     return cell
 
 
 @convert_cell.register(LongCalcCell)
-def convert_longcalc_cell(cell: LongCalcCell) -> LongCalcCell:
+def convert_longcalc_cell(cell: LongCalcCell, **config_options) -> LongCalcCell:
     outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        incoming.append(convert_line(line, calculated_results))
+        incoming.append(convert_line(line, calculated_results, **config_options))
     cell.lines = incoming
     return cell
 
 
 @convert_cell.register(ParameterCell)
-def convert_parameter_cell(cell: ParameterCell) -> ParameterCell:
+def convert_parameter_cell(cell: ParameterCell, **config_options) -> ParameterCell:
     outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        incoming.append(convert_line(line, calculated_results))
+        incoming.append(convert_line(line, calculated_results, **config_options))
     cell.lines = incoming
     return cell
 
 
 @convert_cell.register(SymbolicCell)
-def convert_symbolic_cell(cell: SymbolicCell) -> SymbolicCell:
+def convert_symbolic_cell(cell: SymbolicCell, **config_options) -> SymbolicCell:
     outgoing = cell.lines
     calculated_results = cell.calculated_results
     incoming = deque([])
     for line in outgoing:
-        incoming.append(convert_line(line, calculated_results))
+        incoming.append(convert_line(line, calculated_results, **config_options))
     cell.lines = incoming
     return cell
 
 
 @singledispatch
 def convert_line(
-    line_object: Union[
-        CalcLine,
-        ConditionalLine,
-        ParameterLine,
-        SymbolicLine,
-        NumericCalcLine,
-        BlankLine,
-    ],
+    line_object,
     calculated_results: dict,
-) -> Union[
-    CalcLine, ConditionalLine, ParameterLine, SymbolicLine, NumericCalcLine, BlankLine
-]:
+    **config_options,
+):
     """
     Returns 'line_object' with its .line attribute converted into a
     deque with elements that have been converted to their appropriate
@@ -734,40 +758,46 @@ def convert_line(
 
 
 @convert_line.register(CalcLine)
-def convert_calc(line, calculated_results):
+def convert_calc(line, calculated_results, **config_options):
     (
         *line_deque,
         result,
     ) = line.line  # Unpack deque of form [[calc_line, ...], ['=', 'result']]
-    symbolic_portion, numeric_portion = swap_calculation(line_deque, calculated_results)
+    symbolic_portion, numeric_portion = swap_calculation(
+        line_deque, calculated_results, **config_options
+    )
     line.line = symbolic_portion + numeric_portion + result
     return line
 
 
 @convert_line.register(NumericCalcLine)
-def convert_numericcalc(line, calculated_results):
+def convert_numericcalc(line, calculated_results, **config_options):
     (
         *line_deque,
         result,
     ) = line.line  # Unpack deque of form [[calc_line, ...], ['=', 'result']]
-    symbolic_portion, _ = swap_calculation(line_deque, calculated_results)
+    symbolic_portion, _ = swap_calculation(
+        line_deque, calculated_results, **config_options
+    )
     line.line = symbolic_portion + result
     return line
 
 
 @convert_line.register(LongCalcLine)
-def convert_longcalc(line, calculated_results):
+def convert_longcalc(line, calculated_results, **config_options):
     (
         *line_deque,
         result,
     ) = line.line  # Unpack deque of form [[calc_line, ...], ['=', 'result']]
-    symbolic_portion, numeric_portion = swap_calculation(line_deque, calculated_results)
+    symbolic_portion, numeric_portion = swap_calculation(
+        line_deque, calculated_results, **config_options
+    )
     line.line = symbolic_portion + numeric_portion + result
     return line
 
 
 @convert_line.register(ConditionalLine)
-def convert_conditional(line, calculated_results):
+def convert_conditional(line, calculated_results, **config_options):
     condition, condition_type, expressions, raw_condition = (
         line.condition,
         line.condition_type,
@@ -775,74 +805,78 @@ def convert_conditional(line, calculated_results):
         line.raw_condition,
     )
     true_condition_deque = swap_conditional(
-        condition, condition_type, raw_condition, calculated_results
+        condition, condition_type, raw_condition, calculated_results, **config_options
     )
     if true_condition_deque:
         line.true_condition = true_condition_deque
         for expression in expressions:
-            line.true_expressions.append(convert_line(expression, calculated_results))
+            line.true_expressions.append(
+                convert_line(expression, calculated_results, **config_options)
+            )
     return line
 
 
 @convert_line.register(ParameterLine)
-def convert_parameter(line, calculated_results):
-    line.line = swap_symbolic_calcs(line.line, calculated_results)
+def convert_parameter(line, calculated_results, **config_options):
+    line.line = swap_symbolic_calcs(line.line, calculated_results, **config_options)
     return line
 
 
 @convert_line.register(SymbolicLine)
-def convert_symbolic_line(line, calculated_results):
-    line.line = swap_symbolic_calcs(line.line, calculated_results)
+def convert_symbolic_line(line, calculated_results, **config_options):
+    line.line = swap_symbolic_calcs(line.line, calculated_results, **config_options)
     return line
 
 
 @convert_line.register(IntertextLine)
-def convert_intertext(line, calculated_results):
+def convert_intertext(line, calculated_results, **config_options):
     return line
 
 
 @convert_line.register(BlankLine)
-def convert_blank(line, calculated_results):
+def convert_blank(line, calculated_results, **config_options):
     return line
 
 
 @singledispatch
-def format_cell(
-    cell_object: Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell],
-    dec_sep: str,
-) -> Union[ParameterCell, LongCalcCell, CalcCell, SymbolicCell]:
+def format_cell(cell_object, **config_options):
     raise TypeError(
         f"Cell type {type(cell_object)} has not yet been implemented in format_cell()."
     )
 
 
 @format_cell.register(ParameterCell)
-def format_parameters_cell(cell: ParameterCell, dec_sep: str):
+def format_parameters_cell(cell: ParameterCell, **config_options):
     """
     Returns the input parameters as an \\align environment with 'cols'
     number of columns.
     """
-    cols = cell.cols
-    precision = cell.precision
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
-    line_break = "\\\\[10pt]\n"
+    cols = config_options["param_columns"]
+    precision = cell.precision or config_options["display_precision"]
+    cell_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell.scientific_notation
+    )
+    opener = config_options["latex_block_start"]
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
+    closer = config_options["latex_block_end"]
+    line_break = f"{config_options['line_break']}\n"
     cycle_cols = itertools.cycle(range(1, cols + 1))
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
-        line = format_lines(line)
+        line = round_and_render_line_objects_to_latex(
+            line, precision, cell_notation, **config_options
+        )
+        line = format_lines(line, **config_options)
         if isinstance(line, BlankLine):
             continue
         if isinstance(line, ConditionalLine):
             outgoing = deque([])
             for expr in line.true_expressions:
                 current_col = next(cycle_cols)
-                if current_col % (cols - 1) == 0:
-                    outgoing.append("&" + expr)
-                elif current_col % cols == 0:
+                if current_col % cols == 0:
                     outgoing.append("&" + expr + line_break)
+                elif current_col % cols != 1:
+                    outgoing.append("&" + expr)
                 else:
                     outgoing.append(expr)
             line.latex_expressions = " ".join(outgoing)
@@ -851,10 +885,10 @@ def format_parameters_cell(cell: ParameterCell, dec_sep: str):
             latex_param = line.latex
 
             current_col = next(cycle_cols)
-            if current_col % (cols - 1) == 0:
-                line.latex = "&" + latex_param
-            elif current_col % cols == 0:
+            if current_col % cols == 0:
                 line.latex = "&" + latex_param + line_break
+            elif current_col % cols != 1:
+                line.latex = "&" + latex_param
             else:
                 line.latex = latex_param
 
@@ -866,22 +900,27 @@ def format_parameters_cell(cell: ParameterCell, dec_sep: str):
 
 
 @format_cell.register(CalcCell)
-def format_calc_cell(cell: CalcCell, dec_sep: str) -> str:
-    line_break = "\\\\[10pt]\n"
-    precision = cell.precision
+def format_calc_cell(cell: CalcCell, **config_options) -> str:
+    line_break = f"{config_options['line_break']}\n"
+    precision = cell.precision or config_options["display_precision"]
+    cell_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell.scientific_notation
+    )
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
+        line = round_and_render_line_objects_to_latex(
+            line, precision, cell_notation, **config_options
+        )
         line = convert_applicable_long_lines(line)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options["latex_block_start"]
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
+    closer = config_options["latex_block_end"]
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -889,21 +928,26 @@ def format_calc_cell(cell: CalcCell, dec_sep: str) -> str:
 
 
 @format_cell.register(ShortCalcCell)
-def format_shortcalc_cell(cell: ShortCalcCell, dec_sep: str) -> str:
-    line_break = "\\\\[10pt]\n"
-    precision = cell.precision
+def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
     incoming = deque([])
+    line_break = f"{config_options['line_break']}\n"
+    precision = cell.precision or config_options["display_precision"]
+    cell_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell.scientific_notation
+    )
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
-        line = format_lines(line)
+        line = round_and_render_line_objects_to_latex(
+            line, precision, cell_notation, **config_options
+        )
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options["latex_block_start"]
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
+    closer = config_options["latex_block_end"]
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -911,22 +955,27 @@ def format_shortcalc_cell(cell: ShortCalcCell, dec_sep: str) -> str:
 
 
 @format_cell.register(LongCalcCell)
-def format_longcalc_cell(cell: LongCalcCell, dec_sep: str) -> str:
-    line_break = "\\\\[10pt]\n"
-    precision = cell.precision
+def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
+    line_break = f"{config_options['line_break']}\n"
+    precision = cell.precision or config_options["display_precision"]
+    cell_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell.scientific_notation
+    )
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
+        line = round_and_render_line_objects_to_latex(
+            line, precision, cell_notation, **config_options
+        )
         line = convert_applicable_long_lines(line)
-        line = format_lines(line)
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options["latex_block_start"]
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
+    closer = config_options["latex_block_end"]
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -934,21 +983,26 @@ def format_longcalc_cell(cell: LongCalcCell, dec_sep: str) -> str:
 
 
 @format_cell.register(SymbolicCell)
-def format_symbolic_cell(cell: SymbolicCell, dec_sep: str) -> str:
-    line_break = "\\\\[10pt]\n"
-    precision = cell.precision
+def format_symbolic_cell(cell: SymbolicCell, **config_options) -> str:
+    line_break = f"{config_options['line_break']}\n"
+    precision = cell.precision or config_options["display_precision"]
+    cell_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell.scientific_notation
+    )
     incoming = deque([])
     for line in cell.lines:
-        line = round_and_render_line_objects_to_latex(line, precision, dec_sep)
-        line = format_lines(line)
+        line = round_and_render_line_objects_to_latex(
+            line, precision, cell_notation, **config_options
+        )
+        line = format_lines(line, **config_options)
         incoming.append(line)
     cell.lines = incoming
 
     latex_block = line_break.join([line.latex for line in cell.lines if line.latex])
-    opener = "\\["
-    begin = "\\begin{aligned}"
-    end = "\\end{aligned}"
-    closer = "\\]"
+    opener = config_options["latex_block_start"]
+    begin = f"\\begin{{{config_options['math_environment_start']}}}"
+    end = f"\\end{{{config_options['math_environment_end']}}}"
+    closer = config_options["latex_block_end"]
     cell.latex_code = "\n".join([opener, begin, latex_block, end, closer]).replace(
         "\n" + end, end
     )
@@ -957,7 +1011,10 @@ def format_symbolic_cell(cell: SymbolicCell, dec_sep: str) -> str:
 
 @singledispatch
 def round_and_render_line_objects_to_latex(
-    line: Union[CalcLine, ConditionalLine, ParameterLine], precision: int, dec_sep: str
+    line: Union[CalcLine, ConditionalLine, ParameterLine],
+    cell_precision: int,
+    cell_notation: bool,
+    **config_options,
 ):  # Not called for symbolic lines; see format_symbolic_cell()
     """
     Returns 'line' with the elements of the deque in its .line attribute
@@ -974,113 +1031,357 @@ def round_and_render_line_objects_to_latex(
 
 
 @round_and_render_line_objects_to_latex.register(CalcLine)
-def round_and_render_calc(line: CalcLine, precision: int, dec_sep: str) -> CalcLine:
+def round_and_render_calc(
+    line: CalcLine, cell_precision: int, cell_notation: bool, **config_options
+) -> CalcLine:
     idx_line = line.line
-    idx_line = swap_scientific_notation_float(idx_line, precision)
-    idx_line = swap_scientific_notation_str(idx_line)
-    idx_line = swap_scientific_notation_complex(idx_line, precision)
-    rounded_line = round_and_render(idx_line, precision)
-    rounded_line = swap_dec_sep(rounded_line, dec_sep)
-    line.line = rounded_line
-    line.latex = " ".join(rounded_line)
+    precision = cell_precision or config_options["display_precision"]
+    use_scientific_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell_notation
+    )
+    preferred_formatter = config_options["preferred_string_formatter"]
+    rendered_line = render_latex_str(
+        idx_line, use_scientific_notation, precision, preferred_formatter
+    )
+    rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
+    line.line = rendered_line
+    line.latex = " ".join(rendered_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(NumericCalcLine)
-def round_and_render_calc(
-    line: NumericCalcLine, precision: int, dec_sep: str
+def round_and_render_numericcalc(
+    line: NumericCalcLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> NumericCalcLine:
     idx_line = line.line
-    idx_line = swap_scientific_notation_float(idx_line, precision)
-    idx_line = swap_scientific_notation_str(idx_line)
-    idx_line = swap_scientific_notation_complex(idx_line, precision)
-    rounded_line = round_and_render(idx_line, precision)
-    rounded_line = swap_dec_sep(rounded_line, dec_sep)
-    line.line = rounded_line
-    line.latex = " ".join(rounded_line)
+    precision = cell_precision or config_options["display_precision"]
+    use_scientific_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell_notation
+    )
+    preferred_formatter = config_options["preferred_string_formatter"]
+    rendered_line = render_latex_str(
+        idx_line, use_scientific_notation, precision, preferred_formatter
+    )
+    rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
+    line.line = rendered_line
+    line.latex = " ".join(rendered_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(LongCalcLine)
 def round_and_render_longcalc(
-    line: LongCalcLine, precision: int, dec_sep: str
+    line: LongCalcLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> LongCalcLine:
     idx_line = line.line
-    idx_line = swap_scientific_notation_float(idx_line, precision)
-    idx_line = swap_scientific_notation_str(idx_line)
-    idx_line = swap_scientific_notation_complex(idx_line, precision)
-    rounded_line = round_and_render(idx_line, precision)
-    rounded_line = swap_dec_sep(rounded_line, dec_sep)
-    line.line = rounded_line
-    line.latex = " ".join(rounded_line)
+    precision = cell_precision or config_options["display_precision"]
+    use_scientific_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell_notation
+    )
+    preferred_formatter = config_options["preferred_string_formatter"]
+    rendered_line = render_latex_str(
+        idx_line, use_scientific_notation, precision, preferred_formatter
+    )
+    rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
+    line.line = rendered_line
+    line.latex = " ".join(rendered_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(ParameterLine)
 def round_and_render_parameter(
-    line: ParameterLine, precision: int, dec_sep: str
+    line: ParameterLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> ParameterLine:
     idx_line = line.line
-    idx_line = swap_scientific_notation_float(idx_line, precision)
-    idx_line = swap_scientific_notation_str(idx_line)
-    idx_line = swap_scientific_notation_complex(idx_line, precision)
-    rounded_line = round_and_render(idx_line, precision)
-    rounded_line = swap_dec_sep(rounded_line, dec_sep)
-    line.line = rounded_line
-    line.latex = " ".join(rounded_line)
+    precision = cell_precision or config_options["display_precision"]
+    use_scientific_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell_notation
+    )
+    preferred_formatter = config_options["preferred_string_formatter"]
+    rendered_line = render_latex_str(
+        idx_line, use_scientific_notation, precision, preferred_formatter
+    )
+    rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
+    line.line = rendered_line
+    line.latex = " ".join(rendered_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(ConditionalLine)
 def round_and_render_conditional(
-    line: ConditionalLine, precision: int, dec_sep: str
+    line: ConditionalLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> ConditionalLine:
-    line_break = "\\\\\n"
+    conditional_line_break = f"{config_options['line_break']}\n"
     outgoing = deque([])
     idx_line = line.true_condition
-    idx_line = swap_scientific_notation_float(idx_line, precision)
-    idx_line = swap_scientific_notation_str(idx_line)
-    idx_line = swap_scientific_notation_complex(idx_line, precision)
-    rounded_line = round_and_render(idx_line, precision)
-    rounded_line = swap_dec_sep(rounded_line, dec_sep)
-    line.true_condition = rounded_line
+    precision = cell_precision or config_options["display_precision"]
+    use_scientific_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell_notation
+    )
+    preferred_formatter = config_options["preferred_string_formatter"]
+    rendered_line = render_latex_str(
+        idx_line, use_scientific_notation, precision, preferred_formatter
+    )
+    rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
+    line.line = rendered_line
+    line.latex = " ".join(rendered_line)
+    # return line
+    line.true_condition = rendered_line
     for (
         expr
     ) in line.true_expressions:  # Each 'expr' item is a CalcLine or other line type
-        expr.line = swap_scientific_notation_float(expr.line, precision)
-        expr.line = swap_scientific_notation_str(expr.line)
-        expr.line = swap_scientific_notation_complex(expr.line, precision)
         outgoing.append(
-            round_and_render_line_objects_to_latex(expr, precision, dec_sep)
+            round_and_render_line_objects_to_latex(
+                expr, cell_precision, cell_notation, **config_options
+            )
         )
     line.true_expressions = outgoing
-    line.latex = line_break.join([calc_line.latex for calc_line in outgoing])
+    line.latex = conditional_line_break.join(
+        [calc_line.latex for calc_line in outgoing]
+    )
     return line
 
 
 @round_and_render_line_objects_to_latex.register(SymbolicLine)
 def round_and_render_symbolic(
-    line: SymbolicLine, precision: int, dec_sep: str
+    line: SymbolicLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> SymbolicLine:
-    expr = line.line
-    expr = swap_scientific_notation_float(expr, precision)
-    expr = swap_scientific_notation_str(expr)
-    expr = swap_scientific_notation_complex(expr, precision)
-    rounded_line = round_and_render(expr, precision)
-    rounded_line = swap_dec_sep(rounded_line, dec_sep)
-    line.line = rounded_line
-    line.latex = " ".join(rounded_line)
+    idx_line = line.line
+    precision = cell_precision or config_options["display_precision"]
+    use_scientific_notation = toggle_scientific_notation(
+        config_options["use_scientific_notation"], cell_notation
+    )
+    preferred_formatter = config_options["preferred_string_formatter"]
+    rendered_line = render_latex_str(
+        idx_line, use_scientific_notation, precision, preferred_formatter
+    )
+    rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
+    line.line = rendered_line
+    line.latex = " ".join(rendered_line)
     return line
 
 
 @round_and_render_line_objects_to_latex.register(BlankLine)
-def round_and_render_blank(line, precision, dec_sep):
+def round_and_render_blank(
+    line, cell_precision: int, cell_notation: bool, **config_options
+):
     return line
 
 
 @round_and_render_line_objects_to_latex.register(IntertextLine)
-def round_and_render_intertext(line, precision, dec_sep):
+def round_and_render_intertext(
+    line, cell_precision: int, cell_notation: bool, **config_options
+):
     return line
+
+
+def render_latex_str(
+    line_of_code: deque,
+    use_scientific_notation: bool,
+    precision: int,
+    preferred_formatter: str,
+) -> deque:
+    """
+    Returns a rounded str based on the latex_repr of an object in
+    'line_of_code'
+    """
+    outgoing = deque([])
+    for item in line_of_code:
+        rendered_str = latex_repr(
+            item, use_scientific_notation, precision, preferred_formatter
+        )
+        outgoing.append(rendered_str)
+    return outgoing
+
+
+def latex_repr(
+    item: Any, use_scientific_notation: bool, precision: int, preferred_formatter: str
+) -> str:
+    """
+    Return a str if the object, 'item', has a special repr method
+    for rendering itself in latex. If not, returns str(result).
+    """
+    # Check for arrays
+    if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+        comma_space = ",\\ "
+        try:
+            array = (
+                "["
+                + comma_space.join(
+                    [
+                        latex_repr(
+                            v, use_scientific_notation, precision, preferred_formatter
+                        )
+                        for v in item
+                    ]
+                )
+                + "]"
+            )
+            rendered_string = array
+            return rendered_string
+        except TypeError:
+            pass
+
+    # Check for sympy objects
+    if hasattr(item, "__sympy__"):
+        return render_sympy(round_sympy(item, precision, use_scientific_notation))
+
+    # Check for scientific notation strings
+    if isinstance(item, str) and test_for_scientific_float(item):
+        if "e-" in item:
+            rendered_string = swap_scientific_notation_str(item)
+        elif "e+" in item:
+            rendered_string = swap_scientific_notation_str(item)
+        elif "e" in item:
+            rendered_string = swap_scientific_notation_str(item.replace("e", "e+"))
+        return rendered_string
+
+    # Procedure for atomic data items
+    try:
+        if use_scientific_notation:
+            rendered_string = f"{item:.{precision}e{preferred_formatter}}"
+        else:
+            rendered_string = f"{item:.{precision}f{preferred_formatter}}"
+    except (ValueError, TypeError):
+        try:
+            if use_scientific_notation and isinstance(item, complex):
+                rendered_real = f"{item.real:.{precision}e}"
+                rendered_real = swap_scientific_notation_str(rendered_real)
+
+                rendered_imag = f"{item.imag:.{precision}e}"
+                rendered_imag = swap_scientific_notation_str(rendered_imag)
+
+                rendered_string = (
+                    f"\\left( {rendered_real} + {rendered_imag} j \\right)"
+                )
+            elif use_scientific_notation and not isinstance(item, int):
+                rendered_string = f"{item:.{precision}e}"
+                rendered_string = swap_scientific_notation_str(rendered_string)
+            elif not isinstance(item, int):
+                rendered_string = f"{item:.{precision}f}"
+            else:
+                rendered_string = str(item)
+        except (ValueError, TypeError):
+            try:
+                rendered_string = item._repr_latex_()
+            except AttributeError:
+                rendered_string = str(item)
+
+    return rendered_string.replace("$", "")
+
+
+def round_sympy(elem: Any, precision: int, use_scientific_notation: bool) -> Any:
+    """
+    Returns the Sympy expression 'elem' rounded to 'precision'
+    """
+    from sympy import Float
+
+    rule = {}
+    for n in elem.atoms(Float):
+        if use_scientific_notation:
+            rule[n] = round_for_scientific_notation(n, precision)
+        else:
+            rule[n] = round(n, precision)
+    rounded = elem.xreplace(rule)
+    if hasattr(elem, "units") and not hasattr(rounded, "units"):
+        # Add back pint units lost during rounding.
+        rounded = rounded * elem.units
+    return rounded
+
+
+def render_sympy(elem: Any) -> str:
+    """
+    Returns a string of the Latex representation of the sympy object, 'elem'.
+    """
+    from sympy import latex
+
+    return latex(elem)
+
+
+def round_for_scientific_notation(elem, precision):
+    """
+    Returns a float rounded so that the decimals behind the coefficient are rounded to 'precision'.
+    """
+    adjusted_precision = calculate_adjusted_precision(elem, precision)
+    rounded = round(elem, adjusted_precision)
+    return rounded
+
+
+def calculate_adjusted_precision(elem, precision):
+    """
+    Returns the number of decimal places 'elem' should be rounded to
+    to achieve a final 'precision' in scientific notation.
+    """
+    try:
+        power_of_ten = int(math.log10(abs(elem)))
+    except (DimensionalityError, TypeError):
+        elem_float = float(str(elem).split(" ")[0])
+        power_of_ten = int(math.log10(abs(elem_float)))
+    if power_of_ten < 1:
+        return precision - power_of_ten + 1
+    else:
+        return precision - power_of_ten
+
+
+# def round_elements(line_of_code: deque, cell_precision: Optional[int] = None,  cell_notation: bool = False) -> deque:
+#     """
+#     Returns a rounded float
+#     """
+#     outgoing = deque([])
+#     for item in line_of_code:
+#         rounded = round_(item, precision=cell_precision, use_scientific_notation=cell_notation)
+#         outgoing.append(rounded)
+#     return outgoing
+
+
+# def round_(item: Any, precision: int, depth: int = 0, use_scientific_notation: bool = False) -> Any:
+#     """
+#     Recursively round an object and its elements to a given precision.
+#     """
+#     round_notation = use_scientific_notation
+#     if depth > 3:
+#         # Limit maximum recursion depth.
+#         return item
+
+#     if hasattr(item, "__sympy__"):
+#         return round_sympy(item, precision, use_scientific_notation)
+
+#     if hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
+#         try: # For catching arrays
+#             return [round_(v, precision=precision, depth=depth + 1, use_scientific_notation=use_scientific_notation) for v in item]
+#         except (ValueError, TypeError):
+#             # Objects like Quantity (from pint) have a __len__ wrapper
+#             # even if the wrapped magnitude object is not iterable.
+#             return round_float(item, precision, use_scientific_notation)
+
+#     if isinstance(item, complex):
+#         return round_complex(item, precision, use_scientific_notation)
+#     if not isinstance(item, (str, int)):
+#         try:
+#             return round_float(item, precision, use_scientific_notation)
+#         except (ValueError, TypeError):
+#             pass
+#     return item
+
+
+# def round_float(elem: Any, precision: int, use_scientific_notation: bool) -> Any:
+#     """
+#     Returns 'elem', presumed to be float-like, to 'precision', where 'precision' varies
+#     depending on whether 'use_scientific_notation' is True or not.
+#     """
+#     if use_scientific_notation:
+#         return round_for_scientific_notation(elem, precision)
+#     else:
+#         return round(elem, precision)
+
+
+# def round_complex(elem: complex, precision: int, use_scientific_notation: bool) -> complex:
+#     """
+#     Returns the complex 'elem' rounded to 'precision'
+#     """
+#     return complex(
+#         round_float(elem.real, precision, use_scientific_notation),
+#         round_float(elem.imag, precision, use_scientific_notation)
+#     )
 
 
 @singledispatch
@@ -1158,13 +1459,11 @@ def test_for_long_intertext(line: IntertextLine) -> bool:
 
 @test_for_long_lines.register(LongCalcLine)
 def test_for_long_longcalcline(line: LongCalcLine) -> bool:
-    # No need to return True since it's already a LongCalcLine
-    return False
+    return True
 
 
 @test_for_long_lines.register(NumericCalcLine)
 def test_for_long_numericcalcline(line: NumericCalcLine) -> bool:
-    # No need to return True since it's already a LongCalcLine
     return False
 
 
@@ -1187,7 +1486,7 @@ def test_for_long_calc_lines(line: CalcLine) -> bool:
     in a fraction (single level of fraction, only) are counted and
     discounted from the total tally.
 
-    This is an imperfect work-in-progress.
+    This is a (very) imperfect work-in-progress.
     """
     threshold = 130  # This is an arbitrary value that can be adjusted manually, if reqd
     item_length = 0
@@ -1257,7 +1556,7 @@ def convert_calc_line_to_long(calc_line: CalcLine) -> LongCalcLine:
 
 
 @singledispatch
-def format_lines(line_object):
+def format_lines(line_object, **config_options):
     """
     format_lines adds small, context-dependent pieces of latex code in
     amongst the latex string in the line_object.latex attribute. This involves
@@ -1272,8 +1571,9 @@ def format_lines(line_object):
 
 
 @format_lines.register(CalcLine)
-def format_calc_line(line: CalcLine) -> CalcLine:
+def format_calc_line(line: CalcLine, **config_options) -> CalcLine:
     latex_code = line.latex
+
     equals_signs = [idx for idx, char in enumerate(latex_code) if char == "="]
     second_equals = equals_signs[1]  # Change to 1 for second equals
     latex_code = latex_code.replace("=", "&=")  # Align with ampersands for '\align'
@@ -1287,7 +1587,7 @@ def format_calc_line(line: CalcLine) -> CalcLine:
 
 
 @format_lines.register(NumericCalcLine)
-def format_calc_line(line: NumericCalcLine) -> NumericCalcLine:
+def format_calc_line(line: NumericCalcLine, **config_options) -> NumericCalcLine:
     latex_code = line.latex
     latex_code = latex_code.replace("=", "&=")  # Align with ampersands for '\align'
     comment_space = ""
@@ -1300,11 +1600,10 @@ def format_calc_line(line: NumericCalcLine) -> NumericCalcLine:
 
 
 @format_lines.register(ConditionalLine)
-def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
+def format_conditional_line(line: ConditionalLine, **config_options) -> ConditionalLine:
     """
     Returns the conditional line as a string of latex_code
     """
-
     if line.true_condition:
         latex_condition = " ".join(line.true_condition)
         a = "{"
@@ -1314,16 +1613,22 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
         if line.comment:
             comment_space = "\\;"
             comment = format_strings(line.comment, comment=True)
-        new_math_env = "\n\\end{aligned}\n\\]\n\\[\n\\begin{aligned}\n"
+
+        new_math_env = (
+            f"\n\\end{{{config_options['math_environment_start']}}}\n"
+            f"{config_options['latex_block_end']}\n"
+            f"{config_options['latex_block_start']}\n"
+            f"\\begin{{{config_options['math_environment_end']}}}\n"
+        )
         first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {new_math_env}"
         if line.condition_type == "else":
             first_line = ""
-        line_break = "\\\\[10pt]\n"
+        line_break = f"{config_options['line_break']}\n"
         line.latex_condition = first_line
 
         outgoing = deque([])
         for calc_line in line.true_expressions:
-            outgoing.append((format_lines(calc_line)).latex)
+            outgoing.append((format_lines(calc_line, **config_options)).latex)
         line.true_expressions = outgoing
         line.latex_expressions = line_break.join(line.true_expressions)
         line.latex = line.latex_condition + line.latex_expressions
@@ -1335,7 +1640,7 @@ def format_conditional_line(line: ConditionalLine) -> ConditionalLine:
 
 
 @format_lines.register(LongCalcLine)
-def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
+def format_long_calc_line(line: LongCalcLine, **config_options) -> LongCalcLine:
     """
     Return line with .latex attribute formatted with line breaks suitable
     for positioning within the "\aligned" latex environment.
@@ -1343,7 +1648,7 @@ def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
     latex_code = line.latex
     long_latex = latex_code.replace("=", "\\\\&=")  # Change all...
     long_latex = long_latex.replace("\\\\&=", "&=", 1)  # ...except the first one
-    line_break = "\\\\\n"
+    line_break = f"{config_options['line_break']}\n"
     comment_space = ""
     comment = ""
     if line.comment:
@@ -1354,7 +1659,7 @@ def format_long_calc_line(line: LongCalcLine) -> LongCalcLine:
 
 
 @format_lines.register(ParameterLine)
-def format_param_line(line: ParameterLine) -> ParameterLine:
+def format_param_line(line: ParameterLine, **config_options) -> ParameterLine:
     comment_space = "\\;"
     line_break = "\n"
     if "=" in line.latex:
@@ -1369,7 +1674,7 @@ def format_param_line(line: ParameterLine) -> ParameterLine:
 
 
 @format_lines.register(SymbolicLine)
-def format_symbolic_line(line: SymbolicLine) -> SymbolicLine:
+def format_symbolic_line(line: SymbolicLine, **config_options) -> SymbolicLine:
     replaced = line.latex.replace("=", "&=")
     comment_space = "\\;"
     comment = format_strings(line.comment, comment=True)
@@ -1378,19 +1683,19 @@ def format_symbolic_line(line: SymbolicLine) -> SymbolicLine:
 
 
 @format_lines.register(IntertextLine)
-def format_intertext_line(line: IntertextLine) -> IntertextLine:
+def format_intertext_line(line: IntertextLine, **config_options) -> IntertextLine:
     cleaned_line = line.line.replace("##", "")
     line.latex = f"& \\textrm{{{cleaned_line}}}"
     return line
 
 
 @format_lines.register(BlankLine)
-def format_blank_line(line: BlankLine) -> BlankLine:
+def format_blank_line(line: BlankLine, **config_options) -> BlankLine:
     line.latex = ""
     return line
 
 
-def split_conditional(line: str, calculated_results: dict, override: str):
+def split_conditional(line: str, calculated_results: dict, cell_override: str):
     raw_conditional, raw_expressions = line.split(":")
     expr_deque = deque(raw_expressions.split(";"))  # handle multiple lines in cond
     try:
@@ -1407,7 +1712,9 @@ def split_conditional(line: str, calculated_results: dict, override: str):
 
     expr_acc = deque([])
     for line in expr_deque:
-        categorized = categorize_line(line, calculated_results, override=override)
+        categorized = categorize_line(
+            line, calculated_results, cell_override=cell_override
+        )
         expr_acc.append(categorized)
 
     return (
@@ -1514,6 +1821,13 @@ def test_for_conditional_line(source: str) -> bool:
     return ":" in source and ("if" in source or "else" in source)
 
 
+def test_for_intertext_line(source: str) -> bool:
+    """
+    Returns True if 'source' appears to be an intertext line
+    """
+    return source.startswith("##")
+
+
 def test_for_numeric_line(
     d: deque,
     # func_deque: bool = False
@@ -1561,6 +1875,22 @@ def test_for_numeric_line(
     return all(bool_acc)
 
 
+def toggle_scientific_notation(
+    use_scientific_notation: bool, cell_notation: Optional[bool]
+) -> bool:
+    """
+    Returns a bool representing whether or not scientific notation should be used or not
+    based on whether it has been turned on in global_config and whether it has been
+    toggled in the cell overides.
+
+    In general, the cell overide toggles the reverse of the global_config.
+    """
+    if not cell_notation:
+        return use_scientific_notation
+    else:
+        return not use_scientific_notation
+
+
 def test_for_single_dict(source: str, calc_results: dict) -> bool:
     """
     Returns True if 'source' is a str representing a variable name
@@ -1571,94 +1901,19 @@ def test_for_single_dict(source: str, calc_results: dict) -> bool:
     return isinstance(gotten, dict)
 
 
-def test_for_scientific_notation_str(elem: str) -> bool:
+def test_for_scientific_float(elem: str) -> bool:
     """
-    Returns True if 'elem' represents a python float in scientific
-    "e notation".
-    e.g. 1.23e-3, 0.09e5
-    Returns False otherwise
+    Returns True if 'elem' is a str representation of a float
+    in scientific notation
     """
-    test_for_float = False
-    try:
-        float(elem)
-        test_for_float = True
-    except:
-        pass
-
-    if "e" in str(elem).lower() and test_for_float:
-        return True
+    if isinstance(elem, str) and "e" in elem.lower():
+        left, right = elem.lower().split("e", 1)
+        if (
+            left.replace("-", "").replace("+", "").replace(".", "").isnumeric()
+            and right.replace("-", "").replace("+", "").replace(".", "").isnumeric()
+        ):
+            return True
     return False
-
-
-def round_complex(elem: complex, precision: int) -> complex:
-    """
-    Returns the complex 'elem' rounded to 'precision'
-    """
-    return complex(round(elem.real, precision), round(elem.imag, precision))
-
-
-def round_sympy(elem: Any, precision: int) -> Any:
-    """
-    Returns the Sympy expression 'elem' rounded to 'precision'
-    """
-    from sympy import Float
-
-    rule = {}
-    for n in elem.atoms(Float):
-        if test_for_small_float(float(n), precision):
-            # Equivalent to:
-            # > rule[n] = round(n, precision - int(math.log10(abs(n))) + 1)
-            rule[n] = float(swap_scientific_notation_float([float(n)], precision)[0])
-        else:
-            rule[n] = round(n, precision)
-    rounded = elem.xreplace(rule)
-    if hasattr(elem, "units") and not hasattr(rounded, "units"):
-        # Add back pint units lost during rounding.
-        rounded = rounded * elem.units
-    return rounded
-
-
-def test_for_small_complex(elem: Any, precision: int) -> bool:
-    """
-    Returns True if 'elem' is a complex whose rounded str representation
-    has fewer significant figures than the number in 'precision'.
-    Returns False otherwise.
-    """
-    if isinstance(elem, complex):
-        test = [
-            test_for_small_float(elem.real, precision),
-            test_for_small_float(elem.imag, precision),
-        ]
-        return any(test)
-
-
-def test_for_small_float(elem: Any, precision: int) -> bool:
-    """
-    Returns True if 'elem' is a float whose rounded str representation
-    has fewer significant figures than the numer in 'precision'.
-    Return False otherwise.
-    """
-
-    if not isinstance(elem, (float)):
-        return False
-    if elem == 0:
-        return False
-    elem_as_str = str(round(abs(elem), precision))
-    if "e" in str(elem):
-        return True
-    if "." in elem_as_str:
-        left, *_right = elem_as_str.split(".")
-        if left != "0":
-            return False
-    if (
-        round(elem, precision) != round(elem, precision + 1)
-        or str(abs(round(elem, precision))).replace("0", "").replace(".", "")
-        == str(abs(round(elem, precision + 1))).replace("0", "").replace(".", "")
-        == ""
-    ):
-        return True
-    else:
-        return False
 
 
 def split_parameter_line(line: str, calculated_results: dict) -> deque:
@@ -1695,75 +1950,37 @@ def format_strings(string: str, comment: bool) -> deque:
 
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
+    # if hasattr(item, preferred_latex_method):
+    #     method = getattr(item, preferred_latex_method)
+    #     rendered_string = method()
 
-def round_(item: Any, precision: int, depth: int = 0) -> Any:
-    """
-    Recursively round an object and its elements to a given precision.
-    """
-    if depth > 3:
-        # Limit maximum recursion depth.
-        return item
-    if hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-        try:
-            return [round_(v, precision, depth + 1) for v in item]
-        except:
-            # Objects like Quantity (from pint) have a __len__ wrapper
-            # even if the wrapped magnitude object is not iterable.
-            pass
-    if isinstance(item, complex):
-        return round_complex(item, precision)
-    if hasattr(item, "__sympy__"):
-        return round_sympy(item, precision)
-    if not isinstance(item, (str, int)):
-        try:
-            return round(item, precision)
-        except:
-            pass
-    return item
+    # elif hasattr(item, "_repr_latex_"):
+    #     rendered_string = item._repr_latex_()
 
+    # elif hasattr(item, "latex"):
+    #     try:
+    #         rendered_string = item.latex()
+    #     except TypeError:
+    #         rendered_string = str(item)
 
-def round_and_render(line_of_code: deque, precision: int) -> deque:
-    """
-    Returns a rounded str based on the latex_repr of an object in
-    'line_of_code'
-    """
-    outgoing = deque([])
-    for item in line_of_code:
-        rounded = round_(item, precision)
-        outgoing.append(latex_repr(rounded))
-    return outgoing
+    # elif hasattr(item, "to_latex"):
+    #     try:
+    #         rendered_string = item.to_latex()
+    #     except TypeError:
+    #         rendered_string = str(item)
 
+    # elif hasattr(item, "__len__") and not isinstance(item, (str, dict)):
+    #     comma_space = ",\\ "
+    #     try:
+    #         array = "[" + comma_space.join([str(v) for v in item]) + "]"
+    #         rendered_string = array
+    #     except TypeError:
+    #         rendered_string = str(item)
 
-def latex_repr(item: Any) -> str:
-    """
-    Return a str if the object, 'item', has a special repr method
-    for rendering itself in latex. If not, returns str(result).
-    """
-    if hasattr(item, "_repr_latex_"):
-        return item._repr_latex_().replace("$", "")
+    # else:
+    #     rendered_string = str(item)
 
-    elif hasattr(item, "latex"):
-        try:
-            return item.latex().replace("$", "")
-        except TypeError:
-            return str(item)
-
-    elif hasattr(item, "to_latex"):
-        try:
-            return item.to_latex().replace("$", "")
-        except TypeError:
-            return str(item)
-
-    elif hasattr(item, "__len__") and not isinstance(item, (str, dict, tuple)):
-        comma_space = ",\\ "
-        try:
-            array = "[" + comma_space.join([str(v) for v in item]) + "]"
-            return array
-        except TypeError:
-            return str(item)
-
-    else:
-        return str(item)
+    # return rendered_string.replace("$", "")
 
 
 class ConditionalEvaluator:
@@ -1777,6 +1994,7 @@ class ConditionalEvaluator:
         conditional_type: str,
         raw_conditional: str,
         calc_results: dict,
+        **config_options,
     ) -> deque:
         if conditional_type == "if":  # Reset
             self.prev_cond_type = ""
@@ -1793,8 +2011,12 @@ class ConditionalEvaluator:
             l_par = "\\left("
             r_par = "\\right)"
             if conditional_type != "else":
-                symbolic_portion = swap_symbolic_calcs(conditional, calc_results)
-                numeric_portion = swap_numeric_calcs(conditional, calc_results)
+                symbolic_portion = swap_symbolic_calcs(
+                    conditional, calc_results, **config_options
+                )
+                numeric_portion = swap_numeric_calcs(
+                    conditional, calc_results, **config_options
+                )
                 resulting_latex = (
                     symbolic_portion
                     + deque(["\\rightarrow"])
@@ -1803,7 +2025,9 @@ class ConditionalEvaluator:
                     + deque([r_par])
                 )
             else:
-                numeric_portion = swap_numeric_calcs(conditional, calc_results)
+                numeric_portion = swap_numeric_calcs(
+                    conditional, calc_results, **config_options
+                )
                 resulting_latex = numeric_portion
             self.prev_cond_type = conditional_type
             self.prev_result = result
@@ -1834,17 +2058,18 @@ swap_conditional = (
 )  # Instantiate the callable helper class at "Cell" level scope
 
 
-def swap_calculation(calculation: deque, calc_results: dict) -> tuple:
+def swap_calculation(calculation: deque, calc_results: dict, **config_options) -> tuple:
     """Returns the python code elements in the deque converted into
     latex code elements in the deque"""
-    # calc_w_integrals_preswapped = swap_integrals(calculation, calc_results)
-    symbolic_portion = swap_symbolic_calcs(calculation, calc_results)
+    symbolic_portion = swap_symbolic_calcs(calculation, calc_results, **config_options)
     calc_drop_decl = deque(list(calculation)[1:])  # Drop the variable declaration
-    numeric_portion = swap_numeric_calcs(calc_drop_decl, calc_results)
+    numeric_portion = swap_numeric_calcs(calc_drop_decl, calc_results, **config_options)
     return (symbolic_portion, numeric_portion)
 
 
-def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
+def swap_symbolic_calcs(
+    calculation: deque, calc_results: dict, **config_options
+) -> deque:
     # remove calc_results function parameter
     symbolic_expression = copy.copy(calculation)
     functions_on_symbolic_expressions = [
@@ -1866,12 +2091,21 @@ def swap_symbolic_calcs(calculation: deque, calc_results: dict) -> deque:
         # breakpoint()
         if function is swap_math_funcs:
             symbolic_expression = function(symbolic_expression, calc_results)
+        elif (
+            function is extend_subscripts
+            and not config_options["underscore_subscripts"]
+        ):
+            symbolic_expression = replace_underscores(
+                symbolic_expression, **config_options
+            )
         else:
-            symbolic_expression = function(symbolic_expression)
+            symbolic_expression = function(symbolic_expression, **config_options)
     return symbolic_expression
 
 
-def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
+def swap_numeric_calcs(
+    calculation: deque, calc_results: dict, **config_options
+) -> deque:
     numeric_expression = copy.copy(calculation)
     functions_on_numeric_expressions = [
         insert_parentheses,
@@ -1889,13 +2123,22 @@ def swap_numeric_calcs(calculation: deque, calc_results: dict) -> deque:
     ]
     for function in functions_on_numeric_expressions:
         if function is swap_values or function is swap_math_funcs:
-            numeric_expression = function(numeric_expression, calc_results)
+            numeric_expression = function(
+                numeric_expression, calc_results, **config_options
+            )
+        elif (
+            function is extend_subscripts
+            and not config_options["underscore_subscripts"]
+        ):
+            numeric_expression = replace_underscores(
+                numeric_expression, **config_options
+            )
         else:
-            numeric_expression = function(numeric_expression)
+            numeric_expression = function(numeric_expression, **config_options)
     return numeric_expression
 
 
-def swap_integrals(d: deque, calc_results: dict) -> deque:
+def swap_integrals(d: deque, calc_results: dict, **config_options) -> deque:
     """
     Returns 'calculation' with any function named "quad" or "integrate"
     rendered as an integral.
@@ -1926,7 +2169,7 @@ def swap_integrals(d: deque, calc_results: dict) -> deque:
         return d
 
 
-def swap_log_func(d: deque, calc_results: dict) -> deque:
+def swap_log_func(d: deque, calc_results: dict, **config_options) -> deque:
     """
     Returns a new deque representing 'd' but with any log functions swapped
     out for the appropriate Latex equivalent.
@@ -1989,7 +2232,9 @@ def swap_log_func(d: deque, calc_results: dict) -> deque:
     return swapped_deque
 
 
-def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
+def swap_floor_ceil(
+    d: deque, func_name: str, calc_results: dict, **config_options
+) -> deque:
     """
     Return a deque representing 'd' but with the functions floor(...)
     and ceil(...) swapped out for floor and ceiling Latex brackets.
@@ -2012,25 +2257,8 @@ def swap_floor_ceil(d: deque, func_name: str, calc_results: dict) -> deque:
             swapped_deque.append(item)
     return swapped_deque
 
-    # lpar = "\\left("
-    # rpar = "\\right)"
-    # swapped_deque = deque([])
-    # last = len(d) - 1
-    # for idx, item in enumerate(d):
-    #     if idx == last == 1 and not isinstance(item, deque):
-    #         swapped_deque.append(lpar)
-    #         swapped_deque.append(item)
-    #         swapped_deque.append(rpar)
-    #     elif idx == 1 and isinstance(item, deque):
-    #         item.appendleft(lpar)
-    #         item.append(rpar)
-    #         swapped_deque.append(item)
-    #     else:
-    #         swapped_deque.append(item)
-    # return swapped_deque
 
-
-def flatten_deque(d: deque) -> deque:
+def flatten_deque(d: deque, **config_options) -> deque:
     new_deque = deque([])
     for item in flatten(d):
         new_deque.append(item)
@@ -2067,17 +2295,6 @@ def eval_conditional(conditional_str: str, **kwargs) -> str:
         return eval(conditional_str)
     except SyntaxError:
         return conditional_str
-
-
-# def code_reader(pycode_as_str: str) -> deque:
-#     """
-#     Returns full line of code parsed into deque items
-#     """
-#     breakpoint()
-#     var_name, expression = pycode_as_str.split("=", 1)
-#     var_name, expression = var_name.strip(), expression.strip()
-#     expression_as_deque = expr_parser(expression)
-#     return deque([var_name]) + deque(["=",]) + expression_as_deque
 
 
 def expr_parser(line: str) -> list:
@@ -2117,9 +2334,21 @@ def expr_parser(line: str) -> list:
         ],
     )
 
-    return list_to_deque(
+    parsed = list_to_deque(
         more_itertools.collapse(expr.parseString(line).asList(), levels=1)
     )
+    return parsed
+
+
+# def convert_to_number(x: str):
+#     x = "".join(x)
+#     try:
+#         return int(x)
+#     except ValueError:
+#         try:
+#             return float(x)
+#         except ValueError:
+#             return x
 
 
 def list_to_deque(los: List[str]) -> deque:
@@ -2135,7 +2364,7 @@ def list_to_deque(los: List[str]) -> deque:
     return acc
 
 
-def extend_subscripts(pycode_as_deque: deque) -> deque:
+def extend_subscripts(pycode_as_deque: deque, **config_options) -> deque:
     """
     For variables named with a subscript, e.g. V_c, this function ensures that any
     more than one subscript, e.g. s_ze, is included in the latex subscript notation.
@@ -2167,7 +2396,25 @@ def extend_subscripts(pycode_as_deque: deque) -> deque:
     return swapped_deque
 
 
-def swap_chained_fracs(d: deque) -> deque:
+def replace_underscores(pycode_as_deque: deque, **config_options) -> deque:
+    """
+    Returns 'pycode_as_deque' with underscores replaced with spaces.
+    Used when global_config['underscore_subscripts'] == False
+    """
+    swapped_deque = deque([])
+    for item in pycode_as_deque:
+        if isinstance(item, deque):
+            new_item = replace_underscores(item)
+            swapped_deque.append(new_item)
+        elif isinstance(item, str):
+            new_item = item.replace("_", "\\ ")
+            swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
+    return swapped_deque
+
+
+def swap_chained_fracs(d: deque, **config_options) -> deque:
     """
     Swaps out the division symbol, "/", with a Latex fraction.
     The numerator is the symbol before the "/" and the denominator follows.
@@ -2242,7 +2489,7 @@ def test_for_py_operator(item: str):
     return False
 
 
-def swap_frac_divs(code: deque) -> deque:
+def swap_frac_divs(code: deque, **config_options) -> deque:
     """
     Swaps out the division symbol, "/", with a Latex fraction.
     The numerator is the symbol before the "/" and the denominator follows.
@@ -2261,7 +2508,7 @@ def swap_frac_divs(code: deque) -> deque:
         if code[next_idx] == "/" and isinstance(item, deque):
             new_item = f"{ops}{a}"
             swapped_deque.append(new_item)
-            swapped_deque.append(swap_frac_divs(item))  # recursion!
+            swapped_deque.append(swap_frac_divs(item, **config_options))  # recursion!
         elif code[next_idx] == "/" and not isinstance(item, deque):
             new_item = f"{ops}{a}"
             swapped_deque.append(new_item)
@@ -2271,21 +2518,25 @@ def swap_frac_divs(code: deque) -> deque:
             close_bracket_token += 1
         elif close_bracket_token:
             if isinstance(item, deque):
-                swapped_deque.append(swap_frac_divs(item))
+                swapped_deque.append(
+                    swap_frac_divs(item, **config_options)
+                )  # recursion!
             else:
                 swapped_deque.append(item)
             new_item = f"{b}" * close_bracket_token
             close_bracket_token = 0
             swapped_deque.append(new_item)
         elif isinstance(item, deque):
-            new_item = swap_frac_divs(item)  # recursion!
+            new_item = swap_frac_divs(item, **config_options)  # recursion!
             swapped_deque.append(new_item)
         else:
             swapped_deque.append(item)
     return swapped_deque
 
 
-def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
+def swap_math_funcs(
+    pycode_as_deque: deque, calc_results: dict, **config_options
+) -> deque:
     """
     Returns a deque representing 'pycode_as_deque' but with appropriate
     parentheses inserted.
@@ -2334,7 +2585,7 @@ def swap_math_funcs(pycode_as_deque: deque, calc_results: dict) -> deque:
     return swapped_deque
 
 
-def get_func_latex(func: str) -> str:
+def get_func_latex(func: str, **config_options) -> str:
     """
     Returns the Latex equivalent of the function name, 'func'.
     If a match is not found then 'func' is returned.
@@ -2360,7 +2611,7 @@ def get_func_latex(func: str) -> str:
     return dict_get(latex_math_funcs, func)
 
 
-def insert_func_braces(d: deque) -> deque:
+def insert_func_braces(d: deque, **config_options) -> deque:
     """
     Returns a deque representing 'd' with appropriate latex function
     braces inserted.
@@ -2396,7 +2647,7 @@ def insert_func_braces(d: deque) -> deque:
     return swapped_deque
 
 
-def swap_func_name(d: deque, old: str, new: str = "") -> deque:
+def swap_func_name(d: deque, old: str, new: str = "", **config_options) -> deque:
     """
     Returns 'd' with the function name swapped out
     """
@@ -2413,7 +2664,7 @@ def swap_func_name(d: deque, old: str, new: str = "") -> deque:
     return swapped_deque
 
 
-def swap_py_operators(pycode_as_deque: deque) -> deque:
+def swap_py_operators(pycode_as_deque: deque, **config_options) -> deque:
     """
     Swaps out Python mathematical operators that do not exist in Latex.
     Specifically, swaps "*", "**", and "%" for "\\cdot", "^", and "\\bmod",
@@ -2436,7 +2687,7 @@ def swap_py_operators(pycode_as_deque: deque) -> deque:
     return swapped_deque
 
 
-def swap_scientific_notation_str(pycode_as_deque: deque) -> deque:
+def swap_scientific_notation_str(item: str) -> str:
     """
     Returns a deque representing 'line' with any python
     float elements in the deque
@@ -2444,21 +2695,27 @@ def swap_scientific_notation_str(pycode_as_deque: deque) -> deque:
     scientific notation.
     """
     b = "}"
-    swapped_deque = deque([])
-    for item in pycode_as_deque:
-        if isinstance(item, deque):
-            new_item = swap_scientific_notation_str(item)
-            swapped_deque.append(new_item)
-        elif test_for_scientific_notation_str(item):
-            new_item = item.replace("e", " \\times 10 ^ {")
-            swapped_deque.append(new_item)
-            swapped_deque.append(b)
+    components = []
+    for component in item.split(" "):
+        if "e+" in component:
+            new_component = component.replace("e+0", "e+").replace(
+                "e+", " \\times 10 ^ {"
+            )
+            components.append(new_component + b)
+        elif "e-" in component:
+            new_component = component.replace("e-0", "e-").replace(
+                "e-", " \\times 10 ^ {-"
+            )
+            components.append(new_component + b)
         else:
-            swapped_deque.append(item)
-    return swapped_deque
+            components.append(component)
+    new_item = "\\ ".join(components)
+    return new_item
 
 
-def swap_scientific_notation_float(line: deque, precision: int) -> deque:
+def swap_scientific_notation_float(
+    line: deque, precision: int, **config_options
+) -> deque:
     """
     Returns a deque representing 'pycode_as_deque' with any python floats that
     will get "cut-off" by the 'precision' arg when they are rounded as being
@@ -2476,7 +2733,7 @@ def swap_scientific_notation_float(line: deque, precision: int) -> deque:
     """
     swapped_deque = deque([])
     for item in line:
-        if test_for_small_float(item, precision):
+        if test_for_float(item, precision):
             new_item = (
                 "{:.{precision}e}".format(item, precision=precision)
                 .replace("e-0", "e-")
@@ -2489,34 +2746,34 @@ def swap_scientific_notation_float(line: deque, precision: int) -> deque:
     return swapped_deque
 
 
-def swap_scientific_notation_complex(line: deque, precision: int) -> deque:
-    swapped_deque = deque([])
-    for item in line:
-        if isinstance(item, complex) and test_for_small_complex(item, precision):
-            real = swap_scientific_notation_float([item.real], precision)
-            imag = swap_scientific_notation_float([item.imag], precision)
-            swapped_real = list(swap_scientific_notation_str(real))
-            swapped_imag = list(swap_scientific_notation_str(imag))
+# def swap_scientific_notation_complex(line: deque, precision: int, **config_options) -> deque:
+#     swapped_deque = deque([])
+#     for item in line:
+#         if isinstance(item, complex) and test_for_small_complex(item, precision):
+#             real = swap_scientific_notation_float([item.real], precision)
+#             imag = swap_scientific_notation_float([item.imag], precision)
+#             swapped_real = list(swap_scientific_notation_str(real, precision=precision))
+#             swapped_imag = list(swap_scientific_notation_str(imag, precision=precision))
 
-            ops = "" if item.imag < 0 else "+"
-            real_str = (
-                f"{swapped_real[0]}"
-                if len(swapped_real) == 1
-                else " ".join(swapped_real)
-            )
-            imag_str = (
-                f"{swapped_imag[0]}"
-                if len(swapped_imag) == 1
-                else " ".join(swapped_imag)
-            )
-            new_complex_str = f"( {real_str} {ops} {imag_str}j )"
-            swapped_deque.append(new_complex_str)
-        else:
-            swapped_deque.append(item)
-    return swapped_deque
+#             ops = "" if item.imag < 0 else "+"
+#             real_str = (
+#                 f"{swapped_real[0]}"
+#                 if len(swapped_real) == 1
+#                 else " ".join(swapped_real)
+#             )
+#             imag_str = (
+#                 f"{swapped_imag[0]}"
+#                 if len(swapped_imag) == 1
+#                 else " ".join(swapped_imag)
+#             )
+#             new_complex_str = f"( {real_str} {ops} {imag_str}j )"
+#             swapped_deque.append(new_complex_str)
+#         else:
+#             swapped_deque.append(item)
+#     return swapped_deque
 
 
-def swap_comparison_ops(pycode_as_deque: deque) -> deque:
+def swap_comparison_ops(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns a deque representing 'pycode_as_deque' with any python
     comparison operators, eg. ">", ">=", "!=", "==" swapped with
@@ -2541,7 +2798,7 @@ def swap_comparison_ops(pycode_as_deque: deque) -> deque:
     return swapped_deque
 
 
-def swap_superscripts(pycode_as_deque: deque) -> deque:
+def swap_superscripts(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns the python code deque with any exponentials swapped
     out for latex superscripts.
@@ -2589,31 +2846,37 @@ def swap_superscripts(pycode_as_deque: deque) -> deque:
     return pycode_with_supers
 
 
-def swap_for_greek(pycode_as_deque: deque) -> deque:
+def swap_for_greek(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns full line of code as deque with any Greek terms swapped in for words describing
     Greek terms, e.g. 'beta' -> 'β'
     """
+    greeks_to_exclude = config_options["greek_exclusions"]
     swapped_deque = deque([])
     greek_chainmap = ChainMap(GREEK_LOWER, GREEK_UPPER)
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            new_item = swap_for_greek(item)
+            new_item = swap_for_greek(item, **config_options)
             swapped_deque.append(new_item)
         elif "_" in str(item):
             components = str(item).split("_")
             swapped_components = [
-                dict_get(greek_chainmap, component) for component in components
+                dict_get(greek_chainmap, component)
+                if component not in greeks_to_exclude
+                else component
+                for component in components
             ]
             new_item = "_".join(swapped_components)
             swapped_deque.append(new_item)
-        else:
+        elif item not in greeks_to_exclude:
             new_item = dict_get(greek_chainmap, item)
             swapped_deque.append(new_item)
+        else:
+            swapped_deque.append(item)
     return swapped_deque
 
 
-def test_for_long_var_strs(elem: Any) -> bool:
+def test_for_long_var_strs(elem: Any, **config_options) -> bool:
     """
     Returns True if 'elem' is a variable string that has more than one character
     in it's "top-level" name (as opposed to it's subscript).
@@ -2633,16 +2896,22 @@ def test_for_long_var_strs(elem: Any) -> bool:
     components = elem.replace("'", "").split("_")
     if len(components) != 1:
         top_level, *_remainders = components
-        if len(top_level) == 1:
-            return False
+        if not config_options["underscore_subscripts"]:
+            if len(top_level) + len(_remainders) == 1:
+                return False
+            else:
+                return True
         else:
-            return True
+            if len(top_level) > 1:
+                return True
+            else:
+                return False
     if len(components[0]) == 1:
         return False
     return True
 
 
-def swap_long_var_strs(pycode_as_deque: deque) -> deque:
+def swap_long_var_strs(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns a new deque that represents 'pycode_as_deque' but
     with all long variable names "escaped" so that they do not
@@ -2655,12 +2924,17 @@ def swap_long_var_strs(pycode_as_deque: deque) -> deque:
     end = "}"
     for item in pycode_as_deque:
         if isinstance(item, deque):
-            new_item = swap_long_var_strs(item)
+            new_item = swap_long_var_strs(item, **config_options)
             swapped_deque.append(new_item)
-        elif test_for_long_var_strs(item) and not is_number(str(item)):
+        elif test_for_long_var_strs(item, **config_options) and not is_number(
+            str(item)
+        ):
             try:
                 top_level, remainder = str(item).split("_", 1)
-                new_item = begin + top_level + end + "_" + remainder
+                if config_options["underscore_subscripts"]:
+                    new_item = begin + top_level + end + "_" + remainder
+                else:
+                    new_item = begin + top_level + "_" + remainder + end
                 swapped_deque.append(new_item)
             except:
                 new_item = begin + item + end
@@ -2670,7 +2944,7 @@ def swap_long_var_strs(pycode_as_deque: deque) -> deque:
     return swapped_deque
 
 
-def swap_prime_notation(d: deque) -> deque:
+def swap_prime_notation(d: deque, **config_options) -> deque:
     """
     Returns a deque representing 'd' with all elements
     with  "_prime" substrings replaced with "'".
@@ -2688,7 +2962,7 @@ def swap_prime_notation(d: deque) -> deque:
     return swapped_deque
 
 
-def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
+def swap_values(pycode_as_deque: deque, tex_results: dict, **config_options) -> deque:
     """
     Returns a the 'pycode_as_deque' with any symbolic terms swapped out for their corresponding
     values.
@@ -2697,11 +2971,15 @@ def swap_values(pycode_as_deque: deque, tex_results: dict) -> deque:
     for item in pycode_as_deque:
         swapped_value = ""
         if isinstance(item, deque):
-            outgoing.append(swap_values(item, tex_results))
+            outgoing.append(
+                swap_values(item, tex_results, **config_options)
+            )  # recursion!
         else:
             swapped_value = dict_get(tex_results, item)
             if isinstance(swapped_value, str) and swapped_value != item:
-                swapped_value = format_strings(swapped_value, comment=False)
+                swapped_value = format_strings(
+                    swapped_value, comment=False, **config_options
+                )
             outgoing.append(swapped_value)
     return outgoing
 
@@ -2863,7 +3141,7 @@ def insert_arithmetic_parentheses(d: deque) -> deque:
     return swapped_deque
 
 
-def insert_parentheses(pycode_as_deque: deque) -> deque:
+def insert_parentheses(pycode_as_deque: deque, **config_options) -> deque:
     """
     Returns a deque representing 'pycode_as_deque' but with appropriate
     parentheses inserted.

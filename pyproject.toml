@@ -11,7 +11,7 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
 dependencies = [
     "more_itertools",
-    "nbconvert",
+    "nbconvert >= 6.0",
     "innerscope",
     "pyparsing"
 ]
@@ -39,9 +39,9 @@ dev = [
 doc = ["sphinx"]
 
 [project.entry-points."nbconvert.exporters"]
-HTML_noinput = 'handcalcs.exporters:HTMLHideInputExporter'
-PDF_noinput = 'handcalcs.exporters:PDFHideInputExporter'
-LaTeX_noinput = 'handcalcs.exporters:LatexHideInputExporter'
+HTML_NoInput = 'handcalcs.exporters:HTMLHideInputExporter'
+PDF_NoInput = 'handcalcs.exporters:PDFHideInputExporter'
+LaTeX_NoInput = 'handcalcs.exporters:LatexHideInputExporter'
 
 [tool.coverage.paths]
 source = ['handcalcs', '*/site-packages']

@@ -30,6 +30,7 @@ si.environment("default")
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
 from handcalcs.handcalcs import ParameterCell, LongCalcCell, CalcCell
 from handcalcs.decorator import handcalc
+import handcalcs.global_config
 
 
 # When writing a new test create a new "cell" .py file
@@ -47,6 +48,21 @@ from test_handcalcs import cell_9
 from test_handcalcs import cell_10
 from test_handcalcs import error_cell
 
+config_options = {
+    "decimal_separator": ".",
+    "latex_block_start": "\\[",
+    "latex_block_end": "\\]",
+    "math_environment_start": "aligned",
+    "math_environment_end": "aligned",
+    "line_break": "\\\\[10pt]",
+    "use_scientific_notation": False,
+    "display_precision": 3,
+    "underscore_subscripts": True,
+    "zero_tolerance": 16,
+    "greek_exclusions": [],
+    "param_columns": 3,
+    "preferred_string_formatter": "L"
+}
 
 # TODO: Integration tests with nested log, nested exponents
 
@@ -58,8 +74,9 @@ class MockLatexObj1:
         self.a = "{"
         self.b = "}"
 
-    def to_latex(self):
-        return f"\\text{self.a}{self.s}{self.b}"
+    def __format__(self, formatter: str):
+        if "L" in formatter:
+            return f"\\mathrm{self.a}{self.s}{self.b}"
 
 
 class MockLatexObj2:
@@ -68,7 +85,7 @@ class MockLatexObj2:
         self.b = "}"
         self.s = s
 
-    def latex(self):
+    def _repr_latex_(self):
         return f"\\text{self.a}{self.s}{self.b}"
 
 
@@ -115,6 +132,7 @@ def remove_imports_defs_and_globals(source: str):
             and "@" not in line
             and "globals" not in line
             and "import" not in line
+            and line
         ):
             acc.append(line)
     return "\n".join(acc)
@@ -143,13 +161,16 @@ def func_3(x, y):
     b = 3 * a + y
     return locals()  # not necessary, but allowed
 
-line_args = {"override": "", "precision": ""}
-line_args_params = {"override": "params", "precision": ""}
-line_args_symbolic = {"override": "symbolic", "precision": ""}
-line_args_long = {"override": "long", "precision": 2}
-line_args_short = {"override": "short", "precision": 3}
-line_args_1 = {"override": "", "precision": 5}
-
+line_args = {"override": "", "precision": "", "sci_not": False}
+line_args_params = {"override": "params", "precision": "", "sci_not": False}
+line_args_symbolic = {"override": "symbolic", "precision": "", "sci_not": False}
+line_args_long = {"override": "long", "precision": 2, "sci_not": False}
+line_args_short = {"override": "short", "precision": 3, "sci_not": False}
+line_args_1 = {"override": "", "precision": 5, "sci_not": True}
+line_args_2 = {"override": "", "precision": "", "sci_not": False}
+line_args_3 = {"override": "", "precision": 3, "sci_not": True}
+line_args_4 = {"override": "params", "precision": "", "sci_not": False}
+line_args_10 = {"override": "", "precision": "", "sci_not": True}
 
 cell_1_source = remove_imports_defs_and_globals(inspect.getsource(cell_1))
 cell_2_source = remove_imports_defs_and_globals(inspect.getsource(cell_2))
@@ -169,13 +190,13 @@ cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_1_source, cell_1.calc_results, line_args_1,
 )
 cell_2_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_2_source, cell_2.calc_results, line_args,
+    cell_2_source, cell_2.calc_results, line_args_2,
 )
 cell_2b_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_2b_source, cell_2b.calc_results, line_args,
+    cell_2b_source, cell_2b.calc_results, line_args_2,
 )
 cell_3_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_3_source, cell_3.calc_results, line_args,
+    cell_3_source, cell_3.calc_results, line_args_3,
 )
 cell_4_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_4_source, cell_4.calc_results, line_args_params,
@@ -199,7 +220,7 @@ cell_9_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_9_source, cell_9.calc_results, line_args_symbolic,
 )
 cell_10_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_10_source, cell_10.calc_results, line_args,
+    cell_10_source, cell_10.calc_results, line_args_10,
 )
 # error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
@@ -212,52 +233,53 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 
 def test_integration():
     assert (
-        cell_1_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2 } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2 } \\; \n\\end{aligned}\n\\]"
+        cell_1_renderer.render(config_options=config_options)
+        == '\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2} \\; \n\\end{aligned}\n\\]'
     )
     assert (
-        cell_2_renderer.render()
+        cell_2_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\nx &= 2 \\; \n\\\\[10pt]\n&\\text{Since, } x \\geq 1 \\rightarrow \\left( 2 \\geq 1 \\right) : \\; \\;\\textrm{(Comment)} \\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1  = 2 \\cdot 1 &= 2  \n\\\\[10pt]\nc &= 2 \\; \n\\end{aligned}\n\\]"
     )
     assert (
-        cell_2b_renderer.render()
+        cell_2b_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\nx &= 10 \\; \n\\\\[10pt]\nb &= x \\cdot 1  = 10 \\cdot 1 &= 10  \n\\\\[10pt]\nc &= 10 \\; \n\\end{aligned}\n\\]"
     )
     assert (
-        cell_3_renderer.render()
-        == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1 }  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\\ 0.001]  \n\\end{aligned}\n\\]'
+        cell_3_renderer.render(config_options=config_options)
+        == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1}  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\ 1.000 \\times 10 ^ {-3}]  \n\\end{aligned}\n\\]'
     )
     assert (
-        cell_4_renderer.render()
+        cell_4_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n &b &= 3 \\; \n &c &= 5 \\; \n\\\\[10pt]\n y &= 6 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
-        cell_5_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 10000001 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002 \\; \n\\\\[10pt]\nc &= 30000003 \\; \n\\\\[10pt]\nx &= 5 \\; \n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin \\left( \\sin \\left( \\frac{ 20000002 }{ 30000003 } \\right) \\right) + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 10000001 }{ 20000002 } \\right) \\\\&= 3.975 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
+        cell_5_renderer.render(config_options=config_options)
+        == "\\[\n\\begin{aligned}\na &= 10000001 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nb &= 20000002 \\; \n\\\\[10pt]\nc &= 30000003 \\; \n\\\\[10pt]\nx &= 5 \\; \n\\\\[10pt]\ny &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 10000001 }{ 20000002 } } + \\arcsin \\left( \\sin \\left( \\frac{ 20000002 }{ 30000003 } \\right) \\right) + \\left( \\frac{ 10000001 }{ 20000002 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 10000001 \\cdot 20000002 + 20000002 \\cdot 30000003 }{ \\left( 20000002 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 10000001 }{ 20000002 } \\right) \\\\&= 3.975 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
-        cell_6_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 2 \\; \n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6  \\\\\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11  \\\\\n\\end{aligned}\n\\]"
+        cell_6_renderer.render(config_options=config_options)
+        == "\\[\n\\begin{aligned}\na &= 2 \\; \n\\\\[10pt]\nb &= 3 \\cdot a \\\\&= 3 \\cdot 2 \\\\&= 6  \\\\[10pt]\n\\\\[10pt]\ny &= 2 \\cdot a + 4 + 3 \\\\&= 2 \\cdot 2 + 4 + 3 \\\\&= 11  \\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
-        cell_7_renderer.render()
-        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33 \\; \\;\\textrm{(Comment)}\\\\\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) \\\\&= 4.12 \\; \\;\\textrm{(Comment)}\\\\\n\\end{aligned}\n\\]"
+        cell_7_renderer.render(config_options=config_options)
+        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\\\&= \\frac{ 52 }{ 23 } + 43 \\\\&= 45.26 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\\\&= 52 \\cdot \\frac{ 45.26 }{ 23 } \\\\&= 102.33 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\\\&= \\sqrt { \\frac{ 23 }{ 43 } } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) \\\\&= 4.12 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
-        cell_7b_renderer.render()
-        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984 \\; \n\\\\[10pt]\nb'_{c} &= 43 \\; \n\\\\[10pt]\n\\mathrm{causal} &= (4.2+3.2j) \\; \n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c}  = \\frac{ (4.2+3.2j) }{ 0.984 } + 43 &= (47.268+3.252j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} }  = (4.2+3.2j) \\cdot \\frac{ (47.268+3.252j) }{ 0.984 } &= (191.179+167.599j) \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^ {3 } \\right) ^{ 2 } } } + \\sin \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right)  = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23 \\times 10 ^ {3 } \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 0.984 }{ 43 } \\right) &= 6.333 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        cell_7b_renderer.render(config_options=config_options)
+        == "\\[\n\\begin{aligned}\n\\alpha_{\\zeta} &= 0.984 \\; \n\\\\[10pt]\nb'_{c} &= 43 \\; \n\\\\[10pt]\n\\mathrm{causal} &= 4.200+3.200j \\; \n\\\\[10pt]\nf &= \\frac{ \\mathrm{causal} }{ \\alpha_{\\zeta} } + b'_{c}  = \\frac{ 4.200+3.200j }{ 0.984 } + 43 &= 47.268+3.252j \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= \\mathrm{causal} \\cdot \\frac{ f }{ \\alpha_{\\zeta} }  = 4.200+3.200j \\cdot \\frac{ 47.268+3.252j }{ 0.984 } &= 191.179+167.599j \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ \\alpha_{\\zeta} }{ b'_{c} } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ \\alpha_{\\zeta} \\cdot b'_{c} + b'_{c} }{ \\left( 1.23 \\times 10 ^ {3} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ \\alpha_{\\zeta} }{ b'_{c} } \\right)  = \\sqrt { \\frac{ 0.984 }{ 43 } } + \\Sigma \\left( 1 ,\\  2 ,\\  3 \\right) + \\left( \\frac{ 0.984 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 0.984 \\cdot 43 + 43 }{ \\left( 1.23 \\times 10 ^ {3} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 0.984 }{ 43 } \\right) &= 6.333 \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
-        cell_8_renderer.render()
+        cell_8_renderer.render(config_options=config_options)
         == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
     )
     assert (
-        cell_9_renderer.render()
+        cell_9_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
     )
+    # print(cell_10_renderer.render(config_options=config_options))
     assert (
-        cell_10_renderer.render()
-        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 44.504 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1 }  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
+        cell_10_renderer.render(config_options=config_options)
+        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
     )
 
 # Test decorator.py
@@ -330,7 +352,7 @@ def test_format_cell_error():
 def test_round_and_render_line_objects_to_latex_error():
     with pytest.raises(TypeError):
         handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-            ["Line data"], precision=3, dec_sep="."
+            ["Line data"], cell_precision=3, cell_notation=False, **config_options
         )
 
 
@@ -500,8 +522,9 @@ def test_round_and_render_line_objects_to_latex():
             comment=" Comment",
             latex="",
         ),
-        3,
-        ".",
+        cell_precision=3,
+        cell_notation=True,
+        **config_options,
     ) == CalcLine(
         line=deque(
             [
@@ -537,12 +560,11 @@ def test_round_and_render_line_objects_to_latex():
                 "}",
                 "}",
                 "=",
-                "1.852 \\times 10 ^ {-2",
-                "}",
+                "1.852 \\times 10 ^ {-2}",
             ]
         ),
         comment=" Comment",
-        latex="\\alpha_{\\eta_{\\psi}} = \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } = 1.852 \\times 10 ^ {-2 }",
+        latex="\\alpha_{\\eta_{\\psi}} = \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } } = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } = 1.852 \\times 10 ^ {-2}",
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
@@ -551,17 +573,19 @@ def test_round_and_render_line_objects_to_latex():
             comment="",
             latex="",
         ),
-        3,
-        ".",
+        cell_precision=3,
+        cell_notation=True,
+        **config_options,
     ) == ParameterLine(
-        line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2", "}"]),
+        line=deque(["\\alpha_{\\eta_{\\psi}}", "=", "1.852 \\times 10 ^ {-2}"]),
         comment="",
-        latex="\\alpha_{\\eta_{\\psi}} = 1.852 \\times 10 ^ {-2 }",
+        latex="\\alpha_{\\eta_{\\psi}} = 1.852 \\times 10 ^ {-2}",
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), 3, ".",
+        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), cell_precision=3, cell_notation=True, **config_options,
     ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
+
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
         CalcLine(
@@ -711,8 +735,9 @@ def test_round_and_render_line_objects_to_latex():
             comment=" Comment",
             latex="",
         ),
-        3,
-        ".",
+        cell_precision=3,
+        cell_notation=False,
+        **config_options,
     ) == CalcLine(
         line=deque(
             [
@@ -1229,21 +1254,21 @@ def test_swap_values():
 
 def test_swap_for_greek():
     assert handcalcs.handcalcs.swap_for_greek(
-        deque(["eta", "=", "beta", "+", "theta"])
+        deque(["eta", "=", "beta", "+", "theta"]), **config_options
     ) == deque(["\\eta", "=", "\\beta", "+", "\\theta"])
     assert handcalcs.handcalcs.swap_for_greek(
-        deque(["M_r", "=", "phi", "\\cdot", deque(["psi", "\\cdot", "F_y"])])
+        deque(["M_r", "=", "phi", "\\cdot", deque(["psi", "\\cdot", "F_y"])]), **config_options
     ) == deque(["M_r", "=", "\\phi", "\\cdot", deque(["\\psi", "\\cdot", "F_y"])])
-    assert handcalcs.handcalcs.swap_for_greek(deque(["lamb", "=", 3])) == deque(
+    assert handcalcs.handcalcs.swap_for_greek(deque(["lamb", "=", 3]), **config_options) == deque(
         ["\\lambda", "=", 3]
     )
 
 
-def test_test_for_scientific_notation_str():
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("1.233e-3") == True
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("0.090e10") == True
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("e10") == False
-    assert handcalcs.handcalcs.test_for_scientific_notation_str("-1.23e4") == True
+def test_test_for_scientific_float():
+    assert handcalcs.handcalcs.test_for_scientific_float("1.233e-3") == True
+    assert handcalcs.handcalcs.test_for_scientific_float("0.090e10") == True
+    assert handcalcs.handcalcs.test_for_scientific_float("e10") == False
+    assert handcalcs.handcalcs.test_for_scientific_float("-1.23e4") == True
 
 
 def test_swap_scientific_notation_float():
@@ -1286,30 +1311,30 @@ def test_swap_comparison_ops():
 
 
 def test_test_for_long_var_strs():
-    assert handcalcs.handcalcs.test_for_long_var_strs("x_y_a") == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("Rate_annual") == True
-    assert handcalcs.handcalcs.test_for_long_var_strs("x_rake_red") == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("AB_x_y") == True
-    assert handcalcs.handcalcs.test_for_long_var_strs("category_x") == True
-    assert handcalcs.handcalcs.test_for_long_var_strs("x") == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("xy") == True
-    assert handcalcs.handcalcs.test_for_long_var_strs(234.21) == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("\\frac{") == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("\\sin") == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("x_y_a", **config_options) == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("Rate_annual", **config_options) == True
+    assert handcalcs.handcalcs.test_for_long_var_strs("x_rake_red", **config_options) == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("AB_x_y", **config_options) == True
+    assert handcalcs.handcalcs.test_for_long_var_strs("category_x", **config_options) == True
+    assert handcalcs.handcalcs.test_for_long_var_strs("x", **config_options) == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("xy", **config_options) == True
+    assert handcalcs.handcalcs.test_for_long_var_strs(234.21, **config_options) == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("\\frac{", **config_options) == False
+    assert handcalcs.handcalcs.test_for_long_var_strs("\\sin", **config_options) == False
 
 
 def test_swap_long_var_strs():
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4])) == deque(
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4]), **config_options) == deque(
         ["\\mathrm{cat}_xy_u", "+", 4]
     )
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"])) == deque(
+    assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"]), **config_options) == deque(
         ["\\mathrm{RATE}", "*", "4"]
     )
     assert handcalcs.handcalcs.swap_long_var_strs(
-        deque(["\\sin", "\\left(", "apple_cart", "\\right)"])
+        deque(["\\sin", "\\left(", "apple_cart", "\\right)"]), **config_options
     ) == deque(["\\sin", "\\left(", "\\mathrm{apple}_cart", "\\right)"])
     assert handcalcs.handcalcs.swap_long_var_strs(
-        deque(["x", "=", "a", "*", deque(["b", "+", "annual_x"])])
+        deque(["x", "=", "a", "*", deque(["b", "+", "annual_x"])]), **config_options
     ) == deque(["x", "=", "a", "*", deque(["b", "+", "\\mathrm{annual}_x"])])
 
 
@@ -1626,19 +1651,13 @@ def test_format_strings():
     )
 
 
-def test_test_for_small_float():
-    assert handcalcs.handcalcs.test_for_small_float(1e3, 2) == False
-    assert handcalcs.handcalcs.test_for_small_float(0.1239, 2) == True
-    assert handcalcs.handcalcs.test_for_small_float(0.1239, 5) == False
-
-
 def test_latex_repr():
     mock_obj_1 = MockLatexObj1("test string")
     mock_obj_2 = MockLatexObj2("23 23")
-    assert handcalcs.handcalcs.latex_repr(123) == "123"
-    assert handcalcs.handcalcs.latex_repr(20 * si.Pa) == "20.000\\ \\text{Pa}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_1) == "\\text{test string}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_2) == "\\text{23 23}"
+    assert handcalcs.handcalcs.latex_repr(123, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "123"
+    assert handcalcs.handcalcs.latex_repr(20 * si.Pa, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "2.000 \\times 10^ {1}\\ \\mathrm{Pa}"
+    assert handcalcs.handcalcs.latex_repr(mock_obj_1, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "\\mathrm{test string}"
+    assert handcalcs.handcalcs.latex_repr(mock_obj_2, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "\\text{23 23}"
 
 
 def test_swap_integrals():
@@ -1668,6 +1687,11 @@ def test_swap_dec_sep():
         deque(["sin", "\\left(", "45", "\\right)"]), ","
     ) == deque(["sin", "\\left(", "45", "\\right)"])
 
+
+def test_replace_underscores():
+    assert handcalcs.handcalcs.replace_underscores(
+        deque(["cat_a", "+", deque(["\\Delta_T", "\\cdot", 234.4])])
+    ) == deque(["cat\\ a", "+", deque(["\\Delta\\ T", "\\cdot", 234.4])])
 
 def test_swap_chained_fracs():
     assert handcalcs.handcalcs.swap_chained_fracs( # Test for basic functionality
