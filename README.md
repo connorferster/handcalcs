@@ -355,71 +355,17 @@ Sometimes you need to write "prime" on your variables:
 
 ## PDF Printing in Jupyter
 
-_Note: With `nbconvert` v6.0, templates are handled in a different manner that is incompatible with the below method. Be sure to use `nbconvert` v5.6.1 to allow template installation and swapping._
+_Note:_ With `nbconvert` v6.0, installing templates (as shown in older YouTube videos) is no longer required. An `Exporter` for Jupyter Notebook/Lab is
+installed when `handcalcs` is installed which gives you access to two new File -> Save and Export as options: 
+1. Export `HTML_NoInput`
+2. Export `LaTeX_NoInput`
+3. Export `PDF_NoInput`
 
-Jupyter Notebooks/Lab are able to print notebooks to PDF through two methods. Both can produce great results with handcalcs:
+These options suppress all input cells so you only see rendered outputs in your Jupyter notebooks.
 
-1. **Export to HTML**: Open the exported HTML page in your browser and print to PDF using your system's own PDF printer
-    * Pros: No additional software required, you can include images copy-pasted into your Jupyter notebook, and you can change the scale of the printed PDF in your brower's print window.
-    2. Cons: Page breaks can be less graceful on html output and you cannot otherwise customize the output further like you can with a .tex file
-2. **Export to PDF (via Latex)**: Using your previously installed Latex distribution, Jupyter will first export your notebook to a .tex file and then render the file to PDF. This requires you to have a Latex distribution already installed on your system (Instructions: [windows](https://miktex.org/howto/install-miktex), [mac os](https://tug.org/mactex/mactex-download.html), [ubuntu](https://linuxconfig.org/how-to-install-latex-on-ubuntu-20-04-focal-fossa-linux)).
-    * Pros: Page breaks tend to work better and you have the ability to customize your output further using the generated .tex file
-    * Cons: Cannot easily rescale the PDF print (e.g. to ensure really long equations fit on the page) and you cannot include images copy/pasted into your Notebook. Images can be used but must be linked in with Markdown and the file must reside in the same directory as your Notebook.
+By using these three options, you can create PDF exports either by HTML (and then PDF print from your browser) or via LaTex (whether directly or through
+your own LaTeX environment).
 
-PDF notebooks made with handcalcs tend to look better if the code input cells are suppressed. To make this convenient, handcalcs ships with two modified nbconvert template files that can be installed by running a function in Jupyter before exporting.
-
-```python
-handcalcs.install_templates.install_html(swap_in:str = "", swap_out:str = "full.tpl", restore:bool = False)
-
-```
-
-```python
-handcalcs.install_templates.install_latex(swap_in:str = "", swap_out:str = "article.tplx", restore:bool = False)
-
-```
-
-**`swap_in`**: the name of the handcalcs template file you wish to install. When not provided, the function will print a list of available templates whose names are acceptable inputs for this argument.<br>
-**`swap_out`**: the name of the nbconvert template file you wish to replace (default file is nbconvert's default html or latex template, respectively)<br>
-**`restore`**: when set to `True`, the function will remove your previously installed template file and restore the default nbconvert template.
-
-### Design rationale
-While there are methods for manually changing the template that nbconvert uses, this has to be performed on the command line as a separate conversion step. This default template override approach is not available from within the Jupyter GUI interface.
-
-I have found that the easiest and most reliable way to quickly change the default export behaviour is to swap out and replace the default template files. By using this approach, you can export your notebooks directly from the Jupyter GUI menu options and have your notebooks look how you wish without fussing with multiple configuration settings that may or may not take.
-
-
-### Note
-When handcalcs installs these templates, they make a semi-permanent change to your templates that will persist for all of your other notebooks that you print from with Jupyter, regardless of whether you are working with handcalcs or not. It does this because it is "physically" swapping out and replacing your nbconvert default template files for your local installation  meaning it will persist past the end of your Jupyter session.
-
-This change can be reverted at any time by using the `restore = True` argument. Additionally, the function will not let you repeatedly install the same template. If you wish to install another template, the function will prompt you to run the function with `restore = True` before attempting another installation.
-
-In this way, handcalcs can fully manage these template installations for you. However, if you manually alter the file names of an installed handcalcs template in the nbconvert templates directory, there is no guarantee that your original template can be successfully restored.
-
-### Example of use
-You can perform the same below process using either `install_html` or `install_latex` functions.
-
-
-```python
->>> from handcalcs.install_templates import install_html
->>> from handcalcs.install_templates import install_latex
-
->>> install_html() # Use with no arguments to discover available templates
-Available templates:
- ['full_html_noinputs.tpl']
->>> install_html('full_html_noinputs.tpl') # Select the template you wish to install
-/usr/Name/path/to/your/nbconvert/templates/dir/html/full.tpl
--is now-
-/usr/Name/path/to/your/nbconvert/templates/dir/html/full_swapped.tpl
-
-/usr/Name/path/to/your/handcalcs/templates/dir/html/full_html_noinputs.tpl
--is now-
-/usr/Name/path/to/your/nbconvert/templates/dir/html/full.tpl
-
->>> install_html(restore = True) # To revert this change to your template files
-/user/Name/path/to/your/nbconvert/templates/dir/html/full.tpl
--was restored from-
-/user/Name/path/to/your/nbconvert/templates/dir/html/full_swapped.tpl
-```
 ---
 
 ##  Expected Behaviours
@@ -454,7 +400,7 @@ If you are using object types which have str methods that render as `<MyObject: 
 * `**` renders as superscripts
 * `%` renders as the "mod function" (Latex: \mod)
 
-Currently `//` is not rendered but you can easily use `math.floor` as a function instead.
+Currently `//` is not rendered but you can easily use `math.floor` as a function instead (as `floor`).
 
 
 
