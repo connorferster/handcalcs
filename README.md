@@ -256,6 +256,33 @@ Subscripts in variable names are automatically created when `_` is used in the v
 
 Any variable name that contains a Greek letter (e.g. "pi", "upsilon", "eta", etc.) as a string or substring will be replaced by the appropriate Latex code to represent that Greek letter.
 
+| symbol | substitution | symbol | substitution |
+|--------|--------------|--------|--------------|
+| `alpha` |         α     | `Alpha` |       Α       |
+| `beta`  |        β      | `Beta` |        Β       |
+| `gamma` |        γ     | `Gamma` |        Γ      |
+| `delta` |       δ      | `Delta` |        Δ      |
+| `epsilon` |    ε       | `Epsilon` |      Ε      |
+| `zeta`  |     ζ        | `Zeta`  |        Ζ      |
+| `eta`  |       η       | `Eta`  |          Η     |
+| `theta`|       θ       | `Theta` |         Θ     |
+| `iota` |       ι       | `Iota` |         Ι      |
+| `kappa` |      κ       | `Kappa` |         Κ     |
+| `lamb`  |     λ        | `Lamb` |          Λ     |
+| `mu`    |     μ        | `Mu` |           Μ      |
+| `nu`    |      ν       | `Nu` |           N      |
+| `xi`    |      ξ       | `Xi` |            Ξ     |
+| `omicron` |    ο       | `Omicron` |       Ο     |
+| `pi`    |      π       | `Pi` |            Π     |
+| `rho`  |       ρ       | `Rho` |           Ρ     |
+| `sigma` |      σ       | `Sigma` |         Σ     |
+| `tau`   |      τ       | `Tau`  |          Τ     |
+| `upsilon` |    υ       | `Upsilon` |       Υ     |
+| `phi`    |     φ       | `Phi`  |          Φ     |
+| `chi`    |     χ       | `Chi`   |         Χ     |
+| `psi`   |      ψ       | `Psi`   |         Ψ     |
+| `omega` |      ω       | `Omega` |         Ω     |  
+
 * Using lower case letters as your variable name will make a lower case Greek letter.
 
 * Using a Capitalized Name for your variable will render it as an upper case Greek letter.
