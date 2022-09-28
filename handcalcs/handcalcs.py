@@ -852,7 +852,10 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
     number of columns.
     """
     cols = config_options["param_columns"]
-    precision = cell.precision or config_options["display_precision"]
+    if cell.precision is None:
+        precision = config_options["display_precision"]
+    else:
+        precision = cell.precision
     cell_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell.scientific_notation
     )
@@ -902,7 +905,10 @@ def format_parameters_cell(cell: ParameterCell, **config_options):
 @format_cell.register(CalcCell)
 def format_calc_cell(cell: CalcCell, **config_options) -> str:
     line_break = f"{config_options['line_break']}\n"
-    precision = cell.precision or config_options["display_precision"]
+    if cell.precision is None:
+        precision = config_options["display_precision"]
+    else:
+        precision = cell.precision
     cell_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell.scientific_notation
     )
@@ -931,7 +937,10 @@ def format_calc_cell(cell: CalcCell, **config_options) -> str:
 def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
     incoming = deque([])
     line_break = f"{config_options['line_break']}\n"
-    precision = cell.precision or config_options["display_precision"]
+    if cell.precision is None:
+        precision = config_options["display_precision"]
+    else:
+        precision = cell.precision
     cell_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell.scientific_notation
     )
@@ -957,7 +966,10 @@ def format_shortcalc_cell(cell: ShortCalcCell, **config_options) -> str:
 @format_cell.register(LongCalcCell)
 def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
     line_break = f"{config_options['line_break']}\n"
-    precision = cell.precision or config_options["display_precision"]
+    if cell.precision is None:
+        precision = config_options["display_precision"]
+    else:
+        precision = cell.precision
     cell_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell.scientific_notation
     )
@@ -985,7 +997,10 @@ def format_longcalc_cell(cell: LongCalcCell, **config_options) -> str:
 @format_cell.register(SymbolicCell)
 def format_symbolic_cell(cell: SymbolicCell, **config_options) -> str:
     line_break = f"{config_options['line_break']}\n"
-    precision = cell.precision or config_options["display_precision"]
+    if cell.precision is None:
+        precision = config_options["display_precision"]
+    else:
+        precision = cell.precision
     cell_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell.scientific_notation
     )
@@ -1035,7 +1050,7 @@ def round_and_render_calc(
     line: CalcLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> CalcLine:
     idx_line = line.line
-    precision = cell_precision or config_options["display_precision"]
+    precision = cell_precision
     use_scientific_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell_notation
     )
@@ -1054,7 +1069,7 @@ def round_and_render_numericcalc(
     line: NumericCalcLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> NumericCalcLine:
     idx_line = line.line
-    precision = cell_precision or config_options["display_precision"]
+    precision = cell_precision
     use_scientific_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell_notation
     )
@@ -1073,7 +1088,7 @@ def round_and_render_longcalc(
     line: LongCalcLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> LongCalcLine:
     idx_line = line.line
-    precision = cell_precision or config_options["display_precision"]
+    precision = cell_precision
     use_scientific_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell_notation
     )
@@ -1092,7 +1107,7 @@ def round_and_render_parameter(
     line: ParameterLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> ParameterLine:
     idx_line = line.line
-    precision = cell_precision or config_options["display_precision"]
+    precision = cell_precision
     use_scientific_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell_notation
     )
@@ -1113,7 +1128,7 @@ def round_and_render_conditional(
     conditional_line_break = f"{config_options['line_break']}\n"
     outgoing = deque([])
     idx_line = line.true_condition
-    precision = cell_precision or config_options["display_precision"]
+    precision = cell_precision
     use_scientific_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell_notation
     )
@@ -1146,7 +1161,7 @@ def round_and_render_symbolic(
     line: SymbolicLine, cell_precision: int, cell_notation: bool, **config_options
 ) -> SymbolicLine:
     idx_line = line.line
-    precision = cell_precision or config_options["display_precision"]
+    precision = cell_precision
     use_scientific_notation = toggle_scientific_notation(
         config_options["use_scientific_notation"], cell_notation
     )
