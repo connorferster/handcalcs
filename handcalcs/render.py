@@ -71,7 +71,7 @@ def parse_line_args(line: str) -> dict:
             precision = int(arg)
         except ValueError:
             pass
-        if precision:
+        if precision or precision == 0:
             parsed_args.update({"precision": precision})
     return parsed_args
 
