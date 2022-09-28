@@ -161,16 +161,16 @@ def func_3(x, y):
     b = 3 * a + y
     return locals()  # not necessary, but allowed
 
-line_args = {"override": "", "precision": "", "sci_not": False}
-line_args_params = {"override": "params", "precision": "", "sci_not": False}
-line_args_symbolic = {"override": "symbolic", "precision": "", "sci_not": False}
+line_args = {"override": "", "precision": None, "sci_not": False}
+line_args_params = {"override": "params", "precision": None, "sci_not": False}
+line_args_symbolic = {"override": "symbolic", "precision": None, "sci_not": False}
 line_args_long = {"override": "long", "precision": 2, "sci_not": False}
 line_args_short = {"override": "short", "precision": 3, "sci_not": False}
 line_args_1 = {"override": "", "precision": 5, "sci_not": True}
-line_args_2 = {"override": "", "precision": "", "sci_not": False}
+line_args_2 = {"override": "", "precision": None, "sci_not": False}
 line_args_3 = {"override": "", "precision": 3, "sci_not": True}
-line_args_4 = {"override": "params", "precision": "", "sci_not": False}
-line_args_10 = {"override": "", "precision": "", "sci_not": True}
+line_args_4 = {"override": "params", "precision": None, "sci_not": False}
+line_args_10 = {"override": "", "precision": None, "sci_not": True}
 
 cell_1_source = remove_imports_defs_and_globals(inspect.getsource(cell_1))
 cell_2_source = remove_imports_defs_and_globals(inspect.getsource(cell_2))
