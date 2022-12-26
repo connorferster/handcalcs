@@ -1941,7 +1941,7 @@ def split_parameter_line(line: str, calculated_results: dict) -> deque:
     return param_line
 
 
-def format_strings(string: str, comment: bool) -> deque:
+def format_strings(string: str, comment: bool, **config_values) -> deque:
     """
     Returns 'string' appropriately formatted to display in a latex
     math environment.
@@ -1964,38 +1964,6 @@ def format_strings(string: str, comment: bool) -> deque:
         end_env = "}"
 
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
-
-    # if hasattr(item, preferred_latex_method):
-    #     method = getattr(item, preferred_latex_method)
-    #     rendered_string = method()
-
-    # elif hasattr(item, "_repr_latex_"):
-    #     rendered_string = item._repr_latex_()
-
-    # elif hasattr(item, "latex"):
-    #     try:
-    #         rendered_string = item.latex()
-    #     except TypeError:
-    #         rendered_string = str(item)
-
-    # elif hasattr(item, "to_latex"):
-    #     try:
-    #         rendered_string = item.to_latex()
-    #     except TypeError:
-    #         rendered_string = str(item)
-
-    # elif hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-    #     comma_space = ",\\ "
-    #     try:
-    #         array = "[" + comma_space.join([str(v) for v in item]) + "]"
-    #         rendered_string = array
-    #     except TypeError:
-    #         rendered_string = str(item)
-
-    # else:
-    #     rendered_string = str(item)
-
-    # return rendered_string.replace("$", "")
 
 
 class ConditionalEvaluator:
