@@ -14,7 +14,7 @@
 """
 Render arithmetic calucations in Jupyter as though they were written by hand.
 """
-__version__ = "1.6.2"  #
+__version__ = "1.6.3"  #
 from .decorator import handcalc
 from .global_config import set_option, save_config
 
