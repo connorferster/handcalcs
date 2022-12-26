@@ -1941,7 +1941,7 @@ def split_parameter_line(line: str, calculated_results: dict) -> deque:
     return param_line
 
 
-def format_strings(string: str, comment: bool) -> deque:
+def format_strings(string: str, comment: bool, **config_options) -> deque:
     """
     Returns 'string' appropriately formatted to display in a latex
     math environment.
