@@ -1629,12 +1629,6 @@ def format_conditional_line(line: ConditionalLine, **config_options) -> Conditio
             comment_space = "\\;"
             comment = format_strings(line.comment, comment=True)
 
-        # new_math_env = (
-        #     f"\n\\end{{{config_options['math_environment_start']}}}\n"
-        #     f"{config_options['latex_block_end']}\n"
-        #     f"{config_options['latex_block_start']}\n"
-        #     f"\\begin{{{config_options['math_environment_end']}}}\n"
-        # )
         line_break = f"{config_options['line_break']}\n"
         first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {line_break}"
         if line.condition_type == "else":
