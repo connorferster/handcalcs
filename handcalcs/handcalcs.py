@@ -1960,7 +1960,6 @@ def format_strings(string: str, comment: bool, **config_options) -> deque:
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
 
-
 class ConditionalEvaluator:
     def __init__(self):
         self.prev_cond_type = ""
