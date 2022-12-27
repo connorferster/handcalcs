@@ -1629,16 +1629,16 @@ def format_conditional_line(line: ConditionalLine, **config_options) -> Conditio
             comment_space = "\\;"
             comment = format_strings(line.comment, comment=True)
 
-        new_math_env = (
-            f"\n\\end{{{config_options['math_environment_start']}}}\n"
-            f"{config_options['latex_block_end']}\n"
-            f"{config_options['latex_block_start']}\n"
-            f"\\begin{{{config_options['math_environment_end']}}}\n"
-        )
-        first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {new_math_env}"
+        # new_math_env = (
+        #     f"\n\\end{{{config_options['math_environment_start']}}}\n"
+        #     f"{config_options['latex_block_end']}\n"
+        #     f"{config_options['latex_block_start']}\n"
+        #     f"\\begin{{{config_options['math_environment_end']}}}\n"
+        # )
+        line_break = f"{config_options['line_break']}\n"
+        first_line = f"&\\text{a}Since, {b} {latex_condition} : {comment_space} {comment} {line_break}"
         if line.condition_type == "else":
             first_line = ""
-        line_break = f"{config_options['line_break']}\n"
         line.latex_condition = first_line
 
         outgoing = deque([])
@@ -1965,37 +1965,6 @@ def format_strings(string: str, comment: bool, **config_options) -> deque:
 
     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
 
-    # if hasattr(item, preferred_latex_method):
-    #     method = getattr(item, preferred_latex_method)
-    #     rendered_string = method()
-
-    # elif hasattr(item, "_repr_latex_"):
-    #     rendered_string = item._repr_latex_()
-
-    # elif hasattr(item, "latex"):
-    #     try:
-    #         rendered_string = item.latex()
-    #     except TypeError:
-    #         rendered_string = str(item)
-
-    # elif hasattr(item, "to_latex"):
-    #     try:
-    #         rendered_string = item.to_latex()
-    #     except TypeError:
-    #         rendered_string = str(item)
-
-    # elif hasattr(item, "__len__") and not isinstance(item, (str, dict)):
-    #     comma_space = ",\\ "
-    #     try:
-    #         array = "[" + comma_space.join([str(v) for v in item]) + "]"
-    #         rendered_string = array
-    #     except TypeError:
-    #         rendered_string = str(item)
-
-    # else:
-    #     rendered_string = str(item)
-
-    # return rendered_string.replace("$", "")
 
 
 class ConditionalEvaluator:
