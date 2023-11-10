@@ -245,7 +245,7 @@ def test_integration():
     )
     assert (
         cell_2_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\nx &= 2 \\; \n\\\\[10pt]\n&\\text{Since, } x \\geq 1 \\rightarrow \\left( 2 \\geq 1 \\right) : \\; \\;\\textrm{(Comment)} \\end{aligned}\n\\]\n\\[\n\\begin{aligned}\nb &= x \\cdot 1  = 2 \\cdot 1 &= 2  \n\\\\[10pt]\nc &= 2 \\; \n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\nx &= 2 \\; \n\\\\[10pt]\n&\\text{Since, } x \\geq 1 \\rightarrow \\left( 2 \\geq 1 \\right) : \\; \\;\\textrm{(Comment)} \\\\[10pt]\nb &= x \\cdot 1  = 2 \\cdot 1 &= 2  \n\\\\[10pt]\nc &= 2 \\; \n\\end{aligned}\n\\]"
     )
     assert (
         cell_2b_renderer.render(config_options=config_options)

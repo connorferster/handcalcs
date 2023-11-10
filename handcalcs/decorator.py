@@ -16,8 +16,8 @@ def handcalc(
     decimal_separator: str = ".",
     jupyter_display: bool = False,
 ):
-    # @wraps(func)
     def handcalc_decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             line_args = {
                 "override": override,
