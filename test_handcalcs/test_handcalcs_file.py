@@ -25,6 +25,7 @@ import nbconvert
 import filecmp
 import forallpeople as si
 
+
 si.environment("default")
 
 from handcalcs.handcalcs import ParameterLine, CalcLine, LongCalcLine, ConditionalLine
@@ -46,6 +47,7 @@ from test_handcalcs import cell_7b
 from test_handcalcs import cell_8
 from test_handcalcs import cell_9
 from test_handcalcs import cell_10
+from test_handcalcs import cell_11
 from test_handcalcs import error_cell
 
 config_options = {
@@ -184,6 +186,7 @@ cell_7b_source = remove_imports_defs_and_globals(inspect.getsource(cell_7b))
 cell_8_source = remove_imports_defs_and_globals(inspect.getsource(cell_8))
 cell_9_source = remove_imports_defs_and_globals(inspect.getsource(cell_9))
 cell_10_source = remove_imports_defs_and_globals(inspect.getsource(cell_10))
+cell_11_source = remove_imports_defs_and_globals(inspect.getsource(cell_11))
 error_cell_source = remove_imports_defs_and_globals(inspect.getsource(error_cell))
 
 cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
@@ -222,6 +225,10 @@ cell_9_renderer = handcalcs.handcalcs.LatexRenderer(
 cell_10_renderer = handcalcs.handcalcs.LatexRenderer(
     cell_10_source, cell_10.calc_results, line_args_10,
 )
+cell_11_renderer = handcalcs.handcalcs.LatexRenderer(
+    cell_11_source, cell_11.calc_results, line_args,
+)
+
 # error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
     error_cell_source, error_cell.calc_results, line_args,
@@ -279,6 +286,11 @@ def test_integration():
     # print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
+        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
+    )
+    
+    assert (
+        cell_11_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
     )
 
