@@ -406,7 +406,7 @@ Currently `//` is not rendered but you can easily use `math.floor` as a function
 
 ### `for` loops and other iterations
 
-Showing rendered iterations is not supported. The intention for use is that you perform your iterations in a cell that is not rendered and then, once the iteration has produced the desired resulting value, you render the result in a separate cell.
+Currently, showing rendered iterations is not supported. The intention use is that you perform your iterations in a cell that is not rendered and then, once the iteration has produced the desired resulting value, you render the result in a separate cell.
 
 ## Gotchas
 
