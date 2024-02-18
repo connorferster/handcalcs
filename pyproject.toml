@@ -12,7 +12,7 @@ dynamic = ["version", "description"]
 dependencies = [
     "more_itertools",
     "nbconvert >= 6.0",
-    "innerscope",
+    "innerscope >= 0.7.0",
     "pyparsing"
 ]
 
@@ -30,7 +30,7 @@ test = [
 ]
 
 dev = [
-    "jupyterlab >= 3.0.0",
+    "jupyterlab >= 4.0.0",
     "sympy",
     "forallpeople >= 2.0",
     "black"  
