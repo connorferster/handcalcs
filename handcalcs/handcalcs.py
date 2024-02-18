@@ -31,6 +31,7 @@ from handcalcs.constants import GREEK_UPPER, GREEK_LOWER
 from handcalcs import global_config
 from handcalcs.integrations import DimensionalityError
 
+
 # Six basic line types
 @dataclass
 class CalcLine:
@@ -2838,9 +2839,11 @@ def swap_for_greek(pycode_as_deque: deque, **config_options) -> deque:
         elif "_" in str(item):
             components = str(item).split("_")
             swapped_components = [
-                dict_get(greek_chainmap, component)
-                if component not in greeks_to_exclude
-                else component
+                (
+                    dict_get(greek_chainmap, component)
+                    if component not in greeks_to_exclude
+                    else component
+                )
                 for component in components
             ]
             new_item = "_".join(swapped_components)
