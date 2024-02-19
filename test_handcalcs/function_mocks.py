@@ -1,4 +1,4 @@
-def euler_buckling_load(E, I, k, L):
+def euler__buckling__load(E, I, k, L):
     return 4500
     
 area = 1000
