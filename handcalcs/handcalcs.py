@@ -2157,7 +2157,6 @@ def swap_custom_symbols(d: deque, **config_options) -> deque:
     Swaps the custom symbols from the 'config_options'.
     """
     swapped_items = deque([])
-    print(config_options)
     for item in d:
         if isinstance(item, deque):
             new_item = swap_custom_symbols(item)
@@ -2172,7 +2171,6 @@ def swap_custom_symbols(d: deque, **config_options) -> deque:
             swapped_items.append(new_item)
         else:
             swapped_items.append(item)
-    print(swapped_items)
     return swapped_items
 
 
