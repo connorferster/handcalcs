@@ -10,5 +10,6 @@
     "underscore_subscripts": true,
     "greek_exclusions": [],
     "param_columns": 3,
-    "preferred_string_formatter": "L"
+    "preferred_string_formatter": "L",
+    "custom_symbols": {}
 }

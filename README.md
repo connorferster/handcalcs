@@ -85,7 +85,7 @@ import handcalcs.render
 from math import sqrt, pi
 ```
 
-Now, you can use the `%%tex` magic!
+Now, you can also use the `%%tex` magic!
 
 ```python
 %%tex

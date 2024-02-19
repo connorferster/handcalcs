@@ -2052,6 +2052,7 @@ def swap_symbolic_calcs(
     symbolic_expression = copy.copy(calculation)
     functions_on_symbolic_expressions = [
         insert_parentheses,
+        swap_custom_symbols,
         swap_math_funcs,
         swap_superscripts,
         swap_chained_fracs,
@@ -2089,6 +2090,7 @@ def swap_numeric_calcs(
     numeric_expression = copy.copy(calculation)
     functions_on_numeric_expressions = [
         insert_parentheses,
+        swap_custom_symbols,
         swap_math_funcs,
         swap_chained_fracs,
         swap_frac_divs,
@@ -2148,6 +2150,30 @@ def swap_integrals(d: deque, calc_results: dict, **config_options) -> deque:
         return swapped_deque
     else:
         return d
+
+
+def swap_custom_symbols(d: deque, **config_options) -> deque:
+    """
+    Swaps the custom symbols from the 'config_options'.
+    """
+    swapped_items = deque([])
+    print(config_options)
+    for item in d:
+        if isinstance(item, deque):
+            new_item = swap_custom_symbols(item)
+            swapped_items.append(new_item)
+        elif isinstance(item, str):
+            custom_symbols = config_options["custom_symbols"]
+            for symbol, latex_symbol in custom_symbols.items():
+                new_item = item
+                if symbol in item:
+                    new_item = item.replace(symbol, latex_symbol)
+                    break
+            swapped_items.append(new_item)
+        else:
+            swapped_items.append(item)
+    print(swapped_items)
+    return swapped_items
 
 
 def swap_log_func(d: deque, calc_results: dict, **config_options) -> deque:
