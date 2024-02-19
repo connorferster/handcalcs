@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/pypi/v/handcalcs">
   <img src="https://img.shields.io/pypi/pyversions/handcalcs">
   <img src="https://img.shields.io/github/license/connorferster/handcalcs">
-  <img src="https://img.shields.io/pypi/dm/handcalcs">
+  <img src="https://static.pepy.tech/badge/handcalcs">
 </p>
 <p align="center">
   <img src="docs/images/handcalcs.jpg"><br>
