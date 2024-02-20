@@ -2080,7 +2080,6 @@ def swap_symbolic_calcs(
             )
         else:
             symbolic_expression = function(symbolic_expression, **config_options)
-        # print(f"{function=} | {symbolic_expression}")
     return symbolic_expression
 
 
@@ -2166,15 +2165,11 @@ def swap_custom_symbols(d: deque, **config_options) -> deque:
             new_item = item
             for symbol, latex_symbol in custom_symbols.items():
                 if symbol in item:
-                    if item == "V_dot":
-                        print(config_options)
                     new_item = item.replace(symbol, latex_symbol)
                     break
             swapped_items.append(new_item)
         else:
             swapped_items.append(item)
-        if item == "V_dot":
-            print(swapped_items)
     return swapped_items
 
 
