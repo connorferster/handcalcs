@@ -2159,18 +2159,22 @@ def swap_custom_symbols(d: deque, **config_options) -> deque:
     swapped_items = deque([])
     for item in d:
         if isinstance(item, deque):
-            new_item = swap_custom_symbols(item)
+            new_item = swap_custom_symbols(item, **config_options)
             swapped_items.append(new_item)
         elif isinstance(item, str):
-            custom_symbols = config_options["custom_symbols"]
+            custom_symbols = config_options.get("custom_symbols", {})
+            new_item = item
             for symbol, latex_symbol in custom_symbols.items():
-                new_item = item
                 if symbol in item:
+                    if item == "V_dot":
+                        print(config_options)
                     new_item = item.replace(symbol, latex_symbol)
                     break
             swapped_items.append(new_item)
         else:
             swapped_items.append(item)
+        if item == "V_dot":
+            print(swapped_items)
     return swapped_items
 
 

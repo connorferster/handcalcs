@@ -63,7 +63,8 @@ config_options = {
     "zero_tolerance": 16,
     "greek_exclusions": [],
     "param_columns": 3,
-    "preferred_string_formatter": "L"
+    "preferred_string_formatter": "L",
+    "custom_symbols": {"V_dot": "\\dot{V}"}
 }
 
 config_underscore_spaces = config_options.copy()
@@ -280,13 +281,12 @@ def test_integration():
     )
     assert (
         cell_8_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\n\\dot{V} &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + \\dot{V} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ \\dot{V} } + \\arcsin \\left( \\sin \\left( \\frac{ \\dot{V} }{ c } \\right) \\right) + \\left( \\frac{ a }{ \\dot{V} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot \\dot{V} + \\dot{V} \\cdot c }{ \\left( \\dot{V} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ \\dot{V} } \\right) } \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
     )
     assert (
         cell_9_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
     )
-    # print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
