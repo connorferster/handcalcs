@@ -9,7 +9,7 @@
 </p>
 <p align="center">
   <img src="docs/images/handcalcs.jpg"><br>
-  Covert art by <a href = "https://www.instagram.com/joshuahoibergtattoos/">Joshua Hoiberg</a>
+  Covert art by <a href = "https://www.copperkettlegameworks.ca/">Joshua Hoiberg</a>
 </p>
 
 <h1 align = "center">handcalcs:<br>Python calculations in Jupyter,<br>as though you wrote them by hand.</h1>
