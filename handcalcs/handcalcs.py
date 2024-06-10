@@ -2052,6 +2052,7 @@ def swap_symbolic_calcs(
     symbolic_expression = copy.copy(calculation)
     functions_on_symbolic_expressions = [
         insert_parentheses,
+        swap_custom_symbols,
         swap_math_funcs,
         swap_superscripts,
         swap_chained_fracs,
@@ -2061,6 +2062,7 @@ def swap_symbolic_calcs(
         swap_for_greek,
         swap_prime_notation,
         swap_long_var_strs,
+        swap_double_subscripts,
         extend_subscripts,
         swap_superscripts,
         flatten_deque,
@@ -2087,6 +2089,7 @@ def swap_numeric_calcs(
     numeric_expression = copy.copy(calculation)
     functions_on_numeric_expressions = [
         insert_parentheses,
+        swap_custom_symbols,
         swap_math_funcs,
         swap_chained_fracs,
         swap_frac_divs,
@@ -2096,6 +2099,7 @@ def swap_numeric_calcs(
         swap_for_greek,
         swap_prime_notation,
         swap_superscripts,
+        swap_double_subscripts,
         extend_subscripts,
         flatten_deque,
     ]
@@ -2145,6 +2149,28 @@ def swap_integrals(d: deque, calc_results: dict, **config_options) -> deque:
         return swapped_deque
     else:
         return d
+
+
+def swap_custom_symbols(d: deque, **config_options) -> deque:
+    """
+    Swaps the custom symbols from the 'config_options'.
+    """
+    swapped_items = deque([])
+    for item in d:
+        if isinstance(item, deque):
+            new_item = swap_custom_symbols(item, **config_options)
+            swapped_items.append(new_item)
+        elif isinstance(item, str):
+            custom_symbols = config_options.get("custom_symbols", {})
+            new_item = item
+            for symbol, latex_symbol in custom_symbols.items():
+                if symbol in item:
+                    new_item = item.replace(symbol, latex_symbol)
+                    break
+            swapped_items.append(new_item)
+        else:
+            swapped_items.append(item)
+    return swapped_items
 
 
 def swap_log_func(d: deque, calc_results: dict, **config_options) -> deque:
@@ -2342,6 +2368,23 @@ def list_to_deque(los: List[str]) -> deque:
     return acc
 
 
+def swap_double_subscripts(pycode_as_deque: deque, **config_options) -> deque:
+    """
+    For variables or function names that contain a double subscript '__',
+    the double subscript will be replaced with LaTeX space: "\\ "
+    """
+    swapped_deque = deque([])
+    for item in pycode_as_deque:
+        if isinstance(item, deque):
+            new_item = swap_double_subscripts(item)
+        elif isinstance(item, str) and "__" in item:
+            new_item = item.replace("__", "\\ ")
+        else:
+            new_item = item
+        swapped_deque.append(new_item)
+    return swapped_deque
+
+
 def extend_subscripts(pycode_as_deque: deque, **config_options) -> deque:
     """
     For variables named with a subscript, e.g. V_c, this function ensures that any
@@ -2356,7 +2399,7 @@ def extend_subscripts(pycode_as_deque: deque, **config_options) -> deque:
             new_item = extend_subscripts(item)  # recursion!
             swapped_deque.append(new_item)
         elif isinstance(item, str) and "_" in item and not "\\int" in item:
-            if "\\mathrm{" in item:
+            if "\\mathrm{" in item or "\\operatorname{" in item:
                 discount = 1
             new_item = ""
             for char in item:
@@ -2544,15 +2587,12 @@ def swap_math_funcs(
                 elif poss_func_name == "ceil" or poss_func_name == "floor":
                     new_item = swap_floor_ceil(item, poss_func_name, calc_results)
                     swapped_deque.append(new_item)
-                #
-                #  elif possible_func and poss_func_name:
-                # elif possible_func:
                 elif possible_func:
                     ops = "\\operatorname"
                     new_func = f"{ops}{a}{poss_func_name}{b}"
                     item = swap_func_name(item, poss_func_name, new_func)
-                    if possible_func:
-                        item = insert_func_braces(item)
+                    # if possible_func:
+                    #     item = insert_func_braces(item)
                     new_item = swap_math_funcs(item, calc_results)
                     swapped_deque.append(new_item)
 

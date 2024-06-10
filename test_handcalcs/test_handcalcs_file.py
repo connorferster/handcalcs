@@ -63,8 +63,12 @@ config_options = {
     "zero_tolerance": 16,
     "greek_exclusions": [],
     "param_columns": 3,
-    "preferred_string_formatter": "L"
+    "preferred_string_formatter": "L",
+    "custom_symbols": {"V_dot": "\\dot{V}"}
 }
+
+config_underscore_spaces = config_options.copy()
+config_underscore_spaces['underscore_subscripts'] = False
 
 # TODO: Integration tests with nested log, nested exponents
 
@@ -277,13 +281,12 @@ def test_integration():
     )
     assert (
         cell_8_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        == '\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\n\\dot{V} &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + \\dot{V} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ \\dot{V} } + \\arcsin \\left( \\sin \\left( \\frac{ \\dot{V} }{ c } \\right) \\right) + \\left( \\frac{ a }{ \\dot{V} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot \\dot{V} + \\dot{V} \\cdot c }{ \\left( \\dot{V} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ \\dot{V} } \\right) } \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]'
     )
     assert (
         cell_9_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
     )
-    # print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
         == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
@@ -291,8 +294,7 @@ def test_integration():
     
     assert (
         cell_11_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
-    )
+        == '\\[\n\\begin{aligned}\nF_{e_{x}} &= \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( E ,\\  I_{x} ,\\  k_{x} ,\\  L \\right) }{ \\mathrm{area} }  = \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( 200000.000 ,\\  300000000.000 ,\\  1.000 ,\\  3500 \\right) }{ 1000 } &= 4.500  \n\\\\[10pt]\nF_{e_{y}} &= \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( E ,\\  I_{y} ,\\  k_{y} ,\\  L \\right) }{ \\mathrm{area} }  = \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( 200000.000 ,\\  150000000.000 ,\\  1.000 ,\\  3500 \\right) }{ 1000 } &= 4.500  \n\\\\[10pt]\nF_{e} &= \\operatorname{min} \\left( F_{e_{x}} ,\\  F_{e_{y}} \\right)  = \\operatorname{min} \\left( 4.500 ,\\  4.500 \\right) &= 4.500  \n\\\\[10pt]\n\\lambda &= \\sqrt { \\frac{ f_{y} }{ F_{e} } }  = \\sqrt { \\frac{ 350 }{ 4.500 } } &= 8.819  \n\\\\[10pt]\nP_{r} &= \\phi \\cdot \\mathrm{area} \\cdot f_{y} \\cdot \\left( 1 + \\left( \\lambda \\right) ^{ \\left( 2 \\cdot n \\right) } \\right) ^{ \\left( \\frac{ \\left( - 1 \\right) }{ n } \\right) } \\\\&= 0.900 \\cdot 1000 \\cdot 350 \\cdot \\left( 1 + \\left( 8.819 \\right) ^{ \\left( 2 \\cdot 1.340 \\right) } \\right) ^{ \\left( \\frac{ \\left( - 1 \\right) }{ 1.340 } \\right) } \\\\&= 4041.179  \\\\[10pt]\n\\end{aligned}\n\\]')
 
 # Test decorator.py
 
@@ -1520,9 +1522,8 @@ def test_swap_math_funcs():
     ) == deque(['z',
        '=',
        deque(['\\operatorname{double}',
-              '{',
               deque(['\\left(', 'a', '/', 'b', '\\right)']),
-              '}'])])
+              ])])
     assert handcalcs.handcalcs.swap_math_funcs(
         deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()
     ) == deque(["rate", "=", deque(["\\sin", "\\left(", "a", "\\right)"])])

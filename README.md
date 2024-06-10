@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/pypi/v/handcalcs">
   <img src="https://img.shields.io/pypi/pyversions/handcalcs">
   <img src="https://img.shields.io/github/license/connorferster/handcalcs">
-  <img src="https://img.shields.io/pypi/dm/handcalcs">
+  <img src="https://static.pepy.tech/badge/handcalcs">
 </p>
 <p align="center">
   <img src="docs/images/handcalcs.jpg"><br>
@@ -85,7 +85,7 @@ import handcalcs.render
 from math import sqrt, pi
 ```
 
-Now, you can use the `%%tex` magic!
+Now, you can also use the `%%tex` magic!
 
 ```python
 %%tex
@@ -128,6 +128,55 @@ In your decorated function, everything between `def my_calc(...)` and a return s
 Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
 
 ![Parameters](docs/images/decorator.png)
+
+---
+
+## Global config options (New in v1.6.0)
+
+This is a major new release for handcalcs and introduces the global configuration feature. This allows users to have control over several options of how handcalcs works. The configuration options, with their default values, are as follow:
+
+* `decimal_separator = "."`
+* `latex_block_start = "\\["`
+* `latex_block_end = "\\]"`
+* `math_environment_start = "aligned"`
+* `math_environment_end = "aligned"`
+* `line_break = "\\\\[10pt]"`
+* `use_scientific_notation =  False`
+* `display_precision = 3`
+* `underscore_subscripts = True`
+* `greek_exclusions = []`
+* `param_columns = 3`
+* `preferred_string_formatter = "L"`
+* `custom_symbols = {}`
+
+### Config API
+
+```python
+import handcalcs.render
+
+handcalcs.set_option("display_precision", 4)
+handcalcs.set_option("param_columns", 5) 
+handcalcs.set_option("line_break", "\\\\[20pt]") 
+handcalcs.set_option("greek_exclusions", ["psi"]) # etc...
+```
+These changes now affect all cells rendered in the current session. If you want to permanently update the `config.json` file with these changes (so handcalcs will always load up with these options), you can then call `handcalcs.save_config()` and the changes will be saved (and thus immediately available in the next session).
+
+#### Custom Symbols (New in v1.7.0)
+
+You can now add _custom symbols_ to your global config to handle ALL of the cases which handcalcs does not account for.
+
+e.g.
+
+```python
+handcalcs.set_option("custom_symbols", {"V_dot": "\\dot{V}", "N_star": "N^{*}"})
+```
+
+Will now allow this kind of rendering:
+
+![Custom symbols example showing the use of V_dot and N_star](docs/images/custom_symbols.png)
+
+The docstring in the `handcalcs.set_option()` function demonstrates which options are available and what values they take.
+---
 
 
 ## Override tags
