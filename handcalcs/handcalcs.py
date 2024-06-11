@@ -2089,7 +2089,6 @@ def swap_numeric_calcs(
     numeric_expression = copy.copy(calculation)
     functions_on_numeric_expressions = [
         insert_parentheses,
-        swap_custom_symbols,
         swap_math_funcs,
         swap_chained_fracs,
         swap_frac_divs,
@@ -2104,7 +2103,7 @@ def swap_numeric_calcs(
         flatten_deque,
     ]
     for function in functions_on_numeric_expressions:
-        if function is swap_values or function is swap_math_funcs:
+        if function in (swap_values, swap_math_funcs):
             numeric_expression = function(
                 numeric_expression, calc_results, **config_options
             )
