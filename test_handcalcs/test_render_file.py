@@ -59,6 +59,5 @@ def test_parse_line_args():
         "override": "",
         "precision": 1,
         "sympy": False,
-        "sci_not": True
+        "sci_not": True,
     }
-
