@@ -1,6 +1,6 @@
 __all__ = ["handcalc"]
 
-from typing import Optional
+from typing import Optional, Callable
 from functools import wraps
 import inspect
 import innerscope
@@ -13,39 +13,81 @@ def handcalc(
     left: str = "",
     right: str = "",
     scientific_notation: Optional[bool] = None,
-    decimal_separator: str = ".",
     jupyter_display: bool = False,
+    record: bool = False,
 ):
     def handcalc_decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            line_args = {
-                "override": override,
-                "precision": precision,
-                "sci_not": scientific_notation,
-            }
-            func_source = inspect.getsource(func)
-            cell_source = _func_source_to_cell(func_source)
-            # use innerscope to get the values of locals, closures, and globals when calling func
-            scope = innerscope.call(func, *args, **kwargs)
-            LatexRenderer.dec_sep = decimal_separator
-            renderer = LatexRenderer(cell_source, scope, line_args)
-            latex_code = renderer.render()
-            if jupyter_display:
-                try:
-                    from IPython.display import Latex, display
-                except ModuleNotFoundError:
-                    ModuleNotFoundError(
-                        "jupyter_display option requires IPython.display to be installed."
-                    )
-                display(Latex(latex_code))
-                return scope.return_value
+        if record:
+            class CallRecorder:
+                """
+                Records function calls for the func stored in .callable
+                """
+                def __init__(self, func: Callable):
+                    self.callable = func
+                    self.history = list()
 
-            # https://stackoverflow.com/questions/9943504/right-to-left-string-replace-in-python
-            latex_code = "".join(latex_code.replace("\\[", "", 1).rsplit("\\]", 1))
-            return (left + latex_code + right, scope.return_value)
+                def __repr__(self):
+                    return f"FunctionRecorder({self.callable.__name__}, num_of_calls: {len(self.history)})"
 
-        return wrapper
+                @property
+                def calls(self):
+                    return len(self.history)
+
+
+                @wraps(func)
+                def __call__(self, *args, **kwargs):
+                    line_args = {
+                        "override": override,
+                        "precision": precision,
+                        "sci_not": scientific_notation,
+                    }
+                    func_source = inspect.getsource(func)
+                    cell_source = _func_source_to_cell(func_source)
+                    # innerscope retrieves values of locals, closures, and globals
+                    scope = innerscope.call(func, *args, **kwargs)
+                    renderer = LatexRenderer(cell_source, scope, line_args)
+                    latex_code = renderer.render()
+                    raw_latex_code = "".join(latex_code.replace("\\[", "", 1).rsplit("\\]", 1))
+                    self.history.append({"return": scope.return_value, "latex": raw_latex_code})
+                    if jupyter_display:
+                        try:
+                            from IPython.display import Latex, display
+                        except ModuleNotFoundError:
+                            ModuleNotFoundError(
+                                "jupyter_display option requires IPython.display to be installed."
+                            )
+                        display(Latex(latex_code))
+                        return scope.return_value
+                    return (left + raw_latex_code + right, scope.return_value)
+        else:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                line_args = {
+                    "override": override,
+                    "precision": precision,
+                    "sci_not": scientific_notation,
+                }
+                func_source = inspect.getsource(func)
+                cell_source = _func_source_to_cell(func_source)
+                # innerscope retrieves values of locals, closures, and globals
+                scope = innerscope.call(func, *args, **kwargs)
+                renderer = LatexRenderer(cell_source, scope, line_args)
+                latex_code = renderer.render()
+                raw_latex_code = "".join(latex_code.replace("\\[\n", "", 1).rsplit("\\]\n", 1))
+                if jupyter_display:
+                    try:
+                        from IPython.display import Latex, display
+                    except ModuleNotFoundError:
+                        ModuleNotFoundError(
+                            "jupyter_display option requires IPython.display to be installed."
+                        )
+                    display(Latex(latex_code))
+                    return scope.return_value
+                return (left + raw_latex_code + right, scope.return_value)
+        if record:
+            return CallRecorder(func)
+        else:
+            return wrapper
 
     return handcalc_decorator
 
