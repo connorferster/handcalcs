@@ -11,8 +11,8 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
 dependencies = [
     "more_itertools",
-    "nbconvert >= 6.0",
-    "innerscope",
+    "nbconvert >= 7.0.0",
+    "innerscope >= 0.7.0",
     "pyparsing"
 ]
 
@@ -23,14 +23,14 @@ Source = "https://github.com/connorferster/handcalcs"
 [project.optional-dependencies]
 
 test = [
-    "pytest >= 6.0.0",
-    "pytest-cov >= 2.9.0",
+    "pytest >= 8.0.0",
+    "pytest-cov >= 4.1.0",
     "coverage[toml] >= 5.5.0",
-    "pint >= 0.18",
+    "pint >= 0.23",
 ]
 
 dev = [
-    "jupyterlab >= 3.0.0",
+    "jupyterlab >= 4.0.0",
     "sympy",
     "forallpeople >= 2.0",
     "black"  

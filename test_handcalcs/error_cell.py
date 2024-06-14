@@ -3,7 +3,3 @@ b = 3
 a > b
 
 calc_results = globals()
-
-
-
-

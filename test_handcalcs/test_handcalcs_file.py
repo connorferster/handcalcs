@@ -16,7 +16,11 @@
 import inspect
 from collections import deque
 
-from handcalcs.exporters import LatexHideInputExporter, HTMLHideInputExporter, PDFHideInputExporter
+from handcalcs.exporters import (
+    LatexHideInputExporter,
+    HTMLHideInputExporter,
+    PDFHideInputExporter,
+)
 
 import handcalcs
 import pathlib
@@ -63,11 +67,14 @@ config_options = {
     "zero_tolerance": 16,
     "greek_exclusions": [],
     "param_columns": 3,
-    "preferred_string_formatter": "L"
+    "preferred_string_formatter": "L",
+    "custom_symbols": {"V_dot": "\\dot{V}"},
 }
 
-# TODO: Integration tests with nested log, nested exponents
+config_underscore_spaces = config_options.copy()
+config_underscore_spaces["underscore_subscripts"] = False
 
+# TODO: Integration tests with nested log, nested exponents
 
 
 class MockLatexObj1:
@@ -92,7 +99,7 @@ class MockLatexObj2:
 
 
 def int_func(x):
-    return x ** 2 + 3 * x
+    return x**2 + 3 * x
 
 
 def quad(f, a, b):
@@ -114,14 +121,18 @@ def remove_imports_defs_and_globals(source: str):
     acc = []
     doc_string = False
     for line in source_lines:
-        if (not doc_string
-            and line.lstrip(' \t').startswith('"""')
-            and line.lstrip(' \t').rstrip().endswith('"""',3)):
+        if (
+            not doc_string
+            and line.lstrip(" \t").startswith('"""')
+            and line.lstrip(" \t").rstrip().endswith('"""', 3)
+        ):
             doc_string = False
             continue
-        elif (not doc_string
-            and line.lstrip(' \t').startswith('"""')
-            and not line.lstrip(' \t').rstrip().endswith('"""',3)):
+        elif (
+            not doc_string
+            and line.lstrip(" \t").startswith('"""')
+            and not line.lstrip(" \t").rstrip().endswith('"""', 3)
+        ):
             doc_string = True
             continue
         elif doc_string and '"""' in line:
@@ -138,6 +149,7 @@ def remove_imports_defs_and_globals(source: str):
         ):
             acc.append(line)
     return "\n".join(acc)
+
 
 @handcalc()
 def func_1(x, y):
@@ -156,12 +168,14 @@ def func_2(x, y):
     b = 3 * a + y
     return locals()  # not necessary, but allowed
 
+
 @handcalc(jupyter_display=True)
 def func_3(x, y):
     """My single line docstring"""
     a = 2 * x
     b = 3 * a + y
     return locals()  # not necessary, but allowed
+
 
 line_args = {"override": "", "precision": None, "sci_not": False}
 line_args_params = {"override": "params", "precision": None, "sci_not": False}
@@ -190,48 +204,76 @@ cell_11_source = remove_imports_defs_and_globals(inspect.getsource(cell_11))
 error_cell_source = remove_imports_defs_and_globals(inspect.getsource(error_cell))
 
 cell_1_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_1_source, cell_1.calc_results, line_args_1,
+    cell_1_source,
+    cell_1.calc_results,
+    line_args_1,
 )
 cell_2_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_2_source, cell_2.calc_results, line_args_2,
+    cell_2_source,
+    cell_2.calc_results,
+    line_args_2,
 )
 cell_2b_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_2b_source, cell_2b.calc_results, line_args_2,
+    cell_2b_source,
+    cell_2b.calc_results,
+    line_args_2,
 )
 cell_3_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_3_source, cell_3.calc_results, line_args_3,
+    cell_3_source,
+    cell_3.calc_results,
+    line_args_3,
 )
 cell_4_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_4_source, cell_4.calc_results, line_args_params,
+    cell_4_source,
+    cell_4.calc_results,
+    line_args_params,
 )
 cell_5_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_5_source, cell_5.calc_results, line_args,
+    cell_5_source,
+    cell_5.calc_results,
+    line_args,
 )
 cell_6_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_6_source, cell_6.calc_results, line_args,
+    cell_6_source,
+    cell_6.calc_results,
+    line_args,
 )
 cell_7_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_7_source, cell_7.calc_results, line_args_long,
+    cell_7_source,
+    cell_7.calc_results,
+    line_args_long,
 )
 cell_7b_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_7b_source, cell_7b.calc_results, line_args_short,
+    cell_7b_source,
+    cell_7b.calc_results,
+    line_args_short,
 )
 cell_8_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_8_source, cell_8.calc_results, line_args_symbolic,
+    cell_8_source,
+    cell_8.calc_results,
+    line_args,
 )
 cell_9_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_9_source, cell_9.calc_results, line_args_symbolic,
+    cell_9_source,
+    cell_9.calc_results,
+    line_args_symbolic,
 )
 cell_10_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_10_source, cell_10.calc_results, line_args_10,
+    cell_10_source,
+    cell_10.calc_results,
+    line_args_10,
 )
 cell_11_renderer = handcalcs.handcalcs.LatexRenderer(
-    cell_11_source, cell_11.calc_results, line_args,
+    cell_11_source,
+    cell_11.calc_results,
+    line_args,
 )
 
 # error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
-    error_cell_source, error_cell.calc_results, line_args,
+    error_cell_source,
+    error_cell.calc_results,
+    line_args,
 )
 
 # Integration tests
@@ -241,7 +283,7 @@ error_cell_renderer = handcalcs.handcalcs.LatexRenderer(
 def test_integration():
     assert (
         cell_1_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2} \\; \n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\na &= 2 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ny &= 6 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= \\frac{ 4 }{ \\left( y \\right) ^{ \\left( a + 1 \\right) } }  = \\frac{ 4 }{ \\left( 6 \\right) ^{ \\left( 2 + 1 \\right) } } &= 1.85185 \\times 10 ^ {-2} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 1.85185 \\times 10 ^ {-2} \\; \n\\end{aligned}\n\\]"
     )
     assert (
         cell_2_renderer.render(config_options=config_options)
@@ -253,7 +295,7 @@ def test_integration():
     )
     assert (
         cell_3_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1}  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\ 1.000 \\times 10 ^ {-3}]  \n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\ny &= -2 \\; \n\\\\[10pt]\nb &= 3 \\; \n\\\\[10pt]\nc &= 4 \\; \n\\\\[10pt]\n\\alpha_{\\eta_{\\psi}} &= 23 \\; \n\\\\[10pt]\nd &= \\sqrt { \\frac{ 1 }{ b } \\cdot \\frac{1} { c } }  = \\sqrt { \\frac{ 1 }{ 3 } \\cdot \\frac{1} { 4 } } &= 2.887 \\times 10 ^ {-1}  \n\\\\[10pt]\nf &= \\left \\lceil \\left( \\alpha_{\\eta_{\\psi}} + 1 \\right) \\bmod 2 \\right \\rceil  = \\left \\lceil \\left( 23 + 1 \\right) \\bmod 2 \\right \\rceil &= 0  \n\\\\[10pt]\ng &= \\int_{ y } ^ { b } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx  = \\int_{ -2 } ^ { 3 } \\left( x \\right) ^{ 2 } + 3 \\cdot x \\; dx &= [42,\ 1.000 \\times 10 ^ {-3}]  \n\\end{aligned}\n\\]"
     )
     assert (
         cell_4_renderer.render(config_options=config_options)
@@ -277,22 +319,22 @@ def test_integration():
     )
     assert (
         cell_8_renderer.render(config_options=config_options)
-        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\nb &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + b \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a } \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ b } } + \\arcsin \\left( \\sin \\left( \\frac{ b }{ c } \\right) \\right) + \\left( \\frac{ a }{ b } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot b + b \\cdot c }{ \\left( b \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ b } \\right) \\; \\;\\textrm{(Comment)}\n\\end{aligned}\n\\]"
+        == "\\[\n\\begin{aligned}\na &= 23 \\; \n\\\\[10pt]\n\\dot{V} &= 43 \\; \n\\\\[10pt]\nc &= 52 \\; \n\\\\[10pt]\nf &= \\frac{ c }{ a } + \\dot{V}  = \\frac{ 52 }{ 23 } + 43 &= 45.261 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\ng &= c \\cdot \\frac{ f }{ a }  = 52 \\cdot \\frac{ 45.261 }{ 23 } &= 102.329 \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\nd &= \\sqrt { \\frac{ a }{ \\dot{V} } + \\arcsin \\left( \\sin \\left( \\frac{ \\dot{V} }{ c } \\right) \\right) + \\left( \\frac{ a }{ \\dot{V} } \\right) ^{ 0.5 } + \\sqrt { \\frac{ a \\cdot \\dot{V} + \\dot{V} \\cdot c }{ \\left( \\dot{V} \\right) ^{ 2 } } } + \\sin \\left( \\frac{ a }{ \\dot{V} } \\right) } \\\\&= \\sqrt { \\frac{ 23 }{ 43 } + \\arcsin \\left( \\sin \\left( \\frac{ 43 }{ 52 } \\right) \\right) + \\left( \\frac{ 23 }{ 43 } \\right) ^{ 0.5 } + \\sqrt { \\frac{ 23 \\cdot 43 + 43 \\cdot 52 }{ \\left( 43 \\right) ^{ 2 } } } + \\sin \\left( \\frac{ 23 }{ 43 } \\right) } \\\\&= 1.981 \\; \\;\\textrm{(Comment)}\\\\[10pt]\n\\end{aligned}\n\\]"
     )
     assert (
         cell_9_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\n\\mu &= 0.44 \\; \n\\\\[10pt]\n\\mathrm{CritSeg} &= 1.5 \\; \\;\\textrm{(sendo extramemente)}\n\\\\[10pt]\n\\Delta_{h} &= 9.641 \\; \n\\\\[10pt]\n\\mathrm{Raio} &= \\left( \\frac{ 200 }{ 2 } \\right) \\; \\;\\textrm{(Config)}\n\\\\[10pt]\n\\mathrm{Raio}_{Minimo} &= \\mathrm{CritSeg} \\cdot \\frac{ \\Delta_{h} }{ \\left( \\sin \\left( \\arctan \\left( \\mu + 1 \\right) + 1 \\right) \\right) ^{ 2 } } \\; \n\\end{aligned}\n\\]"
     )
-    # print(cell_10_renderer.render(config_options=config_options))
     assert (
         cell_10_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]"
     )
-    
+
     assert (
         cell_11_renderer.render(config_options=config_options)
-        == '\\[\n\\begin{aligned}\n\\mu &= 45 + \\frac{ \\sin \\left( 34 + 2 \\right) }{ 2 } &= 4.450 \\times 10 ^ {1} \\; \\;\\textrm{(Comment)}\n\\\\[10pt]\n\\tau &= \\sin \\left( \\log_{2} \\left( \\log_{9} \\left( 3 \\right) \\right) \\right) &= -8.415 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\eta &= \\sqrt { \\frac{ 1 }{ \\log_{10} \\left( 6 \\right) } \\cdot \\frac{1} { \\ln \\left( 32 \\right) } } &= 6.089 \\times 10 ^ {-1}  \n\\\\[10pt]\n\\kappa &= \\left \\lfloor \\frac{ 23 }{ 4.5 } \\right \\rfloor &= 5 \\; \\;\\textrm{(Last comment)}\n\\end{aligned}\n\\]'
+        == "\\[\n\\begin{aligned}\nF_{e_{x}} &= \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( E ,\\  I_{x} ,\\  k_{x} ,\\  L \\right) }{ \\mathrm{area} }  = \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( 200000.000 ,\\  300000000.000 ,\\  1.000 ,\\  3500 \\right) }{ 1000 } &= 4.500  \n\\\\[10pt]\nF_{e_{y}} &= \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( E ,\\  I_{y} ,\\  k_{y} ,\\  L \\right) }{ \\mathrm{area} }  = \\frac{ \\operatorname{euler\\ buckling\\ load} \\left( 200000.000 ,\\  150000000.000 ,\\  1.000 ,\\  3500 \\right) }{ 1000 } &= 4.500  \n\\\\[10pt]\nF_{e} &= \\operatorname{min} \\left( F_{e_{x}} ,\\  F_{e_{y}} \\right)  = \\operatorname{min} \\left( 4.500 ,\\  4.500 \\right) &= 4.500  \n\\\\[10pt]\n\\lambda &= \\sqrt { \\frac{ f_{y} }{ F_{e} } }  = \\sqrt { \\frac{ 350 }{ 4.500 } } &= 8.819  \n\\\\[10pt]\nP_{r} &= \\phi \\cdot \\mathrm{area} \\cdot f_{y} \\cdot \\left( 1 + \\left( \\lambda \\right) ^{ \\left( 2 \\cdot n \\right) } \\right) ^{ \\left( \\frac{ \\left( - 1 \\right) }{ n } \\right) } \\\\&= 0.900 \\cdot 1000 \\cdot 350 \\cdot \\left( 1 + \\left( 8.819 \\right) ^{ \\left( 2 \\cdot 1.340 \\right) } \\right) ^{ \\left( \\frac{ \\left( - 1 \\right) }{ 1.340 } \\right) } \\\\&= 4041.179  \\\\[10pt]\n\\end{aligned}\n\\]"
     )
+
 
 # Test decorator.py
 
@@ -307,8 +349,10 @@ def test_handcalc():
 def test_handcalc2():
     assert func_2(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
 
+
 def test_handcalcs3():
     assert func_3(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
+
 
 # Test template.py
 
@@ -332,6 +376,7 @@ def test_html_exporter():
     assert exporter.exclude_input == True
     parent = exporter.__class__.__bases__[0]()
     assert parent.exclude_input == False
+
 
 # Test expected exceptions
 
@@ -595,9 +640,11 @@ def test_round_and_render_line_objects_to_latex():
     )
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
-        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""), cell_precision=3, cell_notation=True, **config_options,
+        ParameterLine(line=deque(["y", "=", -2]), comment="", latex=""),
+        cell_precision=3,
+        cell_notation=True,
+        **config_options,
     ) == ParameterLine(line=deque(["y", "=", "-2"]), comment="", latex="y = -2")
-
 
     assert handcalcs.handcalcs.round_and_render_line_objects_to_latex(
         CalcLine(
@@ -1269,11 +1316,12 @@ def test_swap_for_greek():
         deque(["eta", "=", "beta", "+", "theta"]), **config_options
     ) == deque(["\\eta", "=", "\\beta", "+", "\\theta"])
     assert handcalcs.handcalcs.swap_for_greek(
-        deque(["M_r", "=", "phi", "\\cdot", deque(["psi", "\\cdot", "F_y"])]), **config_options
+        deque(["M_r", "=", "phi", "\\cdot", deque(["psi", "\\cdot", "F_y"])]),
+        **config_options,
     ) == deque(["M_r", "=", "\\phi", "\\cdot", deque(["\\psi", "\\cdot", "F_y"])])
-    assert handcalcs.handcalcs.swap_for_greek(deque(["lamb", "=", 3]), **config_options) == deque(
-        ["\\lambda", "=", 3]
-    )
+    assert handcalcs.handcalcs.swap_for_greek(
+        deque(["lamb", "=", 3]), **config_options
+    ) == deque(["\\lambda", "=", 3])
 
 
 def test_test_for_scientific_float():
@@ -1323,25 +1371,42 @@ def test_swap_comparison_ops():
 
 
 def test_test_for_long_var_strs():
-    assert handcalcs.handcalcs.test_for_long_var_strs("x_y_a", **config_options) == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("Rate_annual", **config_options) == True
-    assert handcalcs.handcalcs.test_for_long_var_strs("x_rake_red", **config_options) == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("AB_x_y", **config_options) == True
-    assert handcalcs.handcalcs.test_for_long_var_strs("category_x", **config_options) == True
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("x_y_a", **config_options) == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("Rate_annual", **config_options)
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("x_rake_red", **config_options)
+        == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("AB_x_y", **config_options) == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("category_x", **config_options)
+        == True
+    )
     assert handcalcs.handcalcs.test_for_long_var_strs("x", **config_options) == False
     assert handcalcs.handcalcs.test_for_long_var_strs("xy", **config_options) == True
     assert handcalcs.handcalcs.test_for_long_var_strs(234.21, **config_options) == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("\\frac{", **config_options) == False
-    assert handcalcs.handcalcs.test_for_long_var_strs("\\sin", **config_options) == False
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("\\frac{", **config_options) == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_long_var_strs("\\sin", **config_options) == False
+    )
 
 
 def test_swap_long_var_strs():
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["cat_xy_u", "+", 4]), **config_options) == deque(
-        ["\\mathrm{cat}_xy_u", "+", 4]
-    )
-    assert handcalcs.handcalcs.swap_long_var_strs(deque(["RATE", "*", "4"]), **config_options) == deque(
-        ["\\mathrm{RATE}", "*", "4"]
-    )
+    assert handcalcs.handcalcs.swap_long_var_strs(
+        deque(["cat_xy_u", "+", 4]), **config_options
+    ) == deque(["\\mathrm{cat}_xy_u", "+", 4])
+    assert handcalcs.handcalcs.swap_long_var_strs(
+        deque(["RATE", "*", "4"]), **config_options
+    ) == deque(["\\mathrm{RATE}", "*", "4"])
     assert handcalcs.handcalcs.swap_long_var_strs(
         deque(["\\sin", "\\left(", "apple_cart", "\\right)"]), **config_options
     ) == deque(["\\sin", "\\left(", "\\mathrm{apple}_cart", "\\right)"])
@@ -1517,12 +1582,18 @@ def test_swap_math_funcs():
             ["z", "=", deque(["double", deque(["\\left(", "a", "/", "b", "\\right)"])])]
         ),
         dict(),
-    ) == deque(['z',
-       '=',
-       deque(['\\operatorname{double}',
-              '{',
-              deque(['\\left(', 'a', '/', 'b', '\\right)']),
-              '}'])])
+    ) == deque(
+        [
+            "z",
+            "=",
+            deque(
+                [
+                    "\\operatorname{double}",
+                    deque(["\\left(", "a", "/", "b", "\\right)"]),
+                ]
+            ),
+        ]
+    )
     assert handcalcs.handcalcs.swap_math_funcs(
         deque(["rate", "=", deque(["sin", "\\left(", "a", "\\right)"])]), dict()
     ) == deque(["rate", "=", deque(["\\sin", "\\left(", "a", "\\right)"])])
@@ -1666,10 +1737,39 @@ def test_format_strings():
 def test_latex_repr():
     mock_obj_1 = MockLatexObj1("test string")
     mock_obj_2 = MockLatexObj2("23 23")
-    assert handcalcs.handcalcs.latex_repr(123, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "123"
-    assert handcalcs.handcalcs.latex_repr(20 * si.Pa, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "2.000 \\times 10^ {1}\\ \\mathrm{Pa}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_1, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "\\mathrm{test string}"
-    assert handcalcs.handcalcs.latex_repr(mock_obj_2, precision=3, use_scientific_notation=True, preferred_formatter = "L") == "\\text{23 23}"
+    assert (
+        handcalcs.handcalcs.latex_repr(
+            123, precision=3, use_scientific_notation=True, preferred_formatter="L"
+        )
+        == "123"
+    )
+    assert (
+        handcalcs.handcalcs.latex_repr(
+            20 * si.Pa,
+            precision=3,
+            use_scientific_notation=True,
+            preferred_formatter="L",
+        )
+        == "2.000 \\times 10^ {1}\\ \\mathrm{Pa}"
+    )
+    assert (
+        handcalcs.handcalcs.latex_repr(
+            mock_obj_1,
+            precision=3,
+            use_scientific_notation=True,
+            preferred_formatter="L",
+        )
+        == "\\mathrm{test string}"
+    )
+    assert (
+        handcalcs.handcalcs.latex_repr(
+            mock_obj_2,
+            precision=3,
+            use_scientific_notation=True,
+            preferred_formatter="L",
+        )
+        == "\\text{23 23}"
+    )
 
 
 def test_swap_integrals():
@@ -1705,16 +1805,48 @@ def test_replace_underscores():
         deque(["cat_a", "+", deque(["\\Delta_T", "\\cdot", 234.4])])
     ) == deque(["cat\\ a", "+", deque(["\\Delta\\ T", "\\cdot", 234.4])])
 
+
 def test_swap_chained_fracs():
-    assert handcalcs.handcalcs.swap_chained_fracs( # Test for basic functionality
+    assert handcalcs.handcalcs.swap_chained_fracs(  # Test for basic functionality
         deque(["d", "=", "a", "/", "b", "/", "3"])
     ) == deque(["d", "=", "a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}"])
-    assert handcalcs.handcalcs.swap_chained_fracs( # Test for chained div followed by non-chained div
+    assert handcalcs.handcalcs.swap_chained_fracs(  # Test for chained div followed by non-chained div
         deque(["d", "=", "a", "/", "b", "/", "3", "+", "c", "/", "e"])
-    ) == deque(["d", "=", "a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}", "+", "c", "/", "e"])
-    assert handcalcs.handcalcs.swap_chained_fracs( # Test for nested chained divs
+    ) == deque(
+        [
+            "d",
+            "=",
+            "a",
+            "/",
+            "b",
+            "\\cdot",
+            "\\frac{1}",
+            "{",
+            "3",
+            "}",
+            "+",
+            "c",
+            "/",
+            "e",
+        ]
+    )
+    assert handcalcs.handcalcs.swap_chained_fracs(  # Test for nested chained divs
         deque(["d", "=", "a", "/", "b", "/", deque(["a", "/", "b", "/", "3"])])
-    ) == deque(["d", "=", "a", "/", "b", "\\cdot", "\\frac{1}", "{", deque(["a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}"]), "}"])
+    ) == deque(
+        [
+            "d",
+            "=",
+            "a",
+            "/",
+            "b",
+            "\\cdot",
+            "\\frac{1}",
+            "{",
+            deque(["a", "/", "b", "\\cdot", "\\frac{1}", "{", "3", "}"]),
+            "}",
+        ]
+    )
+
 
 def test_test_for_py_operator():
     assert handcalcs.handcalcs.test_for_py_operator("*") == True
@@ -1737,19 +1869,27 @@ def test_test_for_py_operator():
 
 
 def test_for_numeric_line():
-    assert handcalcs.handcalcs.test_for_numeric_line(
-        deque(["=", "2", "*", "4"])
-    ) == True
-    assert handcalcs.handcalcs.test_for_numeric_line(
-        deque(["=", "2", "*", "b"])
-    ) == False
-    assert handcalcs.handcalcs.test_for_numeric_line(
-        deque(["=", "2", "*", deque(["2", "*", "4"])])
-    ) == True
-    assert handcalcs.handcalcs.test_for_numeric_line(
-        deque(["=", "2", "*", deque(["b", "*", "4"])])
-    ) == False
-    assert handcalcs.handcalcs.test_for_numeric_line(
-        deque(["=", "2", "*", deque(["sin", "4"])])
-    ) == True
-
+    assert (
+        handcalcs.handcalcs.test_for_numeric_line(deque(["=", "2", "*", "4"])) == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_numeric_line(deque(["=", "2", "*", "b"])) == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_numeric_line(
+            deque(["=", "2", "*", deque(["2", "*", "4"])])
+        )
+        == True
+    )
+    assert (
+        handcalcs.handcalcs.test_for_numeric_line(
+            deque(["=", "2", "*", deque(["b", "*", "4"])])
+        )
+        == False
+    )
+    assert (
+        handcalcs.handcalcs.test_for_numeric_line(
+            deque(["=", "2", "*", deque(["sin", "4"])])
+        )
+        == True
+    )

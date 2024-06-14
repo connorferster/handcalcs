@@ -37,7 +37,7 @@ for key, value in _config.items():
             str_value = str_value.replace("\n", "\\n")
     else:
         str_value = str(value)
-    _OPTIONS.append(f"{key} -> {type(value)} (default = {str_value})")
+    _OPTIONS.append(f"{key}: {type(value)} (default = {str_value})")
 # _OPTIONS = [f"{key} -> {type(value)} (default = {value})" for key, value in _config.items()]
 _OPTIONS_TEXT = "Configuration can be set on the following options:\n\t" + "\n\t".join(
     _OPTIONS

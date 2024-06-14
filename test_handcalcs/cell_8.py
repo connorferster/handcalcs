@@ -1,17 +1,11 @@
-
 from math import asin, sin, sqrt
 
-# Symbolic
 a = 23
-b = 43
+V_dot = 43
 c = 52
 
-f = c / a +b # Comment
-g = c*f / a # Comment
-d = sqrt(a / b) + asin(sin(b / c)) + (a/b)**(0.5) + sqrt((a*b + b*c)/(b**2)) + sin(a/b) # Comment
+f = c / a + V_dot  # Comment
+g = c * f / a  # Comment
+d = sqrt(a / V_dot+ asin(sin(V_dot / c))+ (a / V_dot) ** (0.5)+ sqrt((a * V_dot + V_dot * c) / (V_dot**2))+ sin(a / V_dot)) # Comment
 
 calc_results = globals()
-
-
-
-
