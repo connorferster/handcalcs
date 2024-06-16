@@ -121,13 +121,22 @@ Returns a tuple consisting of `(latex_code: str, locals: dict)`, where `locals` 
 * `override` is a str representing one of the acceptable override tags (see below)
 * `precision` is an int to alter the of decimal precision displayed
 * `left` and `right` are strings that can precede and follow the encoded Latex string, such as `\\[` and `\\]` or `$` and `$`
-* `jupyter_display`, when True, will return only the `locals` dictionary and instead will display the encoded Latex string rendering with `display(Latex(latex_code))` from `IPython.display`. Will return an error if not used within 
+* `jupyter_display`, when True, will return only the `locals` dictionary and instead will display the encoded Latex string rendering with `display(Latex(latex_code))` from `IPython.display`. Will return an error if not used within
+* `record`, when True, will activate the `HandcalcsCallRecorder` to allow the function to "recall" previous outputs (see below) **New in v1.8.0**
 
 In your decorated function, everything between `def my_calc(...)` and a return statement (if any) is now like the code in a Jupyter cell, except it's a standard Python function.
 
 Used in this way, you can use `@handcalc()` to dynamically generate Latex code for display in Jupyter and non-Jupypter Python environments (e.g. streamlit). 
 
 ![Parameters](docs/images/decorator.png)
+
+### HandcalcsCallRecorder (New in v1.8.0)
+
+The `HandcalcsCallRecorder` is a new kind of function wrapper that is available from the `@handcalc` decorator. To activate it, select `record=True` as one of the arguments in the decorator function.
+
+The intended use case is during iterations. In engineering, it is common to compute a whole bunch of values in a table or DataFrame. The table itself contains the results of the computations but the table does not necessarily reveal the computation steps. The `HandcalcsCallRecorder` allows you to display the calculation for one of the calculation iterations that have been processed by your decorated function, as shown in the example below:
+
+![HandcalcsCallRecorder](docs/images/call_recorder.gif)
 
 ---
 
