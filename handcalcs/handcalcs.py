@@ -173,8 +173,6 @@ def dict_get(d: dict, item: Any) -> Any:
 
 # The renderer class ("output" class)
 class LatexRenderer:
-    # dec_sep = "."
-
     def __init__(self, python_code_str: str, results: dict, line_args: dict):
         self.source = python_code_str
         self.results = results

@@ -19,10 +19,6 @@ def handcalc(
     def handcalc_decorator(func):
         if record:
             decorated = HandcalcsCallRecorder(func, override, precision, left, right, scientific_notation, jupyter_display)
-            # decorated.__call__.__func__.__name__ = decorated.callable.__name__
-            # # decorated.__call__.__func__.__qual_name__ = decorated.callable.__qual_name__
-            # decorated.__call__.__func__.__doc__ = decorated.callable.__doc__
-            # decorated.__call__.__func__.__annotations__ = decorated.callable.__annotations__
         else:
             @wraps(func)
             def decorated(*args, **kwargs):
@@ -37,7 +33,7 @@ def handcalc(
                 scope = innerscope.call(func, *args, **kwargs)
                 renderer = LatexRenderer(cell_source, scope, line_args)
                 latex_code = renderer.render()
-                raw_latex_code = "".join(latex_code.replace("\\[\n", "", 1).rsplit("\\]\n", 1))
+                raw_latex_code = "".join(latex_code.replace("\\[", "", 1).rsplit("\\]", 1))
                 if jupyter_display:
                     try:
                         from IPython.display import Latex, display
