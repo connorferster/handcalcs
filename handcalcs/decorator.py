@@ -18,8 +18,17 @@ def handcalc(
 ):
     def handcalc_decorator(func):
         if record:
-            decorated = HandcalcsCallRecorder(func, override, precision, left, right, scientific_notation, jupyter_display)
+            decorated = HandcalcsCallRecorder(
+                func,
+                override,
+                precision,
+                left,
+                right,
+                scientific_notation,
+                jupyter_display,
+            )
         else:
+
             @wraps(func)
             def decorated(*args, **kwargs):
                 line_args = {
@@ -33,7 +42,9 @@ def handcalc(
                 scope = innerscope.call(func, *args, **kwargs)
                 renderer = LatexRenderer(cell_source, scope, line_args)
                 latex_code = renderer.render()
-                raw_latex_code = "".join(latex_code.replace("\\[", "", 1).rsplit("\\]", 1))
+                raw_latex_code = "".join(
+                    latex_code.replace("\\[", "", 1).rsplit("\\]", 1)
+                )
                 if jupyter_display:
                     try:
                         from IPython.display import Latex, display
@@ -44,7 +55,9 @@ def handcalc(
                     display(Latex(latex_code))
                     return scope.return_value
                 return (left + raw_latex_code + right, scope.return_value)
+
         return decorated
+
     return handcalc_decorator
 
 
@@ -52,8 +65,9 @@ class HandcalcsCallRecorder:
     """
     Records function calls for the func stored in .callable
     """
+
     def __init__(
-        self, 
+        self,
         func: Callable,
         _override: str = "",
         _precision: int = 3,
@@ -61,7 +75,7 @@ class HandcalcsCallRecorder:
         _right: str = "",
         _scientific_notation: Optional[bool] = None,
         _jupyter_display: bool = False,
-        ):
+    ):
         self.callable = func
         self.history = list()
         self._override = _override
