@@ -28,7 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install uv
         python -m uv pip install .
-        python -m uv pip install black
+        python -m uv pip install black pytest
     - name: Test black formatted
       run: |
         black handcalcs --check
