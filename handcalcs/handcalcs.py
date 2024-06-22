@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import ast as ast
 from collections import deque, ChainMap
 import copy
 from dataclasses import dataclass
@@ -25,76 +26,11 @@ import os
 import pathlib
 import re
 from typing import Any, Union, Optional, Tuple, List
-import pyparsing as pp
+
 
 from handcalcs.constants import GREEK_UPPER, GREEK_LOWER
 from handcalcs import global_config
 from handcalcs.integrations import DimensionalityError
-
-
-# Six basic line types
-@dataclass
-class CalcLine:
-    line: deque
-    comment: str
-    latex: str
-
-
-@dataclass
-class SymbolicLine:
-    line: deque
-    comment: str
-    latex: str
-
-
-@dataclass
-class ConditionalLine:
-    condition: deque
-    condition_type: str
-    expressions: deque
-    raw_condition: str
-    raw_expression: str
-    true_condition: deque
-    true_expressions: deque
-    comment: str
-    latex_condition: str
-    latex_expressions: str
-    latex: str
-
-
-@dataclass
-class ParameterLine:
-    line: deque
-    comment: str
-    latex: str
-
-
-@dataclass
-class LongCalcLine:
-    line: deque
-    comment: str
-    latex: str
-
-
-@dataclass
-class NumericCalcLine:
-    line: deque
-    comment: str
-    latex: str
-
-
-@dataclass
-class IntertextLine:
-    line: deque
-    comment: str
-    latex: str
-
-
-@dataclass
-class BlankLine:  # Attributes not used on BlankLine but still req'd
-    line: deque
-    comment: str
-    latex: str
 
 
 # Five types of cell
@@ -104,7 +40,7 @@ class CalcCell:
     calculated_results: dict
     precision: Optional[int]
     scientific_notation: Optional[bool]
-    lines: deque
+    ast: ast.AST
     latex_code: str
 
 
@@ -114,7 +50,7 @@ class ShortCalcCell:
     calculated_results: dict
     precision: Optional[int]
     scientific_notation: Optional[bool]
-    lines: deque
+    ast: ast.AST
     latex_code: str
 
 
@@ -124,7 +60,7 @@ class SymbolicCell:
     calculated_results: dict
     precision: Optional[int]
     scientific_notation: Optional[bool]
-    lines: deque
+    ast: ast.AST
     latex_code: str
 
 
@@ -132,7 +68,7 @@ class SymbolicCell:
 class ParameterCell:
     source: str
     calculated_results: dict
-    lines: deque
+    ast: ast.AST
     precision: Optional[int]
     scientific_notation: Optional[bool]
     # cols: int
@@ -143,7 +79,7 @@ class ParameterCell:
 class LongCalcCell:
     source: str
     calculated_results: dict
-    lines: deque
+    ast: ast.AST
     precision: Optional[int]
     scientific_notation: Optional[bool]
     latex_code: str
@@ -222,15 +158,9 @@ def latex(
         cell_precision,
         cell_notation,
     )
-    cell = categorize_lines(cell)
     cell = convert_cell(
         cell,
         **config_options,
-    )
-    cell = format_cell(
-        cell,
-        **config_options,
-        # dec_sep
     )
     return cell.latex_code
 
@@ -300,171 +230,6 @@ def strip_cell_code(raw_source: str) -> str:
         split_lines.popleft()
         return "\n".join(split_lines)
     return raw_source
-
-
-def categorize_lines(
-    cell: Union[CalcCell, ParameterCell]
-) -> Union[CalcCell, ParameterCell]:
-    """
-    Return 'cell' with the line data contained in cell_object.source categorized
-    into one of four types:
-    * CalcLine
-    * ParameterLine
-    * ConditionalLine
-
-    categorize_lines(calc_cell) is considered the default behaviour for the
-    singledispatch categorize_lines function.
-    """
-    incoming = cell.source.rstrip().split("\n")
-    outgoing = deque([])
-    calculated_results = cell.calculated_results
-    cell_override = ""
-    for line in incoming:
-        if isinstance(cell, ParameterCell):
-            cell_override = "parameter"
-        elif isinstance(cell, LongCalcCell):
-            cell_override = "long"
-        elif isinstance(cell, SymbolicCell):
-            cell_override = "symbolic"
-        categorized = categorize_line(line, calculated_results, cell_override)
-        categorized_w_result_appended = add_result_values_to_line(
-            categorized, calculated_results
-        )
-        outgoing.append(categorized_w_result_appended)
-    cell.lines = outgoing
-    return cell
-
-
-def categorize_line(
-    line: str, calculated_results: dict, cell_override: str = ""
-) -> Union[CalcLine, ParameterLine, ConditionalLine]:
-    """
-    Return 'line' as either a CalcLine, ParameterLine, or ConditionalLine if 'line'
-    fits the appropriate criteria. Raise ValueError, otherwise.
-
-    'override' is a str used to short-cut the tests in categorize_line(). e.g.
-    if the cell that the lines belong to is a ParameterCell,
-    we do not need to run the test_for_parameter_line() function on the line
-    because, in a ParameterCell, all lines will default to a ParameterLine
-    because of the cell it's in and how that cell is supposed to behave.
-
-    'override' is passed from the categorize_lines() function because that
-    function has the information of the cell type and can pass along any
-    desired behavior to categorize_line().
-    """
-    if test_for_blank_line(line):
-        return BlankLine(line, "", "")
-
-    if test_for_intertext_line(line):
-        return IntertextLine(line, "", "")
-
-    if line.startswith("#"):
-        return BlankLine(line, "", "")
-
-    try:
-        line, comment = line.split("#", 1)
-    except ValueError:
-        comment = ""
-
-    # Override behaviour
-    categorized_line = None
-    if cell_override == "parameter":
-        if test_for_conditional_line(line):
-            categorized_line = create_conditional_line(
-                line, calculated_results, cell_override, comment
-            )
-        else:
-            categorized_line = ParameterLine(
-                split_parameter_line(line, calculated_results), comment, ""
-            )
-        return categorized_line
-
-    elif cell_override == "long":
-        if test_for_parameter_line(line):  # A parameter can exist in a long cell, too
-            categorized_line = ParameterLine(
-                split_parameter_line(line, calculated_results), comment, ""
-            )
-        elif test_for_conditional_line(
-            line
-        ):  # A conditional line can exist in a long cell, too
-            categorized_line = create_conditional_line(
-                line, calculated_results, cell_override, comment
-            )
-        elif test_for_numeric_line(
-            deque(
-                list(expr_parser(line))[1:]
-            )  # Leave off the declared variable, e.g. _x_ = ...
-        ):
-            categorized_line = NumericCalcLine(expr_parser(line), comment, "")
-
-        else:
-            categorized_line = LongCalcLine(
-                expr_parser(line), comment, ""
-            )  # code_reader
-        return categorized_line
-
-    elif cell_override == "symbolic":
-        if test_for_conditional_line(
-            line
-        ):  # A conditional line can exist in a symbolic cell, too
-            categorized_line = create_conditional_line(
-                line, calculated_results, cell_override, comment
-            )
-        else:
-            categorized_line = SymbolicLine(
-                expr_parser(line), comment, ""
-            )  # code_reader
-        return categorized_line
-
-    elif cell_override == "short":
-        if test_for_numeric_line(
-            deque(list(line)[1:])  # Leave off the declared variable
-        ):
-            categorized_line = NumericCalcLine(expr_parser(line), comment, "")
-        else:
-            categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
-
-        return categorized_line
-    elif True:
-        pass  # Future override conditions to match new cell types can be put here
-
-    # Standard behaviour
-    if line == "\n" or line == "":
-        categorized_line = BlankLine(line, "", "")
-
-    elif test_for_parameter_line(line):
-        categorized_line = ParameterLine(
-            split_parameter_line(line, calculated_results), comment, ""
-        )
-
-    elif test_for_conditional_line(line):
-        categorized_line = create_conditional_line(
-            line, calculated_results, cell_override, comment
-        )
-
-    elif test_for_numeric_line(
-        deque(list(expr_parser(line))[1:])  # Leave off the declared variable
-    ):
-        categorized_line = NumericCalcLine(expr_parser(line), comment, "")
-
-    elif "=" in line:
-        categorized_line = CalcLine(expr_parser(line), comment, "")  # code_reader
-
-    elif len(expr_parser(line)) == 1:
-        categorized_line = ParameterLine(
-            split_parameter_line(line, calculated_results), comment, ""
-        )
-
-    else:
-        # TODO: Raise this error in a test
-        raise ValueError(
-            f"Line: {line} is not recognized for rendering.\n"
-            "Lines must either:\n"
-            "\t * Be the name of a previously assigned single variable\n"
-            "\t * Be an arithmetic variable assignment (i.e. calculation that uses '=' in the line)\n"
-            "\t * Be a conditional arithmetic assignment (i.e. uses 'if', 'elif', or 'else', each on a single line)"
-        )
-    return categorized_line
 
 
 def create_param_cell(
