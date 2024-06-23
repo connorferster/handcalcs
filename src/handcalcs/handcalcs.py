@@ -16,6 +16,7 @@ import ast as ast
 from collections import deque, ChainMap
 import copy
 from dataclasses import dataclass
+from enum import Enum
 from functools import singledispatch
 import importlib
 import inspect
@@ -27,13 +28,20 @@ import pathlib
 import re
 from typing import Any, Union, Optional, Tuple, List
 
-
 from handcalcs.constants import GREEK_UPPER, GREEK_LOWER
 from handcalcs import global_config
 from handcalcs.integrations import DimensionalityError
 
 
 # Five types of cell
+class CellType(Enum, str):
+    CALC = "calc"
+    SHORT = "short"
+    LONG = "long"
+    SYMBOLIC = "symbolic"
+    PARAMS = "params"
+
+
 @dataclass
 class CalcCell:
     source: str
@@ -68,10 +76,9 @@ class SymbolicCell:
 class ParameterCell:
     source: str
     calculated_results: dict
-    ast: ast.AST
     precision: Optional[int]
     scientific_notation: Optional[bool]
-    # cols: int
+    ast: ast.AST
     latex_code: str
 
 
@@ -79,32 +86,10 @@ class ParameterCell:
 class LongCalcCell:
     source: str
     calculated_results: dict
-    ast: ast.AST
     precision: Optional[int]
     scientific_notation: Optional[bool]
+    ast: ast.AST
     latex_code: str
-
-
-def is_number(s: str) -> bool:
-    """
-    A basic helper function because Python str methods do not
-    have this ability...
-    """
-    try:
-        float(s)
-        return True
-    except:
-        return False
-
-
-def dict_get(d: dict, item: Any) -> Any:
-    """
-    Return the item from the dict, 'd'.
-    """
-    try:
-        return d.get(item, item)
-    except TypeError:
-        return item
 
 
 # The renderer class ("output" class)
@@ -175,193 +160,47 @@ def categorize_raw_cell(
     """
     Return a "Cell" type depending on the source code of the cell.
     """
-    if override_commands:
-        if override_commands == "params":
-            return create_param_cell(
-                raw_source, calculated_results, cell_precision, cell_notation
-            )
-        elif override_commands == "long":
-            return create_long_cell(
-                raw_source, calculated_results, cell_precision, cell_notation
-            )
-        elif override_commands == "short":
-            return create_short_cell(
-                raw_source, calculated_results, cell_precision, cell_notation
-            )
-        elif override_commands == "symbolic":
-            return create_symbolic_cell(
-                raw_source, calculated_results, cell_precision, cell_notation
-            )
+    cell_types = {
+        "params": CellType.PARAMS,
+        "long": CellType.LONG,
+        "short": CellType.SHORT,
+        "symbolic": CellType.SYMBOLIC,
+    }
 
-    if test_for_parameter_cell(raw_source):
-        return create_param_cell(
-            raw_source, calculated_results, cell_precision, cell_notation
-        )
-    elif test_for_long_cell(raw_source):
-        return create_long_cell(
-            raw_source, calculated_results, cell_precision, cell_notation
-        )
-    elif test_for_short_cell(raw_source):
-        return create_short_cell(
-            raw_source, calculated_results, cell_precision, cell_notation
-        )
-    elif test_for_symbolic_cell(raw_source):
-        return create_symbolic_cell(
-            raw_source, calculated_results, cell_precision, cell_notation
-        )
-    else:
-        return create_calc_cell(
-            raw_source, calculated_results, cell_precision, cell_notation
-        )
-
-
-def strip_cell_code(raw_source: str) -> str:
-    """
-    Return 'raw_source' with the "cell code" removed.
-    A "cell code" is a first-line comment in the cell for the
-    purpose of categorizing an IPython cell as something other
-    than a CalcCell.
-    """
-    split_lines = deque(raw_source.split("\n"))
-    first_line = split_lines[0]
-    if first_line.startswith("#") and not first_line.startswith(
-        "##"
-    ):  ## for intertext line
-        split_lines.popleft()
-        return "\n".join(split_lines)
-    return raw_source
-
-
-def create_param_cell(
-    raw_source: str,
-    calculated_result: dict,
-    cell_precision: Optional[int] = None,
-    cell_notation: Optional[bool] = None,
-) -> ParameterCell:
-    """
-    Returns a ParameterCell.
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = ParameterCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        precision=cell_precision,
-        scientific_notation=cell_notation,
-        lines=deque([]),
-        latex_code="",
+    return create_cell(
+        cell_types.get(override_commands, CellType.CALC),
+        raw_source,
+        calculated_results,
+        cell_precision,
+        cell_notation,
     )
-    return cell
 
 
-def create_long_cell(
+def create_cell(
+    cell_type: CellType,
     raw_source: str,
     calculated_result: dict,
     cell_precision: Optional[int] = None,
     cell_notation: Optional[bool] = None,
-) -> LongCalcCell:
-    """
-    Returns a LongCalcCell.
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = LongCalcCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        precision=cell_precision,
-        scientific_notation=cell_notation,
-        lines=deque([]),
-        latex_code="",
-    )
-    return cell
-
-
-def create_short_cell(
-    raw_source: str,
-    calculated_result: dict,
-    cell_precision: Optional[int] = None,
-    cell_notation: Optional[bool] = None,
-) -> ShortCalcCell:
-    """
-    Returns a ShortCell
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = ShortCalcCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        precision=cell_precision,
-        scientific_notation=cell_notation,
-        lines=deque([]),
-        latex_code="",
-    )
-    return cell
-
-
-def create_symbolic_cell(
-    raw_source: str,
-    calculated_result: dict,
-    cell_precision: Optional[int] = None,
-    cell_notation: Optional[bool] = None,
-) -> SymbolicCell:
-    """
-    Returns a SymbolicCell
-    """
-    comment_tag_removed = strip_cell_code(raw_source)
-    cell = SymbolicCell(
-        source=comment_tag_removed,
-        calculated_results=calculated_result,
-        precision=cell_precision,
-        scientific_notation=cell_notation,
-        lines=deque([]),
-        latex_code="",
-    )
-    return cell
-
-
-def create_calc_cell(
-    raw_source: str,
-    calculated_result: dict,
-    cell_precision: Optional[int] = None,
-    cell_notation: Optional[bool] = None,
-) -> CalcCell:
-    """
-    Returns a CalcCell
-    """
-    cell = CalcCell(
+):
+    cell_classes = {
+        CellType.PARAMS: ParameterCell,
+        CellType.LONG: LongCalcCell,
+        CellType.SHORT: ShortCalcCell,
+        CellType.SYMBOLIC: SymbolicCell,
+        CellType.CALC: CalcCell,
+    }
+    return cell_classes[cell_type](
         source=raw_source,
         calculated_results=calculated_result,
         precision=cell_precision,
         scientific_notation=cell_notation,
-        lines=deque([]),
-        latex_code="",
+        ast=ast.parse(raw_source),
+        latex_code=""
+
     )
-    return cell
 
-
-def create_conditional_line(
-    line: str, calculated_results: dict, override: str, comment: str
-):
-    (
-        condition,
-        condition_type,
-        expression,
-        raw_condition,
-        raw_expression,
-    ) = split_conditional(line, calculated_results, override)
-    categorized_line = ConditionalLine(
-        condition=condition,
-        condition_type=condition_type,
-        expressions=expression,
-        raw_condition=raw_condition,
-        raw_expression=raw_expression.strip(),
-        true_condition=deque([]),
-        true_expressions=deque([]),
-        comment=comment,
-        latex_condition="",
-        latex_expressions="",
-        latex="",
-    )
-    return categorized_line
-
-
+# FIRST TRANSFORMATION
 @singledispatch
 def add_result_values_to_line(line_object, calculated_results: dict):
     raise TypeError(
