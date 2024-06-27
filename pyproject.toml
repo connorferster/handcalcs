@@ -11,7 +11,6 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
 dependencies = [
     "more_itertools",
-    "nbconvert >= 7.0.0",
     "innerscope >= 0.7.0",
     "pyparsing"
 ]
@@ -22,26 +21,27 @@ Source = "https://github.com/connorferster/handcalcs"
 
 [project.optional-dependencies]
 
+exporters = [
+    "nb-hideinputs",
+]
+
 test = [
     "pytest >= 8.0.0",
     "pytest-cov >= 4.1.0",
     "coverage[toml] >= 5.5.0",
     "pint >= 0.23",
+    "sympy",
 ]
 
 dev = [
     "jupyterlab >= 4.0.0",
-    "sympy",
     "forallpeople >= 2.0",
-    "black"  
+    "black",
+    "pint >= 0.23",
+    "sympy",
 ]
 
 doc = ["sphinx"]
-
-[project.entry-points."nbconvert.exporters"]
-HTML_NoInput = 'handcalcs.exporters:HTMLHideInputExporter'
-PDF_NoInput = 'handcalcs.exporters:PDFHideInputExporter'
-LaTeX_NoInput = 'handcalcs.exporters:LatexHideInputExporter'
 
 [tool.coverage.paths]
 source = ['handcalcs', '*/site-packages']
