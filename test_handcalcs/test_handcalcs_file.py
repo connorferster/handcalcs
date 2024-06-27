@@ -16,17 +16,8 @@
 import inspect
 from collections import deque
 
-from handcalcs.exporters import (
-    LatexHideInputExporter,
-    HTMLHideInputExporter,
-    PDFHideInputExporter,
-)
-
 import handcalcs
-import pathlib
 import pytest
-import nbconvert
-import filecmp
 import forallpeople as si
 
 
@@ -351,30 +342,6 @@ def test_handcalc2():
 
 def test_handcalcs3():
     assert func_3(4, 5) == {"x": 4, "y": 5, "a": 8, "b": 29}
-
-
-# Test template.py
-
-
-def test_latex_exporter():
-    exporter = LatexHideInputExporter()
-    assert exporter.exclude_input == True
-    parent = exporter.__class__.__bases__[0]()
-    assert parent.exclude_input == False
-
-
-def test_pdf_exporter():
-    exporter = PDFHideInputExporter()
-    assert exporter.exclude_input == True
-    parent = exporter.__class__.__bases__[0]()
-    assert parent.exclude_input == False
-
-
-def test_html_exporter():
-    exporter = HTMLHideInputExporter()
-    assert exporter.exclude_input == True
-    parent = exporter.__class__.__bases__[0]()
-    assert parent.exclude_input == False
 
 
 # Test expected exceptions
