@@ -45,6 +45,14 @@ You can install using pip:
 
 `pip install handcalcs`
 
+To install the optional nbconvert "no input" exporters, use:
+
+`pip install "handcalcs[exporters]"`
+
+**NEW**
+
+As of v1.9.0, handcalcs no longer installs the "no input" nbconvert exporters. This was done to lighten the installation load of handcalcs and to ensure the package has appropriate scope. The nbconvert exporters are now "out of scope" and are separately maintained at [https://github.com/connorferster/nb-hideinputs](nb-hideinputs).
+
 ## Basic Usage 1: As a Jupyter cell magic (`%%render`)
 `handcalcs` is intended to be used with either Jupyter Notebook or Jupyter Lab as a _cell magic_.
 

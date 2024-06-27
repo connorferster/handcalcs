@@ -1,15 +1,8 @@
-import inspect
-from collections import deque
 import handcalcs
-import pathlib
 import pytest
-import nbconvert
-import filecmp
 
 
 from IPython.testing.globalipapp import start_ipython
-from IPython.utils.io import capture_output
-from IPython.display import Latex
 
 
 @pytest.fixture(scope="session")

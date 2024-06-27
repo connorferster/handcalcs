@@ -1,12 +1,7 @@
-import inspect
-from collections import deque
 from handcalcs.handcalcs import CalcLine, round_and_render_line_objects_to_latex
 import handcalcs.sympy_kit as sk
 import handcalcs.global_config
-import pathlib
 import pytest
-import nbconvert
-import filecmp
 import sympy as sp
 
 a, b = sp.symbols("a b")
