@@ -60,6 +60,14 @@ config_options = {
     "param_columns": 3,
     "preferred_string_formatter": "L",
     "custom_symbols": {"V_dot": "\\dot{V}"},
+    "custom_brackets": {
+        "parenthesis": "ˉ",
+        "square_brackets": "ˍ",
+        "angle_brackets": "ˆ",
+        "curly_brackets": "ǂ",
+        "pipes": "ǀ",
+        "double_pipes": "ǁ",
+    }
 }
 
 config_underscore_spaces = config_options.copy()
@@ -1289,6 +1297,28 @@ def test_swap_for_greek():
         deque(["lamb", "=", 3]), **config_options
     ) == deque(["\\lambda", "=", 3])
 
+def test_swap_custom_brackets():
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarˉ1ˉ", "=", "1"]), **config_options # Test round brackets
+    ) == deque(["myvar(1)", "=", "1"])
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarˍ2ˍ", "=", "1"]), **config_options # Test square brackets
+    ) == deque(["myvar[2]", "=", "1"])
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarˆ3ˆ", "=", "1"]), **config_options # Test angle brackets
+    ) == deque([r"myvar\langle3\rangle", "=", "1"])
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarǂ4ǂ", "=", "1"]), **config_options # Test curly brackets
+    ) == deque([r"myvar\lbrace4\rbrace", "=", "1"])
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarǀ5ǀ", "=", "1"]), **config_options # Test pipes
+    ) == deque(["myvar|5|", "=", "1"])
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarǁ6ǁ", "=", "1"]), **config_options # Test double pipes
+    ) == deque([r"myvar\|6\|", "=", "1"])
+    assert handcalcs.handcalcs.swap_custom_brackets(
+        deque(["myvarˉˆ7ˆˉ_ǁAǁ", "=", "1"]), **config_options # Test mixed brackets
+    ) == deque([r"myvar(\langle7\rangle)_\|A\|", "=", "1"])
 
 def test_test_for_scientific_float():
     assert handcalcs.handcalcs.test_for_scientific_float("1.233e-3") == True
