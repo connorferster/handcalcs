@@ -2285,10 +2285,15 @@ def eval_conditional(conditional_str: str, **kwargs) -> str:
     as an unpacked dict as kwargs. The first line allows the dict values to be added to
     locals that can be drawn upon to evaluate the conditional_str. Returns bool.
     """
+    import sys
     # From Thomas Holder on SO:
     # https://stackoverflow.com/questions/1897623/
     # unpacking-a-passed-dictionary-into-the-functions-name-space-in-python
-    exec(",".join(kwargs) + ", = kwargs.values()")
+    exec_str = ",".join(kwargs) + " = kwargs.values()"
+    if int(sys.version.split(".")[1]) >= 13:
+        exec(exec_str, locals=sys._getframe(0).f_locals)
+    else:
+        exec(exec_str)
     try:
         # It would be good to sanitize the code coming in on 'conditional_str'
         # Should this code be forced into using only boolean operators?
