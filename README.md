@@ -17,6 +17,11 @@
 
 Because `handcalcs` shows the numeric substitution, the calculations become significantly easier to check and verify by hand.
 
+> ### Engineers who use handcalcs
+> Did you know that you can _link_ your handcalc Jupyter notebooks together so that the result of one notebook can be available as an input for the next?
+> 
+> [Opt-in here](https://www.structuralpython.com/handcalcs-the-chaining-technique) to see how you can use the [Chaining Technique](https://www.structuralpython.com/handcalcs-the-chaining-technique) to create entire engineering automations using your handcalcs notebooks.
+
 
 ## Contents
 
