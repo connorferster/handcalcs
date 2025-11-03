@@ -52,3 +52,15 @@ source = ['handcalcs']
 
 [tool.coverage.report]
 show_missing = true
+
+[dependency-groups]
+dev = [
+    "pint>=0.24.4",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "sympy>=1.14.0",
+    "jupyterlab>=4.4.4",
+    "forallpeople>=2.7.1",
+    "black>=25.1.0",
+    "sphinx>=8.2.3",
+]
