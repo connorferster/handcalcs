@@ -361,6 +361,9 @@ def categorize_line(
     if line.startswith("#"):
         return BlankLine(line, "", "")
 
+    if line.endswith("ignore"):
+        return BlankLine(line, "", "")
+
     try:
         line, comment = line.split("#", 1)
     except ValueError:
