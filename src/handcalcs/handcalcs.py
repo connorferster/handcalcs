@@ -2162,19 +2162,24 @@ def swap_custom_symbols(d: deque, **config_options) -> deque:
             custom_symbols = config_options.get("custom_symbols", {})
             new_item = item
             for symbol, latex_symbol in custom_symbols.items():
-                if symbol in new_item:                                  # Changed to new_item to allow changes to a string accumulate
-                    new_item = new_item.replace(symbol, latex_symbol)   # Changed to new_item to allow changes to a string accumulate
+                if (
+                    symbol in new_item
+                ):  # Changed to new_item to allow changes to a string accumulate
+                    new_item = new_item.replace(
+                        symbol, latex_symbol
+                    )  # Changed to new_item to allow changes to a string accumulate
                     # Removed break to permit multiple replacements
             swapped_items.append(new_item)
         else:
             swapped_items.append(item)
     return swapped_items
 
+
 def swap_custom_brackets(d: deque, **config_options) -> deque:
     """
     Swaps custom bracket character or string with their corresponding LaTeX brackets.
     Set with user defined dictionary 'custom_brackets' in config_options
-    
+
     Example usage:
 
     handcalcs.set_option("custom_brackets", {
@@ -2202,45 +2207,59 @@ def swap_custom_brackets(d: deque, **config_options) -> deque:
         elif isinstance(item, str):
             custom_brackets = config_options.get("custom_brackets", {})
             new_item = item
-            
+
             # Process each bracket type
             for bracket_type, custom_str in custom_brackets.items():
                 if custom_str and custom_str in new_item:
                     if bracket_type == "parenthesis":
-                        new_item = _replace_alternating_brackets(new_item, custom_str, "(", ")")
+                        new_item = _replace_alternating_brackets(
+                            new_item, custom_str, "(", ")"
+                        )
                     elif bracket_type == "square_brackets":
-                        new_item = _replace_alternating_brackets(new_item, custom_str, "[", "]")
+                        new_item = _replace_alternating_brackets(
+                            new_item, custom_str, "[", "]"
+                        )
                     elif bracket_type == "angle_brackets":
-                        new_item = _replace_alternating_brackets(new_item, custom_str, r"\langle", r"\rangle")
+                        new_item = _replace_alternating_brackets(
+                            new_item, custom_str, r"\langle", r"\rangle"
+                        )
                     elif bracket_type == "curly_brackets":
-                        new_item = _replace_alternating_brackets(new_item, custom_str, r"\lbrace", r"\rbrace")
+                        new_item = _replace_alternating_brackets(
+                            new_item, custom_str, r"\lbrace", r"\rbrace"
+                        )
                     elif bracket_type == "pipes":
-                        new_item = _replace_alternating_brackets(new_item, custom_str, "|", "|")
+                        new_item = _replace_alternating_brackets(
+                            new_item, custom_str, "|", "|"
+                        )
                     elif bracket_type == "double_pipes":
-                        new_item = _replace_alternating_brackets(new_item, custom_str, r"\|", r"\|")
-                        
+                        new_item = _replace_alternating_brackets(
+                            new_item, custom_str, r"\|", r"\|"
+                        )
+
             swapped_items.append(new_item)
         else:
             swapped_items.append(item)
     return swapped_items
 
 
-def _replace_alternating_brackets(text: str, custom_str: str, left_bracket: str, right_bracket: str) -> str:
+def _replace_alternating_brackets(
+    text: str, custom_str: str, left_bracket: str, right_bracket: str
+) -> str:
     """
     Helper function to replace alternating occurrences of custom_str with left and right brackets.
     Supports both single and multi-character custom_str strings.
     """
     if custom_str not in text:
         return text
-    
+
     result = ""
     is_left = True  # Start with left bracket
     i = 0
     str_len = len(custom_str)
-    
+
     while i < len(text):
         # Check if we're at the start of a custom_str occurrence
-        if text[i:i+str_len] == custom_str:
+        if text[i : i + str_len] == custom_str:
             if is_left:
                 result += left_bracket
             else:
@@ -2250,8 +2269,9 @@ def _replace_alternating_brackets(text: str, custom_str: str, left_bracket: str,
         else:
             result += text[i]
             i += 1
-    
+
     return result
+
 
 def swap_log_func(d: deque, calc_results: dict, **config_options) -> deque:
     """
@@ -2491,7 +2511,9 @@ def extend_subscripts(pycode_as_deque: deque, **config_options) -> deque:
                     new_item += "{"
                 else:
                     new_item += char
-            num_braces = new_item.count("{") - new_item.count("}")  # count unclosed braces
+            num_braces = new_item.count("{") - new_item.count(
+                "}"
+            )  # count unclosed braces
 
             new_item += "}" * num_braces
             swapped_deque.append(new_item)
