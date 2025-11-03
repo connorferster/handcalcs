@@ -1,0 +1,18 @@
+[project]
+name = "handcalcs"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Connor Ferster", email = "connorferster@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "innerscope>=0.7.0",
+    "more-itertools>=10.7.0",
+    "pyparsing>=3.2.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
