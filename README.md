@@ -192,12 +192,46 @@ e.g.
 handcalcs.set_option("custom_symbols", {"V_dot": "\\dot{V}", "N_star": "N^{*}"})
 ```
 
-Will now allow this kind of rendering:
+This can also be used to swap substrings or individual characters within the variable name. For example, the following:
+
+```python
+handcalcs.set_option("custom_symbols", {"star": "^*", "C": ","})
+```
+Would render `Mstar_1C2` to $M^*_{1,2}$
+
+This now allow this kind of rendering:
 
 ![Custom symbols example showing the use of V_dot and N_star](docs/images/custom_symbols.png)
 
 The docstring in the `handcalcs.set_option()` function demonstrates which options are available and what values they take.
 ---
+
+#### Custom Brackets (New in v1.?.?)
+
+Functioning similiar to the Custom Symbols, this allows a specified character or string of characters to be swapped for brackets. For example:
+```python 
+handcalcs.set_option("custom_brackets", {
+    "parenthesis": "ˉ",        # macron (ˉ) → parentheses ( )
+    "square_brackets": "ˍ",    # low line (ˍ) → square brackets [ ]
+    "angle_brackets": "ˆ",     # modifier letter circumflex accent (ˆ) → angle brackets ⟨ ⟩
+    "curly_brackets": "ǂ",     # double pipe (ǂ) → curly brackets { }
+    "pipes": "ǀ",              # vertical bar (ǀ) → pipes | |
+    "double_pipes": "ǁ",       # double vertical bar (ǁ) → double pipes ‖ ‖
+})
+```
+Will render the following:<br>
+`myvarˉ1ˉ` -> $myvar(1)$<br>
+`myvarˍ2ˍ` -> $myvar[2]$<br>
+`myvarˆ3ˆ` -> $myvar\langle3\rangle$<br>
+`myvarǂ4ǂ` -> $myvar\lbrace4\rbrace$<br>
+`myvarǀ5ǀ` -> $myvar|5|$<br>
+`myvarǁ6ǁ` -> $myvar\|6\|$<br>
+These can be nested as below:<br>
+`myvarˉˆ7ˆˉ_ǁ8ǁ` -> $myvar(\langle7\rangle)_{\|8\|}$<br>
+
+Note that the example above utilizes a range of rarely used characters for the mapping, which has the drawback of making the variable names not readily typed on the keyboard. The user could alternatively specify `"square_brackets": "SB"` for mapping to square brackets, for example, such that `myvarSB9SB` would map to $myvar[9]$, but this then makes the variable names less legible.
+
+Note that as valid LaTeX strings require paired brackets, there will always be an equal number of opening and closing brackets, so the function works by sequentially replacing opening and closing brackets. This means you can't create `myvar(1(2))` as this would always map to `myvar(1)(2)`
 
 
 ## Override tags
