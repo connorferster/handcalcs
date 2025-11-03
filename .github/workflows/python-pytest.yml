@@ -30,7 +30,7 @@ jobs:
         uv sync
     - name: Test black formatted
       run: |
-        uv run black handcalcs --check
+        uv run black src --check
     - name: Test with pytest
       run: |
         uv run pytest
