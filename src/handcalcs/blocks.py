@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import deque
 from handcalcs.calcline import CalcLine, IntertextLine
 from typing import Union, Optional
@@ -21,24 +21,34 @@ class HandCalcsBlock:
 
 @dataclass
 class ParametersBlock(HandCalcsBlock):
-    lines: deque[Union[CalcLine, IntertextLine]]
+    lines: deque[Union[CalcLine, IntertextLine]] = field(default_factory=deque)
 
 @dataclass
 class CalcBlock(HandCalcsBlock):
-    lines: deque[Union[CalcLine, IntertextLine]]
-    options: CalcOptions | dict
+    lines: deque[Union[CalcLine, IntertextLine]] = field(default_factory=deque)
+    options: Optional[CalcOptions | dict] = field(default_factory=dict)
 
 @dataclass
 class FunctionBlock(HandCalcsBlock):
-    blocks: list[HandCalcsBlock]
-    options: FunctionOptions | dict
+    lines: deque[HandCalcsBlock] = field(default_factory=deque)
+    options: FunctionOptions | dict = field(default_factory=dict)
+    module_name: str = ""
+    function_name: str = ""
+    args: deque[str] = field(default_factory=deque)
+    params: deque[str] = field(default_factory=deque)
+
 
 @dataclass
 class ForBlock(HandCalcsBlock):
-    blocks: list[HandCalcsBlock]
-    options: ForOptions | dict
+    lines: deque[HandCalcsBlock] = field(default_factory=deque)
+    options: Optional[ForOptions | dict] = field(default_factory=dict)
+    assigns: deque[str] = field(default_factory=deque)
+    iterator: deque[str] = field(default_factory=deque)
+
 
 @dataclass
 class IfBlock(HandCalcsBlock):
-    blocks: list[HandCalcsBlock]
-    options: IfOptions | dict
+    lines: deque[HandCalcsBlock] = field(default_factory=deque)
+    options: Optional[IfOptions | dict] = field(default_factory=dict)
+    test: deque[HandCalcsBlock] = field(default_factory=deque)
+    orelse: deque[HandCalcsBlock] = field(default_factory=deque)
