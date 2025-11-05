@@ -12,7 +12,8 @@ dynamic = ["version", "description"]
 dependencies = [
     "more_itertools",
     "innerscope >= 0.7.0",
-    "pyparsing"
+    "pyparsing",
+    "ast-comments>=1.2.3",
 ]
 
 [project.urls]

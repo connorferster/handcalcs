@@ -1,10 +1,7 @@
-import ast
+import ast_comments as ast
 import inspect
 from typing import List, Dict, Union, Any
 from collections import deque
-
-# Define the type for clarity: a structure containing lists, strings, or dicts
-CustomStructure = List[Union[str, List[Any], Dict[str, Any]]]
 
 ARITHMETIC_OPS = {
     "Add": "+",
@@ -26,7 +23,9 @@ COMPARE_OPS = {
 }
 
 
-def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
+# HERE: ast_parse to parse block comments, block options, and blocks in order to return a "hc_tree"
+
+def ast_parse(node: ast.AST, function_recurse_limit: int) -> Any:
     """
     Recursively converts an AST node into the custom nested list/dict structure.
     """
@@ -35,13 +34,13 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
     if isinstance(node, ast.BinOp):
         # A Binary Operation (e.g., a + b). The structure is:
         # [left_side, operator, right_side]
-        left = ast_to_custom_list(node.left, frl)
+        left = ast_parse(node.left, frl)
         op_name = type(node.op).__name__
         op = ARITHMETIC_OPS.get(
             op_name, op_name
         )  # Get the operator name (e.g., 'Add', 'Mult')
 
-        right = ast_to_custom_list(node.right, frl)
+        right = ast_parse(node.right, frl)
         # When an expression inside parentheses is encountered, it is an expression
         # itself that will be processed recursively. For example, in (a + b) * c,
         # the (a + b) is the 'left' part of the outer BinOp, and its result
@@ -52,7 +51,7 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
         # as these often imply an operation that was enclosed. However, in AST,
         # explicit parentheses *do not* create a separate node unless they're
         # used for grouping in an expression, which results in recursive BinOps.
-        # The recursive call `ast_to_custom_list` naturally handles the nesting.
+        # The recursive call `ast_parse` naturally handles the nesting.
 
         return deque([left, op, right])
 
@@ -64,18 +63,18 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
     elif isinstance(node, ast.Compare):
         # Comparison operations (e.g., a > b). Structure:
         # [left, op_name, right] (simplified for this structure)
-        left = ast_to_custom_list(node.left, frl)
+        left = ast_parse(node.left, frl)
         op_name = type(node.ops[0]).__name__  # Assuming one operator for simplicity
         op = COMPARE_OPS.get(op_name, op_name)
-        right = ast_to_custom_list(node.comparators[0], frl)
+        right = ast_parse(node.comparators[0], frl)
         return deque([left, op, right])
     # elif isinstance(node, ast.Call):
     #     # --- Rule 2: Function Call ---
     #     # Structure: [function_name, [list_of_arguments]]
-    #     func_name = ast_to_custom_list(node.func) # Get the function's name (str)
+    #     func_name = ast_parse(node.func) # Get the function's name (str)
 
     #     # Create the inner nested list for arguments
-    #     args_list = deque([ast_to_custom_list(arg) for arg in node.args])
+    #     args_list = deque([ast_parse(arg) for arg in node.args])
 
     #     # Create the main nested list for the function call
     #     return deque([func_name, deque([args_list])])
@@ -95,12 +94,12 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
             # Complex call, e.g., a function returned by another function
             # Fall back to standard Rule 2
             # ... (original Rule 2 logic) ...
-            func_name = ast_to_custom_list(
+            func_name = ast_parse(
                 node.func, frl
             )  # Get the function's name (str)
 
             # Create the inner nested list for arguments
-            args_list = deque([ast_to_custom_list(arg, frl) for arg in node.args])
+            args_list = deque([ast_parse(arg, frl) for arg in node.args])
 
             # Create the main nested list for the function call
             return deque([func_name, deque([args_list])])
@@ -117,7 +116,7 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
             function_defs = collect_function_defs(external_ast, frl)
             # The result of the call node is replaced by the structure of the function's body
             # Create the inner nested list for arguments
-            args_list = deque([ast_to_custom_list(arg, frl) for arg in node.args])
+            args_list = deque([ast_parse(arg, frl) for arg in node.args])
 
             return {
                 "function_name": func_name,
@@ -126,12 +125,12 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
                 "args": args_list,
             }
         else:
-            func_name = ast_to_custom_list(
+            func_name = ast_parse(
                 node.func, frl
             )  # Get the function's name (str)
 
             # Create the inner nested list for arguments
-            args_list = deque([ast_to_custom_list(arg, frl) for arg in node.args])
+            args_list = deque([ast_parse(arg, frl) for arg in node.args])
 
             # Create the main nested list for the function call
             return deque([func_name, deque([args_list])])
@@ -142,21 +141,21 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
         if_dict: Dict[str, Any] = {}
 
         # "test": The condition (nested list via recursive call)
-        if_dict["test"] = ast_to_custom_list(node.test, frl)
+        if_dict["test"] = ast_parse(node.test, frl)
 
         # "body": The block of code inside the if (nested list of statements)
-        if_dict["body"] = [ast_to_custom_list(item, frl) for item in node.body]
+        if_dict["body"] = [ast_parse(item, frl) for item in node.body]
 
         # "orelse": The block of code inside the else/elif (nested list)
         if node.orelse:
             # If `orelse` contains another `ast.If` (an `elif`), we recursively
-            # call ast_to_custom_list on that one.
+            # call ast_parse on that one.
             if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
-                if_dict["orelse"] = ast_to_custom_list(node.orelse[0], frl)
+                if_dict["orelse"] = ast_parse(node.orelse[0], frl)
             else:
                 # Standard `else` block or multiple statements in `orelse`
                 if_dict["orelse"] = [
-                    ast_to_custom_list(item, frl) for item in node.orelse
+                    ast_parse(item, frl) for item in node.orelse
                 ]
         else:
             if_dict["orelse"] = []  # Empty list for no `else`
@@ -173,7 +172,7 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
         for_dict["target"] = node.target.id
 
         # "body": nested list of the for loop's body
-        for_dict["body"] = [ast_to_custom_list(item, frl) for item in node.body]
+        for_dict["body"] = [ast_parse(item, frl) for item in node.body]
 
         # "iter": str showing the name of the iteration variable
         # Assumes the iterator is a simple variable name (ast.Name)
@@ -184,7 +183,7 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
         else:
             # If it's a more complex expression, we'll try to convert it
             # into a string representation for simplicity in this rule.
-            for_dict["iter"] = ast_to_custom_list(node.iter, frl)
+            for_dict["iter"] = ast_parse(node.iter, frl)
 
         return for_dict
 
@@ -192,16 +191,16 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
     elif isinstance(node, ast.Assign):
         # Assignments: [target, 'Assign', value]
         # Assumes a single target
-        target = ast_to_custom_list(node.targets[0], frl)
-        value = ast_to_custom_list(node.value, frl)
+        target = ast_parse(node.targets[0], frl)
+        value = ast_parse(node.value, frl)
         return deque([target, "=", value])
 
     elif isinstance(node, ast.List):
         # Lists: ['List', [item1, item2, ...]]
-        return deque(["array", [ast_to_custom_list(el, frl) for el in node.elts]])
+        return deque(["array", [ast_parse(el, frl) for el in node.elts]])
 
     elif isinstance(node, ast.Return):
-        return ast_to_custom_list(node.value, frl)
+        return ast_parse(node.value, frl)
 
     elif isinstance(node, ast.Attribute):
         name = node.value.id
@@ -210,11 +209,11 @@ def ast_to_custom_list(node: ast.AST, function_recurse_limit: int) -> Any:
 
     elif isinstance(node, ast.Module):
         # Entry point: process all body statements
-        return deque([ast_to_custom_list(item, frl) for item in node.body])
+        return deque([ast_parse(item, frl) for item in node.body])
 
     elif isinstance(node, ast.Expr):
         # An expression used as a statement (e.g., a standalone function call)
-        return {"expr": ast_to_custom_list(node.value, frl)}
+        return {"expr": ast_parse(node.value, frl)}
 
     # Default case for unhandled nodes: return a simple string for clarity
     return f"UnhandledNode: {type(node).__name__}"
@@ -230,7 +229,7 @@ def convert_source_to_custom_list(
     tree = ast.parse(source_code)
 
     # 2. Start the recursive conversion from the root (ast.Module)
-    return ast_to_custom_list(tree, function_recurse_limit)
+    return ast_parse(tree, function_recurse_limit)
 
 
 def find_source(func_name: str, module_name: str) -> str:
@@ -265,7 +264,7 @@ def collect_function_defs(node: ast.AST, frl: int) -> dict[str, ast.FunctionDef]
                 {
                     block.name: {
                         "source": deque(
-                            [ast_to_custom_list(n, frl) for n in block.body]
+                            [ast_parse(n, frl) for n in block.body]
                         ),
                         "params": deque([arg.arg for arg in block.args.args]),
                     }
