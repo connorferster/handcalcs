@@ -272,7 +272,6 @@ def eval_conditional(conditional_str: str, **kwargs) -> str:
         return conditional_str
 
 
-
 def swap_double_subscripts(pycode_as_deque: deque, **config_options) -> deque:
     """
     For variables or function names that contain a double subscript '__',
@@ -1145,8 +1144,6 @@ def swap_dec_sep(d: deque, dec_sep: str) -> deque:
     return swapped_deque
 
 
-
-
 def is_number(s: str) -> bool:
     """
     A basic helper function because Python str methods do not
@@ -1167,4 +1164,3 @@ def dict_get(d: dict, item: Any) -> Any:
         return d.get(item, item)
     except TypeError:
         return item
-

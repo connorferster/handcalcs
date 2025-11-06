@@ -37,9 +37,11 @@ class MarkdownHeading:
 class InlineComment:
     comment: str
 
+
 @dataclass
 class CommentLine:
     comment: str
+
 
 @dataclass
 class CommentCommand:
@@ -51,6 +53,7 @@ class CommentCommand:
 class Attribute:
     module_name: str
     attr_name: str
+
 
 @dataclass
 class HCNotImplemented:

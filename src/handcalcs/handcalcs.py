@@ -45,7 +45,6 @@
 #     return line_object
 
 
-
 # @singledispatch
 # def convert_line(
 #     line_object,
@@ -81,7 +80,6 @@
 # @convert_line.register(IntertextLine)
 # def convert_intertext(line, calculated_results, **config_options):
 #     return line
-
 
 
 # @singledispatch
@@ -299,7 +297,6 @@
 #     return line
 
 
-
 # @round_and_render_line_objects_to_latex.register(ConditionalLine)
 # def round_and_render_conditional(
 #     line: ConditionalLine, cell_precision: int, cell_notation: bool, **config_options
@@ -333,7 +330,6 @@
 #         [calc_line.latex for calc_line in outgoing]
 #     )
 #     return line
-
 
 
 # @round_and_render_line_objects_to_latex.register(IntertextLine)
@@ -556,7 +552,6 @@
 #         return line
 
 
-
 # @format_lines.register(ParameterLine)
 # def format_param_line(line: ParameterLine, **config_options) -> ParameterLine:
 #     comment_space = "\\;"
@@ -602,5 +597,3 @@
 #         end_env = "}"
 
 #     return "".join([text_env, l_par, string.strip().rstrip(), r_par, end_env])
-
-

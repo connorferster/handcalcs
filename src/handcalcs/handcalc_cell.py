@@ -3,6 +3,7 @@ from handcalcs import global_config
 from handcalcs.parsing.ast_parser import AST_Parser
 from ast_comments import parse
 
+
 @dataclass
 class HandcalcsCell:
     def __init__(self, source: str, globals: dict, function_recurse_limit: int = 3):
@@ -21,7 +22,9 @@ class HandcalcsCell:
         self.hc_tree = ast_parse(self.ast_tree, self.frl)
 
     def convert(self):
-        self.transformed_tree = transform_tree(self.hc_tree, self.globals, self.global_config)
+        self.transformed_tree = transform_tree(
+            self.hc_tree, self.globals, self.global_config
+        )
 
     def format(self):
         self.latex_str = format_tree(self.transformed_tree)

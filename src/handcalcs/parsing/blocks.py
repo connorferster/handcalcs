@@ -3,17 +3,22 @@ from collections import deque
 from handcalcs.parsing.linetypes import CalcLine, MarkdownHeading, ExprLine
 from typing import Union, Optional
 
+
 class CalcOptions(dict):
     pass
+
 
 class FunctionOptions(dict):
     pass
 
+
 class ForOptions(dict):
     pass
 
+
 class IfOptions(dict):
     pass
+
 
 @dataclass
 class HandCalcsBlock:
@@ -24,10 +29,12 @@ class HandCalcsBlock:
 class ParametersBlock(HandCalcsBlock):
     lines: deque[Union[CalcLine, ExprLine]] = field(default_factory=deque)
 
+
 @dataclass
 class CalcBlock(HandCalcsBlock):
     lines: deque[Union[CalcLine, ExprLine]] = field(default_factory=deque)
     options: Optional[CalcOptions | dict] = field(default_factory=dict)
+
 
 @dataclass
 class FunctionBlock(HandCalcsBlock):

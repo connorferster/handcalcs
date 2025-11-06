@@ -5,7 +5,16 @@ from dataclasses import dataclass, field
 import inspect
 from typing import List, Dict, Union, Any, Optional
 from collections import deque
-from handcalcs.parsing.linetypes import CalcLine, ExprLine, InlineComment, CommentCommand, CommentLine, MarkdownHeading, Attribute, HCNotImplemented
+from handcalcs.parsing.linetypes import (
+    CalcLine,
+    ExprLine,
+    InlineComment,
+    CommentCommand,
+    CommentLine,
+    MarkdownHeading,
+    Attribute,
+    HCNotImplemented,
+)
 from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
@@ -39,9 +48,9 @@ class AST_Parser:
     globals: dict = field(default_factory=dict)
     current_block: Optional[str] = None
     hc_tree: deque = field(default_factory=deque)
-    function_recurse_exclusions: list[str] = field(default_factory=lambda: dir(builtins) + dir(math))
-
-    
+    function_recurse_exclusions: list[str] = field(
+        default_factory=lambda: dir(builtins) + dir(math)
+    )
 
     def ast_parse(self, node: ast.AST, function_recurse_limit: int) -> Any:
         """
@@ -157,8 +166,8 @@ class AST_Parser:
 
                 call_block.module_name = module_name
                 call_block.function_name = func_name
-                call_block.lines.extend(function_body.get('lines', deque()))
-                call_block.params.extend(function_body.get('params', deque()))
+                call_block.lines.extend(function_body.get("lines", deque()))
+                call_block.params.extend(function_body.get("params", deque()))
                 call_block.args.extend(args_list)
             else:
                 func_name = self.ast_parse(
@@ -196,9 +205,9 @@ class AST_Parser:
                     if_block.orelse = deque([self.ast_parse(node.orelse[0], frl)])
                 else:
                     # Standard `else` block or multiple statements in `orelse`
-                    if_block.orelse = deque([
-                        self.ast_parse(item, frl) for item in node.orelse
-                    ])
+                    if_block.orelse = deque(
+                        [self.ast_parse(item, frl) for item in node.orelse]
+                    )
             else:
                 if_block.orelse = deque()  # Empty list for no `else`
 
@@ -247,10 +256,11 @@ class AST_Parser:
                 elif comments.is_comment_command(comment_value):
                     split_commands = comments.split_commands(comment_value)
                     parsed_commands = vars(command_parser.parse_args(split_commands))
-                    val = CommentCommand(raw_commands=comment_value, parsed_commands=parsed_commands)
+                    val = CommentCommand(
+                        raw_commands=comment_value, parsed_commands=parsed_commands
+                    )
                 else:
                     val = CommentLine(comment=comment_value)
-
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
@@ -259,7 +269,7 @@ class AST_Parser:
                 self.current_block = CalcBlock()
             # Assignments: [target, 'Assign', value]
             calc_line = CalcLine(
-                assigns = deque([self.ast_parse(n, frl) for n in node.targets]),
+                assigns=deque([self.ast_parse(n, frl) for n in node.targets]),
                 expression_tree=self.ast_parse(node.value, frl),
             )
             val = calc_line
@@ -271,7 +281,9 @@ class AST_Parser:
 
         elif isinstance(node, ast.Return):
             # print("Return")
-            val = ExprLine(expression_tree=self.ast_parse(node.value, frl), return_expr=True)
+            val = ExprLine(
+                expression_tree=self.ast_parse(node.value, frl), return_expr=True
+            )
 
         elif isinstance(node, ast.Attribute):
             # print("Attribute")
@@ -294,23 +306,20 @@ class AST_Parser:
                 parsed_node = self.ast_parse(node.value, frl)
                 if isinstance(parsed_node, str):
                     parsed_node = deque([parsed_node])
-                val = ExprLine(
-                    expression_tree=parsed_node
-                )
+                val = ExprLine(expression_tree=parsed_node)
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
             # print("Unhandled")
             val = HCNotImplemented(node_name=type(node).__name__)
-                
-        return val
 
+        return val
 
     def find_source(self, func_name: str, module_name: str) -> str:
         """Finds the source code for a function within an imported module."""
         try:
             # Import the module dynamically
-            if module_name: # Might need to access globals here too
+            if module_name:  # Might need to access globals here too
                 module = __import__(module_name)
             else:
                 module = self.globals
@@ -333,8 +342,9 @@ class AST_Parser:
             val = ""
         return val
 
-
-    def collect_function_defs(self, node: ast.FunctionDef, frl: int) -> dict[str, dict[str, deque]] | None:
+    def collect_function_defs(
+        self, node: ast.FunctionDef, frl: int
+    ) -> dict[str, dict[str, deque]] | None:
         """
         Returns a dictionary of functions
         """
@@ -344,11 +354,8 @@ class AST_Parser:
                 lines = deque([])
                 for n in block.body:
                     parsed = self.ast_parse(n, frl)
-                    if ( # not a docstring
-                        isinstance(parsed, ExprLine)
-                        and (
-                            'Doc string' in parsed.expression_tree[0]
-                        )
+                    if isinstance(parsed, ExprLine) and (  # not a docstring
+                        "Doc string" in parsed.expression_tree[0]
                     ):
                         continue
                     else:
@@ -363,11 +370,11 @@ class AST_Parser:
                     }
                 )
         return acc
-    
+
     def _flatten_binop(self, node, frl) -> deque:
         """
         Recursively flattens an ast.BinOp node into a list of operands and operators.
-        
+
         The structure will be: [operand, operator, operand, operator, operand, ...]
         """
         if not isinstance(node, ast.BinOp):
@@ -382,7 +389,6 @@ class AST_Parser:
         right_side = self.ast_parse(node.right, frl)
         result = left_side + deque([op, right_side])
         return result
-
 
     # def convert_source_to_custom_list(
     #     self, source_code: str, function_recurse_limit: int = 3

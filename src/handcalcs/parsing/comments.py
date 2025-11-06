@@ -1,11 +1,12 @@
 import re
 
+
 def is_markdown_heading(comment: str) -> bool:
     """
     Returns True if the comment represents a markdown heading.
     """
     is_markdown = False
-    if comment.startswith("##"): # Or any other number of octothorpes
+    if comment.startswith("##"):  # Or any other number of octothorpes
         is_markdown = True
     return is_markdown
 
