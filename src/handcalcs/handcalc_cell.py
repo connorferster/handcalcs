@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from handcalcs import global_config
-from handcalcs.ast_parser import ast_parse
+from handcalcs.parsing.ast_parser import AST_Parser
 from ast_comments import parse
 
 @dataclass

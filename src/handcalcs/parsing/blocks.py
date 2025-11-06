@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from collections import deque
-from handcalcs.calcline import CalcLine, IntertextLine
+from handcalcs.parsing.linetypes import CalcLine, MarkdownHeading, ExprLine
 from typing import Union, Optional
 
 class CalcOptions(dict):
@@ -19,13 +19,14 @@ class IfOptions(dict):
 class HandCalcsBlock:
     options: dict
 
+
 @dataclass
 class ParametersBlock(HandCalcsBlock):
-    lines: deque[Union[CalcLine, IntertextLine]] = field(default_factory=deque)
+    lines: deque[Union[CalcLine, ExprLine]] = field(default_factory=deque)
 
 @dataclass
 class CalcBlock(HandCalcsBlock):
-    lines: deque[Union[CalcLine, IntertextLine]] = field(default_factory=deque)
+    lines: deque[Union[CalcLine, ExprLine]] = field(default_factory=deque)
     options: Optional[CalcOptions | dict] = field(default_factory=dict)
 
 @dataclass
@@ -52,3 +53,9 @@ class IfBlock(HandCalcsBlock):
     options: Optional[IfOptions | dict] = field(default_factory=dict)
     test: deque[HandCalcsBlock] = field(default_factory=deque)
     orelse: deque[HandCalcsBlock] = field(default_factory=deque)
+
+
+@dataclass
+class MarkupBlock(HandCalcsBlock):
+    lines: deque[MarkdownHeading] = field(default_factory=deque)
+    options: dict = field(default_factory=dict)
