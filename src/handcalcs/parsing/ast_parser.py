@@ -15,7 +15,7 @@ from handcalcs.parsing.linetypes import (
     Attribute,
     HCNotImplemented,
 )
-from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock
+from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock, MarkdownBlock
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
 
@@ -46,7 +46,7 @@ class AST_Parser:
     current_line_number: int = 1
     prev_line_number: int = 0
     new_block_from_comment: bool = False
-    current_block: Optional[str] = None
+    current_block: Optional[Union[CalcBlock, FunctionBlock, ForBlock, IfBlock, MarkdownBlock]] = None
     function_recurse_exclusions: list[str] = field(
         default_factory=lambda: dir(builtins) + dir(math)
     )
@@ -56,7 +56,18 @@ class AST_Parser:
         Returns the handcalcs tree from the source.
         """
         ast_tree = ast.parse(source)
-        return self.ast_parse(ast_tree, function_recurse_limit)
+        hc_tree = self.ast_parse(ast_tree, function_recurse_limit)
+        self.clear()
+        return hc_tree
+    
+    def clear(self):
+        """
+        Clears existing data out of the parser.
+        """
+        self.current_block = None
+        self.current_line_number = 1
+        self.prev_line_number = 0
+        self.new_block_from_comment = False
 
     def ast_parse(self, node: ast.AST, function_recurse_limit: int) -> deque:
         """
@@ -127,15 +138,19 @@ class AST_Parser:
             # print(f"HERE: {call_block=}")
             # Get the function name being called
             if isinstance(node.func, ast.Name):
+                print("First")
                 func_name = node.func.id
                 module_name = ""
             elif isinstance(node.func, ast.Attribute):
+                print("Second")
                 # Example: module.external_func
                 func_name = node.func.attr
+                print(f"{func_name=}")
                 module_name = (
                     node.func.value.id
                 )  # Assumes the module name is the attribute's value
             else:
+                print("Third")
                 # Complex call, e.g., a function returned by another function
                 # Fall back to standard Rule 2
                 # ... (original Rule 2 logic) ...
@@ -143,6 +158,9 @@ class AST_Parser:
                 func_name = self.ast_parse(
                     node.func, frl
                 )  # Get the function's name (str)
+                if isinstance(func_name, ast.Attribute):
+                    module_name = func_name.module_name
+                    func_name = func_name.attr_name
 
                 # Create the inner nested list for arguments
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
@@ -157,8 +175,10 @@ class AST_Parser:
             external_source = None
             if func_name not in self.function_recurse_exclusions:
                 external_source = self.find_source(func_name, module_name)
+            print(f"{external_source=}")
 
             if external_source and frl > 0:
+                print("Primero")
                 frl = frl - 1
                 # 2. Recursively call the main conversion logic on the new source
                 external_ast = ast.parse(external_source)
@@ -176,9 +196,7 @@ class AST_Parser:
                 call_block.params.extend(function_body.get("params", deque()))
                 call_block.args.extend(args_list)
             else:
-                func_name = self.ast_parse(
-                    node.func, frl
-                )  # Get the function's name (str)
+                print("Segundo") # Get the function's name (str)
 
                 # Create the inner nested list for arguments
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
@@ -188,7 +206,7 @@ class AST_Parser:
                 call_block.function_name = func_name
                 call_block.args.extend(args_list)
 
-            val = self.current_block = call_block
+            val = call_block
 
         # --- Rule 3: If/Elif/Else block ---
         elif isinstance(node, ast.If):
@@ -274,11 +292,15 @@ class AST_Parser:
             if not isinstance(self.current_block, CalcBlock):
                 self.current_block = CalcBlock()
             # Assignments: [target, 'Assign', value]
+            expression_tree = self.ast_parse(node.value, frl)
+            if not isinstance(expression_tree, deque):
+                expression_tree = deque([expression_tree])
             calc_line = CalcLine(
                 assigns=deque([self.ast_parse(n, frl) for n in node.targets]),
-                expression_tree=self.ast_parse(node.value, frl),
+                expression_tree=expression_tree,
             )
-            val = calc_line
+            self.current_block.lines.extend(deque([calc_line]))
+            val = self.current_block
 
         elif isinstance(node, ast.List):
             # print("List")
@@ -323,30 +345,28 @@ class AST_Parser:
 
     def find_source(self, func_name: str, module_name: str) -> str:
         """Finds the source code for a function within an imported module."""
-        try:
-            # Import the module dynamically
-            if module_name:  # Might need to access globals here too
-                module = __import__(module_name)
-            else:
-                module = self.globals
 
-            # Get the function object
-            if module_name:
-                func_obj = getattr(module, func_name)
-            else:
-                func_obj = module.get(func_name)
+        # Import the module dynamically
+        module = None
+        if module_name:  # Might need to access globals here too
+            try:
+                module = __import__(module_name)
+            except (ModuleNotFoundError, ImportError):
+                module = self.globals.get(module_name)
+
+        # Get the function object
+        if module is not None:
+            func_obj = getattr(module, func_name)
 
             # Get the source code as a string
             source_code = inspect.getsource(func_obj)
-            val = source_code
-
-        except (ImportError, AttributeError, OSError, ValueError) as e:
-            # Handle cases where the module/function isn't found or source is unavailable
+            return source_code
+        else:
             print(
-                f"Warning: Could not get source for {module_name}.{func_name}. Error: {e}"
+                f"Warning: Could not get source for {module_name}.{func_name}."
             )
-            val = ""
-        return val
+            return ""
+
 
     def collect_function_defs(
         self, node: ast.FunctionDef, frl: int
