@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from collections import deque
-from handcalcs.parsing.linetypes import CalcLine, MarkdownHeading, ExprLine
+from handcalcs.parsing.linetypes import CalcLine, MarkdownHeading, ExprLine, CommentCommand, CommentLine, InlineComment
 from typing import Union, Optional, Any
 
 
@@ -27,7 +27,7 @@ class HandCalcsBlock:
 
 @dataclass
 class FunctionBlock(HandCalcsBlock):
-    lines: deque[HandCalcsBlock] = field(default_factory=deque)
+    lines: deque[HandCalcsBlock | CalcLine | ExprLine | MarkdownHeading | CommentCommand | CommentLine | InlineComment] = field(default_factory=deque)
     options: FunctionOptions | dict = field(default_factory=dict)
     module_name: str = ""
     function_name: str = ""
@@ -42,7 +42,7 @@ class CalcBlock(HandCalcsBlock):
 
 @dataclass
 class ForBlock(HandCalcsBlock):
-    lines: deque[HandCalcsBlock] = field(default_factory=deque)
+    lines: deque[HandCalcsBlock | CalcLine] = field(default_factory=deque)
     options: Optional[ForOptions | dict] = field(default_factory=dict)
     assigns: deque[str] = field(default_factory=deque)
     iterator: deque[str] = field(default_factory=deque)
@@ -50,13 +50,8 @@ class ForBlock(HandCalcsBlock):
 
 @dataclass
 class IfBlock(HandCalcsBlock):
-    lines: deque[HandCalcsBlock] = field(default_factory=deque)
+    lines: deque[HandCalcsBlock | CalcLine] = field(default_factory=deque)
     options: Optional[IfOptions | dict] = field(default_factory=dict)
     test: deque[HandCalcsBlock] = field(default_factory=deque)
     orelse: deque[HandCalcsBlock] = field(default_factory=deque)
 
-
-@dataclass
-class MarkdownBlock(HandCalcsBlock):
-    lines: deque[MarkdownHeading] = field(default_factory=deque)
-    options: dict = field(default_factory=dict)

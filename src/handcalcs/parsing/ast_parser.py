@@ -15,7 +15,7 @@ from handcalcs.parsing.linetypes import (
     Attribute,
     HCNotImplemented,
 )
-from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock, MarkdownBlock
+from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
 
@@ -46,7 +46,7 @@ class AST_Parser:
     current_line_number: int = 1
     prev_line_number: int = 0
     new_block_from_comment: bool = False
-    current_block: Optional[Union[CalcBlock, FunctionBlock, ForBlock, IfBlock, MarkdownBlock]] = None
+    current_block: Optional[Union[CalcBlock, FunctionBlock, ForBlock, IfBlock]] = None
     function_recurse_exclusions: list[str] = field(
         default_factory=lambda: dir(builtins) + dir(math)
     )
@@ -195,6 +195,7 @@ class AST_Parser:
                 call_block.lines.extend(function_body.get("lines", deque()))
                 call_block.params.extend(function_body.get("params", deque()))
                 call_block.args.extend(args_list)
+                self.current_block = call_block
             else:
                 print("Segundo") # Get the function's name (str)
 
@@ -289,9 +290,6 @@ class AST_Parser:
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
             # print("Assign")
-            if not isinstance(self.current_block, CalcBlock):
-                self.current_block = CalcBlock()
-            # Assignments: [target, 'Assign', value]
             expression_tree = self.ast_parse(node.value, frl)
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
@@ -299,8 +297,9 @@ class AST_Parser:
                 assigns=deque([self.ast_parse(n, frl) for n in node.targets]),
                 expression_tree=expression_tree,
             )
-            self.current_block.lines.extend(deque([calc_line]))
-            val = self.current_block
+            val = calc_line
+            
+
 
         elif isinstance(node, ast.List):
             # print("List")
@@ -309,8 +308,11 @@ class AST_Parser:
 
         elif isinstance(node, ast.Return):
             # print("Return")
+            parsed_value = self.ast_parse(node.value, frl)
+            if not isinstance(parsed_value, deque):
+                parsed_value = deque([parsed_value])
             val = ExprLine(
-                expression_tree=self.ast_parse(node.value, frl), return_expr=True
+                expression_tree=parsed_value, return_expr=True
             )
 
         elif isinstance(node, ast.Attribute):
@@ -332,7 +334,7 @@ class AST_Parser:
                 val = ExprLine(expression_tree=deque([doc_string]))
             else:
                 parsed_node = self.ast_parse(node.value, frl)
-                if isinstance(parsed_node, str):
+                if not isinstance(parsed_node, deque):
                     parsed_node = deque([parsed_node])
                 val = ExprLine(expression_tree=parsed_node)
 
