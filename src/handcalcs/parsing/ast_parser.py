@@ -42,17 +42,23 @@ COMPARE_OPS = {
 # HERE: ast_parse to parse block comments, block options, and blocks in order to val = a "hc_tree"
 @dataclass
 class AST_Parser:
+    globals: dict = field(default_factory=dict)
     current_line_number: int = 1
     prev_line_number: int = 0
     new_block_from_comment: bool = False
-    globals: dict = field(default_factory=dict)
     current_block: Optional[str] = None
-    hc_tree: deque = field(default_factory=deque)
     function_recurse_exclusions: list[str] = field(
         default_factory=lambda: dir(builtins) + dir(math)
     )
 
-    def ast_parse(self, node: ast.AST, function_recurse_limit: int) -> Any:
+    def __call__(self, source: str, function_recurse_limit: int = 3) -> deque:
+        """
+        Returns the handcalcs tree from the source.
+        """
+        ast_tree = ast.parse(source)
+        return self.ast_parse(ast_tree, function_recurse_limit)
+
+    def ast_parse(self, node: ast.AST, function_recurse_limit: int) -> deque:
         """
         Recursively converts an AST node into the custom nested list/dict structure.
         """
