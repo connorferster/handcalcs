@@ -62,7 +62,6 @@ def test_calc_lines(basic_parser):
 def test_function_recursion(basic_parser):
     source_1 = "a = sub1.my_calc(2, 3)"
     source_2 = "b = 4; c = 5; d=6; e=3; p = sub1.my_other_calc(b, c, d, e)"
-    print(f"{basic_parser(source_1)=}")
     assert basic_parser(source_1) == deque([
                 CalcLine(
                     assigns=deque(["a"]),
