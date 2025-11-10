@@ -1,10 +1,13 @@
 import ast_comments as ast
 import builtins
+import importlib
 import math
+import pathlib
 from dataclasses import dataclass, field
 import inspect
-from typing import List, Dict, Union, Any, Optional
-from collections import deque
+from typing import List, Dict, Union, Any, Optional, Callable
+from types import ModuleType
+from collections import deque, ChainMap
 from handcalcs.parsing.linetypes import (
     CalcLine,
     ExprLine,
@@ -43,13 +46,54 @@ COMPARE_OPS = {
 @dataclass
 class AST_Parser:
     globals: dict = field(default_factory=dict)
+    global_exclusions: Optional[list[str]] = None
     current_line_number: int = 1
     prev_line_number: int = 0
     new_block_from_comment: bool = False
     current_block: Optional[Union[CalcBlock, FunctionBlock, ForBlock, IfBlock]] = None
     function_recurse_exclusions: list[str] = field(
-        default_factory=lambda: dir(builtins) + dir(math)
+        default_factory=lambda: dir(builtins) + dir(math) + ['builtins', 'math', 'exit', 'quit']
     )
+    aliases_cache: dict = field(default_factory=dict)
+    module_cache: dict = field(default_factory=dict)
+    functions_cache: ChainMap = field(default_factory=ChainMap)
+    ast_cache: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        # self.module_cache.update(self.globals)
+        self.function_recurse_exclusions.append(f"{self.__class__.__name__}")
+        if self.global_exclusions is not None:
+            self.function_recurse_exclusions.extend(self.global_exclusions)
+        local_callables = {}
+        for name, obj in self.globals.items():
+            if (
+                isinstance(obj, ModuleType) 
+                and name not in self.function_recurse_exclusions 
+                and not name.startswith("__") 
+                and not name.startswith("@")
+            ):
+                print(f"{name=}")
+                source = inspect.getsource(obj)
+                source_tree = ast.parse(source)
+                module_callables = {}
+                for node in source_tree.body:
+                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                        module_callables[node.name] = node
+                        print(f"{node.name=}")
+                self.module_cache[name] = module_callables
+                self.functions_cache = self.functions_cache.new_child(module_callables)
+            elif (
+                isinstance(obj, Callable) 
+                and name not in self.function_recurse_exclusions
+                and not isinstance(obj, self.__class__)   
+            ):
+                obj_tree = ast.parse(inspect.getsource(obj).lstrip())
+                if isinstance(obj_tree, (ast.Module)):
+                    obj_tree = obj_tree.body[0] # First function def within the ast.module
+                local_callables.update({name: obj_tree})
+                self.functions_cache = self.functions_cache.new_child(local_callables)
+        print(f"{('different_calc' in self.functions_cache)=}")
+        self.module_cache['__main__'] = local_callables
 
     def __call__(self, source: str, function_recurse_limit: int = 3) -> deque:
         """
@@ -132,25 +176,26 @@ class AST_Parser:
                 val.append(pair[0])
                 val.append(pair[1])
 
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            print("ENCOUNTERED IMPORT NODE")
+            self.resolve_import_and_load(node)
+            val = HCNotImplemented(type(node).__name__)
+
         elif isinstance(node, ast.Call):
             # print("Call")
             call_block = FunctionBlock()
             # print(f"HERE: {call_block=}")
             # Get the function name being called
             if isinstance(node.func, ast.Name):
-                print("First")
                 func_name = node.func.id
-                module_name = ""
+                module_name = "__main__"
             elif isinstance(node.func, ast.Attribute):
-                print("Second")
                 # Example: module.external_func
                 func_name = node.func.attr
-                print(f"{func_name=}")
                 module_name = (
                     node.func.value.id
                 )  # Assumes the module name is the attribute's value
             else:
-                print("Third")
                 # Complex call, e.g., a function returned by another function
                 # Fall back to standard Rule 2
                 # ... (original Rule 2 logic) ...
@@ -172,17 +217,15 @@ class AST_Parser:
             # if func_name == "external_func" and module_name == "some_module":
 
             # 1. Get the source code string for the external function
-            external_source = None
+            function_ast = None
             if func_name not in self.function_recurse_exclusions:
-                external_source = self.find_source(func_name, module_name)
-            print(f"{external_source=}")
+                function_ast = self.find_source(func_name, module_name)
+            print(f"{func_name=} | {function_ast=}")
 
-            if external_source and frl > 0:
-                print("Primero")
+            if function_ast and frl > 0:
                 frl = frl - 1
                 # 2. Recursively call the main conversion logic on the new source
-                external_ast = ast.parse(external_source)
-                function_defs = self.collect_function_defs(external_ast, frl)
+                function_defs = self.get_function_content(function_ast, frl)
                 # The result of the call node is replaced by the structure of the function's body
                 # Create the inner nested list for arguments
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
@@ -197,7 +240,6 @@ class AST_Parser:
                 call_block.args.extend(args_list)
                 self.current_block = call_block
             else:
-                print("Segundo") # Get the function's name (str)
 
                 # Create the inner nested list for arguments
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
@@ -271,7 +313,6 @@ class AST_Parser:
             val = self.current_block = for_block
 
         elif isinstance(node, ast.Comment):
-            print(f"{node.value=} | {node.inline=}")
             if not new_line:
                 val = InlineComment(comment=node.value)
             else:
@@ -345,42 +386,55 @@ class AST_Parser:
 
         return val
 
-    def find_source(self, func_name: str, module_name: str) -> str:
+    def find_source(self, func_name: str, module_name: str) -> ast.AST:
         """Finds the source code for a function within an imported module."""
 
-        # Import the module dynamically
-        module = None
-        if module_name:  # Might need to access globals here too
-            try:
-                module = __import__(module_name)
-            except (ModuleNotFoundError, ImportError):
-                module = self.globals.get(module_name)
-
-        # Get the function object
-        if module is not None:
-            func_obj = getattr(module, func_name)
-
-            # Get the source code as a string
-            source_code = inspect.getsource(func_obj)
-            return source_code
-        else:
-            print(
-                f"Warning: Could not get source for {module_name}.{func_name}."
-            )
-            return ""
+        confirmed_module_name = cmn = self.aliases_cache.get(module_name, module_name)
+        confirmed_func_name = cfn = self.aliases_cache.get(func_name, func_name)
+        module_definitions = self.module_cache[cmn]
+        function_tree = module_definitions.get(cfn, None)
+        if function_tree is None:
+            function_tree = self.functions_cache.get(cfn)
+        return function_tree
 
 
-    def collect_function_defs(
+        # # Import the module dynamically
+        # module = None
+        # if module_name:  # Might need to access globals here too
+        #     try:
+        #         module = __import__(module_name)
+        #     except (ModuleNotFoundError, ImportError):
+        #         module = self.module_cache.get(module_name)
+
+        # # Get the function object
+        # if module is not None:
+        #     func_obj = getattr(module, func_name)
+
+        #     # Get the source code as a string
+        #     source_code = inspect.getsource(func_obj)
+        #     source_tree = ast.parse(source_code)
+        #     return source_tree
+        # else:
+        #     print(
+        #         f"Warning: Could not get source for {module_name}.{func_name}."
+        #     )
+        #     print(f"{self.module_cache.keys()}")
+        #     return ""
+
+
+    def get_function_content(
         self, node: ast.FunctionDef, frl: int
     ) -> dict[str, dict[str, deque]] | None:
         """
         Returns a dictionary of functions
         """
-        acc = {}
-        for block in node.body:
-            if isinstance(block, ast.FunctionDef):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return {}
+        else:
+            acc = {}
+            if isinstance(node, ast.FunctionDef):
                 lines = deque([])
-                for n in block.body:
+                for n in node.body:
                     parsed = self.ast_parse(n, frl)
                     if isinstance(parsed, ExprLine) and (  # not a docstring
                         "Doc string" in parsed.expression_tree[0]
@@ -391,13 +445,81 @@ class AST_Parser:
                         lines.append(parsed)
                 acc.update(
                     {
-                        block.name: {
+                        node.name: {
                             "lines": lines,
-                            "params": deque([arg.arg for arg in block.args.args]),
+                            "params": deque([arg.arg for arg in node.args.args]),
                         }
                     }
                 )
-        return acc
+            return acc
+
+    def resolve_import_and_load(self, import_node: ast.Import | ast.ImportFrom):
+        """Recursively resolves imported modules and loads them."""
+        print("IMPORTING")
+        if isinstance(import_node, ast.Import):
+            for alias in import_node.names:
+                module_name = alias.name
+                path = self._resolve_module_path(module_name)
+                if path:
+                    # Load the module, using the original name (e.g., 'my_module')
+                    self.load_module_by_path(module_name, path)
+
+    def _resolve_module_path(self, module_name: str) -> pathlib.Path | None:
+        """
+        Uses importlib to find the source file path for a module 
+        without executing any code.
+        """
+        try:
+            # Look up the module specification
+            spec = importlib.util.find_spec(module_name)
+            if spec and spec.loader_state and spec.origin:
+                # Return the path to the source file
+                return pathlib.Path(spec.origin)
+        except (ValueError, AttributeError):
+            # Handle cases where the module isn't found or is a built-in
+            return None
+        return None
+    
+    def load_module_by_path(self, module_name: str, file_path: pathlib.Path):
+        """Loads and parses a module's source code into the cache."""
+        if module_name in self.module_cache:
+            return
+        try:
+            source_code = file_path.read_text()
+            module_ast: ast.Module = ast.parse(source_code, filename=str(file_path))
+            self.ast_cache[module_name] = module_ast
+            
+            # Build the symbol table (namespace) for this module
+            symbols = {}
+            for node in module_ast.body:
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    symbols[node.name] = node
+                elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                    self.resolve_import_and_load(node)
+
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            # Map the local alias (or module name) to the external module name
+                            local_name = alias.asname if alias.asname else alias.name
+                            self.aliases_cache[local_name] = {alias.name}
+                    else:
+                        # ast.ImportFrom: Currently does not handle fancy . or .. style imports
+                        # But this clause is where that would be implemented
+                        for alias in node.names:
+                            # Map the local alias (or module name) to the external module name
+                            level = node.level
+                            local_name = alias.asname if alias.asname else alias.name
+                            self.aliases_cache[local_name] = {alias.name}
+            
+            self.module_cache[module_name] = symbols
+            self.functions_cache = self.functions_cache.new_child(symbols)
+            print(f"Loaded and cached module: {module_name}")
+
+        except FileNotFoundError:
+            print(f"Error: Source file not found for {module_name} at {file_path}")
+        except SyntaxError as e:
+            print(f"Error: Syntax error in {module_name}: {e}")
+
 
     def _flatten_binop(self, node, frl) -> deque:
         """

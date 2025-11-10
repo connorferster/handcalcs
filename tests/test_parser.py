@@ -1,6 +1,6 @@
 from handcalcs.parsing.ast_parser import AST_Parser
 from handcalcs.parsing.comments import is_comment_command, split_commands, is_markdown_heading
-from handcalcs.parsing.linetypes import CalcLine, ExprLine
+from handcalcs.parsing.linetypes import CalcLine, ExprLine, Attribute
 from handcalcs.parsing.blocks import CalcBlock, FunctionBlock
 import math
 import pytest
@@ -11,7 +11,7 @@ import submodule_2 as sub2
 
 @pytest.fixture
 def basic_parser():
-    parser = AST_Parser(globals())
+    parser = AST_Parser(globals(), global_exclusions=['collections', 'deque'])
     return parser
 
 def test_calc_lines(basic_parser):
@@ -81,5 +81,73 @@ def test_function_recursion(basic_parser):
                     ])
                 )
         ])
+    
+    assert basic_parser(source_2) == deque([
+        CalcLine(
+            assigns=deque(['b']),
+            expression_tree=deque([4])
+        ),
+        CalcLine(
+            assigns=deque(['c']),
+            expression_tree=deque([5])
+        ),
+        CalcLine(
+            assigns=deque(['d']),
+            expression_tree=deque([6])
+        ),
+        CalcLine(
+            assigns=deque(['e']),
+            expression_tree=deque([3])
+        ),
+        CalcLine(
+            assigns=deque(['p']),
+            expression_tree=deque([
+                FunctionBlock(
+                    module_name="sub1",
+                    function_name="my_other_calc",
+                    args=deque(["b", "c", "d", "e"]),
+                    params=deque(["w", "y", "t", "s"]),
+                    lines=deque([
+                        CalcLine(
+                            assigns=deque(['factored']),
+                            expression_tree=deque([
+                                0.9, '*', FunctionBlock(
+                                    module_name='__main__',
+                                    function_name='different_calc',
+                                    args=deque(['w', 'y', 't', 's']),
+                                    params=deque(['s', 't', 'u', 'v']),
+                                    lines=deque([
+                                        ExprLine(
+                                            return_expr=True,
+                                            expression_tree=deque([
+                                                deque([
+                                                    Attribute(
+                                                        module_name='math',
+                                                        attr_name='pi'
+                                                    ),
+                                                    '*', 's', '*', 't',
+                                                ]),
+                                                "/",
+                                                deque([
+                                                    deque([
+                                                        'u', '*', 'v'
+                                                    ])
+                                                    , '**', 2
+                                                ])
+                                            ])
+                                        )
+                                    ])
+                                )
+                            ])
+                        ),
+                        ExprLine(
+                            return_expr=True,
+                            expression_tree=deque(['factored'])
+                        )
+                    ])
+                )
+            ])
+        ),
+    ])
 
 
