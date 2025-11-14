@@ -20,7 +20,7 @@ from handcalcs.parsing.linetypes import (
     List,
     Tuple,
     Dictionary,
-    String
+    String,
 )
 from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock
 from handcalcs.parsing.commands import command_parser
@@ -56,7 +56,9 @@ class AST_Parser:
     new_block_from_comment: bool = False
     current_block: Optional[Union[CalcBlock, FunctionBlock, ForBlock, IfBlock]] = None
     function_recurse_exclusions: list[str] = field(
-        default_factory=lambda: dir(builtins) + dir(math) + ['builtins', 'math', 'exit', 'quit']
+        default_factory=lambda: dir(builtins)
+        + dir(math)
+        + ["builtins", "math", "exit", "quit"]
     )
     aliases_cache: dict = field(default_factory=dict)
     module_cache: dict = field(default_factory=dict)
@@ -71,33 +73,37 @@ class AST_Parser:
         local_callables = {}
         for name, obj in self.globals.items():
             if (
-                isinstance(obj, ModuleType) 
-                and name not in self.function_recurse_exclusions 
-                and not name.startswith("__") 
+                isinstance(obj, ModuleType)
+                and name not in self.function_recurse_exclusions
+                and not name.startswith("__")
                 and not name.startswith("@")
             ):
                 source = inspect.getsource(obj)
                 source_tree = ast.parse(source)
                 module_callables = {}
                 for node in source_tree.body:
-                    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    if isinstance(
+                        node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                    ):
                         module_callables[node.name] = node
                 self.module_cache[name] = module_callables
                 self.functions_cache = self.functions_cache.new_child(module_callables)
             elif (
-                isinstance(obj, Callable) 
+                isinstance(obj, Callable)
                 and name not in self.function_recurse_exclusions
-                and not isinstance(obj, self.__class__)   
+                and not isinstance(obj, self.__class__)
             ):
                 obj_tree = ast.parse(inspect.getsource(obj).lstrip())
                 if isinstance(obj_tree, (ast.Module)):
-                    obj_tree = obj_tree.body[0] # First function def within the ast.module
+                    obj_tree = obj_tree.body[
+                        0
+                    ]  # First function def within the ast.module
                 local_callables.update({name: obj_tree})
                 self.functions_cache = self.functions_cache.new_child(local_callables)
             else:
                 self.module_cache[name] = {}
                 self.functions_cache[name] = {}
-        self.module_cache['__main__'] = local_callables
+        self.module_cache["__main__"] = local_callables
 
     def __call__(self, source: str, function_recurse_limit: int = 3) -> deque:
         """
@@ -107,7 +113,7 @@ class AST_Parser:
         hc_tree = self.ast_parse(ast_tree, function_recurse_limit)
         self.clear()
         return hc_tree
-    
+
     def clear(self):
         """
         Clears existing data out of the parser.
@@ -334,12 +340,10 @@ class AST_Parser:
                 expression_tree=expression_tree,
             )
             val = calc_line
-            
-
 
         elif isinstance(node, ast.List):
             val = List(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
-    
+
         elif isinstance(node, ast.Tuple):
             val = Tuple(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
 
@@ -353,9 +357,7 @@ class AST_Parser:
             parsed_value = self.ast_parse(node.value, frl)
             if not isinstance(parsed_value, deque):
                 parsed_value = deque([parsed_value])
-            val = ExprLine(
-                expression_tree=parsed_value, return_expr=True
-            )
+            val = ExprLine(expression_tree=parsed_value, return_expr=True)
 
         elif isinstance(node, ast.Attribute):
             name = node.value.id
@@ -437,7 +439,7 @@ class AST_Parser:
 
     def _resolve_module_path(self, module_name: str) -> pathlib.Path | None:
         """
-        Uses importlib to find the source file path for a module 
+        Uses importlib to find the source file path for a module
         without executing any code.
         """
         try:
@@ -450,7 +452,7 @@ class AST_Parser:
             # Handle cases where the module isn't found or is a built-in
             return None
         return None
-    
+
     def load_module_by_path(self, module_name: str, file_path: pathlib.Path):
         """Loads and parses a module's source code into the cache."""
         if module_name in self.module_cache:
@@ -459,11 +461,13 @@ class AST_Parser:
             source_code = file_path.read_text()
             module_ast: ast.Module = ast.parse(source_code, filename=str(file_path))
             self.ast_cache[module_name] = module_ast
-            
+
             # Build the symbol table (namespace) for this module
             symbols = {}
             for node in module_ast.body:
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+                ):
                     symbols[node.name] = node
                 elif isinstance(node, (ast.Import, ast.ImportFrom)):
                     self.resolve_import_and_load(node)
@@ -481,7 +485,7 @@ class AST_Parser:
                             level = node.level
                             local_name = alias.asname if alias.asname else alias.name
                             self.aliases_cache[local_name] = {alias.name}
-            
+
             self.module_cache[module_name] = symbols
             self.functions_cache = self.functions_cache.new_child(symbols)
 
@@ -489,7 +493,6 @@ class AST_Parser:
             print(f"Error: Source file not found for {module_name} at {file_path}")
         except SyntaxError as e:
             print(f"Error: Syntax error in {module_name}: {e}")
-
 
     def _flatten_binop(self, node, frl) -> deque:
         """
