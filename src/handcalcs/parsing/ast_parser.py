@@ -128,16 +128,13 @@ class AST_Parser:
             self.current_line_number = 0
         if self.current_line_number == self.prev_line_number:
             new_line = False
-        # print(f"Start: {self.current_block=}")
         frl = function_recurse_limit
         # --- Rule 1: Arithmetical Expressions & Parentheses (BinOp) ---
         if isinstance(node, ast.BinOp):
-            # print("BinOp")
             add_to_current_block = True
             # A Binary Operation (e.g., a + b). The structure is:
             # [left_side, operator, right_side]
             left = self._flatten_binop(node.left, frl)
-            # print(f"{left=}")
             op_name = type(node.op).__name__
             op = ARITHMETIC_OPS.get(
                 op_name, op_name
@@ -160,17 +157,14 @@ class AST_Parser:
 
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):
-            # print("Name")
             val = node.id
         elif isinstance(node, ast.Constant):
-            # print("Constant")
             value = node.value
             if isinstance(value, str):
                 val = String(value=value)
             else:
                 val = value
         elif isinstance(node, ast.Compare):
-            # print("Compare")
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)
             left = self.ast_parse(node.left, frl)
@@ -185,14 +179,11 @@ class AST_Parser:
                 val.append(pair[1])
 
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            print("ENCOUNTERED IMPORT NODE")
             self.resolve_import_and_load(node)
             val = HCNotImplemented(type(node).__name__)
 
         elif isinstance(node, ast.Call):
-            # print("Call")
             call_block = FunctionBlock()
-            # print(f"HERE: {call_block=}")
             # Get the function name being called
             if isinstance(node.func, ast.Name):
                 func_name = node.func.id
@@ -228,7 +219,6 @@ class AST_Parser:
             function_ast = None
             if func_name not in self.function_recurse_exclusions:
                 function_ast = self.find_source(func_name, module_name)
-            print(f"{func_name=} | {function_ast=}")
 
             if function_ast and frl > 0:
                 frl = frl - 1
@@ -261,7 +251,6 @@ class AST_Parser:
 
         # --- Rule 3: If/Elif/Else block ---
         elif isinstance(node, ast.If):
-            # print("If")
             if_block = IfBlock()
 
             # "test": The condition (nested list via recursive call)
@@ -290,7 +279,6 @@ class AST_Parser:
 
         # --- Rule 4: For loop block ---
         elif isinstance(node, ast.For):
-            # print("For")
             for_block = ForBlock()
             # A dictionary is created within the list
             for_dict: Dict[str, Any] = {}
@@ -338,7 +326,6 @@ class AST_Parser:
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            # print("Assign")
             expression_tree = self.ast_parse(node.value, frl)
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
@@ -351,13 +338,9 @@ class AST_Parser:
 
 
         elif isinstance(node, ast.List):
-            # print("List")
-            # Lists: ['List', [item1, item2, ...]]
             val = List(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
     
         elif isinstance(node, ast.Tuple):
-            # print("List")
-            # Lists: ['List', [item1, item2, ...]]
             val = Tuple(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
 
         elif isinstance(node, ast.Dict):
@@ -367,7 +350,6 @@ class AST_Parser:
             )
 
         elif isinstance(node, ast.Return):
-            # print("Return")
             parsed_value = self.ast_parse(node.value, frl)
             if not isinstance(parsed_value, deque):
                 parsed_value = deque([parsed_value])
@@ -376,18 +358,15 @@ class AST_Parser:
             )
 
         elif isinstance(node, ast.Attribute):
-            # print("Attribute")
             name = node.value.id
             attribute = node.attr
             val = Attribute(namespace=name, attr_name=attribute)
 
         elif isinstance(node, ast.Module):
-            # print("Module")
             # Entry point: process all body statements
             val = deque([self.ast_parse(item, frl) for item in node.body])
 
         elif isinstance(node, ast.Expr):
-            # print("Expr")
             # An expression used as a statement (e.g., a standalone function call)
             if isinstance(node.value, ast.Constant):
                 doc_string = f"Doc string: {self.ast_parse(node.value, frl)}"
@@ -400,7 +379,6 @@ class AST_Parser:
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
-            # print("Unhandled")
             val = HCNotImplemented(node_name=type(node).__name__)
 
         return val
@@ -415,31 +393,6 @@ class AST_Parser:
         if function_tree is None:
             function_tree = self.functions_cache.get(cfn)
         return function_tree
-
-
-        # # Import the module dynamically
-        # module = None
-        # if module_name:  # Might need to access globals here too
-        #     try:
-        #         module = __import__(module_name)
-        #     except (ModuleNotFoundError, ImportError):
-        #         module = self.module_cache.get(module_name)
-
-        # # Get the function object
-        # if module is not None:
-        #     func_obj = getattr(module, func_name)
-
-        #     # Get the source code as a string
-        #     source_code = inspect.getsource(func_obj)
-        #     source_tree = ast.parse(source_code)
-        #     return source_tree
-        # else:
-        #     print(
-        #         f"Warning: Could not get source for {module_name}.{func_name}."
-        #     )
-        #     print(f"{self.module_cache.keys()}")
-        #     return ""
-
 
     def get_function_content(
         self, node: ast.FunctionDef, frl: int
