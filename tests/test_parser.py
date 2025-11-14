@@ -257,9 +257,7 @@ values = [math.tan(elem / b) for elem in a]
 """
     source_1_locals = {}
     exec(source_1, locals=source_1_locals)
-    print(source_1_locals.keys())
     basic_parser = AST_Parser(globals() | source_1_locals, global_exclusions=['collections', 'deque'])
-    print(basic_parser.globals.keys())
     assert basic_parser(source_1) == deque([
         HCNotImplemented(node_name="Import"),
         CalcLine(
@@ -308,3 +306,6 @@ values = [math.tan(elem / b) for elem in a]
     ])
 
 
+# TODO: Implement list comprehensions
+# TESTS: Comments, Inline comments, comment commands
+# TODO: Implement inline comment commands? Possible? Easy?
