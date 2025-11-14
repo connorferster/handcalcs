@@ -51,8 +51,26 @@ class CommentCommand:
 
 @dataclass
 class Attribute:
-    module_name: str
+    namespace: str
     attr_name: str
+
+
+@dataclass
+class List:
+    elems: deque[Any]
+
+@dataclass
+class Tuple:
+    elems: deque[Any]
+
+@dataclass
+class Dictionary:
+    keys: deque[Any]
+    values: deque[Any]
+
+@dataclass
+class String:
+    value: str
 
 
 @dataclass

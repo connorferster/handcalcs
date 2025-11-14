@@ -17,6 +17,10 @@ from handcalcs.parsing.linetypes import (
     MarkdownHeading,
     Attribute,
     HCNotImplemented,
+    List,
+    Tuple,
+    Dictionary,
+    String
 )
 from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock
 from handcalcs.parsing.commands import command_parser
@@ -72,14 +76,12 @@ class AST_Parser:
                 and not name.startswith("__") 
                 and not name.startswith("@")
             ):
-                print(f"{name=}")
                 source = inspect.getsource(obj)
                 source_tree = ast.parse(source)
                 module_callables = {}
                 for node in source_tree.body:
                     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                         module_callables[node.name] = node
-                        print(f"{node.name=}")
                 self.module_cache[name] = module_callables
                 self.functions_cache = self.functions_cache.new_child(module_callables)
             elif (
@@ -92,7 +94,9 @@ class AST_Parser:
                     obj_tree = obj_tree.body[0] # First function def within the ast.module
                 local_callables.update({name: obj_tree})
                 self.functions_cache = self.functions_cache.new_child(local_callables)
-        print(f"{('different_calc' in self.functions_cache)=}")
+            else:
+                self.module_cache[name] = {}
+                self.functions_cache[name] = {}
         self.module_cache['__main__'] = local_callables
 
     def __call__(self, source: str, function_recurse_limit: int = 3) -> deque:
@@ -160,7 +164,11 @@ class AST_Parser:
             val = node.id
         elif isinstance(node, ast.Constant):
             # print("Constant")
-            val = node.value
+            value = node.value
+            if isinstance(value, str):
+                val = String(value=value)
+            else:
+                val = value
         elif isinstance(node, ast.Compare):
             # print("Compare")
             # Comparison operations (e.g., a > b). Structure:
@@ -233,7 +241,7 @@ class AST_Parser:
                 if function_defs is not None:
                     function_body = function_defs.get(func_name, dict())
 
-                call_block.module_name = module_name
+                call_block.namespace = module_name
                 call_block.function_name = func_name
                 call_block.lines.extend(function_body.get("lines", deque()))
                 call_block.params.extend(function_body.get("params", deque()))
@@ -245,7 +253,7 @@ class AST_Parser:
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
 
                 # Create the main nested list for the function call
-                call_block.module_name = module_name
+                call_block.namespace = module_name
                 call_block.function_name = func_name
                 call_block.args.extend(args_list)
 
@@ -345,7 +353,18 @@ class AST_Parser:
         elif isinstance(node, ast.List):
             # print("List")
             # Lists: ['List', [item1, item2, ...]]
-            val = deque(["array", deque([self.ast_parse(el, frl) for el in node.elts])])
+            val = List(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
+    
+        elif isinstance(node, ast.Tuple):
+            # print("List")
+            # Lists: ['List', [item1, item2, ...]]
+            val = Tuple(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
+
+        elif isinstance(node, ast.Dict):
+            val = Dictionary(
+                keys=deque([self.ast_parse(el, frl) for el in node.keys]),
+                values=deque([self.ast_parse(el, frl) for el in node.values]),
+            )
 
         elif isinstance(node, ast.Return):
             # print("Return")
@@ -360,7 +379,7 @@ class AST_Parser:
             # print("Attribute")
             name = node.value.id
             attribute = node.attr
-            val = Attribute(module_name=name, attr_name=attribute)
+            val = Attribute(namespace=name, attr_name=attribute)
 
         elif isinstance(node, ast.Module):
             # print("Module")
@@ -391,7 +410,7 @@ class AST_Parser:
 
         confirmed_module_name = cmn = self.aliases_cache.get(module_name, module_name)
         confirmed_func_name = cfn = self.aliases_cache.get(func_name, func_name)
-        module_definitions = self.module_cache[cmn]
+        module_definitions = self.module_cache.get(cmn, {})
         function_tree = module_definitions.get(cfn, None)
         if function_tree is None:
             function_tree = self.functions_cache.get(cfn)
@@ -455,7 +474,6 @@ class AST_Parser:
 
     def resolve_import_and_load(self, import_node: ast.Import | ast.ImportFrom):
         """Recursively resolves imported modules and loads them."""
-        print("IMPORTING")
         if isinstance(import_node, ast.Import):
             for alias in import_node.names:
                 module_name = alias.name
@@ -513,7 +531,6 @@ class AST_Parser:
             
             self.module_cache[module_name] = symbols
             self.functions_cache = self.functions_cache.new_child(symbols)
-            print(f"Loaded and cached module: {module_name}")
 
         except FileNotFoundError:
             print(f"Error: Source file not found for {module_name} at {file_path}")
