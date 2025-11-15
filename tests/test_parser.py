@@ -351,6 +351,5 @@ values = [math.tan(elem / b) for elem in a]
         )
     ])
 
-# TODO: Implement list comprehensions
 # TESTS: Comments, Inline comments, comment commands
 # TODO: Implement inline comment commands? Possible? Easy?

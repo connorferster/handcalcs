@@ -58,14 +58,14 @@ class ForBlock(HandCalcsBlock):
 
 @dataclass
 class Comprehension:
-    assigns: str | Tuple
+    assigns: deque[str | Tuple]
     iterator: deque[str | FunctionBlock | List | Tuple | Dictionary | Set]
     is_async: bool
 
 @dataclass
 class ComprehensionBlock(HandCalcsBlock):
     type: str = ""
-    assign: deque[str] = field(default_factory=deque)
+    assign: deque[str | FunctionBlock | List | Tuple | Dictionary | Set] = field(default_factory=deque)
     key: deque[str] = field(default_factory=deque)
     value: deque[str] = field(default_factory=deque)
     comprehensions: deque[Comprehension] = field(default_factory=deque)

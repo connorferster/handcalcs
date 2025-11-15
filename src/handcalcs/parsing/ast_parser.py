@@ -30,6 +30,7 @@ from handcalcs.parsing.blocks import (
     ComprehensionBlock,
     Comprehension,
 )
+from handcalcs.parsing.renderables import parse_renderable
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
 
@@ -170,13 +171,9 @@ class AST_Parser:
 
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):
-            val = node.id
+            val = parse_renderable(node.id)
         elif isinstance(node, ast.Constant):
-            value = node.value
-            if isinstance(value, str):
-                val = String(value=value)
-            else:
-                val = value
+            val = parse_renderable(node.value)
         elif isinstance(node, ast.Compare):
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)
