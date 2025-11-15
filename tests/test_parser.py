@@ -11,7 +11,14 @@ from handcalcs.parsing.linetypes import (
     Dictionary,
     String
 )
-from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, IfBlock, ForBlock
+from handcalcs.parsing.blocks import (
+    CalcBlock, 
+    FunctionBlock, 
+    IfBlock, 
+    ForBlock,
+    ComprehensionBlock,
+    Comprehension
+)
 import math
 import pytest
 from collections import deque
@@ -305,6 +312,44 @@ values = [math.tan(elem / b) for elem in a]
         )
     ])
 
+    source_2_locals = {}
+    exec(source_2, locals=source_2_locals)
+    basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
+    assert basic_parser(source_2) == deque([
+        HCNotImplemented("Import"),
+        CalcLine(
+            assigns=deque(["a"]),
+            expression_tree=deque([List(elems=deque([0, 1, 2, 3, 4, 5]))])
+        ),
+        CalcLine(
+            assigns=deque(['b']),
+            expression_tree=deque([6])
+        ),
+        CalcLine(
+            assigns=deque(["values"]),
+            expression_tree=deque([
+                ComprehensionBlock(
+                    type="list",
+                    assign=deque([
+                        FunctionBlock(
+                            namespace="math",
+                            function_name="tan",
+                            args=deque([
+                                deque(['elem', '/', 'b'])
+                            ])
+                        )
+                    ]),
+                    comprehensions=deque([
+                        Comprehension(
+                            assigns=deque(["elem"]),
+                            iterator=deque(['a']),
+                            is_async=False
+                        )
+                    ])
+                )
+            ])
+        )
+    ])
 
 # TODO: Implement list comprehensions
 # TESTS: Comments, Inline comments, comment commands

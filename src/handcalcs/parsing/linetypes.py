@@ -64,9 +64,14 @@ class Tuple:
     elems: deque[Any]
 
 @dataclass
+class Set:
+    elems: deque[Any]
+
+@dataclass
 class Dictionary:
     keys: deque[Any]
     values: deque[Any]
+
 
 @dataclass
 class String:

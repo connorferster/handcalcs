@@ -10,7 +10,8 @@ from handcalcs.parsing.linetypes import (
     List,
     Tuple,
     Dictionary,
-    Attribute
+    Attribute,
+    Set
 )
 from typing import Union, Optional, Any
 
@@ -33,13 +34,12 @@ class IfOptions(dict):
 
 @dataclass
 class HandCalcsBlock:
-    options: dict
+    options: dict = field(default_factory=dict)
 
 
 @dataclass
 class FunctionBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine | MarkdownHeading | CommentCommand | CommentLine | InlineComment] = field(default_factory=deque)
-    options: FunctionOptions | dict = field(default_factory=dict)
     namespace: str = ""
     function_name: Attribute | str = ""
     args: deque[Any] = field(default_factory=deque)
@@ -49,20 +49,32 @@ class FunctionBlock(HandCalcsBlock):
 @dataclass
 class CalcBlock(HandCalcsBlock):
     lines: deque[Union[CalcLine, ExprLine, FunctionBlock]] = field(default_factory=deque)
-    options: Optional[CalcOptions | dict] = field(default_factory=dict)
 
 @dataclass
 class ForBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
-    options: Optional[ForOptions | dict] = field(default_factory=dict)
     assigns: deque[str] = field(default_factory=deque)
     iterator: deque[HandCalcsBlock | FunctionBlock | ExprLine | List | Tuple | Dictionary | str] = field(default_factory=deque)
+
+@dataclass
+class Comprehension:
+    assigns: str | Tuple
+    iterator: deque[str | FunctionBlock | List | Tuple | Dictionary | Set]
+    is_async: bool
+
+@dataclass
+class ComprehensionBlock(HandCalcsBlock):
+    type: str = ""
+    assign: deque[str] = field(default_factory=deque)
+    key: deque[str] = field(default_factory=deque)
+    value: deque[str] = field(default_factory=deque)
+    comprehensions: deque[Comprehension] = field(default_factory=deque)
+
 
 
 @dataclass
 class IfBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
-    options: Optional[IfOptions | dict] = field(default_factory=dict)
     test: deque[HandCalcsBlock | str | float | int | Any] = field(default_factory=deque)
     orelse: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
 

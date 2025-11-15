@@ -22,7 +22,14 @@ from handcalcs.parsing.linetypes import (
     Dictionary,
     String,
 )
-from handcalcs.parsing.blocks import CalcBlock, FunctionBlock, ForBlock, IfBlock
+from handcalcs.parsing.blocks import (
+    CalcBlock,
+    FunctionBlock,
+    ForBlock,
+    IfBlock,
+    ComprehensionBlock,
+    Comprehension,
+)
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
 
@@ -284,6 +291,72 @@ class AST_Parser:
             val = self.current_block = if_block
 
         # --- Rule 4: For loop block ---
+        elif isinstance(node, ast.For):
+            for_block = ForBlock()
+
+            # "target": str of the assigned target
+            # Assumes the target is a simple variable name (ast.Name)
+            if isinstance(node.target, ast.Name):
+                for_block.assigns.append(node.target.id)
+            else:
+                print(f"ForBlock, alternate target: {node.target=}")
+
+            # "body": nested list of the for loop's body
+            for_block.lines.extend(
+                deque([self.ast_parse(item, frl) for item in node.body])
+            )
+
+            # "iter": str showing the name of the iteration variable
+            # Assumes the iterator is a simple variable name (ast.Name)
+            # Note: Iterators can be more complex (like function calls or lists)
+            # We'll simplify to just the source code if it's not a simple Name.
+            if isinstance(node.iter, ast.Name):
+                for_block.iterator = deque([node.iter.id])
+            else:
+                # If it's a more complex expression, we'll try to convert it
+                # into a string representation for simplicity in this rule.
+                for_block.iterator = self.ast_parse(node.iter, frl)
+
+            val = self.current_block = for_block
+
+        elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+            comprehension_block = ComprehensionBlock(
+                type=node.__class__.__name__.replace("Comp", "").lower(),
+            )
+
+            assigns = deque([])
+            keys = deque([])
+            values = deque([])
+            if isinstance(node, ast.DictComp):
+                keys = deque([self.ast_parse(node.key, frl)])
+                values = deque([self.ast_parse(node.value, frl)])
+            else:
+                assigns = deque([self.ast_parse(node.elt, frl)])
+            comprehension_block.key = keys
+            comprehension_block.value = values
+            comprehension_block.assign = assigns
+            generators = deque([self.ast_parse(gen, frl) for gen in node.generators])
+            comp_blocks = deque([])
+            for generator in generators:
+                comp_block = Comprehension(
+                    assigns=generator["assigns"],
+                    iterator=generator["iterator"],
+                    is_async=generator["is_async"],
+                )
+                comp_blocks.append(comp_block)
+            comprehension_block.comprehensions = comp_blocks
+            val = comprehension_block
+
+            # TODO: HERE: PERHAPS I NEED SPECIAL COMPREHENSION BLOCK
+
+        elif isinstance(node, ast.comprehension):
+            comp = {
+                "assigns": deque([self.ast_parse(node.target, frl)]),
+                "iterator": deque([self.ast_parse(node.iter, frl)]),
+                "is_async": bool(node.is_async),
+            }
+            val = comp
+
         elif isinstance(node, ast.For):
             for_block = ForBlock()
             # A dictionary is created within the list
