@@ -25,14 +25,13 @@ class BlockWalker:
         Walks the tree of blocks calling funcs on each deque contained
         within an attribute of each block.
         """
-        for obj in vars(block).values():
+        for obj_name, obj in vars(block).items():
             if isinstance(obj, (HandCalcsBlock, HandCalcsObj)):
                 self.walk(obj, funcs)
             elif isinstance(obj, deque):
                 self.walk_the_walk(obj, funcs)
-            elif isinstance(obj, HandCalcsRenderable):
+            elif not obj_name.startswith("_"):
                 for func in funcs:
                     func(obj)
-
 
 
