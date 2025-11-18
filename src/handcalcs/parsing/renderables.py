@@ -16,11 +16,12 @@ class HCComplex(HandCalcsRenderable, complex):
 
 
 def parse_renderable(constant: str | int | float | complex):
-    if isinstance(constant, str):
-        return HCString(constant)
-    elif isinstance(constant, int):
-        return HCInt(constant)
-    elif isinstance(constant, float):
-        return HCFloat(constant)
-    elif isinstance(constant, complex):
-        return HCComplex(constant)
+    return constant
+    # if isinstance(constant, str):
+    #     return HCString(constant)
+    # elif isinstance(constant, int):
+    #     return HCInt(constant)
+    # elif isinstance(constant, float):
+    #     return HCFloat(constant)
+    # elif isinstance(constant, complex):
+    #     return HCComplex(constant)

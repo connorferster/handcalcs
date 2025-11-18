@@ -2,6 +2,7 @@ from collections import deque
 from typing import Callable
 from .blocks import HandCalcsBlock
 from .linetypes import HandCalcsObj
+from .renderables import HandCalcsRenderable
 
 class BlockWalker:
 
@@ -14,6 +15,9 @@ class BlockWalker:
                 self.walk_the_walk(elem, funcs)
             elif isinstance(elem, (HandCalcsBlock, HandCalcsObj)):
                 self.walk(elem, funcs)
+            elif isinstance(elem, HandCalcsRenderable):
+                for func in funcs:
+                    func(elem)
             
 
     def walk(self, block: HandCalcsBlock | HandCalcsObj, funcs: list[Callable]):
@@ -26,7 +30,7 @@ class BlockWalker:
                 self.walk(obj, funcs)
             elif isinstance(obj, deque):
                 self.walk_the_walk(obj, funcs)
-            else:
+            elif isinstance(obj, HandCalcsRenderable):
                 for func in funcs:
                     func(obj)
 

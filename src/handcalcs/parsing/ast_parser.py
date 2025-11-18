@@ -23,7 +23,6 @@ from handcalcs.parsing.linetypes import (
     String,
 )
 from handcalcs.parsing.blocks import (
-    CalcBlock,
     FunctionBlock,
     ForBlock,
     IfBlock,
@@ -62,7 +61,7 @@ class AST_Parser:
     current_line_number: int = 1
     prev_line_number: int = 0
     new_block_from_comment: bool = False
-    current_block: Optional[Union[CalcBlock, FunctionBlock, ForBlock, IfBlock]] = None
+    current_block: Optional[Union[FunctionBlock, ForBlock, IfBlock]] = None
     function_recurse_exclusions: list[str] = field(
         default_factory=lambda: dir(builtins)
         + dir(math)
@@ -241,8 +240,8 @@ class AST_Parser:
                 if function_defs is not None:
                     function_body = function_defs.get(func_name, dict())
 
-                call_block.namespace = module_name
-                call_block.function_name = func_name
+                call_block.namespace = deque([module_name])
+                call_block.function_name = deque([func_name])
                 call_block.lines.extend(function_body.get("lines", deque()))
                 call_block.params.extend(function_body.get("params", deque()))
                 call_block.args.extend(args_list)
@@ -253,8 +252,8 @@ class AST_Parser:
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
 
                 # Create the main nested list for the function call
-                call_block.namespace = module_name
-                call_block.function_name = func_name
+                call_block.namespace = deque([module_name])
+                call_block.function_name = deque([func_name])
                 call_block.args.extend(args_list)
 
             val = call_block
@@ -318,7 +317,7 @@ class AST_Parser:
 
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
             comprehension_block = ComprehensionBlock(
-                type=node.__class__.__name__.replace("Comp", "").lower(),
+                _type=node.__class__.__name__.replace("Comp", "").lower(),
             )
 
             assigns = deque([])
@@ -338,7 +337,7 @@ class AST_Parser:
                 comp_block = Comprehension(
                     assigns=generator["assigns"],
                     iterator=generator["iterator"],
-                    is_async=generator["is_async"],
+                    _is_async=generator["is_async"],
                 )
                 comp_blocks.append(comp_block)
             comprehension_block.comprehensions = comp_blocks

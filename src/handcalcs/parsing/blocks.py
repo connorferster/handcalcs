@@ -34,21 +34,22 @@ class IfOptions(dict):
 
 @dataclass
 class HandCalcsBlock:
-    options: dict = field(default_factory=dict)
+    _options: dict = field(default_factory=dict)
+
+# Use leading underscores for attribute names that do not contain renderable
+# content.
+# All attributes with renderable content should contain deques
+# even if only a single value is expected (and not a collection).
 
 
 @dataclass
 class FunctionBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine | MarkdownHeading | CommentCommand | CommentLine | InlineComment] = field(default_factory=deque)
-    namespace: str = ""
-    function_name: Attribute | str = ""
+    namespace: deque[str] = field(default_factory=deque)
+    function_name: deque[Attribute | str] = field(default_factory=deque)
     args: deque[Any] = field(default_factory=deque)
     params: deque[str] = field(default_factory=deque)
 
-
-@dataclass
-class CalcBlock(HandCalcsBlock):
-    lines: deque[Union[CalcLine, ExprLine, FunctionBlock]] = field(default_factory=deque)
 
 @dataclass
 class ForBlock(HandCalcsBlock):
@@ -60,11 +61,11 @@ class ForBlock(HandCalcsBlock):
 class Comprehension:
     assigns: deque[str | Tuple]
     iterator: deque[str | FunctionBlock | List | Tuple | Dictionary | Set]
-    is_async: bool
+    _is_async: bool
 
 @dataclass
 class ComprehensionBlock(HandCalcsBlock):
-    type: str = ""
+    _type: str = ""
     assign: deque[str | FunctionBlock | List | Tuple | Dictionary | Set] = field(default_factory=deque)
     key: deque[str] = field(default_factory=deque)
     value: deque[str] = field(default_factory=deque)

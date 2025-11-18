@@ -12,7 +12,6 @@ from handcalcs.parsing.linetypes import (
     String
 )
 from handcalcs.parsing.blocks import (
-    CalcBlock, 
     FunctionBlock, 
     IfBlock, 
     ForBlock,
@@ -58,16 +57,16 @@ def test_calc_lines(basic_parser):
                 expression_tree=deque([
                     deque([
                         FunctionBlock(
-                            namespace="math", 
-                            function_name="sin", 
+                            namespace=deque(["math"]), 
+                            function_name=deque(["sin"]), 
                             args=deque([deque(["b", "/", "a"])]), 
                             params=deque([])
                         ), "**", 2]),
                     "+",
                     deque([
                     FunctionBlock(
-                        namespace="math",
-                        function_name="cos",
+                        namespace=deque(["math"]),
+                        function_name=deque(["cos"]),
                         args=deque([deque(["b", "/", "a"])]),
                         params=deque([]),
                     ), "**", 2]),
@@ -84,8 +83,8 @@ def test_function_recursion(basic_parser):
                     assigns=deque(["a"]),
                     expression_tree=deque([
                         FunctionBlock(
-                            namespace="sub1",
-                            function_name="my_calc",
+                            namespace=deque(["sub1"]),
+                            function_name=deque(["my_calc"]),
                             args=deque([2, 3]),
                             params=deque(["q", "r"]),
                             lines=deque([
@@ -120,8 +119,8 @@ def test_function_recursion(basic_parser):
             assigns=deque(['p']),
             expression_tree=deque([
                 FunctionBlock(
-                    namespace="sub1",
-                    function_name="my_other_calc",
+                    namespace=deque(["sub1"]),
+                    function_name=deque(["my_other_calc"]),
                     args=deque(["b", "c", "d", "e"]),
                     params=deque(["w", "y", "t", "s"]),
                     lines=deque([
@@ -129,8 +128,8 @@ def test_function_recursion(basic_parser):
                             assigns=deque(['factored']),
                             expression_tree=deque([
                                 0.9, '*', FunctionBlock(
-                                    namespace='__main__',
-                                    function_name='different_calc',
+                                    namespace=deque(['__main__']),
+                                    function_name=deque(['different_calc']),
                                     args=deque(['w', 'y', 't', 's']),
                                     params=deque(['s', 't', 'u', 'v']),
                                     lines=deque([
@@ -204,8 +203,8 @@ else:
                         ExprLine(
                             expression_tree=deque([
                                 FunctionBlock(
-                                    namespace="__main__",
-                                    function_name="print",
+                                    namespace=deque(["__main__"]),
+                                    function_name=deque(["print"]),
                                     args=deque(["d"]),
                                     params=deque([])
                                 ),
@@ -221,8 +220,8 @@ else:
                         ExprLine(
                             expression_tree=deque([
                                 FunctionBlock(
-                                    namespace="__main__",
-                                    function_name="print",
+                                    namespace=deque(["__main__"]),
+                                    function_name=deque(["print"]),
                                     args=deque(["d"]),
                                 )
                             ])
@@ -238,8 +237,8 @@ else:
                 ExprLine(
                     expression_tree=deque([
                         FunctionBlock(
-                            namespace="__main__",
-                            function_name="print",
+                            namespace=deque(["__main__"]),
+                            function_name=deque(["print"]),
                             args=deque(["d"]),
                         )
                     ])
@@ -291,8 +290,8 @@ values = [math.tan(elem / b) for elem in a]
                     assigns=deque(["value"]),
                     expression_tree=deque([
                         FunctionBlock(
-                            namespace="math",
-                            function_name="tan",
+                            namespace=deque(["math"]),
+                            function_name=deque(["tan"]),
                             args=deque([
                                 deque(["elem", "/", "b"])
                             ])
@@ -302,8 +301,8 @@ values = [math.tan(elem / b) for elem in a]
                 ExprLine(
                     expression_tree=deque([
                         FunctionBlock(
-                            namespace="acc",
-                            function_name="append",
+                            namespace=deque(["acc"]),
+                            function_name=deque(["append"]),
                             args=deque(["value"])
                         )
                     ])
@@ -329,11 +328,11 @@ values = [math.tan(elem / b) for elem in a]
             assigns=deque(["values"]),
             expression_tree=deque([
                 ComprehensionBlock(
-                    type="list",
+                    _type="list",
                     assign=deque([
                         FunctionBlock(
-                            namespace="math",
-                            function_name="tan",
+                            namespace=deque(["math"]),
+                            function_name=deque(["tan"]),
                             args=deque([
                                 deque(['elem', '/', 'b'])
                             ])
@@ -343,7 +342,7 @@ values = [math.tan(elem / b) for elem in a]
                         Comprehension(
                             assigns=deque(["elem"]),
                             iterator=deque(['a']),
-                            is_async=False
+                            _is_async=False
                         )
                     ])
                 )
