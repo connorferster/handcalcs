@@ -10,45 +10,45 @@ class HandCalcsObj:
 class CalcLine(HandCalcsObj):
     assigns: deque = field(default_factory=deque)
     expression_tree: deque = field(default_factory=deque)
-    symbolic: deque = field(default_factory=deque)
-    numeric: deque = field(default_factory=deque)
-    result: Optional[Any] = None
-    comment: str = ""
-    latex: str = ""
+    _symbolic: deque = field(default_factory=deque)
+    _numeric: deque = field(default_factory=deque)
+    _result: Optional[Any] = None
+    _comment: str = ""
+    _latex: str = ""
 
 
 @dataclass
 class ExprLine(HandCalcsObj):
     expression_tree: deque = field(default_factory=deque)
-    symbolic: deque = field(default_factory=deque)
-    numeric: deque = field(default_factory=deque)
-    return_expr: bool = False
-    result: Optional[Any] = None
-    comment: str = ""
-    latex: str = ""
+    _symbolic: deque = field(default_factory=deque)
+    _numeric: deque = field(default_factory=deque)
+    _return_expr: bool = False
+    _result: Optional[Any] = None
+    _comment: str = ""
+    _latex: str = ""
 
 
 @dataclass
 class MarkdownHeading:
-    comment: str
-    latex: str = ""
+    _comment: str
+    _latex: str = ""
     # TODO: Fill this in correctly based on historic
 
 
 @dataclass
 class InlineComment:
-    comment: str
+    _comment: str
 
 
 @dataclass
 class CommentLine:
-    comment: str
+    _comment: str
 
 
 @dataclass
 class CommentCommand:
-    raw_commands: str
-    parsed_commands: dict
+    _raw_commands: str
+    _parsed_commands: dict
 
 
 @dataclass

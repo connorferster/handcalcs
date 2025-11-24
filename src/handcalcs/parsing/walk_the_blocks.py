@@ -14,8 +14,9 @@ class BlockWalker:
             if isinstance(elem, deque):
                 self.walk_the_walk(elem, funcs)
             elif isinstance(elem, (HandCalcsBlock, HandCalcsObj)):
+                print(elem)
                 self.walk(elem, funcs)
-            elif isinstance(elem, HandCalcsRenderable):
+            else:
                 for func in funcs:
                     func(elem)
             
@@ -30,8 +31,6 @@ class BlockWalker:
                 self.walk(obj, funcs)
             elif isinstance(obj, deque):
                 self.walk_the_walk(obj, funcs)
-            elif not obj_name.startswith("_"):
-                for func in funcs:
-                    func(obj)
+
 
 

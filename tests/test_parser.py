@@ -128,8 +128,8 @@ def test_function_recursion(basic_parser):
                             assigns=deque(['factored']),
                             expression_tree=deque([
                                 0.9, '*', FunctionBlock(
-                                    namespace=deque(['__main__']),
-                                    function_name=deque(['different_calc']),
+                                    namespace=deque([])'__main__',
+                                    function_name=deque([])'different_calc',
                                     args=deque(['w', 'y', 't', 's']),
                                     params=deque(['s', 't', 'u', 'v']),
                                     lines=deque([

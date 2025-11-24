@@ -389,15 +389,15 @@ class AST_Parser:
             else:
                 comment_value = node.value
                 if comments.is_markdown_heading(comment_value):
-                    val = MarkdownHeading(comment=comment_value)
+                    val = MarkdownHeading(_comment=comment_value)
                 elif comments.is_comment_command(comment_value):
                     split_commands = comments.split_commands(comment_value)
                     parsed_commands = vars(command_parser.parse_args(split_commands))
                     val = CommentCommand(
-                        raw_commands=comment_value, parsed_commands=parsed_commands
+                        _raw_commands=comment_value, _parsed_commands=parsed_commands
                     )
                 else:
-                    val = CommentLine(comment=comment_value)
+                    val = CommentLine(_comment=comment_value)
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
@@ -426,7 +426,7 @@ class AST_Parser:
             parsed_value = self.ast_parse(node.value, frl)
             if not isinstance(parsed_value, deque):
                 parsed_value = deque([parsed_value])
-            val = ExprLine(expression_tree=parsed_value, return_expr=True)
+            val = ExprLine(expression_tree=parsed_value, _return_expr=True)
 
         elif isinstance(node, ast.Attribute):
             name = node.value.id
