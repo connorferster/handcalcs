@@ -102,7 +102,8 @@ class AST_Parser:
                 try:
                     obj_tree = ast.parse(inspect.getsource(obj).lstrip())
                 except:
-                    print(name, obj)
+                    # Allow to fail quietly?
+                    pass
                 if isinstance(obj_tree, (ast.Module)):
                     obj_tree = obj_tree.body[
                         0
