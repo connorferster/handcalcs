@@ -20,7 +20,6 @@ from handcalcs.parsing.linetypes import (
     List,
     Tuple,
     Dictionary,
-    String,
 )
 from handcalcs.parsing.blocks import (
     FunctionBlock,

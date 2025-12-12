@@ -10,7 +10,6 @@ class HandCalcsObj:
 class CalcLine(HandCalcsObj):
     assigns: deque = field(default_factory=deque)
     expression_tree: deque = field(default_factory=deque)
-    _symbolic: deque = field(default_factory=deque)
     _numeric: deque = field(default_factory=deque)
     _result: Optional[Any] = None
     _comment: str = ""
@@ -20,7 +19,6 @@ class CalcLine(HandCalcsObj):
 @dataclass
 class ExprLine(HandCalcsObj):
     expression_tree: deque = field(default_factory=deque)
-    _symbolic: deque = field(default_factory=deque)
     _numeric: deque = field(default_factory=deque)
     _return_expr: bool = False
     _result: Optional[Any] = None
@@ -29,30 +27,30 @@ class ExprLine(HandCalcsObj):
 
 
 @dataclass
-class MarkdownHeading:
+class MarkdownHeading(HandCalcsObj):
     _comment: str
     _latex: str = ""
     # TODO: Fill this in correctly based on historic
 
 
 @dataclass
-class InlineComment:
+class InlineComment(HandCalcsObj):
     _comment: str
 
 
 @dataclass
-class CommentLine:
+class CommentLine(HandCalcsObj):
     _comment: str
 
 
 @dataclass
-class CommentCommand:
+class CommentCommand(HandCalcsObj):
     _raw_commands: str
     _parsed_commands: dict
 
 
 @dataclass
-class Attribute:
+class Attribute(HandCalcsObj):
     namespace: str
     attr_name: str
 
@@ -76,10 +74,5 @@ class Dictionary(HandCalcsObj):
 
 
 @dataclass
-class String:
-    value: str
-
-
-@dataclass
-class HCNotImplemented:
+class HCNotImplemented(HandCalcsObj):
     node_name: str

@@ -47,4 +47,5 @@ dev = [
     "jupyterlab>=4.4.4",
     "forallpeople>=2.7.1",
     "black>=25.1.0",
+    "rich>=14.2.0",
 ]
