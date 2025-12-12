@@ -99,7 +99,10 @@ class AST_Parser:
                 and name not in self.function_recurse_exclusions
                 and not isinstance(obj, self.__class__)
             ):
-                obj_tree = ast.parse(inspect.getsource(obj).lstrip())
+                try:
+                    obj_tree = ast.parse(inspect.getsource(obj).lstrip())
+                except:
+                    print(name, obj)
                 if isinstance(obj_tree, (ast.Module)):
                     obj_tree = obj_tree.body[
                         0
