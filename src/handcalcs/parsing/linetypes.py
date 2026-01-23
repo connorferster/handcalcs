@@ -2,12 +2,15 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-class HandCalcsObj:
-    pass
+@dataclass
+class HandCalcsObj:    
+    def render(self, config_options = dict()):
+        raise NotImplementedError
 
 # Six basic line types
 @dataclass
 class CalcLine(HandCalcsObj):
+    level: int = 0
     assigns: deque = field(default_factory=deque)
     expression_tree: deque = field(default_factory=deque)
     _numeric: deque = field(default_factory=deque)
@@ -15,9 +18,17 @@ class CalcLine(HandCalcsObj):
     _comment: str = ""
     _latex: str = ""
 
+    def render(self, config_options = dict()):
+        opts = config_options
+        assign_elems = opts.get('assign_sep', '').join(self.assigns)
+        assigns = f"{opts.get('pre_assign', '')}{assign_elems}{opts.get('post_assign', '')}"
+        assign_eq = opts.get('eq_op', '')
+        assigns = f"{assigns}{assign_eq}"
+
 
 @dataclass
 class ExprLine(HandCalcsObj):
+    level: int = 0
     expression_tree: deque = field(default_factory=deque)
     _numeric: deque = field(default_factory=deque)
     _return_expr: bool = False
@@ -71,7 +82,6 @@ class Set(HandCalcsObj):
 class Dictionary(HandCalcsObj):
     keys: deque[Any]
     values: deque[Any]
-
 
 @dataclass
 class HCNotImplemented(HandCalcsObj):

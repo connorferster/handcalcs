@@ -102,7 +102,13 @@ class AST_Parser:
                 try:
                     obj_tree = ast.parse(inspect.getsource(obj).lstrip())
                 except:
-                    # Allow to fail quietly?
+                    # I think it is okay to allow this to fail quietly
+                    # because any missing source code either represents
+                    # source code which should not be found (it is not part
+                    # of the parsed source) or could not be found (we do not
+                    # want it parsed anyway).
+                    # Ultimately, it will lead to an unsubstituted function
+                    # call.
                     pass
                 if isinstance(obj_tree, (ast.Module)):
                     obj_tree = obj_tree.body[
@@ -242,6 +248,7 @@ class AST_Parser:
                 function_body = dict()
                 if function_defs is not None:
                     function_body = function_defs.get(func_name, dict())
+
 
                 call_block.namespace = deque([module_name])
                 call_block.function_name = deque([func_name])

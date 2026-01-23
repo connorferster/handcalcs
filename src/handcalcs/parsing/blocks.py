@@ -35,6 +35,7 @@ class IfOptions(dict):
 @dataclass
 class HandCalcsBlock:
     _options: dict = field(default_factory=dict)
+    level: int = 0
 
 # Use leading underscores for attribute names that do not contain renderable
 # content.
