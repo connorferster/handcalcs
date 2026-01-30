@@ -18,13 +18,6 @@ class CalcLine(HandCalcsObj):
     _comment: str = ""
     _latex: str = ""
 
-    def render(self, config_options = dict()):
-        opts = config_options
-        assign_elems = opts.get('assign_sep', '').join(self.assigns)
-        assigns = f"{opts.get('pre_assign', '')}{assign_elems}{opts.get('post_assign', '')}"
-        assign_eq = opts.get('eq_op', '')
-        assigns = f"{assigns}{assign_eq}"
-
 
 @dataclass
 class ExprLine(HandCalcsObj):

@@ -35,7 +35,14 @@ class IfOptions(dict):
 @dataclass
 class HandCalcsBlock:
     _options: dict = field(default_factory=dict)
+    # _items: list = field(default_factory=list)
     level: int = 0
+
+    def __getitem__(self, index: int):
+        attrs = [attr for attr in dir(self) if not attr.startswith("_")]
+        attr = attrs[index]
+        return {attr: getattr(self, attr)}
+
 
 # Use leading underscores for attribute names that do not contain renderable
 # content.
