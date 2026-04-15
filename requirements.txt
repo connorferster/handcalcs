@@ -1,4 +1,11 @@
-pyparsing>=2.4.0
+pyparsing >= 2.4.0
 innerscope >= 0.2.0
 more-itertools >= 8.5.0
 nbconvert >= 6.0
+pint >= 0.24.4
+pytest >= 8.4.1
+pytest-cov >= 6.2.1
+sympy >=1.14.0
+jupyterlab >= 4.4.4
+forallpeople >= 2.7.1
+black >= 25.1.0

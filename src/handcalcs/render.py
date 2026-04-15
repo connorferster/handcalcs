@@ -14,6 +14,7 @@
 
 
 import sys
+
 from . import handcalcs as hand
 from . import sympy_kit as s_kit
 
@@ -24,6 +25,7 @@ try:
         cell_magic,
         register_cell_magic,
         register_line_magic,
+        needs_local_scope,
     )
     from IPython import get_ipython
     from IPython.display import Latex, Markdown, display
@@ -83,43 +85,42 @@ def decimal_separator(line):
 
 
 @register_cell_magic
-def render(line, cell):
-    # Retrieve var dict from user namespace
-    user_ns_prerun = ip.user_ns
-    line_args = parse_line_args(line)
-
-    if line_args["sympy"]:
-        cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
-
-    # Run the cell
-    with cell_capture:
-        exec_result = ip.run_cell(cell)
-
-    if not exec_result.success:
-        return None
-
-    # Retrieve updated variables (after .run_cell(cell))
-    user_ns_postrun = ip.user_ns
-
-    # Do the handcalc conversion
-    renderer = hand.LatexRenderer(cell, user_ns_postrun, line_args)
-    latex_code = renderer.render()
-
-    # Display, but not as an "output"
-    display(Latex(latex_code))
-
-    if line_args["override"] == "_testing":
-        return latex_code
+@needs_local_scope
+def render(line, cell, local_ns:dict):
+    # willysw: revised to remove duplicate code. 2026-04-15
+    return _render(line, cell, local_ns, display_latex=True)
 
 
 @register_cell_magic
-def tex(line, cell):
-    # Retrieve var dict from user namespace
-    user_ns_prerun = ip.user_ns
+@needs_local_scope
+def tex(line, cell, local_ns:dict):
+    # willysw: revised to remove duplicate code. 2026-04-15
+    return _render(line, cell, local_ns, display_latex=False)
+
+def _render(line: str, cell: str, local_ns: dict, display_latex: bool = True):
+    """Executes a given cell of code, optionally converts it from SymPy to Python, and renders
+    its output using LaTeX formatting.
+
+    Args:
+        line: The input command line and optional arguments.
+        cell: The code cell to be executed.
+        local_ns: A dictionary containing the user's local namespace.
+        display_latex: A boolean flag indicating whether to display the rendered LaTeX output
+                       using IPython's display system. Defaults to True.
+
+    Returns:
+        Either None or a string containing the LaTeX code. Returns None in most cases, except
+        when the override argument is set to `_testing`.
+    """
+    # willysw: added local_ns to pass in the user namespace.
+    # local_ns is a live reference to the local namespace and
+    # not a copy. No need to track before and after. 2026-04-15
+
+    # Parse the line arguments
     line_args = parse_line_args(line)
 
     if line_args["sympy"]:
-        cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
+        cell = s_kit.convert_sympy_cell_to_py_cell(cell, local_ns)
 
     # Run the cell
     with cell_capture:
@@ -128,18 +129,21 @@ def tex(line, cell):
     if not exec_result.success:
         return None
 
-    # Retrieve updated variables (after .run_cell(cell))
-    user_ns_postrun = ip.user_ns
-
     # Do the handcalc conversion
-    renderer = hand.LatexRenderer(cell, user_ns_postrun, line_args)
+    renderer = hand.LatexRenderer(cell, local_ns, line_args)
     latex_code = renderer.render()
 
-    # Display, but not as an "output"
-    print(latex_code)
+    if display_latex:
+        # Display as IPython.display.Latex
+        display(Latex(latex_code))
+    else:
+        # Display, but not as an "output"
+        print(latex_code)
 
     if line_args["override"] == "_testing":
         return latex_code
+    else:
+        return None
 
 
 def load_ipython_extension(ipython):
