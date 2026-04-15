@@ -30,13 +30,10 @@ try:
     from IPython import get_ipython
     from IPython.display import Latex, Markdown, display
     from IPython.utils.capture import capture_output
-except ImportError:
-    pass
 
-
-try:
     ip = get_ipython()
     cell_capture = capture_output(stdout=True, stderr=True, display=True)
+
 except AttributeError:
     raise ImportError(
         "handcalcs.render is intended for a Jupyter environment."
@@ -50,15 +47,11 @@ def parse_line_args(line: str) -> dict:
     passed in as a line on the %%render or %%tex cell magics.
     """
     valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
-    # valid_args = ["params", "long", "short", "sympy", "symbolic", "_testing"]
     sympy_arg = ["sympy"]
     line_parts = line.split()
     parsed_args = {"override": "", "precision": None, "sympy": False, "sci_not": None}
-    # parsed_args = {
-    #     "override": "",
-    #     "precision": "",
-    # }
     precision = ""
+
     for arg in line_parts:
         if arg.lower() in sympy_arg:
             parsed_args["sympy"] = True
@@ -86,16 +79,15 @@ def decimal_separator(line):
 
 @register_cell_magic
 @needs_local_scope
-def render(line, cell, local_ns:dict):
-    # willysw: revised to remove duplicate code. 2026-04-15
+def render(line, cell, local_ns: dict):
     return _render(line, cell, local_ns, display_latex=True)
 
 
 @register_cell_magic
 @needs_local_scope
-def tex(line, cell, local_ns:dict):
-    # willysw: revised to remove duplicate code. 2026-04-15
+def tex(line, cell, local_ns: dict):
     return _render(line, cell, local_ns, display_latex=False)
+
 
 def _render(line: str, cell: str, local_ns: dict, display_latex: bool = True):
     """Executes a given cell of code, optionally converts it from SymPy to Python, and renders
@@ -112,9 +104,6 @@ def _render(line: str, cell: str, local_ns: dict, display_latex: bool = True):
         Either None or a string containing the LaTeX code. Returns None in most cases, except
         when the override argument is set to `_testing`.
     """
-    # willysw: added local_ns to pass in the user namespace.
-    # local_ns is a live reference to the local namespace and
-    # not a copy. No need to track before and after. 2026-04-15
 
     # Parse the line arguments
     line_args = parse_line_args(line)
