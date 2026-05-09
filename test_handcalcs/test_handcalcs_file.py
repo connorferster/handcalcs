@@ -1889,3 +1889,61 @@ def test_for_numeric_line():
         )
         == True
     )
+
+
+# Trailing zeros tests
+
+
+def test_strip_trailing_zeros():
+    strip = handcalcs.handcalcs.strip_trailing_zeros
+    # Disabled sentinels — return unchanged
+    assert strip("11.000", -1) == "11.000"
+    assert strip("11.000", None) == "11.000"
+    # Remove all trailing zeros
+    assert strip("11.000", 0) == "11"
+    assert strip("1.500", 0) == "1.5"
+    # Keep N trailing zeros
+    assert strip("11.000", 1) == "11.0"
+    assert strip("11.000", 2) == "11.00"
+    assert strip("11.000", 3) == "11.000"
+    # Zeros kept cannot exceed zeros that exist
+    assert strip("1.100", 1) == "1.10"
+    assert strip("1.550", 2) == "1.550"   # only 1 trailing zero; keeps 1 not 2
+    # No trailing zeros — no effect regardless of min_trailing_zeros
+    assert strip("1.567", 0) == "1.567"
+    assert strip("1.567", 1) == "1.567"
+    # No decimal point — no effect
+    assert strip("11", 0) == "11"
+    assert strip("11", 2) == "11"
+
+
+def test_latex_repr_trailing_zeros():
+    latex_repr = handcalcs.handcalcs.latex_repr
+    # Default (-1) — precision controls fully, no stripping
+    assert latex_repr(11.0, False, 3, "") == "11.000"
+    assert latex_repr(11.0, False, 3, "", -1) == "11.000"
+    # Remove all trailing zeros
+    assert latex_repr(11.0, False, 3, "", 0) == "11"
+    assert latex_repr(1.5, False, 3, "", 0) == "1.5"
+    # Keep N trailing zeros
+    assert latex_repr(11.0, False, 3, "", 1) == "11.0"
+    assert latex_repr(11.0, False, 3, "", 2) == "11.00"
+    assert latex_repr(1.1, False, 3, "", 1) == "1.10"
+    # No trailing zeros in value — trailing_zeros has no effect
+    assert latex_repr(1.567, False, 3, "", 1) == "1.567"
+    # Integers have no decimal — no effect
+    assert latex_repr(11, False, 3, "", 0) == "11"
+    # Scientific notation path — trailing_zeros is not applied
+    assert latex_repr(11.0, True, 3, "", 0) == latex_repr(11.0, True, 3, "")
+
+
+def test_render_latex_str_trailing_zeros():
+    render = handcalcs.handcalcs.render_latex_str
+    # Remove all trailing zeros across a full line
+    assert render(deque([11.0, "+", 2.0]), False, 3, "", 0) == deque(["11", "+", "2"])
+    # Keep one trailing zero
+    assert render(deque([11.0, "+", 1.1]), False, 3, "", 1) == deque(["11.0", "+", "1.10"])
+    # -1 (default) — no stripping
+    assert render(deque([11.0]), False, 3, "", -1) == deque(["11.000"])
+    # Non-numeric tokens are left untouched
+    assert render(deque(["=", 11.0]), False, 3, "", 0) == deque(["=", "11"])
