@@ -1057,8 +1057,9 @@ def round_and_render_calc(
         config_options["use_scientific_notation"], cell_notation
     )
     preferred_formatter = config_options["preferred_string_formatter"]
+    trailing_zeros = config_options.get("trailing_zeros")
     rendered_line = render_latex_str(
-        idx_line, use_scientific_notation, precision, preferred_formatter
+        idx_line, use_scientific_notation, precision, preferred_formatter, trailing_zeros
     )
     rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
     line.line = rendered_line
@@ -1076,8 +1077,9 @@ def round_and_render_numericcalc(
         config_options["use_scientific_notation"], cell_notation
     )
     preferred_formatter = config_options["preferred_string_formatter"]
+    trailing_zeros = config_options.get("trailing_zeros")
     rendered_line = render_latex_str(
-        idx_line, use_scientific_notation, precision, preferred_formatter
+        idx_line, use_scientific_notation, precision, preferred_formatter, trailing_zeros
     )
     rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
     line.line = rendered_line
@@ -1095,8 +1097,9 @@ def round_and_render_longcalc(
         config_options["use_scientific_notation"], cell_notation
     )
     preferred_formatter = config_options["preferred_string_formatter"]
+    trailing_zeros = config_options.get("trailing_zeros")
     rendered_line = render_latex_str(
-        idx_line, use_scientific_notation, precision, preferred_formatter
+        idx_line, use_scientific_notation, precision, preferred_formatter, trailing_zeros
     )
     rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
     line.line = rendered_line
@@ -1114,8 +1117,9 @@ def round_and_render_parameter(
         config_options["use_scientific_notation"], cell_notation
     )
     preferred_formatter = config_options["preferred_string_formatter"]
+    trailing_zeros = config_options.get("trailing_zeros")
     rendered_line = render_latex_str(
-        idx_line, use_scientific_notation, precision, preferred_formatter
+        idx_line, use_scientific_notation, precision, preferred_formatter, trailing_zeros
     )
     rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
     line.line = rendered_line
@@ -1135,8 +1139,9 @@ def round_and_render_conditional(
         config_options["use_scientific_notation"], cell_notation
     )
     preferred_formatter = config_options["preferred_string_formatter"]
+    trailing_zeros = config_options.get("trailing_zeros")
     rendered_line = render_latex_str(
-        idx_line, use_scientific_notation, precision, preferred_formatter
+        idx_line, use_scientific_notation, precision, preferred_formatter, trailing_zeros
     )
     rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
     line.line = rendered_line
@@ -1168,8 +1173,9 @@ def round_and_render_symbolic(
         config_options["use_scientific_notation"], cell_notation
     )
     preferred_formatter = config_options["preferred_string_formatter"]
+    trailing_zeros = config_options.get("trailing_zeros")
     rendered_line = render_latex_str(
-        idx_line, use_scientific_notation, precision, preferred_formatter
+        idx_line, use_scientific_notation, precision, preferred_formatter, trailing_zeros
     )
     rendered_line = swap_dec_sep(rendered_line, config_options["decimal_separator"])
     line.line = rendered_line
@@ -1191,11 +1197,24 @@ def round_and_render_intertext(
     return line
 
 
+def strip_trailing_zeros(s: str, min_trailing_zeros) -> str:
+    """Strip trailing zeros, keeping at most min_trailing_zeros (never adds beyond what exists)."""
+    if min_trailing_zeros is None or min_trailing_zeros < 0 or "." not in s:
+        return s
+    integer_part, decimal_part = s.split(".", 1)
+    stripped = decimal_part.rstrip("0")
+    zeros_removed = len(decimal_part) - len(stripped)
+    zeros_to_keep = min(min_trailing_zeros, zeros_removed)
+    decimal_part = stripped + "0" * zeros_to_keep
+    return f"{integer_part}.{decimal_part}" if decimal_part else integer_part
+
+
 def render_latex_str(
     line_of_code: deque,
     use_scientific_notation: bool,
     precision: int,
     preferred_formatter: str,
+    trailing_zeros: int = -1,
 ) -> deque:
     """
     Returns a rounded str based on the latex_repr of an object in
@@ -1204,14 +1223,18 @@ def render_latex_str(
     outgoing = deque([])
     for item in line_of_code:
         rendered_str = latex_repr(
-            item, use_scientific_notation, precision, preferred_formatter
+            item, use_scientific_notation, precision, preferred_formatter, trailing_zeros
         )
         outgoing.append(rendered_str)
     return outgoing
 
 
 def latex_repr(
-    item: Any, use_scientific_notation: bool, precision: int, preferred_formatter: str
+    item: Any,
+    use_scientific_notation: bool,
+    precision: int,
+    preferred_formatter: str,
+    trailing_zeros: int = -1,
 ) -> str:
     """
     Return a str if the object, 'item', has a special repr method
@@ -1226,7 +1249,7 @@ def latex_repr(
                 + comma_space.join(
                     [
                         latex_repr(
-                            v, use_scientific_notation, precision, preferred_formatter
+                            v, use_scientific_notation, precision, preferred_formatter, trailing_zeros
                         )
                         for v in item
                     ]
@@ -1258,6 +1281,7 @@ def latex_repr(
             rendered_string = f"{item:.{precision}e{preferred_formatter}}"
         else:
             rendered_string = f"{item:.{precision}f{preferred_formatter}}"
+            rendered_string = strip_trailing_zeros(rendered_string, trailing_zeros)
     except (ValueError, TypeError):
         try:
             if use_scientific_notation and isinstance(item, complex):
@@ -1275,6 +1299,7 @@ def latex_repr(
                 rendered_string = swap_scientific_notation_str(rendered_string)
             elif not isinstance(item, int):
                 rendered_string = f"{item:.{precision}f}"
+                rendered_string = strip_trailing_zeros(rendered_string, trailing_zeros)
             else:
                 rendered_string = str(item)
         except (ValueError, TypeError):

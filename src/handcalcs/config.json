@@ -12,5 +12,6 @@
     "param_columns": 3,
     "preferred_string_formatter": "L",
     "custom_symbols": {},
-    "custom_brackets": {}
+    "custom_brackets": {},
+    "trailing_zeros": -1
 }
