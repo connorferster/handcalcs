@@ -20,7 +20,7 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 > ### Engineers who use handcalcs
 > Did you know that you can _link_ your handcalc Jupyter notebooks together so that the result of one notebook can be available as an input for the next?
 > 
-> [Opt-in here](https://www.structuralpython.com/handcalcs-the-chaining-technique) to see how you can use the [Chaining Technique](https://www.structuralpython.com/handcalcs-the-chaining-technique) to create entire engineering automations using your handcalcs notebooks.
+> [Opt-in here](https://www.structuralpython.com/) to see how you can use the Chaining Technique to create entire engineering automations using your handcalcs notebooks.
 
 
 ## Contents
@@ -55,7 +55,7 @@ To install the optional nbconvert "no input" exporters, use:
 
 **NEW**
 
-As of v1.9.0, handcalcs no longer installs the "no input" nbconvert exporters. This was done to lighten the installation load of handcalcs and to ensure the package has appropriate scope. The nbconvert exporters are now "out of scope" and are separately maintained at [https://github.com/connorferster/nb-hideinputs](nb-hideinputs).
+As of v1.9.0, handcalcs no longer installs the "no input" nbconvert exporters. This was done to lighten the installation load of handcalcs and to ensure the package has appropriate scope. The nbconvert exporters are now "out of scope" and are separately maintained at [https://github.com/connorferster/nb-hideinputs](https://github.com/connorferster/nb-hideinputs).
 
 ## Basic Usage 1: As a Jupyter cell magic (`%%render`)
 `handcalcs` is intended to be used with either Jupyter Notebook or Jupyter Lab as a _cell magic_.
@@ -85,7 +85,7 @@ c = 2*a + b/3
 
 **That is it!**
 
-Once rendered, you can then export your notebook as a PDF, provided you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section [Installing Tex](https://github.com/connorferster/handcalcs/wiki), in the wiki.
+Once rendered, you can then export your notebook as a PDF, provided you have a Latex environment installed on your system. If you are new to working with Latex and would like to install it on your system so you can use this functionality, please see the section [Installing Tex](wiki_text.md).
 
 You can also use the `%%tex` command to convert any Python code snippet into a valid LaTex. For Example:
 
