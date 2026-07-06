@@ -1,35 +1,6 @@
-from dataclasses import dataclass, field
 from collections import deque
-from handcalcs.parsing.linetypes import (
-    CalcLine, 
-    MarkdownHeading, 
-    ExprLine, 
-    CommentCommand, 
-    CommentLine, 
-    InlineComment,
-    List,
-    Tuple,
-    Dictionary,
-    Attribute,
-    Set
-)
-from typing import Union, Optional, Any
-
-
-class CalcOptions(dict):
-    pass
-
-
-class FunctionOptions(dict):
-    pass
-
-
-class ForOptions(dict):
-    pass
-
-
-class IfOptions(dict):
-    pass
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 
 @dataclass
@@ -44,21 +15,49 @@ class HandCalcsBlock:
         return {attr: getattr(self, attr)}
 
 
-# Use leading underscores for attribute names that do not contain renderable
-# content.
-# All attributes with renderable content should contain deques
-# even if only a single value is expected (and not a collection).
+# Six basic line types
+@dataclass
+class CalcLine(HandCalcsBlock):
+    level: int = 0
+    assigns: deque = field(default_factory=deque)
+    expression_tree: deque = field(default_factory=deque)
+    _numeric: deque = field(default_factory=deque)
+    _result: Optional[Any] = None
+    _comment: str = ""
+    _latex: str = ""
 
 
 @dataclass
-class FunctionBlock(HandCalcsBlock):
-    lines: deque[HandCalcsBlock | CalcLine | ExprLine | MarkdownHeading | CommentCommand | CommentLine | InlineComment] = field(default_factory=deque)
-    namespace: deque[str] = field(default_factory=deque)
-    function_name: deque[Attribute | str] = field(default_factory=deque)
-    args: deque[Any] = field(default_factory=deque)
-    params: deque[str] = field(default_factory=deque)
+class ExprLine(HandCalcsBlock):
+    level: int = 0
+    expression_tree: deque = field(default_factory=deque)
+    _numeric: deque = field(default_factory=deque)
+    _return_expr: bool = False
+    _result: Optional[Any] = None
+    _comment: str = ""
+    _latex: str = ""
 
 
+@dataclass
+class MarkdownHeading(HandCalcsBlock):
+    _comment: str
+    _latex: str = ""
+    # TODO: Fill this in correctly based on historic
+
+
+
+@dataclass
+class CommentLine(HandCalcsBlock):
+    _comment: str
+
+
+@dataclass
+class CommentCommand(HandCalcsBlock):
+    _raw_commands: str
+    _parsed_commands: dict
+
+
+# Use leading underscores for attribute 
 @dataclass
 class ForBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
@@ -66,20 +65,6 @@ class ForBlock(HandCalcsBlock):
     iterator: deque[HandCalcsBlock | FunctionBlock | ExprLine | List | Tuple | Dictionary | str] = field(default_factory=deque)
 
 
-@dataclass
-class Comprehension:
-    assigns: deque[str | Tuple]
-    iterator: deque[str | FunctionBlock | List | Tuple | Dictionary | Set]
-    _is_async: bool
-
-
-@dataclass
-class ComprehensionBlock(HandCalcsBlock):
-    _type: str = ""
-    assign: deque[str | FunctionBlock | List | Tuple | Dictionary | Set] = field(default_factory=deque)
-    key: deque[str] = field(default_factory=deque)
-    value: deque[str] = field(default_factory=deque)
-    comprehensions: deque[Comprehension] = field(default_factory=deque)
 
 
 @dataclass

@@ -8,10 +8,9 @@ import inspect
 from typing import List, Dict, Union, Any, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap
-from handcalcs.parsing.linetypes import (
+from handcalcs.parsing.blocks import (
     CalcLine,
     ExprLine,
-    InlineComment,
     CommentCommand,
     CommentLine,
     MarkdownHeading,
@@ -25,8 +24,12 @@ from handcalcs.parsing.blocks import (
     FunctionBlock,
     ForBlock,
     IfBlock,
-    ComprehensionBlock,
+)
+from handcalcs.parsing.inlines import (
+    FunctionCall,
+    ComprehensionChain,
     Comprehension,
+    InlineComment
 )
 from handcalcs.parsing.renderables import parse_renderable
 from handcalcs.parsing.commands import command_parser
@@ -201,7 +204,7 @@ class AST_Parser:
             val = HCNotImplemented(type(node).__name__)
 
         elif isinstance(node, ast.Call):
-            call_block = FunctionBlock()
+            function_call = FunctionCall()
             # Get the function name being called
             if isinstance(node.func, ast.Name):
                 func_name = node.func.id
@@ -249,24 +252,26 @@ class AST_Parser:
                 if function_defs is not None:
                     function_body = function_defs.get(func_name, dict())
 
-
+                function_block = FunctionBlock()
+                function_block
                 call_block.namespace = deque([module_name])
-                call_block.function_name = deque([func_name])
-                call_block.lines.extend(function_body.get("lines", deque()))
-                call_block.params.extend(function_body.get("params", deque()))
-                call_block.args.extend(args_list)
+                function_block.function_name = deque([func_name])
+                function_block.lines.extend(function_body.get("lines", deque()))
+                function_block.params.extend(function_body.get("params", deque()))
+                function_block.args.extend(args_list)
                 self.current_block = call_block
+                val = function_block
             else:
 
                 # Create the inner nested list for arguments
                 args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
 
                 # Create the main nested list for the function call
-                call_block.namespace = deque([module_name])
-                call_block.function_name = deque([func_name])
-                call_block.args.extend(args_list)
+                function_call.namespace = deque([module_name])
+                function_call.function_name = deque([func_name])
+                function_callargs.extend(args_list)
 
-            val = call_block
+            val = function_call
 
         # --- Rule 3: If/Elif/Else block ---
         elif isinstance(node, ast.If):
@@ -326,7 +331,7 @@ class AST_Parser:
             val = self.current_block = for_block
 
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
-            comprehension_block = ComprehensionBlock(
+            comprehension_block = ComprehensionChain(
                 _type=node.__class__.__name__.replace("Comp", "").lower(),
             )
 
