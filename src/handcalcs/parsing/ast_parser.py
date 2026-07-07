@@ -394,7 +394,7 @@ class AST_Parser:
             else:
                 # If it's a more complex expression, we'll try to convert it
                 # into a string representation for simplicity in this rule.
-                for_block.iterator = self.ast_parse(node.iter, frl)
+                for_block.iterator = self.ast_parse(node.iter)
 
             val = self.current_block = for_block
 
@@ -416,11 +416,11 @@ class AST_Parser:
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            expression_tree = self.ast_parse(node.value, frl)
+            expression_tree = self.ast_parse(node.value)
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
-                assigns=deque([self.ast_parse(n, frl) for n in node.targets]),
+                assigns=deque([self.ast_parse(n) for n in node.targets]),
                 expression_tree=expression_tree,
             )
             val = calc_line
@@ -429,16 +429,16 @@ class AST_Parser:
             val = List(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
 
         elif isinstance(node, ast.Tuple):
-            val = Tuple(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
+            val = Tuple(elems=deque([self.ast_parse(el) for el in node.elts]))
 
         elif isinstance(node, ast.Dict):
             val = Dictionary(
-                keys=deque([self.ast_parse(el, frl) for el in node.keys]),
-                values=deque([self.ast_parse(el, frl) for el in node.values]),
+                keys=deque([self.ast_parse(el) for el in node.keys]),
+                values=deque([self.ast_parse(el) for el in node.values]),
             )
 
         elif isinstance(node, ast.Return):
-            parsed_value = self.ast_parse(node.value, frl)
+            parsed_value = self.ast_parse(node.value)
             if not isinstance(parsed_value, deque):
                 parsed_value = deque([parsed_value])
             val = ExprLine(expression_tree=parsed_value, _return_expr=True)
@@ -450,7 +450,7 @@ class AST_Parser:
 
         elif isinstance(node, ast.Module):
             # Entry point: process all body statements
-            val = deque([self.ast_parse(item, frl) for item in node.body])
+            val = deque([self.ast_parse(item) for item in node.body])
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
@@ -458,7 +458,7 @@ class AST_Parser:
                 doc_string = f"Doc string: {self.ast_parse(node.value, frl)}"
                 val = ExprLine(expression_tree=deque([doc_string]))
             else:
-                parsed_node = self.ast_parse(node.value, frl)
+                parsed_node = self.ast_parse(node.value)
                 if not isinstance(parsed_node, deque):
                     parsed_node = deque([parsed_node])
                 val = ExprLine(expression_tree=parsed_node)
