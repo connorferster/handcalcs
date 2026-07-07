@@ -1,11 +1,31 @@
 from collections import deque
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
+
+@dataclass
+class NoValue:
+    pass
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return True
+        return False
+    
+    def __neq__(self, other):
+        return False
+
+
+@dataclass
+class Name:
+    identifier: str
+    value: Optional[Any] = None
+
 
 @dataclass
 class Attribute:
     namespace: str
-    attr_name: str
+    identifier: str
+    value: Optional[Any] = None
 
 @dataclass
 class List:

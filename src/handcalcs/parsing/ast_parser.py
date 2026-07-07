@@ -14,6 +14,7 @@ from handcalcs.parsing.datatypes import (
     List,
     Tuple,
     Dictionary,
+    Name
 )
 from handcalcs.parsing.blocks import (
     CalcLine,
@@ -31,7 +32,6 @@ from handcalcs.parsing.inlines import (
     Comprehension,
     InlineComment
 )
-from handcalcs.parsing.renderables import parse_renderable
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
 
@@ -182,9 +182,10 @@ class AST_Parser:
 
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):
-            val = parse_renderable(node.id)
+            node: ast.Name
+            val = Name(identifier=node.id, value=self.globals.get(node.id))
         elif isinstance(node, ast.Constant):
-            val = parse_renderable(node.value)
+            val = node.value
         elif isinstance(node, ast.Compare):
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)

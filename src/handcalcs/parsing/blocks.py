@@ -2,6 +2,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from .datatypes import Attribute, List, Tuple, Dictionary, Set
+from typing import Callable
 
 
 @dataclass
@@ -14,6 +15,7 @@ class HandCalcsBlock:
         attrs = [attr for attr in dir(self) if not attr.startswith("_")]
         attr = attrs[index]
         return {attr: getattr(self, attr)}
+
 
 
 # Six basic line types
