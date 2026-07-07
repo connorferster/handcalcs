@@ -8,12 +8,7 @@ import inspect
 from typing import List, Dict, Union, Any, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap
-from handcalcs.parsing.blocks import (
-    CalcLine,
-    ExprLine,
-    CommentCommand,
-    CommentLine,
-    MarkdownHeading,
+from handcalcs.parsing.datatypes import (
     Attribute,
     HCNotImplemented,
     List,
@@ -21,6 +16,11 @@ from handcalcs.parsing.blocks import (
     Dictionary,
 )
 from handcalcs.parsing.blocks import (
+    CalcLine,
+    ExprLine,
+    CommentCommand,
+    CommentLine,
+    MarkdownHeading,
     FunctionBlock,
     ForBlock,
     IfBlock,
@@ -253,13 +253,12 @@ class AST_Parser:
                     function_body = function_defs.get(func_name, dict())
 
                 function_block = FunctionBlock()
-                function_block
-                call_block.namespace = deque([module_name])
+                function_block.namespace = deque([module_name])
                 function_block.function_name = deque([func_name])
                 function_block.lines.extend(function_body.get("lines", deque()))
                 function_block.params.extend(function_body.get("params", deque()))
                 function_block.args.extend(args_list)
-                self.current_block = call_block
+                self.current_block = function_block
                 val = function_block
             else:
 
@@ -269,7 +268,7 @@ class AST_Parser:
                 # Create the main nested list for the function call
                 function_call.namespace = deque([module_name])
                 function_call.function_name = deque([func_name])
-                function_callargs.extend(args_list)
+                function_call.args.extend(args_list)
 
             val = function_call
 

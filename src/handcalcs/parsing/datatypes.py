@@ -1,28 +1,29 @@
-
+from collections import deque
+from dataclasses import dataclass
+from typing import Any
 
 @dataclass
-class Attribute(HandCalcsObj):
+class Attribute:
     namespace: str
     attr_name: str
 
-
 @dataclass
-class List(HandCalcsObj):
+class List:
     elems: deque[Any]
 
 @dataclass
-class Tuple(HandCalcsObj):
+class Tuple:
     elems: deque[Any]
 
 @dataclass
-class Set(HandCalcsObj):
+class Set:
     elems: deque[Any]
 
 @dataclass
-class Dictionary(HandCalcsObj):
+class Dictionary:
     keys: deque[Any]
     values: deque[Any]
 
 @dataclass
-class HCNotImplemented(HandCalcsObj):
+class HCNotImplemented:
     node_name: str

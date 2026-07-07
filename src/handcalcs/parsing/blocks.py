@@ -1,6 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional
+from .datatypes import Attribute, List, Tuple, Dictionary, Set
 
 
 @dataclass
@@ -40,7 +41,7 @@ class ExprLine(HandCalcsBlock):
 
 @dataclass
 class MarkdownHeading(HandCalcsBlock):
-    _comment: str
+    _comment: Optional[str] = None
     _latex: str = ""
     # TODO: Fill this in correctly based on historic
 
@@ -48,13 +49,22 @@ class MarkdownHeading(HandCalcsBlock):
 
 @dataclass
 class CommentLine(HandCalcsBlock):
-    _comment: str
+    _comment: Optional[str] = None
 
 
 @dataclass
 class CommentCommand(HandCalcsBlock):
-    _raw_commands: str
-    _parsed_commands: dict
+    _raw_commands: Optional[str] = None
+    _parsed_commands: Optional[dict] = None
+
+
+@dataclass
+class FunctionBlock(HandCalcsBlock):
+    lines: deque[HandCalcsBlock | CalcLine | ExprLine | MarkdownHeading | CommentCommand | CommentLine] = field(default_factory=deque)
+    namespace: deque[str] = field(default_factory=deque)
+    function_name: deque[Attribute | str] = field(default_factory=deque)
+    args: deque[Any] = field(default_factory=deque)
+    params: deque[str] = field(default_factory=deque)
 
 
 # Use leading underscores for attribute 
@@ -63,8 +73,6 @@ class ForBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
     assigns: deque[str] = field(default_factory=deque)
     iterator: deque[HandCalcsBlock | FunctionBlock | ExprLine | List | Tuple | Dictionary | str] = field(default_factory=deque)
-
-
 
 
 @dataclass
