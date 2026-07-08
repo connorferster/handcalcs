@@ -303,44 +303,37 @@ values = [elem + b for elem in a]
         )
     ])
 
-#     source_2_locals = {}
-#     exec(source_2, locals=source_2_locals)
-#     basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
-#     assert basic_parser(source_2) == deque([
-#         HCNotImplemented("Import"),
-#         CalcLine(
-#             assigns=deque(["a"]),
-#             expression_tree=deque([List(elems=deque([0, 1, 2, 3, 4, 5]))])
-#         ),
-#         CalcLine(
-#             assigns=deque(['b']),
-#             expression_tree=deque([6])
-#         ),
-#         CalcLine(
-#             assigns=deque(["values"]),
-#             expression_tree=deque([
-#                 ComprehensionChain(
-#                     _type="list",
-#                     assign=deque([
-#                         FunctionCall(
-#                             namespace=deque(["math"]),
-#                             function_name=deque(["tan"]),
-#                             args=deque([
-#                                 deque(['elem', '/', 'b'])
-#                             ])
-#                         )
-#                     ]),
-#                     comprehensions=deque([
-#                         Comprehension(
-#                             assigns=deque(["elem"]),
-#                             iterator=deque(['a']),
-#                             _is_async=False
-#                         )
-#                     ])
-#                 )
-#             ])
-#         )
-#     ])
+    source_2_locals = {}
+    exec(source_2, locals=source_2_locals)
+    basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
+    assert basic_parser(source_2) == deque([
+        CalcLine(
+            assigns=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
+            expression_tree=deque([List(elems=deque([0, 1, 2, 3, 4, 5]))])
+        ),
+        CalcLine(
+            assigns=deque([Name('b', 6)]),
+            expression_tree=deque([6])
+        ),
+        CalcLine(
+            assigns=deque([Name("values", [6, 7, 8, 9, 10, 11])]),
+            expression_tree=deque([
+                ComprehensionChain(
+                    _type="list",
+                    assign=deque([
+                        deque([Name('elem'), '+', Name('b', 6)])
+                    ]),
+                    comprehensions=deque([
+                        Comprehension(
+                            assigns=deque([Name("elem")]),
+                            iterator=deque([Name('a', [0, 1, 2, 3, 4, 5])]),
+                            _is_async=False
+                        )
+                    ])
+                )
+            ])
+        )
+    ])
 
 # # TESTS: Comments, Inline comments, comment commands
 # # TODO: Implement inline comment commands? Possible? Easy?
