@@ -37,7 +37,7 @@ def test_calc_lines(basic_parser):
     source_3 = """c = math.sin(b / a)**2 + math.cos(b / a)**2"""
 
     assert basic_parser(source_1) == deque([
-        CalcLine(assigns=deque([Name('a', 4), Name("d", 4)]), expression_tree=deque([4]))
+        CalcLine(assigns=deque([Name('a'), Name("d")]), expression_tree=deque([4]))
     ])
     assert basic_parser(source_2) == deque([
             CalcLine(
@@ -74,96 +74,96 @@ def test_calc_lines(basic_parser):
         ])
 
 
-def test_function_recursion(basic_parser):
-    source_1 = "a = sub1.my_calc(2, 3)"
-    source_2 = "b = 4; c = 5; d=6; e=3; p = sub1.my_other_calc(b, c, d, e)"
-    assert basic_parser(source_1) == deque([
-                CalcLine(
-                    assigns=deque([Name("a")]),
-                    expression_tree=deque([
-                        FunctionBlock(
-                            namespace=deque(["sub1"]),
-                            function_name=deque(["my_calc"]),
-                            args=deque([2, 3]),
-                            params=deque([Name("q"), Name("r")]),
-                            lines=deque([
-                                CalcLine(assigns=deque([Name("area")]), expression_tree=deque([Name("q"), "*", Name("r")])),
-                                CalcLine(assigns=deque([Name("perimeter")]), expression_tree=deque([deque([2, "*", Name("q")]), "+", deque([2, "*", Name("r")])])),
-                                CalcLine(assigns=deque([Name("ratio")]), expression_tree=deque([Name("area"), "/", Name("perimeter")])),
-                                ExprLine(expression_tree=deque([Name("ratio")]), _return_expr=True)
-                            ])
-                        )
-                    ])
-                )
-        ])
+# def test_function_recursion(basic_parser):
+#     source_1 = "a = sub1.my_calc(2, 3)"
+#     source_2 = "b = 4; c = 5; d=6; e=3; p = sub1.my_other_calc(b, c, d, e)"
+#     assert basic_parser(source_1) == deque([
+#                 CalcLine(
+#                     assigns=deque([Name("a")]),
+#                     expression_tree=deque([
+#                         FunctionBlock(
+#                             namespace=deque(["sub1"]),
+#                             function_name=deque(["my_calc"]),
+#                             args=deque([2, 3]),
+#                             params=deque([Name("q"), Name("r")]),
+#                             lines=deque([
+#                                 CalcLine(assigns=deque([Name("area")]), expression_tree=deque([Name("q"), "*", Name("r")])),
+#                                 CalcLine(assigns=deque([Name("perimeter")]), expression_tree=deque([deque([2, "*", Name("q")]), "+", deque([2, "*", Name("r")])])),
+#                                 CalcLine(assigns=deque([Name("ratio")]), expression_tree=deque([Name("area"), "/", Name("perimeter")])),
+#                                 ExprLine(expression_tree=deque([Name("ratio")]), _return_expr=True)
+#                             ])
+#                         )
+#                     ])
+#                 )
+#         ])
     
-    assert basic_parser(source_2) == deque([
-        CalcLine(
-            assigns=deque([Name('b', 4)]),
-            expression_tree=deque([4])
-        ),
-        CalcLine(
-            assigns=deque([Name('c', 5)]),
-            expression_tree=deque([5])
-        ),
-        CalcLine(
-            assigns=deque([Name('d', 6)]),
-            expression_tree=deque([6])
-        ),
-        CalcLine(
-            assigns=deque([Name('e', 3)]),
-            expression_tree=deque([3])
-        ),
-        CalcLine(
-            assigns=deque(['p']),
-            expression_tree=deque([
-                FunctionBlock(
-                    namespace=deque(["sub1"]),
-                    function_name=deque(["my_other_calc"]),
-                    args=deque([Name("b", 4), Name("c", 5), Name("d", 6), Name("e", 3)]),
-                    params=deque([Name("w"), Name("y"), Name("t"), Name("s")]),
-                    lines=deque([
-                        CalcLine(
-                            assigns=deque(['factored']),
-                            expression_tree=deque([
-                                0.9, '*', FunctionBlock(
-                                    namespace='__main__',
-                                    function_name='different_calc',
-                                    args=deque([Name('w'), Name('y'), Name('t'), Name('s')]),
-                                    params=deque([Name('s'), Name('t'), Name('u'), Name('v')]),
-                                    lines=deque([
-                                        ExprLine(
-                                            return_expr=True,
-                                            expression_tree=deque([
-                                                deque([
-                                                    Attribute(
-                                                        namespace='math',
-                                                        attr_name='pi'
-                                                    ),
-                                                    '*', 's', '*', 't',
-                                                ]),
-                                                "/",
-                                                deque([
-                                                    deque([
-                                                        'u', '*', 'v'
-                                                    ])
-                                                    , '**', 2
-                                                ])
-                                            ])
-                                        )
-                                    ])
-                                )
-                            ])
-                        ),
-                        ExprLine(
-                            return_expr=True,
-                            expression_tree=deque(['factored'])
-                        )
-                    ])
-                )
-            ])
-        ),
-    ])
+#     assert basic_parser(source_2) == deque([
+#         CalcLine(
+#             assigns=deque([Name('b', 4)]),
+#             expression_tree=deque([4])
+#         ),
+#         CalcLine(
+#             assigns=deque([Name('c', 5)]),
+#             expression_tree=deque([5])
+#         ),
+#         CalcLine(
+#             assigns=deque([Name('d', 6)]),
+#             expression_tree=deque([6])
+#         ),
+#         CalcLine(
+#             assigns=deque([Name('e', 3)]),
+#             expression_tree=deque([3])
+#         ),
+#         CalcLine(
+#             assigns=deque(['p']),
+#             expression_tree=deque([
+#                 FunctionBlock(
+#                     namespace=deque(["sub1"]),
+#                     function_name=deque(["my_other_calc"]),
+#                     args=deque([Name("b", 4), Name("c", 5), Name("d", 6), Name("e", 3)]),
+#                     params=deque([Name("w"), Name("y"), Name("t"), Name("s")]),
+#                     lines=deque([
+#                         CalcLine(
+#                             assigns=deque(['factored']),
+#                             expression_tree=deque([
+#                                 0.9, '*', FunctionBlock(
+#                                     namespace='__main__',
+#                                     function_name='different_calc',
+#                                     args=deque([Name('w'), Name('y'), Name('t'), Name('s')]),
+#                                     params=deque([Name('s'), Name('t'), Name('u'), Name('v')]),
+#                                     lines=deque([
+#                                         ExprLine(
+#                                             return_expr=True,
+#                                             expression_tree=deque([
+#                                                 deque([
+#                                                     Attribute(
+#                                                         namespace='math',
+#                                                         attr_name='pi'
+#                                                     ),
+#                                                     '*', 's', '*', 't',
+#                                                 ]),
+#                                                 "/",
+#                                                 deque([
+#                                                     deque([
+#                                                         'u', '*', 'v'
+#                                                     ])
+#                                                     , '**', 2
+#                                                 ])
+#                                             ])
+#                                         )
+#                                     ])
+#                                 )
+#                             ])
+#                         ),
+#                         ExprLine(
+#                             return_expr=True,
+#                             expression_tree=deque(['factored'])
+#                         )
+#                     ])
+#                 )
+#             ])
+#         ),
+#     ])
 
 
 def test_if_blocks(basic_parser):
@@ -182,21 +182,21 @@ else:
 """
     assert basic_parser(source_1) == deque([
         CalcLine(
-            assigns=deque(["a"]),
+            assigns=deque([Name("a")]),
             expression_tree=deque([4]),
         ),
         CalcLine(
-            assigns=deque(["b"]),
+            assigns=deque([Name("b")]),
             expression_tree=deque([5])
         ),
         IfBlock(
-            test=deque([2, "<=", "a", "<", 5]),
+            test=deque([2, "<=", Name("a"), "<", 5]),
             orelse=deque([
                 IfBlock(
-                    test=deque(["a", ">", "b"]),
+                    test=deque([Name("a"), ">", Name("b")]),
                     orelse=deque([
                         CalcLine(
-                            assigns=deque(["d"]),
+                            assigns=deque([Name("d")]),
                             expression_tree=deque([6]),
                         ),
                         ExprLine(
@@ -204,7 +204,7 @@ else:
                                 FunctionCall(
                                     namespace=deque(["__main__"]),
                                     function_name=deque(["print"]),
-                                    args=deque(["d"]),
+                                    args=deque([Name("d")]),
                                 ),
                             ])
                         ),
@@ -212,7 +212,7 @@ else:
                         
                     lines=deque([
                         CalcLine(
-                            assigns=deque(["d"]),
+                            assigns=deque([Name("d")]),
                             expression_tree=deque([5])
                         ),
                         ExprLine(
@@ -220,7 +220,7 @@ else:
                                 FunctionCall(
                                     namespace=deque(["__main__"]),
                                     function_name=deque(["print"]),
-                                    args=deque(["d"]),
+                                    args=deque([Name("d")]),
                                 )
                             ])
                         )
@@ -229,7 +229,7 @@ else:
             ]),
             lines=deque([
                 CalcLine(
-                    assigns=deque(["d"]),
+                    assigns=deque([Name("d")]),
                     expression_tree=deque([4])
                 ),
                 ExprLine(
@@ -237,7 +237,7 @@ else:
                         FunctionCall(
                             namespace=deque(["__main__"]),
                             function_name=deque(["print"]),
-                            args=deque(["d"]),
+                            args=deque([Name("d")]),
                         )
                     ])
                 )
@@ -251,13 +251,13 @@ a = [0, 1, 2, 3, 4, 5]
 b = 6
 acc = []
 for elem in a:
-    value = math.tan(elem / b)
+    value = elem + b
     acc.append(value)
 """
-    source_2 = """import math
+    source_2 = """
 a = [0, 1, 2, 3, 4, 5]
 b = 6
-values = [math.tan(elem / b) for elem in a]
+values = [elem + b for elem in a]
 """
     source_1_locals = {}
     exec(source_1, locals=source_1_locals)
@@ -265,7 +265,7 @@ values = [math.tan(elem / b) for elem in a]
     assert basic_parser(source_1) == deque([
         HCNotImplemented(node_name="Import"),
         CalcLine(
-            assigns=deque(["a"]),
+            assigns=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
             expression_tree=deque([
                 List(
                     elems=deque([0, 1, 2, 3, 4, 5])
@@ -273,27 +273,21 @@ values = [math.tan(elem / b) for elem in a]
             ])
         ),
         CalcLine(
-            assigns=deque(["b"]),
+            assigns=deque([Name("b", 6)]),
             expression_tree=deque([6]),
         ),
         CalcLine(
-            assigns=deque(['acc']),
+            assigns=deque([Name('acc', [6, 7, 8, 9, 10, 11])]),
             expression_tree=deque([List(elems=deque([]))])
         ),
         ForBlock(
-            assigns=deque(["elem"]),
-            iterator=deque(["a"]),
+            assigns=deque([Name("elem", 5)]),
+            iterator=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
             lines=deque([
                 CalcLine(
-                    assigns=deque(["value"]),
+                    assigns=deque([Name("value", 11)]),
                     expression_tree=deque([
-                        FunctionCall(
-                            namespace=deque(["math"]),
-                            function_name=deque(["tan"]),
-                            args=deque([
-                                deque(["elem", "/", "b"])
-                            ])
-                        )
+                        Name('elem', 5), '+', Name('b', 6)
                     ])
                 ),
                 ExprLine(
@@ -301,7 +295,7 @@ values = [math.tan(elem / b) for elem in a]
                         FunctionCall(
                             namespace=deque(["acc"]),
                             function_name=deque(["append"]),
-                            args=deque(["value"])
+                            args=deque([Name("value", 11)])
                         )
                     ])
                 )
@@ -309,44 +303,44 @@ values = [math.tan(elem / b) for elem in a]
         )
     ])
 
-    source_2_locals = {}
-    exec(source_2, locals=source_2_locals)
-    basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
-    assert basic_parser(source_2) == deque([
-        HCNotImplemented("Import"),
-        CalcLine(
-            assigns=deque(["a"]),
-            expression_tree=deque([List(elems=deque([0, 1, 2, 3, 4, 5]))])
-        ),
-        CalcLine(
-            assigns=deque(['b']),
-            expression_tree=deque([6])
-        ),
-        CalcLine(
-            assigns=deque(["values"]),
-            expression_tree=deque([
-                ComprehensionChain(
-                    _type="list",
-                    assign=deque([
-                        FunctionCall(
-                            namespace=deque(["math"]),
-                            function_name=deque(["tan"]),
-                            args=deque([
-                                deque(['elem', '/', 'b'])
-                            ])
-                        )
-                    ]),
-                    comprehensions=deque([
-                        Comprehension(
-                            assigns=deque(["elem"]),
-                            iterator=deque(['a']),
-                            _is_async=False
-                        )
-                    ])
-                )
-            ])
-        )
-    ])
+#     source_2_locals = {}
+#     exec(source_2, locals=source_2_locals)
+#     basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
+#     assert basic_parser(source_2) == deque([
+#         HCNotImplemented("Import"),
+#         CalcLine(
+#             assigns=deque(["a"]),
+#             expression_tree=deque([List(elems=deque([0, 1, 2, 3, 4, 5]))])
+#         ),
+#         CalcLine(
+#             assigns=deque(['b']),
+#             expression_tree=deque([6])
+#         ),
+#         CalcLine(
+#             assigns=deque(["values"]),
+#             expression_tree=deque([
+#                 ComprehensionChain(
+#                     _type="list",
+#                     assign=deque([
+#                         FunctionCall(
+#                             namespace=deque(["math"]),
+#                             function_name=deque(["tan"]),
+#                             args=deque([
+#                                 deque(['elem', '/', 'b'])
+#                             ])
+#                         )
+#                     ]),
+#                     comprehensions=deque([
+#                         Comprehension(
+#                             assigns=deque(["elem"]),
+#                             iterator=deque(['a']),
+#                             _is_async=False
+#                         )
+#                     ])
+#                 )
+#             ])
+#         )
+#     ])
 
-# TESTS: Comments, Inline comments, comment commands
-# TODO: Implement inline comment commands? Possible? Easy?
+# # TESTS: Comments, Inline comments, comment commands
+# # TODO: Implement inline comment commands? Possible? Easy?

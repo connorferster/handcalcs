@@ -2,7 +2,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any, Optional
 
-@dataclass
+@dataclass(frozen=True)
 class NoValue:
     pass
 
@@ -14,18 +14,21 @@ class NoValue:
     def __neq__(self, other):
         return False
 
+    def __repr__(self):
+        return "NoValue"
+
 
 @dataclass
 class Name:
     identifier: str
-    value: Optional[Any] = None
+    value: Any = NoValue()
 
 
 @dataclass
 class Attribute:
     namespace: str
     identifier: str
-    value: Optional[Any] = None
+    value: Any = NoValue()
 
 @dataclass
 class List:

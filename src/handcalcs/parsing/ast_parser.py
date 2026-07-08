@@ -14,7 +14,8 @@ from handcalcs.parsing.datatypes import (
     List,
     Tuple,
     Dictionary,
-    Name
+    Name,
+    NoValue
 )
 from handcalcs.parsing.blocks import (
     CalcLine,
@@ -124,12 +125,12 @@ class AST_Parser:
                 self.functions_cache[name] = {}
         self.module_cache["__main__"] = local_callables
 
-    def __call__(self, source: str, function_recurse_limit: int = 3) -> deque:
+    def __call__(self, source: str) -> deque:
         """
         Returns the handcalcs tree from the source.
         """
         ast_tree = ast.parse(source)
-        hc_tree = self.ast_parse(ast_tree, function_recurse_limit)
+        hc_tree = self.ast_parse(ast_tree)
         self.clear()
         return hc_tree
 
@@ -142,7 +143,7 @@ class AST_Parser:
         self.prev_line_number = 0
         self.new_block_from_comment = False
 
-    def ast_parse(self, node: ast.AST, function_recurse_limit: int) -> deque:
+    def ast_parse(self, node: ast.AST) -> deque:
         """
         Recursively converts an AST node into the custom nested list/dict structure.
         """
@@ -153,19 +154,18 @@ class AST_Parser:
             self.current_line_number = 0
         if self.current_line_number == self.prev_line_number:
             new_line = False
-        frl = function_recurse_limit
         # --- Rule 1: Arithmetical Expressions & Parentheses (BinOp) ---
         if isinstance(node, ast.BinOp):
             add_to_current_block = True
             # A Binary Operation (e.g., a + b). The structure is:
             # [left_side, operator, right_side]
-            left = self._flatten_binop(node.left, frl)
+            left = self._flatten_binop(node.left)
             op_name = type(node.op).__name__
             op = ARITHMETIC_OPS.get(
                 op_name, op_name
             )  # Get the operator name (e.g., 'Add', 'Mult')
 
-            right = self.ast_parse(node.right, frl)
+            right = self.ast_parse(node.right)
             # When an expression inside parentheses is encountered, it is an expression
             # itself that will be processed recursively. For example, in (a + b) * c,
             # the (a + b) is the 'left' part of the outer BinOp, and its result
@@ -183,15 +183,15 @@ class AST_Parser:
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):
             node: ast.Name
-            val = Name(identifier=node.id, value=self.globals.get(node.id))
+            val = Name(identifier=node.id, value=self.globals.get(node.id, NoValue()))
         elif isinstance(node, ast.Constant):
             val = node.value
         elif isinstance(node, ast.Compare):
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)
-            left = self.ast_parse(node.left, frl)
+            left = self.ast_parse(node.left)
             op_names = [type(op).__name__ for op in node.ops]
-            comparator_names = [self.ast_parse(n, frl) for n in node.comparators]
+            comparator_names = [self.ast_parse(n) for n in node.comparators]
             ops = [COMPARE_OPS.get(op_name, op_name) for op_name in op_names]
             matched = list(zip(ops, comparator_names))
             val = deque([])
@@ -222,54 +222,56 @@ class AST_Parser:
                 # ... (original Rule 2 logic) ...
                 module_name = ""
                 func_name = self.ast_parse(
-                    node.func, frl
+                    node.func
                 )  # Get the function's name (str)
                 if isinstance(func_name, ast.Attribute):
                     module_name = func_name.module_name
                     func_name = func_name.attr_name
 
                 # Create the inner nested list for arguments
-                args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
+            # args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
 
                 # Create the main nested list for the function call
-                val = deque([func_name, deque([args_list])])
+                # val = deque([func_name, deque([args_list])])
 
             # # Check for a specific target function you want to recurse into
             # if func_name == "external_func" and module_name == "some_module":
 
+
+            # TODO: COMMENT OUT FUNCTION RECURSION
             # 1. Get the source code string for the external function
-            function_ast = None
-            if func_name not in self.function_recurse_exclusions:
-                function_ast = self.find_source(func_name, module_name)
+            # function_ast = None
+            # if func_name not in self.function_recurse_exclusions:
+            #     function_ast = self.find_source(func_name, module_name)
 
-            if function_ast and frl > 0:
-                frl = frl - 1
-                # 2. Recursively call the main conversion logic on the new source
-                function_defs = self.get_function_content(function_ast, frl)
-                # The result of the call node is replaced by the structure of the function's body
-                # Create the inner nested list for arguments
-                args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
-                function_body = dict()
-                if function_defs is not None:
-                    function_body = function_defs.get(func_name, dict())
+            # if function_ast and frl > 0:
+            #     frl = frl - 1
+            #     # 2. Recursively call the main conversion logic on the new source
+            #     function_defs = self.get_function_content(function_ast, frl)
+            #     # The result of the call node is replaced by the structure of the function's body
+            #     # Create the inner nested list for arguments
+            #     args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
+            #     function_body = dict()
+            #     if function_defs is not None:
+            #         function_body = function_defs.get(func_name, dict())
 
-                function_block = FunctionBlock()
-                function_block.namespace = deque([module_name])
-                function_block.function_name = deque([func_name])
-                function_block.lines.extend(function_body.get("lines", deque()))
-                function_block.params.extend(function_body.get("params", deque()))
-                function_block.args.extend(args_list)
-                self.current_block = function_block
-                val = function_block
-            else:
+            #     function_block = FunctionBlock()
+            #     function_block.namespace = deque([module_name])
+            #     function_block.function_name = deque([func_name])
+            #     function_block.lines.extend(function_body.get("lines", deque()))
+            #     function_block.params.extend(function_body.get("params", deque()))
+            #     function_block.args.extend(args_list)
+            #     self.current_block = function_block
+            #     val = function_block
+            # else:
 
-                # Create the inner nested list for arguments
-                args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
+            # Create the inner nested list for arguments
+            args_list = deque([self.ast_parse(arg) for arg in node.args])
 
-                # Create the main nested list for the function call
-                function_call.namespace = deque([module_name])
-                function_call.function_name = deque([func_name])
-                function_call.args.extend(args_list)
+            # Create the main nested list for the function call
+            function_call.namespace = deque([module_name])
+            function_call.function_name = deque([func_name])
+            function_call.args.extend(args_list)
 
             val = function_call
 
@@ -278,11 +280,11 @@ class AST_Parser:
             if_block = IfBlock()
 
             # "test": The condition (nested list via recursive call)
-            if_block.test = self.ast_parse(node.test, frl)
+            if_block.test = self.ast_parse(node.test)
 
             # "body": The block of code inside the if (nested list of statements)
             if_block.lines.extend(
-                deque([self.ast_parse(item, frl) for item in node.body])
+                deque([self.ast_parse(item) for item in node.body])
             )
 
             # "orelse": The block of code inside the else/elif (nested list)
@@ -290,11 +292,11 @@ class AST_Parser:
                 # If `orelse` contains another `ast.If` (an `elif`), we recursively
                 # call self.ast_parse on that one.
                 if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
-                    if_block.orelse = deque([self.ast_parse(node.orelse[0], frl)])
+                    if_block.orelse = deque([self.ast_parse(node.orelse[0])])
                 else:
                     # Standard `else` block or multiple statements in `orelse`
                     if_block.orelse = deque(
-                        [self.ast_parse(item, frl) for item in node.orelse]
+                        [self.ast_parse(item) for item in node.orelse]
                     )
             else:
                 if_block.orelse = deque()  # Empty list for no `else`
@@ -308,13 +310,13 @@ class AST_Parser:
             # "target": str of the assigned target
             # Assumes the target is a simple variable name (ast.Name)
             if isinstance(node.target, ast.Name):
-                for_block.assigns.append(node.target.id)
+                for_block.assigns.append(self.ast_parse(node.target))
             else:
                 print(f"ForBlock, alternate target: {node.target=}")
 
             # "body": nested list of the for loop's body
             for_block.lines.extend(
-                deque([self.ast_parse(item, frl) for item in node.body])
+                deque([self.ast_parse(item) for item in node.body])
             )
 
             # "iter": str showing the name of the iteration variable
@@ -322,11 +324,11 @@ class AST_Parser:
             # Note: Iterators can be more complex (like function calls or lists)
             # We'll simplify to just the source code if it's not a simple Name.
             if isinstance(node.iter, ast.Name):
-                for_block.iterator = deque([node.iter.id])
+                for_block.iterator = deque([self.ast_parse(node.iter)])
             else:
                 # If it's a more complex expression, we'll try to convert it
                 # into a string representation for simplicity in this rule.
-                for_block.iterator = self.ast_parse(node.iter, frl)
+                for_block.iterator = self.ast_parse(node.iter)
 
             val = self.current_block = for_block
 
@@ -339,14 +341,14 @@ class AST_Parser:
             keys = deque([])
             values = deque([])
             if isinstance(node, ast.DictComp):
-                keys = deque([self.ast_parse(node.key, frl)])
-                values = deque([self.ast_parse(node.value, frl)])
+                keys = deque([self.ast_parse(node.key)])
+                values = deque([self.ast_parse(node.value)])
             else:
-                assigns = deque([self.ast_parse(node.elt, frl)])
+                assigns = deque([self.ast_parse(node.elt)])
             comprehension_block.key = keys
             comprehension_block.value = values
             comprehension_block.assign = assigns
-            generators = deque([self.ast_parse(gen, frl) for gen in node.generators])
+            generators = deque([self.ast_parse(gen) for gen in node.generators])
             comp_blocks = deque([])
             for generator in generators:
                 comp_block = Comprehension(
@@ -362,8 +364,8 @@ class AST_Parser:
 
         elif isinstance(node, ast.comprehension):
             comp = {
-                "assigns": deque([self.ast_parse(node.target, frl)]),
-                "iterator": deque([self.ast_parse(node.iter, frl)]),
+                "assigns": deque([self.ast_parse(node.target)]),
+                "iterator": deque([self.ast_parse(node.iter)]),
                 "is_async": bool(node.is_async),
             }
             val = comp
@@ -382,7 +384,7 @@ class AST_Parser:
 
             # "body": nested list of the for loop's body
             for_block.lines.extend(
-                deque([self.ast_parse(item, frl) for item in node.body])
+                deque([self.ast_parse(item) for item in node.body])
             )
 
             # "iter": str showing the name of the iteration variable
@@ -394,7 +396,7 @@ class AST_Parser:
             else:
                 # If it's a more complex expression, we'll try to convert it
                 # into a string representation for simplicity in this rule.
-                for_block.iterator = self.ast_parse(node.iter, frl)
+                for_block.iterator = self.ast_parse(node.iter)
 
             val = self.current_block = for_block
 
@@ -416,29 +418,29 @@ class AST_Parser:
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            expression_tree = self.ast_parse(node.value, frl)
+            expression_tree = self.ast_parse(node.value)
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
-                assigns=deque([self.ast_parse(n, frl) for n in node.targets]),
+                assigns=deque([self.ast_parse(n) for n in node.targets]),
                 expression_tree=expression_tree,
             )
             val = calc_line
 
         elif isinstance(node, ast.List):
-            val = List(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
+            val = List(elems=deque([self.ast_parse(el) for el in node.elts]))
 
         elif isinstance(node, ast.Tuple):
-            val = Tuple(elems=deque([self.ast_parse(el, frl) for el in node.elts]))
+            val = Tuple(elems=deque([self.ast_parse(el) for el in node.elts]))
 
         elif isinstance(node, ast.Dict):
             val = Dictionary(
-                keys=deque([self.ast_parse(el, frl) for el in node.keys]),
-                values=deque([self.ast_parse(el, frl) for el in node.values]),
+                keys=deque([self.ast_parse(el) for el in node.keys]),
+                values=deque([self.ast_parse(el) for el in node.values]),
             )
 
         elif isinstance(node, ast.Return):
-            parsed_value = self.ast_parse(node.value, frl)
+            parsed_value = self.ast_parse(node.value)
             if not isinstance(parsed_value, deque):
                 parsed_value = deque([parsed_value])
             val = ExprLine(expression_tree=parsed_value, _return_expr=True)
@@ -450,15 +452,15 @@ class AST_Parser:
 
         elif isinstance(node, ast.Module):
             # Entry point: process all body statements
-            val = deque([self.ast_parse(item, frl) for item in node.body])
+            val = deque([self.ast_parse(item) for item in node.body])
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
             if isinstance(node.value, ast.Constant):
-                doc_string = f"Doc string: {self.ast_parse(node.value, frl)}"
+                doc_string = f"Doc string: {self.ast_parse(node.value)}"
                 val = ExprLine(expression_tree=deque([doc_string]))
             else:
-                parsed_node = self.ast_parse(node.value, frl)
+                parsed_node = self.ast_parse(node.value)
                 if not isinstance(parsed_node, deque):
                     parsed_node = deque([parsed_node])
                 val = ExprLine(expression_tree=parsed_node)
@@ -481,7 +483,7 @@ class AST_Parser:
         return function_tree
 
     def get_function_content(
-        self, node: ast.FunctionDef, frl: int
+        self, node: ast.FunctionDef
     ) -> dict[str, dict[str, deque]] | None:
         """
         Returns a dictionary of functions
@@ -493,7 +495,7 @@ class AST_Parser:
             if isinstance(node, ast.FunctionDef):
                 lines = deque([])
                 for n in node.body:
-                    parsed = self.ast_parse(n, frl)
+                    parsed = self.ast_parse(n)
                     if isinstance(parsed, ExprLine) and (  # not a docstring
                         "Doc string" in parsed.expression_tree[0]
                     ):
@@ -578,7 +580,7 @@ class AST_Parser:
         except SyntaxError as e:
             print(f"Error: Syntax error in {module_name}: {e}")
 
-    def _flatten_binop(self, node, frl) -> deque:
+    def _flatten_binop(self, node) -> deque:
         """
         Recursively flattens an ast.BinOp node into a list of operands and operators.
 
@@ -586,14 +588,14 @@ class AST_Parser:
         """
         if not isinstance(node, ast.BinOp):
             # Base case: The node is a simple operand (e.g., Name, Constant, Call, etc.)
-            return self.ast_parse(node, frl)
+            return self.ast_parse(node)
 
-        left_side = self._flatten_binop(node.left, frl)
+        left_side = self._flatten_binop(node.left)
         if not isinstance(left_side, deque):
             left_side = deque([left_side])
         op_name = node.op.__class__.__name__
         op = ARITHMETIC_OPS.get(op_name, op_name)
-        right_side = self.ast_parse(node.right, frl)
+        right_side = self.ast_parse(node.right)
         result = left_side + deque([op, right_side])
         return result
 
