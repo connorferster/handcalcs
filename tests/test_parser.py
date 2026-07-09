@@ -6,13 +6,15 @@ from handcalcs.parsing.blocks import (
     FunctionBlock, 
     IfBlock, 
     ForBlock,
-    ElifBlock
+    ElifBlock,
+    ElseBlock
 )
 
 from handcalcs.parsing.datatypes import (
     HCNotImplemented,
     List,
-    Name
+    Name,
+    NoValue
 )
 
 from handcalcs.parsing.inlines import (
@@ -394,7 +396,100 @@ def test_elif_block():
                 )
             ]),
         )
-    from rich import print
-    print(ElifBlock.from_if_tree(ib))
-    assert False    
+    assert ElifBlock.from_if_tree(ib) == ElifBlock(
+    clauses=deque([
+        IfBlock(
+            lines=deque([
+                CalcLine(
+                    level=0,
+                    assigns=deque([Name(identifier='d', value=NoValue())]),
+                    expression_tree=deque([4]),
+                    _numeric=deque(),
+                    _result=None,
+                    _comment='',
+                    _latex=''
+                ),
+                ExprLine(
+                    level=0,
+                    expression_tree=deque([
+                        FunctionCall(
+                            namespace=deque(['__main__']),
+                            function_name=deque(['print']),
+                            args=deque([Name(identifier='d', value=NoValue())])
+                        )
+                    ]),
+                    _numeric=deque(),
+                    _return_expr=False,
+                    _result=None,
+                    _comment='',
+                    _latex=''
+                )
+            ]),
+            test=deque([2, '<=', Name(identifier='a', value=NoValue()), '<', 5]),
+            orelse=None
+        ),
+        IfBlock(
+            lines=deque([
+                CalcLine(
+                    level=0,
+                    assigns=deque([Name(identifier='d', value=NoValue())]),
+                    expression_tree=deque([5]),
+                    _numeric=deque(),
+                    _result=None,
+                    _comment='',
+                    _latex=''
+                ),
+                ExprLine(
+                    level=0,
+                    expression_tree=deque([
+                        FunctionCall(
+                            namespace=deque(['__main__']),
+                            function_name=deque(['print']),
+                            args=deque([Name(identifier='d', value=NoValue())])
+                        )
+                    ]),
+                    _numeric=deque(),
+                    _return_expr=False,
+                    _result=None,
+                    _comment='',
+                    _latex=''
+                )
+            ]),
+            test=deque([
+                Name(identifier='a', value=NoValue()),
+                '>',
+                Name(identifier='b', value=NoValue())
+            ]),
+            orelse=None
+        ),
+        ElseBlock(
+            lines=deque([
+                CalcLine(
+                    level=0,
+                    assigns=deque([Name(identifier='d', value=NoValue())]),
+                    expression_tree=deque([6]),
+                    _numeric=deque(),
+                    _result=None,
+                    _comment='',
+                    _latex=''
+                ),
+                ExprLine(
+                    level=0,
+                    expression_tree=deque([
+                        FunctionCall(
+                            namespace=deque(['__main__']),
+                            function_name=deque(['print']),
+                            args=deque([Name(identifier='d', value=NoValue())])
+                        )
+                    ]),
+                    _numeric=deque(),
+                    _return_expr=False,
+                    _result=None,
+                    _comment='',
+                    _latex=''
+                )
+            ])
+        )
+    ])
+)  
     

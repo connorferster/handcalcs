@@ -14,9 +14,6 @@ class NoValue:
     def __neq__(self, other):
         return False
 
-    def __repr__(self):
-        return "NoValue"
-
 
 @dataclass
 class Name:
