@@ -82,4 +82,21 @@ class IfBlock(HandCalcsBlock):
     lines: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
     test: deque[HandCalcsBlock | str | float | int | Any] = field(default_factory=deque)
     orelse: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
+    
+@dataclass
+class ElifBlock(HandCalcsBlock):
+    clauses: list[IfBlock]
+    
+    @classmethod
+    def from_if_tree(cls, ib: IfBlock):
+        def flatten_if_tree(ib: IfBlock) -> deque[IfBlock]:
+            acc = deque([])
+            acc.extend(ib)
+            if isinstance(ib.orelse, IfBlock):
+                acc.extend(flatten_if_tree(ib.orelse))
+            else:
+                return deque([ib.orelse])
+            return acc  
+        flattened_tree = flatten_if_tree(ib)
+        return cls(flattened_tree)
 
