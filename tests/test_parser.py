@@ -6,6 +6,7 @@ from handcalcs.parsing.blocks import (
     FunctionBlock, 
     IfBlock, 
     ForBlock,
+    ElifBlock
 )
 
 from handcalcs.parsing.datatypes import (
@@ -337,3 +338,63 @@ values = [elem + b for elem in a]
 
 # # TESTS: Comments, Inline comments, comment commands
 # # TODO: Implement inline comment commands? Possible? Easy?
+
+def test_elif_block():
+    ib = IfBlock(
+            test=deque([2, "<=", Name("a"), "<", 5]),
+            orelse=deque([
+                IfBlock(
+                    test=deque([Name("a"), ">", Name("b")]),
+                    orelse=deque([
+                        CalcLine(
+                            assigns=deque([Name("d")]),
+                            expression_tree=deque([6]),
+                        ),
+                        ExprLine(
+                            expression_tree=deque([
+                                FunctionCall(
+                                    namespace=deque(["__main__"]),
+                                    function_name=deque(["print"]),
+                                    args=deque([Name("d")]),
+                                ),
+                            ])
+                        ),
+                    ]),
+                        
+                    lines=deque([
+                        CalcLine(
+                            assigns=deque([Name("d")]),
+                            expression_tree=deque([5])
+                        ),
+                        ExprLine(
+                            expression_tree=deque([
+                                FunctionCall(
+                                    namespace=deque(["__main__"]),
+                                    function_name=deque(["print"]),
+                                    args=deque([Name("d")]),
+                                )
+                            ])
+                        )
+                    ])
+                )
+            ]),
+            lines=deque([
+                CalcLine(
+                    assigns=deque([Name("d")]),
+                    expression_tree=deque([4])
+                ),
+                ExprLine(
+                    expression_tree=deque([
+                        FunctionCall(
+                            namespace=deque(["__main__"]),
+                            function_name=deque(["print"]),
+                            args=deque([Name("d")]),
+                        )
+                    ])
+                )
+            ]),
+        )
+    from rich import print
+    print(ElifBlock.from_if_tree(ib))
+    assert False    
+    

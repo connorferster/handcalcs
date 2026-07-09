@@ -7,9 +7,9 @@ from typing import Callable
 
 @dataclass
 class HandCalcsBlock:
-    _options: dict = field(default_factory=dict)
     # _items: list = field(default_factory=list)
-    level: int = 0
+    # level: int = 0
+    pass
 
     def __getitem__(self, index: int):
         attrs = [attr for attr in dir(self) if not attr.startswith("_")]
@@ -84,18 +84,27 @@ class IfBlock(HandCalcsBlock):
     orelse: deque[HandCalcsBlock | CalcLine | ExprLine] = field(default_factory=deque)
     
 @dataclass
+class ElseBlock(HandCalcsBlock):
+    lines: deque[Any]
+
+
+@dataclass
 class ElifBlock(HandCalcsBlock):
-    clauses: list[IfBlock]
+    clauses: deque[IfBlock]
     
     @classmethod
     def from_if_tree(cls, ib: IfBlock):
         def flatten_if_tree(ib: IfBlock) -> deque[IfBlock]:
             acc = deque([])
-            acc.extend(ib)
-            if isinstance(ib.orelse, IfBlock):
-                acc.extend(flatten_if_tree(ib.orelse))
+            orelse = ib.orelse[0]
+            orelse_full = ib.orelse
+            ib.orelse = None
+            acc.extend(deque([ib]))
+            if isinstance(orelse, IfBlock):
+                acc.extend(flatten_if_tree(orelse))
             else:
-                return deque([ib.orelse])
+                acc.extend(deque([ElseBlock(orelse_full)]))
+                return acc
             return acc  
         flattened_tree = flatten_if_tree(ib)
         return cls(flattened_tree)
