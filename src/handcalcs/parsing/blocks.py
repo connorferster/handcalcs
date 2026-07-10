@@ -90,7 +90,7 @@ class ElseBlock(HandCalcsBlock):
 
 @dataclass
 class ElifBlock(HandCalcsBlock):
-    clauses: deque[IfBlock]
+    lines: deque[IfBlock]
     
     @classmethod
     def from_if_tree(cls, ib: IfBlock):

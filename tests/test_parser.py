@@ -1,4 +1,5 @@
 from handcalcs.parsing.ast_parser import AST_Parser
+from handcalcs.parsing.sequence import HCSequence
 from handcalcs.parsing.comments import is_comment_command, split_commands, is_markdown_heading
 from handcalcs.parsing.blocks import (
     CalcLine,
@@ -397,7 +398,7 @@ def test_elif_block():
             ]),
         )
     assert ElifBlock.from_if_tree(ib) == ElifBlock(
-    clauses=deque([
+    lines=deque([
         IfBlock(
             lines=deque([
                 CalcLine(
@@ -492,4 +493,31 @@ def test_elif_block():
         )
     ])
 )  
-    
+
+
+def test_hcsequence():
+    source_1 = """
+a = 4
+b = 5
+if 2 <= a < 5:
+    d = 4
+    if d == 3:
+        print(d)
+    elif d == 5:
+        print(d)
+    elif d == 4: 
+        print(d)
+    else:
+        print("TWELVE")
+    print(d)
+elif a > b:
+    d = 5
+    print(d)
+else:
+    d = 6
+    print(d)
+"""
+    seq = HCSequence.from_source(source_1, {"a": 4, "b": 5, "d": 4}, {})
+    from rich import print
+    print(seq)
+    assert False

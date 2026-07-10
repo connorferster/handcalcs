@@ -26,6 +26,7 @@ from handcalcs.parsing.blocks import (
     FunctionBlock,
     ForBlock,
     IfBlock,
+    ElifBlock,
 )
 from handcalcs.parsing.inlines import (
     FunctionCall,
