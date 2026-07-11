@@ -21,30 +21,44 @@ class HCSequence:
         parser = AST_Parser(context)
         tree = parser(source_code)
 
-        tree = traverse_tree_lines(tree, convert_if_tree)
+        tree = HCSequence.traverse_tree_lines(tree, convert_if_tree)
+        tree = HCSequence.set_levels(tree, level=0)
         return cls(tree, c_globals, c_locals)
-        
-        # # Process IfBlocks into a flattened ElifBlock
-        # for idx, top_node in enumerate(tree):
-        #     if isinstance(top_node, IfBlock):
-        #         elif_block = ElifBlock.from_if_tree(top_node)
-        #         tree[idx] = elif_block
+
+    @staticmethod
+    def traverse_tree_lines(tree: deque, apply: Callable, *args, **kwargs):
+        # ctree = deepcopy(tree)
+        for idx, node in enumerate(tree):
+            if hasattr(node, 'lines'):
+                updated_node = apply(tree[idx], *args, **kwargs)
+                tree[idx] = updated_node
+                HCSequence.traverse_tree_lines(node.lines, apply)
+        return tree
+
+    @staticmethod
+    def set_levels(tree: deque, level: int):
+        from rich import print
+        # print(f"{level=}")
+        # ctree = deepcopy(tree)
+        for idx, node in enumerate(tree):
+            updated_node = set_level(node, level)
+            if hasattr(node, 'lines') and isinstance(node, ElifBlock):
+                tree[idx] = updated_node
+                # print(f"{updated_node=}")
+                HCSequence.set_levels(node.lines, level)
+            elif hasattr(node, 'lines') and not isinstance(node, ElifBlock):
+                tree[idx] = updated_node
+                # print(f"{updated_node=}")
+                HCSequence.set_levels(node.lines, level+1)  
+        return tree
 
 
-
-
-def traverse_tree_lines(tree: deque, apply: Callable):
-    # ctree = deepcopy(tree)
-    for idx, node in enumerate(tree):
-        if hasattr(node, 'lines'):
-            updated_node = apply(tree[idx])
-            tree[idx] = updated_node
-            traverse_tree_lines(node.lines, apply)
-    return tree
-        
 def convert_if_tree(node: HandCalcsBlock) -> HandCalcsBlock:
     if isinstance(node, IfBlock):
         return ElifBlock.from_if_tree(node)
     else:
         return node
 
+def set_level(node: HandCalcsBlock, level: int) -> HandCalcsBlock:
+    node.level = level
+    return node
