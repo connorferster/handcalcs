@@ -2,48 +2,35 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Any, Optional
 
-@dataclass(frozen=True)
-class NoValue:
+@dataclass
+class HcNode:
     pass
 
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return True
-        return False
-    
-    def __neq__(self, other):
-        return False
-
-
 @dataclass
-class Name:
+class Name(HcNode):
     identifier: str
     value: Any = NoValue()
 
 
 @dataclass
-class Attribute:
+class Attribute(HcNode):
     namespace: str
     identifier: str
     value: Any = NoValue()
 
 @dataclass
-class List:
+class List(HcNode):
     elems: deque[Any]
 
 @dataclass
-class Tuple:
+class Tuple(HcNode):
     elems: deque[Any]
 
 @dataclass
-class Set:
+class Set(HcNode):
     elems: deque[Any]
 
 @dataclass
-class Dictionary:
+class Dictionary(HcNode):
     keys: deque[Any]
     values: deque[Any]
-
-@dataclass
-class HCNotImplemented:
-    node_name: str

@@ -8,43 +8,55 @@ import inspect
 from typing import List, Dict, Union, Any, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap
-from handcalcs.parsing.datatypes import (
+from handcalcs.parsing.nodes import (
     Attribute,
-    HCNotImplemented,
     List,
     Tuple,
     Dictionary,
-    Name,
-    NoValue
+    Name
 )
-from handcalcs.parsing.blocks import (
-    CalcLine,
-    ExprLine,
-    CommentCommand,
-    CommentLine,
-    MarkdownHeading,
-    FunctionBlock,
+from .blocks import (
     ForBlock,
     IfBlock,
     ElifBlock,
 )
-from handcalcs.parsing.inlines import (
+from .line_nodes import (
+    CalcLine,
+    ExprLine,
+    CommentLine,
+    CommentCommand
+)
+from .inlines import (
     FunctionCall,
     ComprehensionChain,
     Comprehension,
-    InlineComment
+    InlineComment,
+)
+from .null_values import (
+    HcNotImplemented,
+    NoValue
+)
+
+from .operators import (
+    AddOp,
+    SubOp,
+    MultOp,
+    DivOp,
+    FloorOp,
+    ModuloOp,
+    PowOp
 )
 from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comments as comments
 
 ARITHMETIC_OPS = {
-    "Add": "+",
-    "Sub": "-",
-    "Mult": "*",
-    "Div": "/",
-    "Floor": "//",
-    "Pow": "**",
-    "Mod": "%",
+    "Add": AddOp,
+    "Sub": SubOp,
+    "Mult": MultOp,
+    "Div": DivOp,
+    "Floor": FloorOp,
+    "Pow": PowOp,
+    "Mod": ModuloOp,
 }
 
 COMPARE_OPS = {
@@ -157,29 +169,36 @@ class AST_Parser:
             new_line = False
         # --- Rule 1: Arithmetical Expressions & Parentheses (BinOp) ---
         if isinstance(node, ast.BinOp):
-            add_to_current_block = True
-            # A Binary Operation (e.g., a + b). The structure is:
-            # [left_side, operator, right_side]
-            left = self._flatten_binop(node.left)
-            op_name = type(node.op).__name__
-            op = ARITHMETIC_OPS.get(
-                op_name, op_name
-            )  # Get the operator name (e.g., 'Add', 'Mult')
-
+            left = self.ast_parse(node.left)
             right = self.ast_parse(node.right)
-            # When an expression inside parentheses is encountered, it is an expression
-            # itself that will be processed recursively. For example, in (a + b) * c,
-            # the (a + b) is the 'left' part of the outer BinOp, and its result
-            # 'a + b' will be a nested list: ['a', 'Add', 'b'].
+            op_name = type(node.op).__name__
+            op_class = ARITHMETIC_OPS[op_name]
+            hc_op = op_class(left, right)
+            val = hc_op
 
-            # To strictly satisfy the 'whenever parentheses are included' rule,
-            # we check if the sub-expression was an ast.Subscript or an ast.Call
-            # as these often imply an operation that was enclosed. However, in AST,
-            # explicit parentheses *do not* create a separate node unless they're
-            # used for grouping in an expression, which results in recursive BinOps.
-            # The recursive call `self.ast_parse` naturally handles the nesting.
+            # add_to_current_block = True
+            # # A Binary Operation (e.g., a + b). The structure is:
+            # # [left_side, operator, right_side]
+            # left = self._flatten_binop(node.left)
+            # op_name = type(node.op).__name__
+            # op = ARITHMETIC_OPS.get(
+            #     op_name, op_name
+            # )  # Get the operator name (e.g., 'Add', 'Mult')
 
-            val = deque([left, op, right])
+            # right = self.ast_parse(node.right)
+            # # When an expression inside parentheses is encountered, it is an expression
+            # # itself that will be processed recursively. For example, in (a + b) * c,
+            # # the (a + b) is the 'left' part of the outer BinOp, and its result
+            # # 'a + b' will be a nested list: ['a', 'Add', 'b'].
+
+            # # To strictly satisfy the 'whenever parentheses are included' rule,
+            # # we check if the sub-expression was an ast.Subscript or an ast.Call
+            # # as these often imply an operation that was enclosed. However, in AST,
+            # # explicit parentheses *do not* create a separate node unless they're
+            # # used for grouping in an expression, which results in recursive BinOps.
+            # # The recursive call `self.ast_parse` naturally handles the nesting.
+
+            # val = deque([left, op, right])
 
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):

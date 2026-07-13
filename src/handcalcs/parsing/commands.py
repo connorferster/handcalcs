@@ -4,10 +4,10 @@ command_parser = argparse.ArgumentParser()
 
 command_parser.add_argument("-m", "--multiline", "--mult", action="store_true")
 command_parser.add_argument("-l", "--singleline", "--single", action="store_false")
-command_parser.add_argument("-s", "--sigfigs", "--sf")
+command_parser.add_argument("-f", "--sigfigs", "--sf")
 command_parser.add_argument("-d", "--sigdigs", "--sd")
 command_parser.add_argument("-n", "--numeric-only", "--num", action="store_true")
-command_parser.add_argument("-y", "--symbolic-only", "--sym", action="store_true")
+command_parser.add_argument("-s", "--symbolic-only", "--sym", action="store_true")
 command_parser.add_argument("-x", "--exclude-result", "--nores", action="store_true")
 command_parser.add_argument(
     "-e", "--scientific-notation", "--scinot", action="store_true"
@@ -19,8 +19,6 @@ command_parser.add_argument("-t", "--for-table", "--table", action="store_true")
 command_parser.add_argument(
     "-i", "--for-iteration-steps", "--iter", action="store_false"
 )
-command_parser.add_argument("-b", "--function-block", "--block", action="store_false")
-command_parser.add_argument("-f", "--function-inline", "--inline", action="store_true")
 command_parser.add_argument(
     "-r", "--render-block-comments", "--comments", action="store_false"
 )

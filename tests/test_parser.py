@@ -519,7 +519,7 @@ else:
 """
     seq = HCSequence.from_source(source_1, {"a": 4, "b": 5, "d": 4}, {})
     from rich import print
-    print(seq)
+    print(seq.dump_tree(seq.sequence))
     assert False
     assert seq == HCSequence(
     sequence=deque([
