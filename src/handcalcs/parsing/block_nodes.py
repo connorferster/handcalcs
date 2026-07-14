@@ -7,7 +7,7 @@ from .line_nodes import CalcLine, ExprLine, MarkdownHeading, CommentCommand, Com
 
 @dataclass
 class HcBlockNode(HcNode):
-    level: int
+    level: int = 0
 
 @dataclass
 class FunctionBlock(HcBlockNode):
@@ -34,12 +34,12 @@ class IfBlock(HcBlockNode):
     
 @dataclass
 class ElseBlock(HcBlockNode):
-    lines: deque[Any]
+    lines: deque[Any] = field(default_factory=deque)
 
 
 @dataclass
 class ElifBlock(HcBlockNode):
-    lines: deque[IfBlock]
+    lines: deque[IfBlock] = field(default_factory=deque)
     
     @classmethod
     def from_if_tree(cls, ib: IfBlock):

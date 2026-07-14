@@ -223,7 +223,7 @@ class AST_Parser:
 
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             self.resolve_import_and_load(node)
-            val = HCNotImplemented(type(node).__name__)
+            val = HcNotImplemented(type(node).__name__)
 
         elif isinstance(node, ast.Call):
             function_call = FunctionCall()
@@ -488,7 +488,7 @@ class AST_Parser:
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
-            val = HCNotImplemented(node_name=type(node).__name__)
+            val = HcNotImplemented(node_name=type(node).__name__)
 
         return val
 

@@ -100,7 +100,7 @@ def test_calc_lines(basic_parser):
 #                                 CalcLine(assigns=deque([Name("area")]), expression_tree=deque([Name("q"), "*", Name("r")])),
 #                                 CalcLine(assigns=deque([Name("perimeter")]), expression_tree=deque([deque([2, "*", Name("q")]), "+", deque([2, "*", Name("r")])])),
 #                                 CalcLine(assigns=deque([Name("ratio")]), expression_tree=deque([Name("area"), "/", Name("perimeter")])),
-#                                 ExprLine(expression_tree=deque([Name("ratio")]), _return_expr=True)
+#                                 ExprLine(expression_tree=deque([Name("ratio")]), return_expr=True)
 #                             ])
 #                         )
 #                     ])
@@ -273,7 +273,7 @@ values = [elem + b for elem in a]
     exec(source_1, locals=source_1_locals)
     basic_parser = AST_Parser(globals() | source_1_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_1) == deque([
-        HCNotImplemented(node_name="Import"),
+        HcNotImplemented(node_name="Import"),
         CalcLine(
             assigns=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
             expression_tree=deque([
@@ -411,10 +411,10 @@ def test_elif_block():
                     level=0,
                     assigns=deque([Name(identifier='d', value=NoValue())]),
                     expression_tree=deque([4]),
-                    _numeric=deque(),
-                    _result=None,
-                    _comment='',
-                    _latex=''
+                    symbolic=deque(),
+                    numeric=deque(),
+                    comment=None,
+                    
                 ),
                 ExprLine(
                     level=0,
@@ -425,11 +425,11 @@ def test_elif_block():
                             args=deque([Name(identifier='d', value=NoValue())])
                         )
                     ]),
-                    _numeric=deque(),
-                    _return_expr=False,
-                    _result=None,
-                    _comment='',
-                    _latex=''
+                    numeric=deque(),
+                    return_expr=False,
+                    symbolic=deque(),
+                    comment=None,
+                    
                 )
             ]),
             test=deque([2, '<=', Name(identifier='a', value=NoValue()), '<', 5]),
@@ -441,10 +441,10 @@ def test_elif_block():
                     level=0,
                     assigns=deque([Name(identifier='d', value=NoValue())]),
                     expression_tree=deque([5]),
-                    _numeric=deque(),
-                    _result=None,
-                    _comment='',
-                    _latex=''
+                    numeric=deque(),
+                    symbolic=deque(),
+                    comment=None,
+                    
                 ),
                 ExprLine(
                     level=0,
@@ -455,11 +455,11 @@ def test_elif_block():
                             args=deque([Name(identifier='d', value=NoValue())])
                         )
                     ]),
-                    _numeric=deque(),
-                    _return_expr=False,
-                    _result=None,
-                    _comment='',
-                    _latex=''
+                    numeric=deque(),
+                    return_expr=False,
+                    symbolic=deque(),
+                    comment=None,
+                    
                 )
             ]),
             test=deque([
@@ -475,10 +475,10 @@ def test_elif_block():
                     level=0,
                     assigns=deque([Name(identifier='d', value=NoValue())]),
                     expression_tree=deque([6]),
-                    _numeric=deque(),
-                    _result=None,
-                    _comment='',
-                    _latex=''
+                    numeric=deque(),
+                    symbolic=deque(),
+                    comment=None,
+                    
                 ),
                 ExprLine(
                     level=0,
@@ -489,11 +489,11 @@ def test_elif_block():
                             args=deque([Name(identifier='d', value=NoValue())])
                         )
                     ]),
-                    _numeric=deque(),
-                    _return_expr=False,
-                    _result=None,
-                    _comment='',
-                    _latex=''
+                    numeric=deque(),
+                    return_expr=False,
+                    symbolic=deque(),
+                    comment=None,
+                    
                 )
             ])
         )
@@ -525,7 +525,6 @@ else:
 """
     seq = HCSequence.from_source(source_1, {"a": 4, "b": 5, "d": 4}, {})
     from rich import print
-    print(seq.dump_tree(seq.sequence))
     assert False
     assert seq == HCSequence(
     sequence=deque([
@@ -533,19 +532,19 @@ else:
             level=0,
             assigns=deque([Name(identifier='a', value=4)]),
             expression_tree=deque([4]),
-            _numeric=deque(),
-            _result=None,
-            _comment='',
-            _latex=''
+            numeric=deque(),
+            symbolic=deque(),
+            comment=None,
+            
         ),
         CalcLine(
             level=0,
             assigns=deque([Name(identifier='b', value=5)]),
             expression_tree=deque([5]),
-            _numeric=deque(),
-            _result=None,
-            _comment='',
-            _latex=''
+            numeric=deque(),
+            symbolic=deque(),
+            comment=None,
+            
         ),
         ElifBlock(
             lines=deque([
@@ -555,10 +554,10 @@ else:
                             level=0,
                             assigns=deque([Name(identifier='d', value=4)]),
                             expression_tree=deque([4]),
-                            _numeric=deque(),
-                            _result=None,
-                            _comment='',
-                            _latex=''
+                            numeric=deque(),
+                            symbolic=deque(),
+                            comment=None,
+                            
                         ),
                         ElifBlock(
                             lines=deque([
@@ -582,11 +581,11 @@ else:
                                                     ])
                                                 )
                                             ]),
-                                            _numeric=deque(),
-                                            _return_expr=False,
-                                            _result=None,
-                                            _comment='',
-                                            _latex=''
+                                            numeric=deque(),
+                                            return_expr=False,
+                                            symbolic=deque(),
+                                            comment=None,
+                                            
                                         )
                                     ]),
                                     test=deque([
@@ -616,11 +615,11 @@ else:
                                                     ])
                                                 )
                                             ]),
-                                            _numeric=deque(),
-                                            _return_expr=False,
-                                            _result=None,
-                                            _comment='',
-                                            _latex=''
+                                            numeric=deque(),
+                                            return_expr=False,
+                                            symbolic=deque(),
+                                            comment=None,
+                                            
                                         )
                                     ]),
                                     test=deque([
@@ -650,11 +649,11 @@ else:
                                                     ])
                                                 )
                                             ]),
-                                            _numeric=deque(),
-                                            _return_expr=False,
-                                            _result=None,
-                                            _comment='',
-                                            _latex=''
+                                            numeric=deque(),
+                                            return_expr=False,
+                                            symbolic=deque(),
+                                            comment=None,
+                                            
                                         )
                                     ]),
                                     test=deque([
@@ -679,11 +678,11 @@ else:
                                                     args=deque(['TWELVE'])
                                                 )
                                             ]),
-                                            _numeric=deque(),
-                                            _return_expr=False,
-                                            _result=None,
-                                            _comment='',
-                                            _latex=''
+                                            numeric=deque(),
+                                            return_expr=False,
+                                            symbolic=deque(),
+                                            comment=None,
+                                            
                                         )
                                     ])
                                 )
@@ -700,11 +699,11 @@ else:
                                     ])
                                 )
                             ]),
-                            _numeric=deque(),
-                            _return_expr=False,
-                            _result=None,
-                            _comment='',
-                            _latex=''
+                            numeric=deque(),
+                            return_expr=False,
+                            symbolic=deque(),
+                            comment=None,
+                            
                         )
                     ]),
                     test=deque([
@@ -722,10 +721,10 @@ else:
                             level=0,
                             assigns=deque([Name(identifier='d', value=4)]),
                             expression_tree=deque([5]),
-                            _numeric=deque(),
-                            _result=None,
-                            _comment='',
-                            _latex=''
+                            numeric=deque(),
+                            symbolic=deque(),
+                            comment=None,
+                            
                         ),
                         ExprLine(
                             level=0,
@@ -738,11 +737,11 @@ else:
                                     ])
                                 )
                             ]),
-                            _numeric=deque(),
-                            _return_expr=False,
-                            _result=None,
-                            _comment='',
-                            _latex=''
+                            numeric=deque(),
+                            return_expr=False,
+                            symbolic=deque(),
+                            comment=None,
+                            
                         )
                     ]),
                     test=deque([
@@ -758,10 +757,10 @@ else:
                             level=0,
                             assigns=deque([Name(identifier='d', value=4)]),
                             expression_tree=deque([6]),
-                            _numeric=deque(),
-                            _result=None,
-                            _comment='',
-                            _latex=''
+                            numeric=deque(),
+                            symbolic=deque(),
+                            comment=None,
+                            
                         ),
                         ExprLine(
                             level=0,
@@ -774,11 +773,11 @@ else:
                                     ])
                                 )
                             ]),
-                            _numeric=deque(),
-                            _return_expr=False,
-                            _result=None,
-                            _comment='',
-                            _latex=''
+                            numeric=deque(),
+                            return_expr=False,
+                            symbolic=deque(),
+                            comment=None,
+                            
                         )
                     ])
                 )

@@ -7,7 +7,7 @@ from .inline_nodes import InlineComment
 
 @dataclass
 class HcLineNode(HcNode):
-    level: int
+    level: int = 0
 
 @dataclass
 class CalcLine(HcLineNode):
