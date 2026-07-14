@@ -1,4 +1,6 @@
+from collections import deque
 from dataclasses import dataclass, field
+from typing import Optional
 from .nodes import HcNode
 
 # Arithmetic Operators
@@ -70,24 +72,16 @@ class SubOp(HcBinOp):
 class HcCompOp(HcNode):
     pass
 
-COMPARE_OPS = {
-    "Eq": "==",
-    "Ne": "!=",
-    "GtE": ">=",
-    "Gt": ">",
-    "LtE": "<=",
-    "Lt": "<",
-}
 
 @dataclass 
-class EqOp(HCCompOp):
+class EqOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "=="
 
 
 @dataclass 
-class NeqOp(HCCompOp):
+class NeqOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "!="
@@ -101,14 +95,14 @@ class GtOp(HcCompOp):
 
 
 @dataclass 
-class GtEOp(HCCompOp):
+class GtEOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = ">="
 
 
 @dataclass 
-class LtOp(HCCompOp):
+class LtOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "<"

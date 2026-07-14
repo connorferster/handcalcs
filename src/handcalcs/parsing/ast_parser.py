@@ -15,10 +15,11 @@ from handcalcs.parsing.nodes import (
     Dictionary,
     Name
 )
-from .blocks import (
+from .block_nodes import (
     ForBlock,
     IfBlock,
     ElifBlock,
+    HcBlockNode
 )
 from .line_nodes import (
     CalcLine,
@@ -26,7 +27,7 @@ from .line_nodes import (
     CommentLine,
     CommentCommand
 )
-from .inlines import (
+from .inline_nodes import (
     FunctionCall,
     ComprehensionChain,
     Comprehension,
@@ -37,7 +38,7 @@ from .null_values import (
     NoValue
 )
 
-from .operators import (
+from .operator_nodes import (
     AddOp,
     SubOp,
     MultOp,
@@ -46,8 +47,8 @@ from .operators import (
     ModuloOp,
     PowOp
 )
-from handcalcs.parsing.commands import command_parser
-import handcalcs.parsing.comments as comments
+# from handcalcs.parsing.commands import command_parser
+import handcalcs.parsing.comment_parser as comments
 
 ARITHMETIC_OPS = {
     "Add": AddOp,
@@ -77,7 +78,7 @@ class AST_Parser:
     current_line_number: int = 1
     prev_line_number: int = 0
     new_block_from_comment: bool = False
-    current_block: Optional[Union[FunctionBlock, ForBlock, IfBlock]] = None
+    current_block: Optional[Union[ForBlock, IfBlock]] = None
     function_recurse_exclusions: list[str] = field(
         default_factory=lambda: dir(builtins)
         + dir(math)

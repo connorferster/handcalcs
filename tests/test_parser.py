@@ -1,24 +1,30 @@
 from handcalcs.parsing.ast_parser import AST_Parser
 from handcalcs.parsing.sequence import HCSequence
-from handcalcs.parsing.comments import is_comment_command, split_commands, is_markdown_heading
-from handcalcs.parsing.blocks import (
-    CalcLine,
-    ExprLine,
-    FunctionBlock, 
+from handcalcs.parsing.comment_parser import is_comment_command, split_commands, is_markdown_heading
+from handcalcs.parsing.block_nodes import (
     IfBlock, 
     ForBlock,
     ElifBlock,
     ElseBlock
 )
-
-from handcalcs.parsing.datatypes import (
-    HCNotImplemented,
-    List,
-    Name,
-    NoValue
+from handcalcs.parsing.line_nodes import (
+    CalcLine,
+    ExprLine,
+    CommentLine,
+    MarkdownHeading,
 )
 
-from handcalcs.parsing.inlines import (
+from handcalcs.parsing.nodes import (
+    List,
+    Name,
+)
+
+from handcalcs.parsing.null_values import (
+    NoValue,
+    HcNotImplemented
+)
+
+from handcalcs.parsing.inline_nodes import (
     FunctionCall,
     ComprehensionChain,
     Comprehension,

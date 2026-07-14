@@ -1,5 +1,7 @@
+from collections import deque
 from dataclasses import dataclass, field
-from .node import HcNode
+from typing import Optional
+from .nodes import HcNode
 from .inline_nodes import InlineComment
 
 
@@ -8,19 +10,19 @@ class HcLineNode(HcNode):
     level: int
 
 @dataclass
-class CalcLine(HcBlockNode):
+class CalcLine(HcLineNode):
     assigns: deque = field(default_factory=deque)
     expression_tree: deque = field(default_factory=deque)
     symbolic: deque = field(default_factory=deque)
-    numeric: field(default_factory=deque)
+    numeric: deque = field(default_factory=deque)
     comment: Optional[InlineComment] = None
 
 
 @dataclass
-class ExprLine(HcBlockNode):
+class ExprLine(HcLineNode):
     expression_tree: deque = field(default_factory=deque)
     symbolic: deque = field(default_factory=deque)
-    numeric: field(default_factory=deque)
+    numeric: deque = field(default_factory=deque)
     comment: Optional[InlineComment] = None
     return_expr: bool = False
 

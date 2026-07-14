@@ -2,7 +2,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
-from .datatypes import Attribute, Tuple, List, Dictionary, Set
+from .nodes import Attribute, Tuple, List, Dictionary, Set
 
 # All attributes with renderable content should contain deques
 # even if only a single value is expected (and not a collection).

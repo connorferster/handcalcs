@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from collections import deque, ChainMap
 from typing import Callable, Optional
 from .ast_parser import AST_Parser
-from .blocks import ElifBlock, IfBlock, HandCalcsBlock
+from .block_nodes import ElifBlock, IfBlock, HcBlockNode
 from copy import deepcopy
 from typing import Any
 
@@ -72,13 +72,13 @@ class HCSequence:
         return acc
 
 
-def convert_if_tree(node: HandCalcsBlock) -> HandCalcsBlock:
+def convert_if_tree(node: HcBlockNode) -> HcBlockNode:
     if isinstance(node, IfBlock):
         return ElifBlock.from_if_tree(node)
     else:
         return node
 
-def set_level(node: HandCalcsBlock, level: int) -> HandCalcsBlock:
+def set_level(node: HcBlockNode, level: int) -> HcBlockNode:
     node.level = level
     return node
 
