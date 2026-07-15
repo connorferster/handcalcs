@@ -16,6 +16,7 @@ class FunctionBlock(HcBlockNode):
     function_name: deque[Attribute | str] = field(default_factory=deque)
     args: deque[Any] = field(default_factory=deque)
     params: deque[str] = field(default_factory=deque)
+    type: str = 'function_block'
 
 
 # Use leading underscores for attribute 
@@ -24,22 +25,25 @@ class ForBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
     assigns: deque[str] = field(default_factory=deque)
     iterator: deque[HcBlockNode | FunctionBlock | ExprLine | List | Tuple | Dictionary | str] = field(default_factory=deque)
-
+    type: str = 'for_block'
 
 @dataclass
 class IfBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
     test: deque[HcBlockNode | str | float | int | Any] = field(default_factory=deque)
     orelse: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
+    type: str = 'if_block'
     
 @dataclass
 class ElseBlock(HcBlockNode):
     lines: deque[Any] = field(default_factory=deque)
+    type: str = 'else_block'
 
 
 @dataclass
 class ElifBlock(HcBlockNode):
     lines: deque[IfBlock] = field(default_factory=deque)
+    type: str = 'elif_block'
     
     @classmethod
     def from_if_tree(cls, ib: IfBlock):

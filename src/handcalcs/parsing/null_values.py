@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class NoValue:
-    pass
+    type: str = 'no_value'
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -16,3 +16,4 @@ class NoValue:
 @dataclass
 class HcNotImplemented:
     node_name: str
+    type: str = 'not_implemented'

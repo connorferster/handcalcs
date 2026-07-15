@@ -16,6 +16,7 @@ class PowOp(HcBinOp):
     symbol: Optional[str] = "**"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'pow_op'
 
 @dataclass
 class DivOp(HcBinOp):
@@ -24,6 +25,7 @@ class DivOp(HcBinOp):
     symbol: Optional[str] = "/"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'div_op'
 
 @dataclass
 class FloorOp(HcBinOp):
@@ -32,6 +34,7 @@ class FloorOp(HcBinOp):
     symbol: Optional[str] = "//"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'floor_op'
 
 @dataclass
 class ModuloOp(HcBinOp):
@@ -40,6 +43,7 @@ class ModuloOp(HcBinOp):
     symbol: Optional[str] = "%"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'modulo_op'
 
 @dataclass
 class MultOp(HcBinOp):
@@ -48,6 +52,7 @@ class MultOp(HcBinOp):
     symbol: str = "*"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'mult_op'
 
 @dataclass
 class AddOp(HcBinOp):
@@ -56,6 +61,7 @@ class AddOp(HcBinOp):
     symbol: str = "+"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'add_op'
 
 @dataclass
 class SubOp(HcBinOp):
@@ -64,6 +70,7 @@ class SubOp(HcBinOp):
     symbol: str = "-"
     pre: Optional[str] = None
     post: Optional[str] = None
+    type: str = 'sub_op'
 
 
 # Comparison Operators
@@ -78,6 +85,7 @@ class EqOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "=="
+    type: str = 'eq_op'
 
 
 @dataclass 
@@ -85,6 +93,7 @@ class NeqOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "!="
+    type: str = 'neq_op'
 
 
 @dataclass
@@ -92,6 +101,7 @@ class GtOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = ">"
+    type: str = 'gt_op'
 
 
 @dataclass 
@@ -99,6 +109,7 @@ class GtEOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = ">="
+    type: str = 'gte_op'
 
 
 @dataclass 
@@ -106,6 +117,7 @@ class LtOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "<"
+    type: str = 'lt_op'
 
 
 @dataclass 
@@ -113,3 +125,4 @@ class LtEOp(HcCompOp):
     left: deque
     right: deque
     symbol: str = "<="
+    type: str = 'lte_op'

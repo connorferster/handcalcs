@@ -16,6 +16,7 @@ class CalcLine(HcLineNode):
     symbolic: deque = field(default_factory=deque)
     numeric: deque = field(default_factory=deque)
     comment: Optional[InlineComment] = None
+    type: str = "calc_line"
 
 
 @dataclass
@@ -25,11 +26,13 @@ class ExprLine(HcLineNode):
     numeric: deque = field(default_factory=deque)
     comment: Optional[InlineComment] = None
     return_expr: bool = False
+    type: str = "expr_line"
 
 
 @dataclass
 class CommentLine(HcLineNode):
     content: Optional[str] = None
+    type: str = "comment_line"
 
 
 @dataclass
@@ -37,8 +40,10 @@ class MarkdownHeading(HcLineNode):
     comment: Optional[CommentLine] = None
     heading_level: Optional[int] = None
     content: Optional[str] = None
+    type: str = "markdown_heading"
 
 @dataclass
 class CommentCommand(HcLineNode):
     comment: Optional[CommentLine] = None
     commands: Optional[list[str]] = None
+    type: str = "comment_command"
