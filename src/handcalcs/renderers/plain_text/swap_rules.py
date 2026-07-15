@@ -1,8 +1,8 @@
-def swap_greeks(name_node: Name) -> None:
+def swap_greeks(node, context: Optional[dict] = None) -> None:
     """
     Swaps out any greek substrings or unicode symbols
     """
-    if not isinstance(name_node, Name): return
+    if not isinstance(node, Name): return
     GREEK_LOWER = {
         "alpha": "α",
         "beta": "β",
@@ -64,16 +64,37 @@ def swap_greeks(name_node: Name) -> None:
     }
 
     for name, unicode in (GREEK_LOWER | GREEK_UPPER).items():
-        id_components = name_node.identifier.split("_")
+        id_components = node.identifier.split("_")
         swapped_components = []
         for comp in id_components:
             if comp == name:
                 comp = unicode
             swapped_components.append(comp)
         swapped_id = "_".join(swapped_components)
-        name_node.identifier = swapped_id
+        node.identifier = swapped_id
     
 
-def swap_py_operators(op_nodes: "HcOpNode") -> None:
-    pass
+def swap_py_operators(node) -> HcNode:
+    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op'):
+        return node
+    elif node.type == 'mult_op':
+        node.symbol = ')('
+        node.pre = '('
+        node.post = ')'
+        return node
+    elif node.type == 'div_op':
+        node.symbol = ') / ('
+        node.pre = '('
+        node.post = ')'
+        return node
+    elif node.type == 'floor_op':
+        node.symbol = ') / ('
+        node.pre = 'floor[('
+        node.post = ')]'
+        return node
+    elif node.type == 'pow_op' and isinstance(node.exponent, int):
+        return node
+    else:
+        return node
+        
 
