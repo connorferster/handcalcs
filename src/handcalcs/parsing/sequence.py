@@ -5,11 +5,13 @@ from .ast_parser import AST_Parser
 from .block_nodes import ElifBlock, IfBlock, HcBlockNode
 from copy import deepcopy
 from typing import Any
+from .nodes import HcNode
 
 
 @dataclass
-class HCSequence:
+class HCSequence(HcNode):
     sequence: deque
+    name: str = 'root'
     c_globals: Optional[dict] = None
     c_locals: Optional[dict] = None
 

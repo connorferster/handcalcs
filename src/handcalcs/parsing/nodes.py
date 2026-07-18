@@ -8,6 +8,11 @@ class HcNode:
     pass
     # type: str
 
+    def render(self):
+        raise NotImplementedError(
+            f"The render method for {__class__.__name__} has not been implemented yet."
+        )
+
 @dataclass
 class Name(HcNode):
     identifier: str
