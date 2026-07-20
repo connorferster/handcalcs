@@ -3,9 +3,22 @@ from typing import ClassVar, Callable, Optional
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
 
+class ContextValueError(Exception):
+    pass
+
+class ContextKeyError(Exception):
+
 @dataclass
 class RenderContext:
-    pass
+    
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    def __repr__(self):
+        attrs = [f"{k}={v}" for k, v in self.__dict__.items() if not k.startswith("_") and k.islower()]
+        repr_attrs = ", ".join(attrs)
+        return f"{__class__.__name__}({repr_attrs})"
 
 
 class BaseRenderer:
