@@ -1,7 +1,8 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
-from handcalcs.renders.base import BaseRenderer, RenderContext, ContextKeyError, ContextValueError
+from handcalcs.renderers.base import BaseRenderer, RenderContext, ContextKeyError, ContextValueError
+
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
@@ -9,6 +10,13 @@ from handcalcs.parsing.nodes import (
     Name,
     
 )
+
+from handcalcs.parsing.block_nodes import (
+    IfBlock,
+    ElseBlock,
+)
+
+INDENT = "    "
 
 class PlainTextRenderContext(RenderContext):
     pass
@@ -125,9 +133,42 @@ def render_exprline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
 
 @PlainTextRenderer.register('elif_block')
 def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: PlainTextRenderContext) -> str:
-    for ib in node.lines:
-        if ib.is_true:
-            pass
+    clauses: deque = node.lines
+    try:
+        true_clause: IfBlock = next(ib for ib in clauses if ib.is_true)
+    except StopIteration:
+        if isinstance(clauses[-1], ElseBlock):
+            true_clause: ElseBlock = clauses[-1]
+        else:
+            true_clause = None
+
+    if true_clause is None:
+        return "No conditions were satisfied within the if-elif block"
+    else:
+        condition: deque = true_clause.test
+        sym_acc = []
+        context.current_mode = 'sym'
+        for elem in condition:
+            sym_acc.append(self.render(elem, context))
+        sym_expr = "".join(sym_acc)
+
+        context.current_mode = 'num'
+        num_acc = []
+        for elem in condition:
+            num_acc.append(self.render(elem, context))
+        num_expr = "".join(num_acc)
+        elif_block_header = f"Since ({sym_expr}) -> ({num_expr}) is True:"
+
+        context.current_mode = None
+        lines_acc = []
+        for line in true_clause.lines:
+            lines_acc.append(self.render(elem, context))
+        lines = "\n".join(lines_acc)
+        block_header = f"{INDENT * node.level}{elif_block_header}"
+        block_text = f"{block_header}\n{lines}"
+        return block_text
+
+                
 
         
 
