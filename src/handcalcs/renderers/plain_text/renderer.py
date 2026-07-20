@@ -122,9 +122,12 @@ def render_exprline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
         rendered += comment_portion
     return rendered
     
+
 @PlainTextRenderer.register('elif_block')
 def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: PlainTextRenderContext) -> str:
-    pass
+    for ib in node.lines:
+        if ib.is_true:
+            pass
 
         
 

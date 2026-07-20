@@ -1,4 +1,5 @@
 import ast_comments as ast
+import ast as py_ast
 import builtins
 import importlib
 import math
@@ -13,7 +14,8 @@ from handcalcs.parsing.nodes import (
     List,
     Tuple,
     Dictionary,
-    Name
+    Name,
+    Constant
 )
 from .block_nodes import (
     ForBlock,
@@ -206,7 +208,7 @@ class AST_Parser:
             node: ast.Name
             val = Name(identifier=node.id, value=self.globals.get(node.id, NoValue()))
         elif isinstance(node, ast.Constant):
-            val = node.value
+            val = Constant(value=node.value)
         elif isinstance(node, ast.Compare):
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)
@@ -302,6 +304,7 @@ class AST_Parser:
 
             # "test": The condition (nested list via recursive call)
             if_block.test = self.ast_parse(node.test)
+            if_block.is_true = py_ast.literal_eval(node.test)
 
             # "body": The block of code inside the if (nested list of statements)
             if_block.lines.extend(

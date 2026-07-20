@@ -21,6 +21,11 @@ class Name(HcNode):
 
 
 @dataclass
+class Constant(HcNode):
+    value: Any
+
+
+@dataclass
 class Attribute(HcNode):
     namespace: str
     identifier: str

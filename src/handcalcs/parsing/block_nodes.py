@@ -32,6 +32,7 @@ class IfBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
     test: deque[HcBlockNode | str | float | int | Any] = field(default_factory=deque)
     orelse: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
+    is_true: Optional[bool] = None
     type: str = 'if_block'
     
 @dataclass
