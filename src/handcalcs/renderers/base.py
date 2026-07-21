@@ -3,10 +3,13 @@ from typing import ClassVar, Callable, Optional
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
 
+RenderHandler = Callable
+
 class ContextValueError(Exception):
     pass
 
 class ContextKeyError(Exception):
+    pass
 
 @dataclass
 class RenderContext:
@@ -30,7 +33,7 @@ class BaseRenderer:
     root_post_renderers: ClassVar[dict[str, Callable]] = {}
 
     def __init__(self) -> None:
-        self._handlers: dict[str, Callable] = dict(self.handlers)
+        self._handlers: dict[str, Callable] = dict(self.node_handlers)
         self._symbolic_rules: dict[str, Callable] = dict(self.symbolic_rules)
         self._numeric_rules: dict[str, Callable] = dict(self.numeric_rules)
         self._root_pre_renderers: dict[str, Callable] = dict(self.root_pre_renderers)
@@ -39,14 +42,14 @@ class BaseRenderer:
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        cls.handlers = dict(cls.handlers)
+        cls.node_handlers = dict(cls.node_handlers)
         cls.symbolic_rules = dict(cls.symbolic_rules)
         cls.numeric_rules = dict(cls.numeric_rules)
         cls.root_pre_renderers = dict(cls.root_pre_renderers)
         cls.root_post_renderers = dict(cls.root_post_renderers)
 
-    def create_context(self, node: Optional[HcNode] = None) -> RenderContext:
-        return RenderContext()
+    def create_context(self, **kwargs) -> RenderContext:
+        return RenderContext(**kwargs)
 
     def render(self, node: HcNode, context: Optional[RenderContext] = None) -> str:
         """
@@ -55,8 +58,8 @@ class BaseRenderer:
         If 'context' is None, a new context is created.
         """
         if context is None:
-            context = self.create_context(node)
-        if node.name == 'root':
+            context = self.create_context()
+        if node.type == 'root':
             return self.render_root(node, context)
         return self.render_node(node, context)
 
@@ -77,7 +80,7 @@ class BaseRenderer:
         """
         Render one node with an existing context.
         """
-        handler = self._handlers.get(node.name)
+        handler = self._handlers.get(node.type)
         if handler is None:
             return self.render_unknown(node, context)
         return handler(self, node, context)
@@ -107,7 +110,7 @@ class BaseRenderer:
                         "the node classifier must be the name of a recognized HcNode (in snake_case)."
                     )
             else:
-                cls.handlers.update({node_classifier: handler})
+                cls.node_handlers.update({node_classifier: handler})
             return handler
         return decorator
 

@@ -10,13 +10,19 @@ from handcalcs.parsing.nodes import (
     Name,
     
 )
-
+from handcalcs.parsing.line_nodes import (
+    CalcLine,
+    ExprLine
+)
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
+    ElifBlock
 )
 
-INDENT = "    "
+
+
+INDENT = " " * 4
 
 class PlainTextRenderContext(RenderContext):
     pass
@@ -29,7 +35,7 @@ class PlainTextRenderer(BaseRenderer):
         self, 
         **kwargs
         ):
-        context = PlainTextRenderContext(mode, commands)
+        context = PlainTextRenderContext(**kwargs | {'mode': 'full'})
         return context
 
 @PlainTextRenderer.register('name')
@@ -40,19 +46,19 @@ def render_name(renderer: PlainTextRenderer, node: Name, context: PlainTextRende
             f"{context=}"
         )
     if context.current_mode == 'sym':
-        if self.symbolic_rules is None:
+        if renderer.symbolic_rules is None:
             symbolic_rules = []
         else:
-            symbolic_rules = self.symbolic_rules
+            symbolic_rules = renderer.symbolic_rules
         symbol = node.identifier
         for rule in symbolic_rules:
             symbol = rule(symbol, context)
         return symbol
     elif context.current_mode == 'num':
-        if self.numeric_rules is None:
+        if renderer.numeric_rules is None:
             numeric_rules = []
         else:
-            numeric_rules = self.numeric_rules
+            numeric_rules = renderer.numeric_rules
         value = node.value
         for rule in numeric_rules:
             value = rule(value, context)
@@ -64,17 +70,19 @@ def render_name(renderer: PlainTextRenderer, node: Name, context: PlainTextRende
 
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
-    rendered = ""
+    rendered = f"{INDENT * node.level}"
     if context.mode == 'full' or 'ass' in context.mode:
         context.current_mode = 'sym'
-        assign = self.render(node.assign, context)
+        print(f"{context=}")
+        assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
+        assigns = ", ".join([name.identifier for name in assign_nodes])
         assign_portion = f"{assign}  =  "
         rendered += assign_portion
     if context.mode == 'full' or 'sym' in context.mode:
         context.current_mode = 'sym'
         symbolic = deque([])
         for subnode in node.expression_tree:
-            symbolic.append(self.render(subnode, context))
+            symbolic.append(renderer.render(subnode, context))
         symbolic = "".join(symbolic)
         symbolic_portion = f"{symbolic}  =  "
         rendered += symbolic_portion
@@ -82,31 +90,34 @@ def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
         context.current_mode = "num"
         numeric = deque([])
         for subnode in node.expression_tree:
-            numeric.append(self.render(subnode, context))
+            numeric.append(renderer.render(subnode, context))
         numeric = "".join(numeric)
         numeric_portion = f"{numeric}  =  "
         rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
         context.current_mode = "num"
-        result = node.assign.value
-        for rule in self.numeric_rules:
-            result = rule(result, context)
+        assign_nodes = deque([renderer.render(subnode) for subnode in node.assigns])
+        results = deque([name.value for name in assign_nodes])
+        for rule in renderer.numeric_rules:
+            for idx, result in enumerate(results):
+                results[idx] = rule(result, context)
         result_portion = f"{result}"
         rendered += result_portion
     if node.comment is not None:
         comment_portion = f"  ({node.comment.comment.lstrip("# ")})"
         rendered += comment_portion
-    return rendered
+    ready_for_next_line = f"{rendered}\n"
+    return ready_for_next_line
 
 
 @PlainTextRenderer.register('expr_line')
 def render_exprline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
-    rendered = ""
+    rendered = f"{INDENT * node.level}"
     if context.mode == 'full' or 'sym' in context.mode:
         context.current_mode = 'sym'
         symbolic = deque([])
         for subnode in node.expression_tree:
-            symbolic.append(self.render(subnode, context))
+            symbolic.append(renderer.render(subnode, context))
         symbolic = "".join(symbolic)
         symbolic_portion = f"{symbolic}  =  "
         rendered += symbolic_portion
@@ -114,20 +125,21 @@ def render_exprline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
         context.current_mode = "num"
         numeric = deque([])
         for subnode in node.expression_tree:
-            numeric.append(self.render(subnode, context))
+            numeric.append(renderer.render(subnode, context))
         numeric = "".join(numeric)
         numeric_portion = f"{numeric}  =  "
         rendered += numeric_portion
-    if context.mode == "full" or "res" in context.mode:
-        context.current_mode = "num"
-        result = node.assign.value
-        for rule in self.numeric_rules:
-            result = rule(result, context)
-        result_portion = f"{result}"
-        rendered += result_portion
+    # if context.mode == "full" or "res" in context.mode:
+    #     context.current_mode = "num"
+    #     result = node.assign.value
+    #     for rule in renderer.numeric_rules:
+    #         result = rule(result, context)
+    #     result_portion = f"{result}"
+    #     rendered += result_portion
     if node.comment is not None:
         comment_portion = f"  ({node.comment.comment.lstrip("# ")})"
         rendered += comment_portion
+    ready_for_next_line = f"{rendered}\n"
     return rendered
     
 
@@ -149,20 +161,20 @@ def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: Plai
         sym_acc = []
         context.current_mode = 'sym'
         for elem in condition:
-            sym_acc.append(self.render(elem, context))
+            sym_acc.append(renderer.render(elem, context))
         sym_expr = "".join(sym_acc)
 
         context.current_mode = 'num'
         num_acc = []
         for elem in condition:
-            num_acc.append(self.render(elem, context))
+            num_acc.append(renderer.render(elem, context))
         num_expr = "".join(num_acc)
         elif_block_header = f"Since ({sym_expr}) -> ({num_expr}) is True:"
 
         context.current_mode = None
         lines_acc = []
         for line in true_clause.lines:
-            lines_acc.append(self.render(elem, context))
+            lines_acc.append(renderer.render(elem, context))
         lines = "\n".join(lines_acc)
         block_header = f"{INDENT * node.level}{elif_block_header}"
         block_text = f"{block_header}\n{lines}"

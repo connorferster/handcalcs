@@ -9,24 +9,24 @@ from .nodes import HcNode
 
 
 @dataclass
-class HCSequence(HcNode):
+class HcSequence(HcNode):
     sequence: deque
-    name: str = 'root'
-    c_globals: Optional[dict] = None
-    c_locals: Optional[dict] = None
+    type: str = 'root'
+    hc_globals: Optional[dict] = None
+    hc_locals: Optional[dict] = None
 
     @classmethod
-    def from_source(cls, source_code: str, c_globals: dict, c_locals: dict):
+    def from_source(cls, source_code: str, hc_globals: dict, hc_locals: dict):
         """
-        Builds an HCSequence tree from Python source code.
+        Builds an HcSequence tree from Python source code.
         """
-        context = ChainMap(c_locals, c_globals)
+        context = ChainMap(hc_locals, hc_globals)
         parser = AST_Parser(context)
         tree = parser(source_code)
 
-        tree = HCSequence.apply_blocks(tree, convert_if_tree)
-        tree = HCSequence.set_levels(tree, level=0)
-        return cls(tree, c_globals, c_locals)
+        tree = HcSequence.apply_blocks(tree, convert_if_tree)
+        tree = HcSequence.set_levels(tree, level=0)
+        return cls(tree, 'root', hc_globals, hc_locals)
 
     @staticmethod
     def apply_blocks(tree: deque, apply: Callable, *args, **kwargs):
@@ -35,7 +35,7 @@ class HCSequence(HcNode):
             if hasattr(node, 'lines'):
                 updated_node = apply(tree[idx], *args, **kwargs)
                 tree[idx] = updated_node
-                HCSequence.apply_blocks(node.lines, apply)
+                HcSequence.apply_blocks(node.lines, apply)
         return tree
 
     @staticmethod
@@ -50,10 +50,10 @@ class HCSequence(HcNode):
             updated_node = set_level(node, level)
             if hasattr(node, 'lines') and isinstance(node, ElifBlock):
                 tree[idx] = updated_node
-                HCSequence.set_levels(node.lines, level)
+                HcSequence.set_levels(node.lines, level)
             elif hasattr(node, 'lines') and not isinstance(node, ElifBlock):
                 tree[idx] = updated_node
-                HCSequence.set_levels(node.lines, level+1)  
+                HcSequence.set_levels(node.lines, level+1)  
         return tree
 
     @staticmethod
@@ -70,7 +70,7 @@ class HCSequence(HcNode):
                 acc.extend(flatten_deque(node.expression_tree))
             elif hasattr(node, 'lines'):
                 acc.append([str(node.__class__)])
-                acc.extend(HCSequence.dump_tree(node.lines))
+                acc.extend(HcSequence.dump_tree(node.lines))
         return acc
 
 
