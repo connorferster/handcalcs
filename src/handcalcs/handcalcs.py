@@ -37,7 +37,8 @@ class HandCalcs:
             
         self.hc_ast = HcSequence.from_source(source, hc_globals=supplied_globals, hc_locals=supplied_locals)
         
-        return self.renderer.render(self.hc_ast)
+        rendered_lines = self.renderer.render(self.hc_ast)
+        return "".join(rendered_lines)
 
     def __repr__(self):
         return f"HandCalcs(renderer={self.renderer}())"

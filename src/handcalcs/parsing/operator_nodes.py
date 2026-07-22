@@ -11,38 +11,38 @@ class HcBinOp(HcNode):
 
 @dataclass
 class PowOp(HcBinOp):
-    base: deque
-    exponent: deque
-    symbol: Optional[str] = "**"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    left: deque
+    right: deque
+    symbol: str = "**"
+    pre: str = ""
+    post: str = ""
     type: str = 'pow_op'
 
 @dataclass
 class DivOp(HcBinOp):
-    numerator: deque
-    denominator: deque
-    symbol: Optional[str] = "/"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    left: deque
+    right: deque
+    symbol: str = "/"
+    pre: str = ""
+    post: str = ""
     type: str = 'div_op'
 
 @dataclass
 class FloorOp(HcBinOp):
-    numerator: deque
-    denominator: deque
-    symbol: Optional[str] = "//"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    left: deque
+    right: deque
+    symbol: str = "//"
+    pre: str = ""
+    post: str = ""
     type: str = 'floor_op'
 
 @dataclass
 class ModuloOp(HcBinOp):
-    numerator: deque
-    denominator: deque
-    symbol: Optional[str] = "%"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    left: deque
+    right: deque
+    symbol: str = "%"
+    pre: str = ""
+    post: str = ""
     type: str = 'modulo_op'
 
 @dataclass
@@ -50,8 +50,8 @@ class MultOp(HcBinOp):
     left: deque
     right: deque
     symbol: str = "*"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    pre: str = ""
+    post: str = ""
     type: str = 'mult_op'
 
 @dataclass
@@ -59,8 +59,8 @@ class AddOp(HcBinOp):
     left: deque
     right: deque
     symbol: str = "+"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    pre: str = ""
+    post: str = ""
     type: str = 'add_op'
 
 @dataclass
@@ -68,8 +68,8 @@ class SubOp(HcBinOp):
     left: deque
     right: deque
     symbol: str = "-"
-    pre: Optional[str] = None
-    post: Optional[str] = None
+    pre: str = ""
+    post: str = ""
     type: str = 'sub_op'
 
 

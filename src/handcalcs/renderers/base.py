@@ -80,6 +80,10 @@ class BaseRenderer:
         """
         Render one node with an existing context.
         """
+        for rule in self.symbolic_rules.values():
+            node = rule(node, context)
+        for rule in self.numeric_rules.values():
+            node = rule(node, context)
         handler = self._handlers.get(node.type)
         if handler is None:
             return self.render_unknown(node, context)

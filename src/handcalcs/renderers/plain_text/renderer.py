@@ -1,6 +1,6 @@
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any
 from handcalcs.renderers.base import BaseRenderer, RenderContext, ContextKeyError, ContextValueError
 
 
@@ -8,7 +8,21 @@ from handcalcs.renderers.base import BaseRenderer, RenderContext, ContextKeyErro
 from handcalcs.parsing.nodes import (
     HcNode,
     Name,
+    Constant,
     
+)
+from handcalcs.parsing.operator_nodes import (
+    AddOp,
+    MultOp,
+    SubOp,
+    DivOp,
+    ModuloOp,
+    FloorOp,
+    PowOp,
+    HcBinOp
+)
+from handcalcs.parsing.inline_nodes import (
+    InlineComment
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -38,6 +52,17 @@ class PlainTextRenderer(BaseRenderer):
         context = PlainTextRenderContext(**kwargs | {'mode': 'full'})
         return context
 
+PTR = PlainTextRenderer
+PTRC = PlainTextRenderContext
+
+@PlainTextRenderer.register('constant')
+def render_constant(renderer: PlainTextRenderer, node: Constant, context: PlainTextRenderContext) -> Any:
+    return f"{node.value}"
+
+@PlainTextRenderer.register('inline_comment')
+def render_inline_comment(renderer: PlainTextRenderer, node: InlineComment, context: PlainTextRenderContext) -> str:
+    return f"  ({node.comment.lstrip("# ")})"
+
 @PlainTextRenderer.register('name')
 def render_name(renderer: PlainTextRenderer, node: Name, context: PlainTextRenderContext) -> str:
     if not hasattr(context, 'current_mode'):
@@ -46,72 +71,78 @@ def render_name(renderer: PlainTextRenderer, node: Name, context: PlainTextRende
             f"{context=}"
         )
     if context.current_mode == 'sym':
-        if renderer.symbolic_rules is None:
-            symbolic_rules = []
-        else:
-            symbolic_rules = renderer.symbolic_rules
-        symbol = node.identifier
-        for rule in symbolic_rules:
-            symbol = rule(symbol, context)
-        return symbol
+        return node.identifier
     elif context.current_mode == 'num':
-        if renderer.numeric_rules is None:
-            numeric_rules = []
-        else:
-            numeric_rules = renderer.numeric_rules
-        value = node.value
-        for rule in numeric_rules:
-            value = rule(value, context)
-        return value
+        return f"{node.value}"
     else:
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
         )
+
+@PlainTextRenderer.register('add_op')
+def render_add_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
+    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+
+
+@PlainTextRenderer.register('sub_op')
+def render_sub_op(renderer: PTR, node: SubOp, context: PTRC) -> str:
+    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+
+
+@PlainTextRenderer.register('mult_op')
+def render_mult_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
+    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+
+
+@PlainTextRenderer.register('div_op')
+def render_div_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
+    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+
 
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
     rendered = f"{INDENT * node.level}"
     if context.mode == 'full' or 'ass' in context.mode:
         context.current_mode = 'sym'
-        print(f"{context=}")
         assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
-        assigns = ", ".join([name.identifier for name in assign_nodes])
-        assign_portion = f"{assign}  =  "
+        assigns = ", ".join([name for name in assign_nodes])
+        assign_portion = f"{assigns}  =  "
         rendered += assign_portion
-    if context.mode == 'full' or 'sym' in context.mode:
-        context.current_mode = 'sym'
-        symbolic = deque([])
-        for subnode in node.expression_tree:
-            symbolic.append(renderer.render(subnode, context))
-        symbolic = "".join(symbolic)
-        symbolic_portion = f"{symbolic}  =  "
-        rendered += symbolic_portion
-    if context.mode == "full" or "num" in context.mode:
-        context.current_mode = "num"
-        numeric = deque([])
-        for subnode in node.expression_tree:
-            numeric.append(renderer.render(subnode, context))
-        numeric = "".join(numeric)
-        numeric_portion = f"{numeric}  =  "
-        rendered += numeric_portion
+    if len(node.expression_tree) > 1: # Need a better rule
+        if context.mode == 'full' or 'sym' in context.mode:
+            context.current_mode = 'sym'
+            symbolic = deque([])
+            for subnode in node.expression_tree:
+                symbolic.append(renderer.render(subnode, context))
+            symbolic = "".join(symbolic)
+            symbolic_portion = f"{symbolic}  =  "
+            rendered += symbolic_portion
+        if context.mode == "full" or "num" in context.mode:
+            context.current_mode = "num"
+            numeric = deque([])
+            for subnode in node.expression_tree:
+                numeric.append(renderer.render(subnode, context))
+            numeric = "".join(numeric)
+            numeric_portion = f"{numeric}  =  "
+            rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
         context.current_mode = "num"
-        assign_nodes = deque([renderer.render(subnode) for subnode in node.assigns])
-        results = deque([name.value for name in assign_nodes])
+        assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
+        results = deque([val for val in assign_nodes])
         for rule in renderer.numeric_rules:
             for idx, result in enumerate(results):
                 results[idx] = rule(result, context)
-        result_portion = f"{result}"
+        result_portion = f"{', '.join(results)}"
         rendered += result_portion
     if node.comment is not None:
-        comment_portion = f"  ({node.comment.comment.lstrip("# ")})"
+        comment_portion = renderer.render(node.comment, context)
         rendered += comment_portion
     ready_for_next_line = f"{rendered}\n"
     return ready_for_next_line
 
 
 @PlainTextRenderer.register('expr_line')
-def render_exprline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
+def render_exprline(renderer: PlainTextRenderer, node: ExprLine, context: PlainTextRenderContext) -> str:
     rendered = f"{INDENT * node.level}"
     if context.mode == 'full' or 'sym' in context.mode:
         context.current_mode = 'sym'
@@ -137,7 +168,7 @@ def render_exprline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
     #     result_portion = f"{result}"
     #     rendered += result_portion
     if node.comment is not None:
-        comment_portion = f"  ({node.comment.comment.lstrip("# ")})"
+        comment_portion = renderer.render(node.comment, context)
         rendered += comment_portion
     ready_for_next_line = f"{rendered}\n"
     return rendered
@@ -183,7 +214,109 @@ def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: Plai
                 
 
         
+## SWAP RULES
 
+@PlainTextRenderer.register("sym:swap_greeks")
+def swap_greeks(node: Name, context: PTRC) -> HcNode:
+    """
+    Swaps out any greek substrings or unicode symbols
+    """
+    if not isinstance(node, Name): return node
+    GREEK_LOWER = {
+        "alpha": "α",
+        "beta": "β",
+        "gamma": "γ",
+        "delta": "δ",
+        "epsilon": "ε",
+        "varepsilon": "ϵ",
+        "zeta": "ζ",
+        "theta": "θ",
+        "vartheta": "ϑ",
+        "iota": "ι",
+        "kappa": "κ",
+        "mu": "μ",
+        "nu": "ν",
+        "xi": "ξ",
+        "omicron": "ο",
+        "pi": "π",
+        "varpi": "ϖ",
+        "rho": "ρ",
+        "varrho": "ϱ",
+        "sigma": "σ",
+        "varsigma": "ς",
+        "tau": "τ",
+        "upsilon": "υ",
+        "phi": "φ",
+        "varphi": "ϕ",
+        "chi": "χ",
+        "omega": "ω",
+        "eta": "η",
+        "psi": "ψ",
+        "lamb": "λ",
+    }
+
+    GREEK_UPPER = {
+        "Alpha": "Α",
+        "Beta": "Β",
+        "Gamma": "Γ",
+        "Delta": "Δ",
+        "Epsilon": "Ε",
+        "Zeta": "Ζ",
+        "Theta": "Θ",
+        "Iota": "Ι",
+        "Kappa": "Κ",
+        "Mu": "Μ",
+        "Nu": "Ν",
+        "Xi": "Ξ",
+        "Omicron": "Ο",
+        "Pi": "Π",
+        "Rho": "Ρ",
+        "Sigma": "Σ",
+        "Tau": "Τ",
+        "Upsilon": "Υ",
+        "Phi": "Φ",
+        "Chi": "Χ",
+        "Omega": "Ω",
+        "Eta": "Η",
+        "Psi": "Ψ",
+        "Lamb": "Λ",
+    }
+
+    for name, unicode in (GREEK_LOWER | GREEK_UPPER).items():
+        id_components = node.identifier.split("_")
+        swapped_components = []
+        for comp in id_components:
+            if comp == name:
+                comp = unicode
+            swapped_components.append(comp)
+        swapped_id = "_".join(swapped_components)
+        node.identifier = swapped_id
+    return node
+    
+@PlainTextRenderer.register("sym:swap_py_operators")
+def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
+    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op'):
+        return node
+    elif node.type == 'mult_op':
+        node.symbol = ')('
+        node.pre = '('
+        node.post = ')'
+        return node
+    elif node.type == 'div_op':
+        node.symbol = ') / ('
+        node.pre = '('
+        node.post = ')'
+        return node
+    elif node.type == 'floor_op':
+        node.symbol = ') / ('
+        node.pre = 'floor[('
+        node.post = ')]'
+        return node
+    elif node.type == 'pow_op' and isinstance(node.exponent, int):
+        return node
+    else:
+        return node
+        
 
 
 

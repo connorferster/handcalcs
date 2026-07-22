@@ -23,6 +23,7 @@ class Name(HcNode):
 @dataclass
 class Constant(HcNode):
     value: Any
+    type: str = "constant"
 
 
 @dataclass

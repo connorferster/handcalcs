@@ -6,7 +6,9 @@ def test_basic_arithmetic():
     source = """
 a = 4
 b = 5
-c = a + b
+d = 3
+c = (d * (a + b)) / 2
     """
     hc = HandCalcs()
     print(hc(source))
+    assert False
