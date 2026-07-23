@@ -298,7 +298,7 @@ def swap_greeks(node: Name, context: PTRC) -> HcNode:
     
 @PlainTextRenderer.register("sym:swap_py_operators")
 def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
-    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op'):
+    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
         return node
     elif node.type == 'mult_op':
         node.symbol = ')('
@@ -315,7 +315,11 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
         node.pre = 'floor[('
         node.post = ')]'
         return node
+    elif node.type == 'add_op':
+        node.symbol = ' + '
+        return node
     elif node.type == 'pow_op' and isinstance(node.exponent, int):
+        # TODO: Implement pow_op for text superscripts
         return node
     else:
         return node
