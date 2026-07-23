@@ -318,7 +318,26 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
     elif node.type == 'add_op':
         node.symbol = ' + '
         return node
-    elif node.type == 'pow_op' and isinstance(node.exponent, int):
+    elif node.type == 'pow_op' and isinstance(node.exponent, (int, float)):
+        exp_str = str(node.exponent)
+        superscript_integers = {
+            "1": "¹",
+            "2": "²",
+            "3": "³",
+            "4": "⁴",
+            "5": "⁵",
+            "6": "⁶",
+            "7": "⁷",
+            "8": "⁸",
+            "9": "⁹",
+            "0": "⁰",
+            ".": "'"
+        }
+        acc = []
+        for char in exp_string:
+            acc.append(superscript_integers.get(char,char))
+        return Constant(value="".join(acc)) # TODO: Test this
+
         # TODO: Implement pow_op for text superscripts
         return node
     else:
