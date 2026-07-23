@@ -8,7 +8,7 @@ a = 4
 b = 5
 d = 3
 c = (d * (a + b)) / 2
-e = b**2 - a**2
+e = sqrt(b**2 - a**2)
     """
     hc = HandCalcs()
     print(hc(source))

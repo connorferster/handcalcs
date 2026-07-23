@@ -292,8 +292,8 @@ class AST_Parser:
             args_list = deque([self.ast_parse(arg) for arg in node.args])
 
             # Create the main nested list for the function call
-            function_call.namespace = deque([module_name])
-            function_call.function_name = deque([func_name])
+            function_call.namespace = Name(identifier=module_name, value=module_name)
+            function_call.function_name = Name(identifier=func_name, value=func_name)
             function_call.args.extend(args_list)
 
             val = function_call

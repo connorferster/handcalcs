@@ -22,7 +22,8 @@ from handcalcs.parsing.operator_nodes import (
     HcBinOp
 )
 from handcalcs.parsing.inline_nodes import (
-    InlineComment
+    InlineComment,
+    FunctionCall
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -37,8 +38,6 @@ from handcalcs.parsing.block_nodes import (
 class PlainTextRenderContext(RenderContext):
     def __init__(self, **kwargs):
         super().__init__()
-        print("HERE")
-        print(f"{self=}")
 
 
 class PlainTextRenderer(BaseRenderer):
@@ -103,6 +102,21 @@ def render_pow_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
     return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
 
 
+@PlainTextRenderer.register('function_call')
+def render_function_call(renderer: PTR, node: FunctionCall, context: PTRC) -> str:
+    function_name = renderer.render(node.function_name, context)
+    namespace = renderer.render(node.namespace, context)
+    args = [renderer.render(arg, context) for arg in node.args]
+    print(f"{args=}")
+    arg_str = f",{context.single_space_char}".join(args)
+    if namespace == '__main__':
+        namespace = ''
+    if namespace:
+        rendered = f"{context.single_space_char}{namespace}.{function_name}({arg_str}){context.single_space_char}"
+    else:
+        rendered = f"{context.single_space_char}{function_name}({arg_str}){context.single_space_char}"
+    return rendered
+
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
     rendered = f"{context.single_space_char * context.indent_size * node.level}"
@@ -113,7 +127,7 @@ def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
         context.current_mode = 'sym'
         assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}  =  "
+        assign_portion = f"{assigns}{context.single_space_char}={context.single_space_char}"
         rendered += assign_portion
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
@@ -122,7 +136,7 @@ def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
             for subnode in node.expression_tree:
                 symbolic.append(renderer.render(subnode, context))
             symbolic = "".join(symbolic)
-            symbolic_portion = f"{symbolic}  =  "
+            symbolic_portion = f"{symbolic}{context.single_space_char}={context.single_space_char}"
             rendered += symbolic_portion
         if context.mode == "full" or "num" in context.mode:
             context.current_mode = "num"
@@ -130,7 +144,7 @@ def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
             for subnode in node.expression_tree:
                 numeric.append(renderer.render(subnode, context))
             numeric = "".join(numeric)
-            numeric_portion = f"{numeric}  =  "
+            numeric_portion = f"{numeric}{context.single_space_char}={context.single_space_char}"
             rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
         context.current_mode = "num"
@@ -139,12 +153,12 @@ def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
         for rule in renderer.numeric_rules:
             for idx, result in enumerate(results):
                 results[idx] = rule(result, context)
-        result_portion = f"{', '.join(results)}"
+        result_portion = f',{context.single_space_char}'.join(results)
         rendered += result_portion
     if node.comment is not None:
         comment_portion = renderer.render(node.comment, context)
         rendered += comment_portion
-    ready_for_next_line = f"{rendered}\n"
+    ready_for_next_line = f"{rendered}{context.newline_char}"
     return ready_for_next_line
 
 
