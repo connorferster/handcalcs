@@ -99,6 +99,11 @@ def render_div_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
     return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
 
 
+@PlainTextRenderer.register('pow_op')
+def render_pow_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
+    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+
+
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
     rendered = f"{INDENT * node.level}"
@@ -318,8 +323,12 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
     elif node.type == 'add_op':
         node.symbol = ' + '
         return node
-    elif node.type == 'pow_op' and isinstance(node.exponent, (int, float)):
-        exp_str = str(node.exponent)
+    elif node.type == 'sub_op':
+        node.symbol = ' - '
+        return node
+    elif node.type == 'pow_op' and isinstance(node.right, Constant):
+        exp_str = str(node.right.value)
+        node.symbol = ''
         superscript_integers = {
             "1": "¹",
             "2": "²",
@@ -334,11 +343,10 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
             ".": "'"
         }
         acc = []
-        for char in exp_string:
+        for char in exp_str:
             acc.append(superscript_integers.get(char,char))
-        return Constant(value="".join(acc)) # TODO: Test this
-
-        # TODO: Implement pow_op for text superscripts
+        
+        node.right = Constant(value="".join(acc))
         return node
     else:
         return node
