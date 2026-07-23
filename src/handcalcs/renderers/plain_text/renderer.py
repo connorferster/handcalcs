@@ -34,12 +34,11 @@ from handcalcs.parsing.block_nodes import (
     ElifBlock
 )
 
-
-
-INDENT = " " * 4
-
 class PlainTextRenderContext(RenderContext):
-    pass
+    def __init__(self, **kwargs):
+        super().__init__()
+        print("HERE")
+        print(f"{self=}")
 
 
 class PlainTextRenderer(BaseRenderer):
@@ -106,7 +105,7 @@ def render_pow_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
 
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
-    rendered = f"{INDENT * node.level}"
+    rendered = f"{context.single_space_char * context.indent_size * node.level}"
     # Retrieve param_line immediately before the next .render method is called because it will change
     # the state of the context to that of the next node.
     param_line = getattr(context, 'param_line', False)
@@ -151,7 +150,7 @@ def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainT
 
 @PlainTextRenderer.register('expr_line')
 def render_exprline(renderer: PlainTextRenderer, node: ExprLine, context: PlainTextRenderContext) -> str:
-    rendered = f"{INDENT * node.level}"
+    rendered = f"{context.single_space_char * context.indent_size * node.level}"
     if context.mode == 'full' or 'sym' in context.mode:
         context.current_mode = 'sym'
         symbolic = deque([])
@@ -214,8 +213,8 @@ def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: Plai
         lines_acc = []
         for line in true_clause.lines:
             lines_acc.append(renderer.render(elem, context))
-        lines = "\n".join(lines_acc)
-        block_header = f"{INDENT * node.level}{elif_block_header}"
+        lines = f"{context.newline_char}".join(lines_acc)
+        block_header = f"{context.single_space_char * context.indent_size * node.level}{elif_block_header}"
         block_text = f"{block_header}\n{lines}"
         return block_text
 

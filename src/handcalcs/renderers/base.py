@@ -14,7 +14,19 @@ class ContextKeyError(Exception):
 @dataclass
 class RenderContext:
     
-    def __init__(self, **kwargs):
+    def __init__(
+        self, 
+        single_space_char: str = ' ', 
+        newline_char: str = '\n', 
+        indent_size: int = 4,
+        mode: str = 'full',
+        **kwargs
+    ):
+        self.single_space_char = single_space_char
+        self.newline_char = newline_char
+        self.indent_size = indent_size
+        self.mode = mode
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 
