@@ -117,6 +117,16 @@ def render_function_call(renderer: PTR, node: FunctionCall, context: PTRC) -> st
         rendered = f"{context.single_space_char}{function_name}({arg_str}){context.single_space_char}"
     return rendered
 
+@PlainTextRenderer.register('import')
+def render_import(renderer: PTR, node: Import, context: PTRC) -> str:
+    # TODO: Implement import
+    if node.import_from:
+        pass
+    else:
+        _ = context.single_space_char
+        nl = context.newline_char
+        
+
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
     rendered = f"{context.single_space_char * context.indent_size * node.level}"
@@ -171,7 +181,7 @@ def render_exprline(renderer: PlainTextRenderer, node: ExprLine, context: PlainT
         for subnode in node.expression_tree:
             symbolic.append(renderer.render(subnode, context))
         symbolic = "".join(symbolic)
-        symbolic_portion = f"{symbolic}  =  "
+        symbolic_portion = f"{symbolic}{context.single_space_char}={context.single_space_char}"
         rendered += symbolic_portion
     if context.mode == "full" or "num" in context.mode:
         context.current_mode = "num"
@@ -179,7 +189,7 @@ def render_exprline(renderer: PlainTextRenderer, node: ExprLine, context: PlainT
         for subnode in node.expression_tree:
             numeric.append(renderer.render(subnode, context))
         numeric = "".join(numeric)
-        numeric_portion = f"{numeric}  =  "
+        numeric_portion = f"{numeric}{context.single_space_char}={context.single_space_char}"
         rendered += numeric_portion
     # if context.mode == "full" or "res" in context.mode:
     #     context.current_mode = "num"
@@ -191,7 +201,7 @@ def render_exprline(renderer: PlainTextRenderer, node: ExprLine, context: PlainT
     if node.comment is not None:
         comment_portion = renderer.render(node.comment, context)
         rendered += comment_portion
-    ready_for_next_line = f"{rendered}\n"
+    ready_for_next_line = f"{rendered}{context.newline_char}"
     return rendered
     
 

@@ -27,7 +27,8 @@ from .line_nodes import (
     CalcLine,
     ExprLine,
     CommentLine,
-    CommentCommand
+    CommentCommand,
+    Import
 )
 from .inline_nodes import (
     FunctionCall,
@@ -225,7 +226,18 @@ class AST_Parser:
 
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             self.resolve_import_and_load(node)
-            val = HcNotImplemented(type(node).__name__)
+            acc = deque([])
+            for name in node.names:
+                acc.append(Name(identifier=name.name, value=name.asname))
+            if isinstance(node, ast.Import):
+                val = Import(import_from=False, names=acc)
+            elif isinstance(node, ast.ImportFrom):
+                val = Import(
+                    import_from=True,
+                    import_from_level=node.level,
+                    import_from_module=node.module,
+                    names=acc
+                )
 
         elif isinstance(node, ast.Call):
             function_call = FunctionCall()

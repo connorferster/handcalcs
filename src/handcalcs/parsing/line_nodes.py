@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
-from .nodes import HcNode
+from .nodes import HcNode, Name
 from .inline_nodes import InlineComment
 
 
@@ -47,3 +47,11 @@ class CommentCommand(HcLineNode):
     comment: Optional[CommentLine] = None
     commands: Optional[list[str]] = None
     type: str = "comment_command"
+
+@dataclass
+class Import(HcLineNode):
+    import_from: bool = False
+    names: deque[str] = field(default_factory=deque)
+    import_from_module: Optional[str] = None
+    import_from_level: Optional[int] = None
+    type: str = 'import'
