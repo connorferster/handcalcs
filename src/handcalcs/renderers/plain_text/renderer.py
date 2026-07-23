@@ -102,13 +102,16 @@ def render_div_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
 @PlainTextRenderer.register('calc_line')
 def render_calcline(renderer: PlainTextRenderer, node: CalcLine, context: PlainTextRenderContext) -> str:
     rendered = f"{INDENT * node.level}"
+    # Retrieve param_line immediately before the next .render method is called because it will change
+    # the state of the context to that of the next node.
+    param_line = getattr(context, 'param_line', False)
     if context.mode == 'full' or 'ass' in context.mode:
         context.current_mode = 'sym'
         assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
         assign_portion = f"{assigns}  =  "
         rendered += assign_portion
-    if len(node.expression_tree) > 1: # Need a better rule
+    if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
             context.current_mode = 'sym'
             symbolic = deque([])
@@ -317,6 +320,20 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
     else:
         return node
         
+
+@PlainTextRenderer.register("sym:toggle_param_line")
+def toggle_param_line(node: CalcLine, context: PTRC) -> CalcLine:
+    if node.type not in ('calc_line',):
+        context.param_line = False
+    else:
+        if (
+            len(node.expression_tree) == 1
+            and isinstance(node.expression_tree[0], Constant)
+        ):
+            context.param_line = True
+        else:
+            context.param_line = False
+    return node
 
 
 
