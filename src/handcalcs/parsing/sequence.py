@@ -76,7 +76,8 @@ class HcSequence(HcNode):
 
 def convert_if_tree(node: HcBlockNode) -> HcBlockNode:
     if isinstance(node, IfBlock):
-        return ElifBlock.from_if_tree(node)
+        elif_block = ElifBlock.from_if_tree(node)
+        return elif_block
     else:
         return node
 

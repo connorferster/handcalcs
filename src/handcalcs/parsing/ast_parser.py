@@ -35,6 +35,7 @@ from .inline_nodes import (
     ComprehensionChain,
     Comprehension,
     InlineComment,
+    Compare
 )
 from .null_values import (
     HcNotImplemented,
@@ -48,7 +49,13 @@ from .operator_nodes import (
     DivOp,
     FloorOp,
     ModuloOp,
-    PowOp
+    PowOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
+    EqOp,
+    NeqOp
 )
 # from handcalcs.parsing.commands import command_parser
 import handcalcs.parsing.comment_parser as comments
@@ -64,12 +71,12 @@ ARITHMETIC_OPS = {
 }
 
 COMPARE_OPS = {
-    "Eq": "==",
-    "Ne": "!=",
-    "GtE": ">=",
-    "Gt": ">",
-    "LtE": "<=",
-    "Lt": "<",
+    "Eq": EqOp,
+    "Ne": NeqOp,
+    "GtE": GtEOp,
+    "Gt": GtOp,
+    "LtE": LtEOp,
+    "Lt": LtOp,
 }
 
 
@@ -218,12 +225,13 @@ class AST_Parser:
             comparator_names = [self.ast_parse(n) for n in node.comparators]
             ops = [COMPARE_OPS.get(op_name, op_name) for op_name in op_names]
             matched = list(zip(ops, comparator_names))
-            val = deque([])
-            val.append(left)
+            acc = deque([])
+            acc.append(left)
             for pair in matched:
-                val.append(pair[0])
-                val.append(pair[1])
-
+                acc.append(pair[0])
+                acc.append(pair[1])
+            val = Compare(comparison=acc)
+            
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             self.resolve_import_and_load(node)
             acc = deque([])
@@ -316,10 +324,12 @@ class AST_Parser:
 
             # "test": The condition (nested list via recursive call)
             if_block.test = self.ast_parse(node.test)
-            # TODO: Determine why the literal_eval is failing and continue
-            # implementing ElifBlock
-            if_block.is_true = py_ast.literal_eval(node.test)
-
+            if_block.is_true = eval(
+                compile(
+                    py_ast.Expression(node.test), mode='eval', filename='<ast>'
+                ), 
+                locals=self.globals.maps[0], globals=self.globals.maps[1]
+            )
             # "body": The block of code inside the if (nested list of statements)
             if_block.lines.extend(
                 deque([self.ast_parse(item) for item in node.body])

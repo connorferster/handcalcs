@@ -82,47 +82,35 @@ class HcCompOp(HcNode):
 
 @dataclass 
 class EqOp(HcCompOp):
-    left: deque
-    right: deque
     symbol: str = "=="
     type: str = 'eq_op'
 
 
 @dataclass 
 class NeqOp(HcCompOp):
-    left: deque
-    right: deque
     symbol: str = "!="
     type: str = 'neq_op'
 
 
 @dataclass
 class GtOp(HcCompOp):
-    left: deque
-    right: deque
     symbol: str = ">"
     type: str = 'gt_op'
 
 
 @dataclass 
 class GtEOp(HcCompOp):
-    left: deque
-    right: deque
     symbol: str = ">="
     type: str = 'gte_op'
 
 
 @dataclass 
 class LtOp(HcCompOp):
-    left: deque
-    right: deque
     symbol: str = "<"
     type: str = 'lt_op'
 
 
 @dataclass 
 class LtEOp(HcCompOp):
-    left: deque
-    right: deque
     symbol: str = "<="
     type: str = 'lte_op'

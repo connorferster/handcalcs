@@ -50,16 +50,20 @@ class ElifBlock(HcBlockNode):
     def from_if_tree(cls, ib: IfBlock):
         def flatten_if_tree(ib: IfBlock) -> deque[IfBlock]:
             acc = deque([])
-            orelse = ib.orelse[0]
-            orelse_full = ib.orelse
-            ib.orelse = None
+            if len(ib.orelse) == 1: # deque has something in it
+                orelse = ib.orelse[0]
+                orelse_full = ib.orelse
+            else: # Empty deque, no alternative branch for the if provided
+                orelse = None
+                orelse_full = None
             acc.extend(deque([ib]))
             if isinstance(orelse, IfBlock):
                 acc.extend(flatten_if_tree(orelse))
             else:
-                acc.extend(deque([ElseBlock(orelse_full)]))
+                if orelse_full is not None:
+                    acc.extend(deque([ElseBlock(orelse_full)]))
                 return acc
             return acc  
         flattened_tree = flatten_if_tree(ib)
-        return cls(flattened_tree)
+        return cls(lines=flattened_tree)
 

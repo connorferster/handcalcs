@@ -19,11 +19,19 @@ from handcalcs.parsing.operator_nodes import (
     ModuloOp,
     FloorOp,
     PowOp,
-    HcBinOp
+    HcBinOp,
+    EqOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
+    NeqOp,
+    HcCompOp
 )
 from handcalcs.parsing.inline_nodes import (
     InlineComment,
-    FunctionCall
+    FunctionCall,
+    Compare
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -102,6 +110,34 @@ def render_div_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
 def render_pow_op(renderer: PTR, node: AddOp, context: PTRC) -> str:
     return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
 
+@PlainTextRenderer.register('gt_op')
+def render_gt_op(renderer: PTR, node: GtOp, context: PTRC) -> str:
+    return f"{node.symbol}"
+
+@PlainTextRenderer.register('gte_op')
+def render_gte_op(renderer: PTR, node: GtEOp, context: PTRC) -> str:
+    return f"{node.symbol}"
+
+@PlainTextRenderer.register('lt_op')
+def render_lt_op(renderer: PTR, node: LtOp, context: PTRC) -> str:
+    return f"{node.symbol}"
+
+@PlainTextRenderer.register('lte_op')
+def render_lte_op(renderer: PTR, node: LtEOp, context: PTRC) -> str:
+    return f"{node.symbol}"
+
+@PlainTextRenderer.register('eq_op')
+def render_eq_op(renderer: PTR, node: EqOp, context: PTRC) -> str:
+    return f"{node.symbol}"
+
+@PlainTextRenderer.register('neq_op')
+def render_neq_op(renderer: PTR, node: NeqOp, context: PTRC) -> str:
+    return f"{node.symbol}"
+
+@PlainTextRenderer.register('compare')
+def render_compare(renderer: PTR, node: Compare, context: PTRC) -> str:
+    acc = [renderer.render(node, context) for node in node.comparison]
+    return f"".join(acc)
 
 @PlainTextRenderer.register('function_call')
 def render_function_call(renderer: PTR, node: FunctionCall, context: PTRC) -> str:
@@ -225,7 +261,7 @@ def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: Plai
     try:
         true_clause: IfBlock = next(ib for ib in clauses if ib.is_true)
     except StopIteration:
-        if isinstance(clauses[-1], ElseBlock):
+        if len(clauses) >= 1 and isinstance(clauses[-1], ElseBlock):
             true_clause: ElseBlock = clauses[-1]
         else:
             true_clause = None
@@ -233,30 +269,35 @@ def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: Plai
     if true_clause is None:
         return "No conditions were satisfied within the if-elif block"
     else:
-        condition: deque = true_clause.test
-        sym_acc = []
-        context.current_mode = 'sym'
-        for elem in condition:
-            sym_acc.append(renderer.render(elem, context))
-        sym_expr = "".join(sym_acc)
-
-        context.current_mode = 'num'
-        num_acc = []
-        for elem in condition:
-            num_acc.append(renderer.render(elem, context))
-        num_expr = "".join(num_acc)
-        elif_block_header = f"Since ({sym_expr}) -> ({num_expr}) is True:"
-
-        context.current_mode = None
-        lines_acc = []
-        for line in true_clause.lines:
-            lines_acc.append(renderer.render(elem, context))
-        lines = f"{context.newline_char}".join(lines_acc)
-        block_header = f"{context.single_space_char * context.indent_size * node.level}{elif_block_header}"
-        block_text = f"{block_header}\n{lines}"
+        block_text = renderer.render(true_clause, context)
         return block_text
 
-        
+@PlainTextRenderer.register('if_block')
+def render_if_block(renderer: PlainTextRenderer, node: IfBlock, context: PTRC) -> str:
+    _ = context.single_space_char
+    condition: deque = node.test.comparison
+    sym_acc = []
+    context.current_mode = 'sym'
+    for elem in condition:
+        sym_acc.append(renderer.render(elem, context))
+    sym_expr = "".join(sym_acc)
+
+    context.current_mode = 'num'
+    num_acc = []
+    for elem in condition:
+        num_acc.append(renderer.render(elem, context))
+    num_expr = "".join(num_acc)
+    if_block_header = f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
+
+    context.current_mode = None
+    lines_acc = []
+    for line in node.lines:
+        lines_acc.append(renderer.render(line, context))
+    lines = f"{context.newline_char}".join(lines_acc)
+    block_header = f"{context.single_space_char * context.indent_size * node.level}{if_block_header}"
+    block_text = f"{block_header}\n{lines}"
+    return block_text
+
 ## SWAP RULES
 
 @PlainTextRenderer.register("sym:swap_greeks")
@@ -421,7 +462,6 @@ def swap_sqrt_symbol(node: FunctionCall, context: PTRC) -> FunctionCall:
         node.function_name.identifier = '√'
         node.function_name.value = '√'
     return node
-        
 
 
             

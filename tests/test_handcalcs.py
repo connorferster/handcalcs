@@ -3,14 +3,20 @@ from rich import print
 
 
 def test_basic_arithmetic():
-    source = """from math import sqrt
+    source = """
+from math import sqrt
 alpha = 4
 beta = 5
 d = 3
 c = (d * (alpha + beta)) / 2
 e = sqrt(beta**2 - alpha**2)
 if e <= 3:
-    print('good')
+    if 2 < beta < alpha:
+        f = 12
+    elif 2 < alpha < beta:
+        f = 20
+    else:
+        f = 30
     """
     hc = HandCalcs()
     print(hc(source))

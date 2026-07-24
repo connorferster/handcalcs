@@ -2,7 +2,16 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
-from .nodes import Attribute, Tuple, List, Dictionary, Set, HcNode
+from .nodes import Attribute, Tuple, List, Dictionary, Set, HcNode, Constant, Name
+from .operator_nodes import (
+    EqOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
+    NeqOp,
+    HcCompOp
+)
 
 # All attributes with renderable content should contain deques
 # even if only a single value is expected (and not a collection).
@@ -18,6 +27,11 @@ class FunctionCall(HcInlineNode):
     args: deque[Any] = field(default_factory=deque)
     type: str = "function_call"
 
+
+@dataclass
+class Compare(HcNode):
+    comparison: deque[Constant | FunctionCall | Name | HcCompOp]
+    type: str = 'compare'
 
 @dataclass
 class InlineComment(HcInlineNode):
