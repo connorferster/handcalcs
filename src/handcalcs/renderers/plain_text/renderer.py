@@ -338,6 +338,7 @@ def swap_greeks(node: Name, context: PTRC) -> HcNode:
     
 @PlainTextRenderer.register("sym:swap_py_operators")
 def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
+    _ = context.single_space_char
     if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
         return node
     elif node.type == 'mult_op':
@@ -346,9 +347,20 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
         node.post = ')'
         return node
     elif node.type == 'div_op':
-        node.symbol = ') / ('
-        node.pre = '('
-        node.post = ')'
+        symbol = f"){_}/{_}("
+        pre = "("
+        post = ")"
+        # If it is a simple denominator, trim the parenths
+        if isinstance(node.right, Constant):
+            symbol = symbol[:-1]
+            post = ""
+        # And if it is also a simple numerator, trim the parenths
+        if isinstance(node.left, Constant):
+            symbol = symbol[1:]
+            pre = ""
+        node.symbol = symbol
+        node.pre = pre
+        node.post = post
         return node
     elif node.type == 'floor_op':
         node.symbol = ') / ('
@@ -405,7 +417,6 @@ def toggle_param_line(node: CalcLine, context: PTRC) -> CalcLine:
 @PlainTextRenderer.register("sym:swap_sqrt_symbol")
 def swap_sqrt_symbol(node: FunctionCall, context: PTRC) -> FunctionCall:
     if node.type not in ('function_call',): return node
-    print(f"{node.function_name=}")
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '√'
         node.function_name.value = '√'
