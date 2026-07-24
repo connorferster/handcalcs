@@ -27,7 +27,8 @@ from handcalcs.parsing.inline_nodes import (
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
-    ExprLine
+    ExprLine,
+    Import
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -107,7 +108,6 @@ def render_function_call(renderer: PTR, node: FunctionCall, context: PTRC) -> st
     function_name = renderer.render(node.function_name, context)
     namespace = renderer.render(node.namespace, context)
     args = [renderer.render(arg, context) for arg in node.args]
-    print(f"{args=}")
     arg_str = f",{context.single_space_char}".join(args)
     if namespace == '__main__':
         namespace = ''
@@ -119,12 +119,26 @@ def render_function_call(renderer: PTR, node: FunctionCall, context: PTRC) -> st
 
 @PlainTextRenderer.register('import')
 def render_import(renderer: PTR, node: Import, context: PTRC) -> str:
-    # TODO: Implement import
+    _ = context.single_space_char
+    nl = context.newline_char
+    names = [
+        f"{name.identifier}{_}as{_}{name.value}" if name.value is not None
+        else f"{name.identifier}"
+        for name in node.names
+    ]
+    rendered_names = f",{_}".join(names)
     if node.import_from:
-        pass
+        module = node.import_from_module
+        level = node.import_from_level
+        dots = "." * level
+        if module is not None:
+            rendered = f"[Python{_}import]:{_}from{_}{dots}{module}{_}import{_}{rendered_names}"
+        else:
+            rendered = f"[Python{_}import]:{_}from{_}{dots}{_}import{_}{rendered_names}"
     else:
-        _ = context.single_space_char
-        nl = context.newline_char
+        rendered = f"[Python{_}import]:{_}import{_}{rendered_names}"
+    rendered = rendered + f"{nl}{nl}"
+    return rendered
         
 
 @PlainTextRenderer.register('calc_line')
