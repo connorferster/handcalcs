@@ -316,6 +316,8 @@ class AST_Parser:
 
             # "test": The condition (nested list via recursive call)
             if_block.test = self.ast_parse(node.test)
+            # TODO: Determine why the literal_eval is failing and continue
+            # implementing ElifBlock
             if_block.is_true = py_ast.literal_eval(node.test)
 
             # "body": The block of code inside the if (nested list of statements)

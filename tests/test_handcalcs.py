@@ -4,11 +4,13 @@ from rich import print
 
 def test_basic_arithmetic():
     source = """from math import sqrt
-a = 4
-b = 5
+alpha = 4
+beta = 5
 d = 3
-c = (d * (a + b)) / 2
-e = sqrt(b**2 - a**2)
+c = (d * (alpha + beta)) / 2
+e = sqrt(beta**2 - alpha**2)
+if e <= 3:
+    print('good')
     """
     hc = HandCalcs()
     print(hc(source))
