@@ -256,8 +256,6 @@ def render_elifblock(renderer: PlainTextRenderer, node: ElifBlock, context: Plai
         block_text = f"{block_header}\n{lines}"
         return block_text
 
-                
-
         
 ## SWAP RULES
 
@@ -403,6 +401,16 @@ def toggle_param_line(node: CalcLine, context: PTRC) -> CalcLine:
             context.param_line = False
     return node
 
+
+@PlainTextRenderer.register("sym:swap_sqrt_symbol")
+def swap_sqrt_symbol(node: FunctionCall, context: PTRC) -> FunctionCall:
+    if node.type not in ('function_call',): return node
+    print(f"{node.function_name=}")
+    if node.function_name.identifier == 'sqrt':
+        node.function_name.identifier = '√'
+        node.function_name.value = '√'
+    return node
+        
 
 
             
