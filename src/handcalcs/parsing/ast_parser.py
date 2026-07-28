@@ -35,6 +35,7 @@ from .inline_nodes import (
     ComprehensionChain,
     Comprehension,
     InlineComment,
+    InlineCommand,
     Compare
 )
 from .null_values import (
@@ -449,20 +450,21 @@ class AST_Parser:
             val = self.current_block = for_block
 
         elif isinstance(node, ast.Comment):
-            if not new_line:
-                val = InlineComment(comment=node.value)
+            if not new_line: # Inline comments
+                if comments.is_comment_command(node.value):
+                    val = CommentCommand.from_raw_comment(node.value)
+                else:
+                    val = InlineComment(comment=node.value)
             else:
                 comment_value = node.value
                 if comments.is_markdown_heading(comment_value):
-                    val = MarkdownHeading(_comment=comment_value)
+                    val = MarkdownHeading(comment=comment_value)
                 elif comments.is_comment_command(comment_value):
                     split_commands = comments.split_commands(comment_value)
-                    parsed_commands = vars(command_parser.parse_args(split_commands))
-                    val = CommentCommand(
-                        _raw_commands=comment_value, _parsed_commands=parsed_commands
-                    )
+                    parsed_commands = CommentCommand.from_raw_comment(node.value)
+                    val = parsed_commands
                 else:
-                    val = CommentLine(_comment=comment_value)
+                    val = CommentLine(comment=comment_value)
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):

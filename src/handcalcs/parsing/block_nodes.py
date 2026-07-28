@@ -66,4 +66,3 @@ class ElifBlock(HcBlockNode):
             return acc  
         flattened_tree = flatten_if_tree(ib)
         return cls(lines=flattened_tree)
-

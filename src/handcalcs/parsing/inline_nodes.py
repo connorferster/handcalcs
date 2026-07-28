@@ -36,7 +36,13 @@ class Compare(HcNode):
 @dataclass
 class InlineComment(HcInlineNode):
     comment: str
-    type: str = "inline_node"
+    type: str = "inline_comment"
+
+
+@dataclass
+class InlineCommand(HcInlineNode):
+    comment: str
+    type: str = "inline_command"
 
 
 @dataclass

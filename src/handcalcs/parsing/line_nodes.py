@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 from .nodes import HcNode, Name
 from .inline_nodes import InlineComment
+from .commands import command_parser
+from .comment_parser import is_comment_command, is_markdown_heading, parse_kwargs, split_commands
 
 
 @dataclass
@@ -47,6 +49,16 @@ class CommentCommand(HcLineNode):
     comment: Optional[CommentLine] = None
     commands: Optional[list[str]] = None
     type: str = "comment_command"
+
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        if is_comment_command(comment):
+            try:
+                parsed = parse_kwargs(comment)
+            except SyntaxError:
+                parsed = vars(command_parser.parse_args(split_commands(comment)))
+        else:
+            return None
 
 @dataclass
 class Import(HcLineNode):

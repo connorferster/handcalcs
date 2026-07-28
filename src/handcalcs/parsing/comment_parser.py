@@ -1,4 +1,5 @@
 import re
+import ast
 
 
 def is_markdown_heading(comment: str) -> bool:
@@ -24,6 +25,22 @@ def split_commands(comment: str) -> list[str]:
     """
     Splits the commands by white space.
     """
+    commands = strip_command_prefix(comment)
+    return commands.split()
+
+def strip_command_prefix(comment: str) -> str:
+    """
+    Splits the commands by white space.
+    """
     pattern = re.compile(r"^[#][\s]*hc\:[\s]*")
     stripped = pattern.sub("", comment)
-    return stripped.split()
+    return stripped
+
+def parse_kwargs(comment: str) -> dict:
+    """
+    For kwarg comment commands.
+    """
+    stripped = strip_command_prefix(comment)
+    kwarg_locals = {}
+    eval(stripped, locals=kwarg_locals)
+    return kwarg_locals

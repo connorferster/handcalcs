@@ -1,7 +1,47 @@
 from dataclasses import dataclass, field
-from typing import ClassVar, Callable, Optional
+from typing import ClassVar, Callable, Optional, Any
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
+
+# Node type imports only used for typing
+from handcalcs.parsing.nodes import (
+    HcNode,
+    Name,
+    Constant,
+    
+)
+from handcalcs.parsing.operator_nodes import (
+    AddOp,
+    MultOp,
+    SubOp,
+    DivOp,
+    ModuloOp,
+    FloorOp,
+    PowOp,
+    HcBinOp,
+    EqOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
+    NeqOp,
+    HcCompOp
+)
+from handcalcs.parsing.inline_nodes import (
+    InlineComment,
+    FunctionCall,
+    Compare
+)
+from handcalcs.parsing.line_nodes import (
+    CalcLine,
+    ExprLine,
+    Import
+)
+from handcalcs.parsing.block_nodes import (
+    IfBlock,
+    ElseBlock,
+    ElifBlock
+)
 
 RenderHandler = Callable
 
@@ -160,7 +200,7 @@ class BaseRenderer:
 ## Register BaseRenderer basic node implementations
 
 BR = BaseRenderer
-BRC = BaseRendererContext
+BRC = RenderContext
 
 
 @BaseRenderer.register('constant')
@@ -254,6 +294,10 @@ def render_function_call(renderer: BR, node: FunctionCall, context: BRC) -> str:
     else:
         rendered = f"{context.single_space_char}{function_name}({arg_str}){context.single_space_char}"
     return rendered
+
+
+@BaseRenderer.register('comment_command')
+
 
 @BaseRenderer.register('import')
 def render_import(renderer: BR, node: Import, context: BRC) -> str:
