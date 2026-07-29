@@ -1,3 +1,4 @@
+from collections import deque
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
 from handcalcs.parsing.nodes import HcNode
@@ -30,12 +31,14 @@ from handcalcs.parsing.operator_nodes import (
 from handcalcs.parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
-    Compare
+    Compare,
+    InlineCommand
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
-    Import
+    Import,
+    CommentCommand
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -56,15 +59,15 @@ class RenderContext:
     
     def __init__(
         self, 
-        single_space_char: str = ' ', 
-        newline_char: str = '\n', 
-        indent_size: int = 4,
+        space: str = ' ', 
+        newline: str = '\n', 
+        indent: int = "    ",
         mode: str = 'full',
         **kwargs
     ):
-        self.single_space_char = single_space_char
-        self.newline_char = newline_char
-        self.indent_size = indent_size
+        self.space = space
+        self.newline = newline
+        self.indent = indent
         self.mode = mode
 
         for k, v in kwargs.items():
@@ -209,7 +212,7 @@ def render_constant(renderer: BaseRenderer, node: Constant, context: RenderConte
 
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, context: RenderContext) -> str:
-    _ = context.single_space_char
+    _ = context.space
     return f"{_}({node.comment.lstrip("# ")})"
 
 @BaseRenderer.register('name')
@@ -286,23 +289,32 @@ def render_function_call(renderer: BR, node: FunctionCall, context: BRC) -> str:
     function_name = renderer.render(node.function_name, context)
     namespace = renderer.render(node.namespace, context)
     args = [renderer.render(arg, context) for arg in node.args]
-    arg_str = f",{context.single_space_char}".join(args)
+    arg_str = f",{context.space}".join(args)
     if namespace == '__main__':
         namespace = ''
     if namespace:
-        rendered = f"{context.single_space_char}{namespace}.{function_name}({arg_str}){context.single_space_char}"
+        rendered = f"{context.space}{namespace}.{function_name}({arg_str}){context.space}"
     else:
-        rendered = f"{context.single_space_char}{function_name}({arg_str}){context.single_space_char}"
+        rendered = f"{context.space}{function_name}({arg_str}){context.space}"
     return rendered
 
 
 @BaseRenderer.register('comment_command')
+def render_comment_command(renderer: BR, node: CommentCommand, context: BRC) -> str:
+    context = context.__dict__ | node.commands
+    return ""
+
+
+@BaseRenderer.register('inline_command')
+def render_inline_command(renderer: BR, node: InlineCommand, context: BRC) -> str:
+    context.__dict__['line'] = node.commands
+    return ""
 
 
 @BaseRenderer.register('import')
 def render_import(renderer: BR, node: Import, context: BRC) -> str:
-    _ = context.single_space_char
-    nl = context.newline_char
+    _ = context.space
+    nl = context.newline
     names = [
         f"{name.identifier}{_}as{_}{name.value}" if name.value is not None
         else f"{name.identifier}"
@@ -333,7 +345,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, context: RenderConte
         context.current_mode = 'sym'
         assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}{context.single_space_char}={context.single_space_char}"
+        assign_portion = f"{assigns}{context.space}={context.space}"
         rendered += assign_portion
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
@@ -342,7 +354,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, context: RenderConte
             for subnode in node.expression_tree:
                 symbolic.append(renderer.render(subnode, context))
             symbolic = "".join(symbolic)
-            symbolic_portion = f"{symbolic}{context.single_space_char}={context.single_space_char}"
+            symbolic_portion = f"{symbolic}{context.space}={context.space}"
             rendered += symbolic_portion
         if context.mode == "full" or "num" in context.mode:
             context.current_mode = "num"
@@ -350,7 +362,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, context: RenderConte
             for subnode in node.expression_tree:
                 numeric.append(renderer.render(subnode, context))
             numeric = "".join(numeric)
-            numeric_portion = f"{numeric}{context.single_space_char}={context.single_space_char}"
+            numeric_portion = f"{numeric}{context.space}={context.space}"
             rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
         context.current_mode = "num"
@@ -359,12 +371,12 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, context: RenderConte
         for rule in renderer.numeric_rules:
             for idx, result in enumerate(results):
                 results[idx] = rule(result, context)
-        result_portion = f',{context.single_space_char}'.join(results)
+        result_portion = f',{context.space}'.join(results)
         rendered += result_portion
     if node.comment is not None:
         comment_portion = renderer.render(node.comment, context)
         rendered += comment_portion
-    ready_for_next_line = f"{rendered}{context.newline_char}"
+    ready_for_next_line = f"{rendered}{context.newline}"
     return ready_for_next_line
 
 
@@ -377,7 +389,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, context: RenderConte
         for subnode in node.expression_tree:
             symbolic.append(renderer.render(subnode, context))
         symbolic = "".join(symbolic)
-        symbolic_portion = f"{symbolic}{context.single_space_char}={context.single_space_char}"
+        symbolic_portion = f"{symbolic}{context.space}={context.space}"
         rendered += symbolic_portion
     if context.mode == "full" or "num" in context.mode:
         context.current_mode = "num"
@@ -385,7 +397,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, context: RenderConte
         for subnode in node.expression_tree:
             numeric.append(renderer.render(subnode, context))
         numeric = "".join(numeric)
-        numeric_portion = f"{numeric}{context.single_space_char}={context.single_space_char}"
+        numeric_portion = f"{numeric}{context.space}={context.space}"
         rendered += numeric_portion
     # if context.mode == "full" or "res" in context.mode:
     #     context.current_mode = "num"
@@ -397,7 +409,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, context: RenderConte
     if node.comment is not None:
         comment_portion = renderer.render(node.comment, context)
         rendered += comment_portion
-    ready_for_next_line = f"{rendered}{context.newline_char}"
+    ready_for_next_line = f"{rendered}{context.newline}"
     return rendered
     
 
@@ -420,7 +432,7 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, context: RenderCon
 
 @BaseRenderer.register('if_block')
 def render_if_block(renderer: BaseRenderer, node: IfBlock, context: BRC) -> str:
-    _ = context.single_space_char
+    _ = context.space
     condition: deque = node.test.comparison
     sym_acc = []
     context.current_mode = 'sym'
@@ -439,7 +451,7 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, context: BRC) -> str:
     lines_acc = []
     for line in node.lines:
         lines_acc.append(renderer.render(line, context))
-    lines = f"{context.newline_char}".join(lines_acc)
+    lines = f"{context.newline}".join(lines_acc)
     block_header = f"{context.indent * node.level}{if_block_header}"
     block_text = f"{block_header}\n{lines}"
     return block_text

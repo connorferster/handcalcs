@@ -145,7 +145,7 @@ def swap_greeks(node: Name, context: PTRC) -> HcNode:
     
 @PlainTextRenderer.register("sym:swap_py_operators")
 def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
-    _ = context.single_space_char
+    _ = context.space
     if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
         return node
     elif node.type == 'mult_op':

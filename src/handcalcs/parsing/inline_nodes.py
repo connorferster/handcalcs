@@ -12,6 +12,8 @@ from .operator_nodes import (
     NeqOp,
     HcCompOp
 )
+from .commands import command_parser
+from .comment_parser import is_comment_command, is_markdown_heading, parse_kwargs, split_commands
 
 # All attributes with renderable content should contain deques
 # even if only a single value is expected (and not a collection).
@@ -42,7 +44,19 @@ class InlineComment(HcInlineNode):
 @dataclass
 class InlineCommand(HcInlineNode):
     comment: str
+    commands: dict = field(default_factory=dict)
     type: str = "inline_command"
+
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        if is_comment_command(comment):
+            try:
+                parsed = parse_kwargs(comment)
+            except SyntaxError:
+                parsed = vars(command_parser.parse_args(split_commands(comment)))
+            return cls(comment=comment, commands=parsed)
+        else:
+            return InlineComment(comment=comment)
 
 
 @dataclass

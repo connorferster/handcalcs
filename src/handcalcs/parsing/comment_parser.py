@@ -42,5 +42,5 @@ def parse_kwargs(comment: str) -> dict:
     """
     stripped = strip_command_prefix(comment)
     kwarg_locals = {}
-    eval(stripped, locals=kwarg_locals)
+    exec(stripped, locals=kwarg_locals)
     return kwarg_locals

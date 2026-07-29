@@ -47,18 +47,20 @@ class MarkdownHeading(HcLineNode):
 @dataclass
 class CommentCommand(HcLineNode):
     comment: Optional[CommentLine] = None
-    commands: Optional[list[str]] = None
+    commands: dict = field(default_factory=dict)
     type: str = "comment_command"
 
     @classmethod
     def from_raw_comment(cls, comment: str):
         if is_comment_command(comment):
+            # parsed = parse_kwargs(comment)
             try:
                 parsed = parse_kwargs(comment)
             except SyntaxError:
                 parsed = vars(command_parser.parse_args(split_commands(comment)))
+            return cls(comment=comment, commands=parsed)
         else:
-            return None
+            return CommentLine(comment=comment)
 
 @dataclass
 class Import(HcLineNode):

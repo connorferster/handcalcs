@@ -7,9 +7,11 @@ def test_basic_arithmetic():
 from math import sqrt
 alpha = 4
 beta = 5
+# Comment
 d = 3
-c = (d * (alpha + beta)) / 2
-e = sqrt(beta**2 - alpha**2)
+# hc: cat = "hat"
+c = (d * (alpha + beta)) / 2 # hc: sigfigs=4
+e = sqrt(beta**2 - alpha**2) # hc: --sf 3
 if e <= 3:
     if 2 < beta < alpha:
         f = 12

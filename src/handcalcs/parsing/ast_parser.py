@@ -450,7 +450,7 @@ class AST_Parser:
             val = self.current_block = for_block
 
         elif isinstance(node, ast.Comment):
-            if not new_line: # Inline comments
+            if new_line: # Inline comments
                 if comments.is_comment_command(node.value):
                     val = CommentCommand.from_raw_comment(node.value)
                 else:
@@ -461,7 +461,7 @@ class AST_Parser:
                     val = MarkdownHeading(comment=comment_value)
                 elif comments.is_comment_command(comment_value):
                     split_commands = comments.split_commands(comment_value)
-                    parsed_commands = CommentCommand.from_raw_comment(node.value)
+                    parsed_commands = InlineCommand.from_raw_comment(node.value)
                     val = parsed_commands
                 else:
                     val = CommentLine(comment=comment_value)
@@ -519,6 +519,7 @@ class AST_Parser:
         else:
             val = HcNotImplemented(node_name=type(node).__name__)
 
+        self.prev_line_number = self.current_line_number
         return val
 
     def find_source(self, func_name: str, module_name: str) -> ast.AST:
