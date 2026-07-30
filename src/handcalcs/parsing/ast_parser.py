@@ -1,4 +1,5 @@
-import ast_comments as ast
+# import ast_comments as ast
+import fst as ast
 import ast as py_ast
 import builtins
 import importlib
@@ -9,7 +10,7 @@ import inspect
 from typing import List, Dict, Union, Any, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap
-from handcalcs.parsing.nodes import (
+from .nodes import (
     Attribute,
     List,
     Tuple,
@@ -59,7 +60,12 @@ from .operator_nodes import (
     NeqOp
 )
 # from handcalcs.parsing.commands import command_parser
-import handcalcs.parsing.comment_parser as comments
+from .comment_parser import (
+    is_comment_command,
+    parse_kwargs,
+    is_markdown_heading,
+    split_commands
+)
 
 ARITHMETIC_OPS = {
     "Add": AddOp,
@@ -449,31 +455,42 @@ class AST_Parser:
 
             val = self.current_block = for_block
 
-        elif isinstance(node, ast.Comment):
-            if new_line: # Inline comments
-                if comments.is_comment_command(node.value):
-                    val = CommentCommand.from_raw_comment(node.value)
-                else:
-                    val = InlineComment(comment=node.value)
-            else:
-                comment_value = node.value
-                if comments.is_markdown_heading(comment_value):
-                    val = MarkdownHeading(comment=comment_value)
-                elif comments.is_comment_command(comment_value):
-                    split_commands = comments.split_commands(comment_value)
-                    parsed_commands = InlineCommand.from_raw_comment(node.value)
-                    val = parsed_commands
-                else:
-                    val = CommentLine(comment=comment_value)
+        # elif isinstance(node, ast.Comment):
+        #     if new_line: # Inline comments
+        #         if is_comment_command(node.value):
+        #             val = CommentCommand.from_raw_comment(node.value)
+        #         else:
+        #             val = InlineComment(comment=node.value)
+        #     else:
+        #         comment_value = node.value
+        #         if is_markdown_heading(comment_value):
+        #             val = MarkdownHeading(comment=comment_value)
+        #         elif is_comment_command(comment_value):
+        #             split_commands = split_commands(comment_value)
+        #             parsed_commands = InlineCommand.from_raw_comment(node.value)
+        #             val = parsed_commands
+        #         else:
+        #             val = CommentLine(comment=comment_value)
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
+            f = node.f
+            comment_value = f.get_line_comment() or ""
+            if is_comment_command(comment_value):
+                parsed_commands = InlineCommand.from_raw_comment(comment_value)
+                comment_content = parsed_commands
+            elif comment_value:
+                comment_content = InlineComment(content=comment_value)
+            else:
+                comment_content = None
+
             expression_tree = self.ast_parse(node.value)
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
                 assigns=deque([self.ast_parse(n) for n in node.targets]),
                 expression_tree=expression_tree,
+                comment = comment_content
             )
             val = calc_line
 

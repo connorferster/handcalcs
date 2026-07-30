@@ -6,11 +6,11 @@ def test_basic_arithmetic():
     source = """
 from math import sqrt
 alpha = 4
-beta = 5
+beta = 5 # Inline comment
 # Comment
 d = 3
 # hc: cat = "hat"
-c = (d * (alpha + beta)) / 2 # hc: sigfigs=4
+c = (d * (alpha + beta)) / 2 # hc: mode='ass+num+res'
 e = sqrt(beta**2 - alpha**2) # hc: --sf 3
 if e <= 3:
     if 2 < beta < alpha:

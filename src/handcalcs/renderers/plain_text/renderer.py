@@ -1,17 +1,17 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, ContextKeyError, ContextValueError
+from ..base import BaseRenderer, RenderContext, ContextKeyError, ContextValueError
 
 
 # Node type imports only used for typing
-from handcalcs.parsing.nodes import (
+from ...parsing.nodes import (
     HcNode,
     Name,
     Constant,
     
 )
-from handcalcs.parsing.operator_nodes import (
+from ...parsing.operator_nodes import (
     AddOp,
     MultOp,
     SubOp,
@@ -28,17 +28,17 @@ from handcalcs.parsing.operator_nodes import (
     NeqOp,
     HcCompOp
 )
-from handcalcs.parsing.inline_nodes import (
+from ...parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
     Compare
 )
-from handcalcs.parsing.line_nodes import (
+from ...parsing.line_nodes import (
     CalcLine,
     ExprLine,
     Import
 )
-from handcalcs.parsing.block_nodes import (
+from ...parsing.block_nodes import (
     IfBlock,
     ElseBlock,
     ElifBlock
@@ -52,12 +52,12 @@ class PlainTextRenderContext(RenderContext):
 class PlainTextRenderer(BaseRenderer):
     name = 'plain_text'
 
-    def create_context(
-        self, 
-        **kwargs
-        ):
-        context = PlainTextRenderContext(**kwargs | {'mode': 'full'})
-        return context
+    # def create_context(
+    #     self, 
+    #     **kwargs
+    #     ):
+    #     context = PlainTextRenderContext(**kwargs | {'mode': 'full'})
+    #     return context
 
 PTR = PlainTextRenderer
 PTRC = PlainTextRenderContext

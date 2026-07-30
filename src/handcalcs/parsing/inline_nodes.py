@@ -37,13 +37,13 @@ class Compare(HcNode):
 
 @dataclass
 class InlineComment(HcInlineNode):
-    comment: str
+    content: str
     type: str = "inline_comment"
 
 
 @dataclass
 class InlineCommand(HcInlineNode):
-    comment: str
+    content: str
     commands: dict = field(default_factory=dict)
     type: str = "inline_command"
 
@@ -54,9 +54,9 @@ class InlineCommand(HcInlineNode):
                 parsed = parse_kwargs(comment)
             except SyntaxError:
                 parsed = vars(command_parser.parse_args(split_commands(comment)))
-            return cls(comment=comment, commands=parsed)
+            return cls(content=comment, commands=parsed)
         else:
-            return InlineComment(comment=comment)
+            return InlineComment(content=comment)
 
 
 @dataclass

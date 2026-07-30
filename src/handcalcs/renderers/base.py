@@ -213,7 +213,7 @@ def render_constant(renderer: BaseRenderer, node: Constant, context: RenderConte
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, context: RenderContext) -> str:
     _ = context.space
-    return f"{_}({node.comment.lstrip("# ")})"
+    return f"{_}({node.content})"
 
 @BaseRenderer.register('name')
 def render_name(renderer: BaseRenderer, node: Name, context: RenderContext) -> str:
@@ -307,7 +307,7 @@ def render_comment_command(renderer: BR, node: CommentCommand, context: BRC) -> 
 
 @BaseRenderer.register('inline_command')
 def render_inline_command(renderer: BR, node: InlineCommand, context: BRC) -> str:
-    context.__dict__['line'] = node.commands
+    context.__dict__['line'] = context.__dict__ | node.commands
     return ""
 
 
@@ -337,46 +337,51 @@ def render_import(renderer: BR, node: Import, context: BRC) -> str:
 
 @BaseRenderer.register('calc_line')
 def render_calcline(renderer: BaseRenderer, node: CalcLine, context: RenderContext) -> str:
-    rendered = f"{context.indent * node.level}"
+    comment_render = None
     # Retrieve param_line immediately before the next .render method is called because it will change
     # the state of the current context to the context of the next node.
-    param_line = getattr(context, 'param_line', False)
-    if context.mode == 'full' or 'ass' in context.mode:
-        context.current_mode = 'sym'
-        assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
+    param_line = getattr(context, 'param_line')
+    comment_render = None
+    if node.comment is not None:
+        comment_render = renderer.render(node.comment, context)
+    rendered = f"{context.indent * node.level}"
+    current_context = context.line if (hasattr(context, 'line') and context.line) else context
+    if current_context.mode == 'full' or 'ass' in current_context.mode:
+        current_context.current_mode = 'sym'
+        assign_nodes = deque([renderer.render(subnode, current_context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}{context.space}={context.space}"
+        assign_portion = f"{assigns}{current_context.space}={current_context.space}"
         rendered += assign_portion
     if not param_line:
-        if context.mode == 'full' or 'sym' in context.mode:
+        if current_context.mode == 'full' or 'sym' in current_context.mode:
             context.current_mode = 'sym'
             symbolic = deque([])
             for subnode in node.expression_tree:
-                symbolic.append(renderer.render(subnode, context))
+                symbolic.append(renderer.render(subnode, current_context))
             symbolic = "".join(symbolic)
-            symbolic_portion = f"{symbolic}{context.space}={context.space}"
+            symbolic_portion = f"{symbolic}{current_context.space}={current_context.space}"
             rendered += symbolic_portion
-        if context.mode == "full" or "num" in context.mode:
-            context.current_mode = "num"
+        if current_context.mode == "full" or "num" in current_context.mode:
+            current_context.current_mode = "num"
             numeric = deque([])
             for subnode in node.expression_tree:
-                numeric.append(renderer.render(subnode, context))
+                numeric.append(renderer.render(subnode, current_context))
             numeric = "".join(numeric)
-            numeric_portion = f"{numeric}{context.space}={context.space}"
+            numeric_portion = f"{numeric}{current_context.space}={current_context.space}"
             rendered += numeric_portion
-    if context.mode == "full" or "res" in context.mode:
-        context.current_mode = "num"
-        assign_nodes = deque([renderer.render(subnode, context) for subnode in node.assigns])
+    if current_context.mode == "full" or "res" in current_context.mode:
+        current_context.current_mode = "num"
+        assign_nodes = deque([renderer.render(subnode, current_context) for subnode in node.assigns])
         results = deque([val for val in assign_nodes])
         for rule in renderer.numeric_rules:
             for idx, result in enumerate(results):
-                results[idx] = rule(result, context)
-        result_portion = f',{context.space}'.join(results)
+                results[idx] = rule(result, current_context)
+        result_portion = f',{current_context.space}'.join(results)
         rendered += result_portion
-    if node.comment is not None:
-        comment_portion = renderer.render(node.comment, context)
-        rendered += comment_portion
-    ready_for_next_line = f"{rendered}{context.newline}"
+    if comment_render is not None:
+        rendered += comment_render
+    ready_for_next_line = f"{rendered}{current_context.newline}"
+    context.line = {} # Clear any line-specific context
     return ready_for_next_line
 
 

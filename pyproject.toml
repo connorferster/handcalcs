@@ -8,7 +8,8 @@ authors = [{name = "Connor Ferster", email = "connorferster@gmail.com"}]
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: Apache Software License"]
-dynamic = ["version", "description"]
+version = "2.0.0rc1"
+description = "Rendering Python code as math you wrote by hand."
 dependencies = [
     "more_itertools",
     "innerscope >= 0.7.0",

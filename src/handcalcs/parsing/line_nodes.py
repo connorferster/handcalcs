@@ -2,7 +2,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional
 from .nodes import HcNode, Name
-from .inline_nodes import InlineComment
+from .inline_nodes import InlineComment, InlineCommand
 from .commands import command_parser
 from .comment_parser import is_comment_command, is_markdown_heading, parse_kwargs, split_commands
 
@@ -17,7 +17,7 @@ class CalcLine(HcLineNode):
     expression_tree: deque = field(default_factory=deque)
     symbolic: deque = field(default_factory=deque)
     numeric: deque = field(default_factory=deque)
-    comment: Optional[InlineComment] = None
+    comment: Optional[InlineComment | InlineCommand] = None
     type: str = "calc_line"
 
 
@@ -26,7 +26,7 @@ class ExprLine(HcLineNode):
     expression_tree: deque = field(default_factory=deque)
     symbolic: deque = field(default_factory=deque)
     numeric: deque = field(default_factory=deque)
-    comment: Optional[InlineComment] = None
+    comment: Optional[InlineComment | InlineCommand] = None
     return_expr: bool = False
     type: str = "expr_line"
 

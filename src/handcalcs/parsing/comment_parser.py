@@ -16,7 +16,7 @@ def is_comment_command(comment: str) -> bool:
     """
     Returns True if the comment represents a markdown heading.
     """
-    pattern = re.compile(r"^[#][\s]*hc\:[\s]*")
+    pattern = re.compile(r"^hc\:[\s]*")
     match = pattern.match(comment)
     return bool(match)
 
@@ -32,7 +32,7 @@ def strip_command_prefix(comment: str) -> str:
     """
     Splits the commands by white space.
     """
-    pattern = re.compile(r"^[#][\s]*hc\:[\s]*")
+    pattern = re.compile(r"^hc\:[\s]*")
     stripped = pattern.sub("", comment)
     return stripped
 
