@@ -321,14 +321,14 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
 
 @BaseRenderer.register('comment_command')
 def render_comment_command(renderer: BR, node: CommentCommand, base_context: BaseRenderContext) -> str:
-    base_context.global_context = base_context.global_context | RenderContext(node.commands)
-    return base_context
+    base_context.global_context = base_context.global_context | RenderContext(**node.commands)
+    return ''
 
 
 @BaseRenderer.register('inline_command')
 def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseRenderContext) -> str:
-    base_context.line_context =  RenderContext(node.commands)
-    return base_context
+    base_context.line_context =  RenderContext(**node.commands)
+    return ''
 
 
 @BaseRenderer.register('import')
@@ -368,14 +368,14 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         comment_render = renderer.render(node.comment, base_context)
     rendered = f"{context.indent * node.level}"
     if context.mode == 'full' or 'ass' in context.mode:
-        context.current_mode = 'sym'
+        base_context.line_context.current_mode = 'sym'
         assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
         assign_portion = f"{assigns}{context.space}={context.space}"
         rendered += assign_portion
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
-            context.current_mode = 'sym'
+            base_context.line_context.current_mode = 'sym'
             symbolic = deque([])
             for subnode in node.expression_tree:
                 symbolic.append(renderer.render(subnode, base_context))
@@ -383,7 +383,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             symbolic_portion = f"{symbolic}{context.space}={context.space}"
             rendered += symbolic_portion
         if context.mode == "full" or "num" in context.mode:
-            context.current_mode = "num"
+            base_context.line_context.current_mode = "num"
             numeric = deque([])
             for subnode in node.expression_tree:
                 numeric.append(renderer.render(subnode, base_context))
@@ -391,7 +391,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             numeric_portion = f"{numeric}{context.space}={context.space}"
             rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
-        context.current_mode = "num"
+        base_context.line_context.current_mode = "num"
         assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
         results = deque([val for val in assign_nodes])
         for rule in renderer.numeric_rules:
