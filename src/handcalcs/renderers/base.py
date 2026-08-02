@@ -360,6 +360,9 @@ def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -
 def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> str:
     context = base_context.current
     comment_render = None
+    # TODO: Remove param_line from base implementation and move to PTRC
+    #   - Break out rendering code into subroutines
+    #   - Make sure you no longer need to maintain retrieving context before parsing other nodes
     # Retrieve param_line immediately before the next .render method is called because it will change
     # the state of the current context to the context of the next node.
     param_line = getattr(context, 'param_line', False)
