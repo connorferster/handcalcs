@@ -7,7 +7,7 @@ from handcalcs.parsing.operator_nodes import (
 from .renderer import PlainTextRenderContext as Context
 
 
-def swap_greeks(node: Name, context: Context) -> None:
+def swap_greeks(node: Name, base_context: Context) -> None:
     """
     Swaps out any greek substrings or unicode symbols
     """
@@ -83,7 +83,7 @@ def swap_greeks(node: Name, context: Context) -> None:
         node.identifier = swapped_id
     
 
-def swap_py_operators(node: HcBinOp, context: Context) -> HcBinOp:
+def swap_py_operators(node: HcBinOp, base_context: Context) -> HcBinOp:
     if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op'):
         return node
     elif node.type == 'mult_op':

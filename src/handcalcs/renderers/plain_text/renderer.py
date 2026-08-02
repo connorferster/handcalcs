@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from ..base import BaseRenderer, RenderContext, ContextKeyError, ContextValueError
+from ..base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError
 
 
 # Node type imports only used for typing
@@ -44,9 +44,6 @@ from ...parsing.block_nodes import (
     ElifBlock
 )
 
-class PlainTextRenderContext(RenderContext):
-    def __init__(self, **kwargs):
-        super().__init__()
 
 
 class PlainTextRenderer(BaseRenderer):
@@ -60,16 +57,17 @@ class PlainTextRenderer(BaseRenderer):
     #     return context
 
 PTR = PlainTextRenderer
-PTRC = PlainTextRenderContext
+BRC = BaseRenderContext
 
 
 ## SWAP RULES
 
 @PlainTextRenderer.register("sym:swap_greeks")
-def swap_greeks(node: Name, context: PTRC) -> HcNode:
+def swap_greeks(node: Name, base_base_context:BRC) -> HcNode:
     """
     Swaps out any greek substrings or unicode symbols
     """
+
     if not isinstance(node, Name): return node
     GREEK_LOWER = {
         "alpha": "α",
@@ -144,7 +142,8 @@ def swap_greeks(node: Name, context: PTRC) -> HcNode:
     
     
 @PlainTextRenderer.register("sym:swap_py_operators")
-def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
+def swap_py_operators(node: HcBinOp, base_context:BRC) -> HcBinOp:
+    context = base_context.current
     _ = context.space
     if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
         return node
@@ -207,7 +206,8 @@ def swap_py_operators(node: HcBinOp, context: PTRC) -> HcBinOp:
         
 
 @PlainTextRenderer.register("sym:toggle_param_line")
-def toggle_param_line(node: CalcLine, context: PTRC) -> CalcLine:
+def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
+    context = base_context.current
     if node.type not in ('calc_line',):
         context.param_line = False
     else:
@@ -222,7 +222,7 @@ def toggle_param_line(node: CalcLine, context: PTRC) -> CalcLine:
 
 
 @PlainTextRenderer.register("sym:swap_sqrt_symbol")
-def swap_sqrt_symbol(node: FunctionCall, context: PTRC) -> FunctionCall:
+def swap_sqrt_symbol(node: FunctionCall, base_context:BRC) -> FunctionCall:
     if node.type not in ('function_call',): return node
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '√'

@@ -1,4 +1,4 @@
-from collections import deque
+from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
 from handcalcs.parsing.nodes import HcNode
@@ -54,9 +54,7 @@ class ContextValueError(Exception):
 class ContextKeyError(Exception):
     pass
 
-@dataclass
 class RenderContext:
-    
     def __init__(
         self, 
         space: str = ' ', 
@@ -77,6 +75,24 @@ class RenderContext:
         attrs = [f"{k}={v}" for k, v in self.__dict__.items() if not k.startswith("_") and k.islower()]
         repr_attrs = ", ".join(attrs)
         return f"{__class__.__name__}({repr_attrs})"
+
+    def __or__(self, other):
+        if not isinstance(other, self.__class__):
+            raise ValueError(f"Can only union between two RenderContexts, not {type(other)}.")
+        else:
+            return RenderContext(self.__dict__ | other.__dict__)
+
+
+class BaseRenderContext:
+    def __init__(self, global_context: RenderContext, line_context: RenderContext):
+
+        self.global_context = global_context
+        self.line_context = line_context
+
+    
+    @property
+    def current(self):
+        return RenderContext(**ChainMap(self.line_context.__dict__, self.global_context.__dict__))
 
 
 class BaseRenderer:
@@ -104,45 +120,46 @@ class BaseRenderer:
         cls.root_post_renderers = dict(cls.root_post_renderers)
 
     def create_context(self, **kwargs) -> RenderContext:
-        return RenderContext(**kwargs)
+        return BaseRenderContext(RenderContext(**kwargs), RenderContext())
 
-    def render(self, node: HcNode, context: Optional[RenderContext] = None) -> str:
+
+    def render(self, node: HcNode, base_context: Optional[BaseRenderContext] = None) -> str:
         """
         Render a node.
 
         If 'context' is None, a new context is created.
         """
-        if context is None:
-            context = self.create_context()
+        if base_context is None:
+            base_context = self.create_context()
         if node.type == 'root':
-            return self.render_root(node, context)
-        return self.render_node(node, context)
+            return self.render_root(node, base_context)
+        return self.render_node(node, base_context)
 
 
-    def render_root(self, root: HcSequence, context: RenderContext) -> str:
+    def render_root(self, root: HcSequence, base_context: BaseRenderContext) -> str:
         """
         Render an HcSequence (root node) with the registered pre/post render callables.
         """
-        parts = [pre(self, root, context) for pre in self._root_pre_renderers]
+        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers]
         for node in root.sequence:
-            parts.append(self.render(node, context))
+            parts.append(self.render(node, base_context))
         parts.extend(
-            [post(self, root, context) for post in self._root_post_renderers]
+            [post(self, root, base_context) for post in self._root_post_renderers]
         )
         return parts
 
-    def render_node(self, node: HcNode, context: RenderContext) -> str:
+    def render_node(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
         Render one node with an existing context.
         """
         for rule in self.symbolic_rules.values():
-            node = rule(node, context)
+            node = rule(node, base_context)
         for rule in self.numeric_rules.values():
-            node = rule(node, context)
+            node = rule(node, base_context)
         handler = self._handlers.get(node.type)
         if handler is None:
-            return self.render_unknown(node, context)
-        return handler(self, node, context)
+            return self.render_unknown(node, base_context)
+        return handler(self, node, base_context)
 
     @classmethod
     def register(cls, node_classifier: str) -> Callable[[Callable], Callable]:
@@ -196,7 +213,7 @@ class BaseRenderer:
             self._handlers.update({node_classifier: handler})
 
 
-    def render_unknown(self, node: HcNode, context: RenderContext) -> str:
+    def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
         return str(node)
 
 
@@ -207,16 +224,18 @@ BRC = RenderContext
 
 
 @BaseRenderer.register('constant')
-def render_constant(renderer: BaseRenderer, node: Constant, context: RenderContext) -> Any:
+def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> Any:
     return f"{node.value}"
 
 @BaseRenderer.register('inline_comment')
-def render_inline_comment(renderer: BaseRenderer, node: InlineComment, context: RenderContext) -> str:
+def render_inline_comment(renderer: BaseRenderer, node: InlineComment, base_context: BaseRenderContext) -> str:
+    context = base_context.current
     _ = context.space
     return f"{_}({node.content})"
 
 @BaseRenderer.register('name')
-def render_name(renderer: BaseRenderer, node: Name, context: RenderContext) -> str:
+def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderContext) -> str:
+    context = base_context.current
     if not hasattr(context, 'current_mode'):
         raise ContextKeyError(
             f"Attempting to render the Name node while context does not have a 'current_mode' key.\n"
@@ -232,63 +251,64 @@ def render_name(renderer: BaseRenderer, node: Name, context: RenderContext) -> s
         )
 
 @BaseRenderer.register('add_op')
-def render_add_op(renderer: BR, node: AddOp, context: BRC) -> str:
-    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+def render_add_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 
 @BaseRenderer.register('sub_op')
-def render_sub_op(renderer: BR, node: SubOp, context: BRC) -> str:
-    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+def render_sub_op(renderer: BR, node: SubOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 
 @BaseRenderer.register('mult_op')
-def render_mult_op(renderer: BR, node: AddOp, context: BRC) -> str:
-    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+def render_mult_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 
 @BaseRenderer.register('div_op')
-def render_div_op(renderer: BR, node: AddOp, context: BRC) -> str:
-    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+def render_div_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 
 @BaseRenderer.register('pow_op')
-def render_pow_op(renderer: BR, node: AddOp, context: BRC) -> str:
-    return f"{node.pre}{renderer.render(node.left, context)}{node.symbol}{renderer.render(node.right, context)}{node.post}"
+def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 @BaseRenderer.register('gt_op')
-def render_gt_op(renderer: BR, node: GtOp, context: BRC) -> str:
+def render_gt_op(renderer: BR, node: GtOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
 @BaseRenderer.register('gte_op')
-def render_gte_op(renderer: BR, node: GtEOp, context: BRC) -> str:
+def render_gte_op(renderer: BR, node: GtEOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
 @BaseRenderer.register('lt_op')
-def render_lt_op(renderer: BR, node: LtOp, context: BRC) -> str:
+def render_lt_op(renderer: BR, node: LtOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
 @BaseRenderer.register('lte_op')
-def render_lte_op(renderer: BR, node: LtEOp, context: BRC) -> str:
+def render_lte_op(renderer: BR, node: LtEOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
 @BaseRenderer.register('eq_op')
-def render_eq_op(renderer: BR, node: EqOp, context: BRC) -> str:
+def render_eq_op(renderer: BR, node: EqOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
 @BaseRenderer.register('neq_op')
-def render_neq_op(renderer: BR, node: NeqOp, context: BRC) -> str:
+def render_neq_op(renderer: BR, node: NeqOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
 @BaseRenderer.register('compare')
-def render_compare(renderer: BR, node: Compare, context: BRC) -> str:
-    acc = [renderer.render(node, context) for node in node.comparison]
+def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext) -> str:
+    acc = [renderer.render(node, base_context) for node in node.comparison]
     return f"".join(acc)
 
 @BaseRenderer.register('function_call')
-def render_function_call(renderer: BR, node: FunctionCall, context: BRC) -> str:
-    function_name = renderer.render(node.function_name, context)
-    namespace = renderer.render(node.namespace, context)
-    args = [renderer.render(arg, context) for arg in node.args]
+def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRenderContext) -> str:
+    context = base_context.current
+    function_name = renderer.render(node.function_name, base_context)
+    namespace = renderer.render(node.namespace, base_context)
+    args = [renderer.render(arg, base_context) for arg in node.args]
     arg_str = f",{context.space}".join(args)
     if namespace == '__main__':
         namespace = ''
@@ -300,19 +320,20 @@ def render_function_call(renderer: BR, node: FunctionCall, context: BRC) -> str:
 
 
 @BaseRenderer.register('comment_command')
-def render_comment_command(renderer: BR, node: CommentCommand, context: BRC) -> str:
-    context = context.__dict__ | node.commands
-    return ""
+def render_comment_command(renderer: BR, node: CommentCommand, base_context: BaseRenderContext) -> str:
+    base_context.global_context = base_context.global_context | RenderContext(node.commands)
+    return base_context
 
 
 @BaseRenderer.register('inline_command')
-def render_inline_command(renderer: BR, node: InlineCommand, context: BRC) -> str:
-    context.__dict__['line'] = context.__dict__ | node.commands
-    return ""
+def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseRenderContext) -> str:
+    base_context.line_context =  RenderContext(node.commands)
+    return base_context
 
 
 @BaseRenderer.register('import')
-def render_import(renderer: BR, node: Import, context: BRC) -> str:
+def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -> str:
+    context = base_context.current
     _ = context.space
     nl = context.newline
     names = [
@@ -336,63 +357,64 @@ def render_import(renderer: BR, node: Import, context: BRC) -> str:
         
 
 @BaseRenderer.register('calc_line')
-def render_calcline(renderer: BaseRenderer, node: CalcLine, context: RenderContext) -> str:
+def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> str:
+    context = base_context.current
     comment_render = None
     # Retrieve param_line immediately before the next .render method is called because it will change
     # the state of the current context to the context of the next node.
-    param_line = getattr(context, 'param_line')
+    param_line = getattr(context, 'param_line', False)
     comment_render = None
     if node.comment is not None:
-        comment_render = renderer.render(node.comment, context)
+        comment_render = renderer.render(node.comment, base_context)
     rendered = f"{context.indent * node.level}"
-    current_context = context.line if (hasattr(context, 'line') and context.line) else context
-    if current_context.mode == 'full' or 'ass' in current_context.mode:
-        current_context.current_mode = 'sym'
-        assign_nodes = deque([renderer.render(subnode, current_context) for subnode in node.assigns])
+    if context.mode == 'full' or 'ass' in context.mode:
+        context.current_mode = 'sym'
+        assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}{current_context.space}={current_context.space}"
+        assign_portion = f"{assigns}{context.space}={context.space}"
         rendered += assign_portion
     if not param_line:
-        if current_context.mode == 'full' or 'sym' in current_context.mode:
+        if context.mode == 'full' or 'sym' in context.mode:
             context.current_mode = 'sym'
             symbolic = deque([])
             for subnode in node.expression_tree:
-                symbolic.append(renderer.render(subnode, current_context))
+                symbolic.append(renderer.render(subnode, base_context))
             symbolic = "".join(symbolic)
-            symbolic_portion = f"{symbolic}{current_context.space}={current_context.space}"
+            symbolic_portion = f"{symbolic}{context.space}={context.space}"
             rendered += symbolic_portion
-        if current_context.mode == "full" or "num" in current_context.mode:
-            current_context.current_mode = "num"
+        if context.mode == "full" or "num" in context.mode:
+            context.current_mode = "num"
             numeric = deque([])
             for subnode in node.expression_tree:
-                numeric.append(renderer.render(subnode, current_context))
+                numeric.append(renderer.render(subnode, base_context))
             numeric = "".join(numeric)
-            numeric_portion = f"{numeric}{current_context.space}={current_context.space}"
+            numeric_portion = f"{numeric}{context.space}={context.space}"
             rendered += numeric_portion
-    if current_context.mode == "full" or "res" in current_context.mode:
-        current_context.current_mode = "num"
-        assign_nodes = deque([renderer.render(subnode, current_context) for subnode in node.assigns])
+    if context.mode == "full" or "res" in context.mode:
+        context.current_mode = "num"
+        assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
         results = deque([val for val in assign_nodes])
         for rule in renderer.numeric_rules:
             for idx, result in enumerate(results):
-                results[idx] = rule(result, current_context)
-        result_portion = f',{current_context.space}'.join(results)
+                results[idx] = rule(result, base_context)
+        result_portion = f',{context.space}'.join(results)
         rendered += result_portion
     if comment_render is not None:
         rendered += comment_render
-    ready_for_next_line = f"{rendered}{current_context.newline}"
-    context.line = {} # Clear any line-specific context
+    ready_for_next_line = f"{rendered}{context.newline}"
+    context.line_context = RenderContext() # Clear any line-specific context
     return ready_for_next_line
 
 
 @BaseRenderer.register('expr_line')
-def render_exprline(renderer: BaseRenderer, node: ExprLine, context: RenderContext) -> str:
+def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRenderContext) -> str:
+    context = base_context.current
     rendered = f"{context.indent * node.level}"
     if context.mode == 'full' or 'sym' in context.mode:
         context.current_mode = 'sym'
         symbolic = deque([])
         for subnode in node.expression_tree:
-            symbolic.append(renderer.render(subnode, context))
+            symbolic.append(renderer.render(subnode, base_context))
         symbolic = "".join(symbolic)
         symbolic_portion = f"{symbolic}{context.space}={context.space}"
         rendered += symbolic_portion
@@ -400,7 +422,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, context: RenderConte
         context.current_mode = "num"
         numeric = deque([])
         for subnode in node.expression_tree:
-            numeric.append(renderer.render(subnode, context))
+            numeric.append(renderer.render(subnode, base_context))
         numeric = "".join(numeric)
         numeric_portion = f"{numeric}{context.space}={context.space}"
         rendered += numeric_portion
@@ -408,18 +430,18 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, context: RenderConte
     #     context.current_mode = "num"
     #     result = node.assign.value
     #     for rule in renderer.numeric_rules:
-    #         result = rule(result, context)
+    #         result = rule(result, base_context)
     #     result_portion = f"{result}"
     #     rendered += result_portion
     if node.comment is not None:
-        comment_portion = renderer.render(node.comment, context)
+        comment_portion = renderer.render(node.comment, base_context)
         rendered += comment_portion
     ready_for_next_line = f"{rendered}{context.newline}"
     return rendered
     
 
 @BaseRenderer.register('elif_block')
-def render_elifblock(renderer: BaseRenderer, node: ElifBlock, context: RenderContext) -> str:
+def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: BaseRenderContext) -> str:
     clauses: deque = node.lines
     try:
         true_clause: IfBlock = next(ib for ib in clauses if ib.is_true)
@@ -432,30 +454,31 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, context: RenderCon
     if true_clause is None:
         return "No conditions were satisfied within the if-elif block"
     else:
-        block_text = renderer.render(true_clause, context)
+        block_text = renderer.render(true_clause, base_context)
         return block_text
 
 @BaseRenderer.register('if_block')
-def render_if_block(renderer: BaseRenderer, node: IfBlock, context: BRC) -> str:
+def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
+    context = base_context.current
     _ = context.space
     condition: deque = node.test.comparison
     sym_acc = []
     context.current_mode = 'sym'
     for elem in condition:
-        sym_acc.append(renderer.render(elem, context))
+        sym_acc.append(renderer.render(elem, base_context))
     sym_expr = "".join(sym_acc)
 
     context.current_mode = 'num'
     num_acc = []
     for elem in condition:
-        num_acc.append(renderer.render(elem, context))
+        num_acc.append(renderer.render(elem, base_context))
     num_expr = "".join(num_acc)
     if_block_header = f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
 
     context.current_mode = None
     lines_acc = []
     for line in node.lines:
-        lines_acc.append(renderer.render(line, context))
+        lines_acc.append(renderer.render(line, base_context))
     lines = f"{context.newline}".join(lines_acc)
     block_header = f"{context.indent * node.level}{if_block_header}"
     block_text = f"{block_header}\n{lines}"
