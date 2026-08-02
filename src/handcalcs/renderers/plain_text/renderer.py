@@ -217,7 +217,7 @@ def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
         ):
             base_context.line_context.param_line = True
         else:
-            base_context.line_context.param_line = False
+            base_context.line_context.param_line = node.pars_nesting
     return node
 
 

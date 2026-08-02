@@ -376,7 +376,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         base_context.line_context.current_mode = 'sym'
         assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
         assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}{context.space}={context.space}"
+        assign_portion = f"{assigns}"
         rendered += assign_portion
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
@@ -385,7 +385,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             for subnode in node.expression_tree:
                 symbolic.append(renderer.render(subnode, base_context))
             symbolic = "".join(symbolic)
-            symbolic_portion = f"{symbolic}{context.space}={context.space}"
+            symbolic_portion = f"{context.space}={context.space}{symbolic}"
             rendered += symbolic_portion
         if context.mode == "full" or "num" in context.mode:
             base_context.line_context.current_mode = "num"
@@ -393,7 +393,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             for subnode in node.expression_tree:
                 numeric.append(renderer.render(subnode, base_context))
             numeric = "".join(numeric)
-            numeric_portion = f"{numeric}{context.space}={context.space}"
+            numeric_portion = f"{context.space}={context.space}{numeric}"
             rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
         base_context.line_context.current_mode = "num"
@@ -403,6 +403,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             for idx, result in enumerate(results):
                 results[idx] = rule(result, base_context)
         result_portion = f',{context.space}'.join(results)
+        result_portion = f"{context.space}={context.space}{result_portion}"
         rendered += result_portion
     if comment_render is not None:
         rendered += comment_render

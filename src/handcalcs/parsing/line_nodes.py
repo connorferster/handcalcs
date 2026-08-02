@@ -15,19 +15,17 @@ class HcLineNode(HcNode):
 class CalcLine(HcLineNode):
     assigns: deque = field(default_factory=deque)
     expression_tree: deque = field(default_factory=deque)
-    symbolic: deque = field(default_factory=deque)
-    numeric: deque = field(default_factory=deque)
     comment: Optional[InlineComment | InlineCommand] = None
+    pars_nesting: bool = False
     type: str = "calc_line"
 
 
 @dataclass
 class ExprLine(HcLineNode):
     expression_tree: deque = field(default_factory=deque)
-    symbolic: deque = field(default_factory=deque)
-    numeric: deque = field(default_factory=deque)
     comment: Optional[InlineComment | InlineCommand] = None
     return_expr: bool = False
+    pars_nesting: bool = False
     type: str = "expr_line"
 
 

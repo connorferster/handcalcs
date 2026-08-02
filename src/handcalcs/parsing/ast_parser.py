@@ -474,7 +474,7 @@ class AST_Parser:
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            f = node.f
+            f: ast.FST = node.f
             comment_value = f.get_line_comment() or ""
             if is_comment_command(comment_value):
                 parsed_commands = InlineCommand.from_raw_comment(comment_value)
@@ -485,12 +485,14 @@ class AST_Parser:
                 comment_content = None
 
             expression_tree = self.ast_parse(node.value)
+            nested_pars = bool(node.value.f.pars().n) # True if the expression tree is nested in parenths
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
                 assigns=deque([self.ast_parse(n) for n in node.targets]),
                 expression_tree=expression_tree,
-                comment = comment_content
+                comment = comment_content,
+                pars_nesting = nested_pars
             )
             val = calc_line
 
