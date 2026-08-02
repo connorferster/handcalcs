@@ -366,6 +366,8 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     comment_render = None
     if node.comment is not None:
         comment_render = renderer.render(node.comment, base_context)
+    # Update the context from teh comment render
+    context = base_context.current
     rendered = f"{context.indent * node.level}"
     if context.mode == 'full' or 'ass' in context.mode:
         base_context.line_context.current_mode = 'sym'
