@@ -209,15 +209,15 @@ def swap_py_operators(node: HcBinOp, base_context:BRC) -> HcBinOp:
 def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
     context = base_context.current
     if node.type not in ('calc_line',):
-        context.param_line = False
+        base_context.line_context.param_line = False
     else:
         if (
             len(node.expression_tree) == 1
             and isinstance(node.expression_tree[0], Constant)
         ):
-            context.param_line = True
+            base_context.line_context.param_line = True
         else:
-            context.param_line = False
+            base_context.line_context.param_line = False
     return node
 
 
