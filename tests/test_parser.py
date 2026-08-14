@@ -11,6 +11,7 @@ from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
     CommentLine,
+    CommentCommand,
     MarkdownComment,
     Import,
 )
@@ -31,6 +32,8 @@ from handcalcs.parsing.inline_nodes import (
     ComprehensionChain,
     Comprehension,
     Compare,
+    InlineComment,
+    InlineCommand,
 )
 
 from handcalcs.parsing.operator_nodes import (
@@ -1518,3 +1521,121 @@ else:
         ])
     assert seq.hc_globals == {"a": 4, "b": 5, "d": 4}
     assert seq.hc_locals == {}
+
+
+def test_comment_lines():
+    # Covers the three standalone comment-line node types (MarkdownComment,
+    # CommentCommand, CommentLine) and the two inline comment types attached
+    # to a CalcLine (InlineComment, InlineCommand), plus their ordering. An
+    # inline comment must stay on its CalcLine, not become a separate line node.
+    source = """## A heading
+# hc: decimals=2
+# a plain note
+a = 2  # an inline note
+b = a + 1  # hc: precision=3
+"""
+    basic_parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    assert basic_parser(source) == deque([
+            MarkdownComment(
+                content='# A heading'
+            ),
+            CommentCommand(
+                commands={'decimals': 2}
+            ),
+            CommentLine(
+                content='a plain note'
+            ),
+            CalcLine(
+                assigns=deque([
+                    Name(
+                        identifier='a'
+                    )
+                ]),
+                expression_tree=deque([
+                    Constant(
+                        value=2
+                    )
+                ]),
+                comment=InlineComment(
+                    content='an inline note'
+                )
+            ),
+            CalcLine(
+                assigns=deque([
+                    Name(
+                        identifier='b'
+                    )
+                ]),
+                expression_tree=deque([
+                    AddOp(
+                        left=Name(
+                            identifier='a'
+                        ),
+                        right=Constant(
+                            value=1
+                        )
+                    )
+                ]),
+                comment=InlineCommand(
+                    content='hc: precision=3',
+                    commands={'precision': 3}
+                )
+            )
+        ])
+
+
+def test_comment_interleaving_in_block():
+    # A standalone comment line is interleaved inside a block body (indented),
+    # while an inline command on the following statement stays attached to it.
+    source = """for i in x:
+    # inner note
+    c = i + 1  # hc: decimals=2
+"""
+    basic_parser = AST_Parser(
+        ChainMap({}, {"x": [1, 2, 3]}), global_exclusions=['collections', 'deque']
+    )
+    assert basic_parser(source) == deque([
+            ForBlock(
+                lines=deque([
+                    CommentLine(
+                        content='inner note'
+                    ),
+                    CalcLine(
+                        assigns=deque([
+                            Name(
+                                identifier='c'
+                            )
+                        ]),
+                        expression_tree=deque([
+                            AddOp(
+                                left=Name(
+                                    identifier='i'
+                                ),
+                                right=Constant(
+                                    value=1
+                                )
+                            )
+                        ]),
+                        comment=InlineCommand(
+                            content='hc: decimals=2',
+                            commands={'decimals': 2}
+                        )
+                    )
+                ]),
+                assigns=deque([
+                    Name(
+                        identifier='i'
+                    )
+                ]),
+                iterator=deque([
+                    Name(
+                        identifier='x',
+                        value=[
+                            1,
+                            2,
+                            3
+                        ]
+                    )
+                ])
+            )
+        ])
