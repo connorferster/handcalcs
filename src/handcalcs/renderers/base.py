@@ -1,6 +1,7 @@
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
+from sigfig import round as round_sf
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
 
@@ -502,12 +503,12 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRen
     block_header = f"{context.indent * node.level}{if_block_header}"
     # Join the block header and the lines below it
     block_text = f"{block_header}\n{lines}"
-    
+
     return block_text
 
 
 @BaseRenderer.register("sym:toggle_param_line")
-def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
+def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
     context = base_context.current
     if node.type not in ('calc_line',):
         base_context.line_context.param_line = False
@@ -520,3 +521,16 @@ def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
         else:
             base_context.line_context.param_line = node.pars_nesting
     return node
+
+@BaseRenderer.register("num:format_numeric_display")
+def format_numeric_display(node: Name | HcNode, base_context: BRC) -> HcNode:
+    context = base_context.current
+    if node.type != "name":
+        return node
+    sigfigs = context.get('sigfigs', 3)
+    sigdigs = context.get('sigdigs')
+    scinot = context.get('scientific_notation', False)
+
+    rounded = round_sf(node.value, sigfigs=)
+
+
