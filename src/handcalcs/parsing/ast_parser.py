@@ -1,12 +1,15 @@
 # import ast_comments as ast
+# import ast_comments as ast
 import fst as ast
 import ast as py_ast
 import builtins
 import importlib
+import io
 import math
 import pathlib
 from dataclasses import dataclass, field
 import inspect
+import tokenize
 from typing import List, Dict, Union, Any, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap
@@ -29,6 +32,7 @@ from .line_nodes import (
     ExprLine,
     CommentLine,
     CommentCommand,
+    MarkdownComment,
     Import
 )
 from .inline_nodes import (
@@ -94,6 +98,7 @@ class AST_Parser:
     global_exclusions: Optional[list[str]] = None
     current_line_number: int = 1
     prev_line_number: int = 0
+    prev_node: Optional[ast.AST] = None
     new_block_from_comment: bool = False
     current_block: Optional[Union[ForBlock, IfBlock]] = None
     function_recurse_exclusions: list[str] = field(
@@ -108,6 +113,7 @@ class AST_Parser:
 
     def __post_init__(self):
         # self.module_cache.update(self.globals)
+
         self.function_recurse_exclusions.append(f"{self.__class__.__name__}")
         if self.global_exclusions is not None:
             self.function_recurse_exclusions.extend(self.global_exclusions)
@@ -160,6 +166,7 @@ class AST_Parser:
         """
         Returns the handcalcs tree from the source.
         """
+        self._classify_comments(source)
         ast_tree = ast.parse(source)
         hc_tree = self.ast_parse(ast_tree)
         self.clear()
@@ -173,6 +180,75 @@ class AST_Parser:
         self.current_line_number = 1
         self.prev_line_number = 0
         self.new_block_from_comment = False
+
+    def _classify_comments(self, source: str) -> None:
+        """
+        Collects standalone comment lines into ``self.line_comments``, keyed by
+        line number. A comment is standalone iff no non-trivia token shares its
+        row; inline comments (those sharing a row with code) are ignored here
+        since they are read directly from the FST via ``get_line_comment()``.
+
+        Also seeds ``self._pending_comment_rows`` -- a sorted queue of the
+        standalone comment rows still waiting to be interleaved into a body.
+        """
+        self.line_comments = {}
+        code_rows = []
+        trivia = (
+            tokenize.COMMENT,
+            tokenize.NL,
+            tokenize.NEWLINE,
+            tokenize.INDENT,
+            tokenize.DEDENT,
+            tokenize.ENCODING,
+            tokenize.ENDMARKER,
+        )
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+        for tok in tokens:
+            if tok.type not in trivia:
+                code_rows.append(tok.start[0])
+        for tok in tokens:
+            if tok.type == tokenize.COMMENT and tok.start[0] not in code_rows:
+                self.line_comments[tok.start[0]] = tok.string
+        self._pending_comment_rows = deque(sorted(self.line_comments))
+
+    def _make_comment_line(self, raw: str):
+        """
+        Builds the appropriate comment-line node from a raw ``tokenize`` comment
+        string (leading ``#`` included), mirroring the three-way branch used for
+        inline comments.
+        """
+        stripped = raw.lstrip("# ")
+        if is_markdown_heading(raw):
+            return MarkdownComment.from_raw_comment(raw)
+        elif is_comment_command(stripped):
+            return CommentCommand.from_raw_comment(raw)
+        else:
+            return CommentLine.from_raw_comment(raw)
+
+    def _flush_comment_lines(self, before: int) -> deque:
+        """
+        Pops every pending standalone comment whose row is < ``before`` and
+        returns them, in order, as comment-line nodes.
+        """
+        out = deque()
+        pending = getattr(self, "_pending_comment_rows", deque())
+        while pending and pending[0] < before:
+            row = pending.popleft()
+            out.append(self._make_comment_line(self.line_comments[row]))
+        return out
+
+    def _parse_body(self, body: list) -> deque:
+        """
+        Parses a list of statements, interleaving any standalone comment lines
+        that fall before each statement. Use in place of a bare
+        ``[self.ast_parse(item) for item in body]`` comprehension.
+        """
+        out = deque()
+        for stmt in body:
+            if hasattr(stmt, "lineno"):
+                out.extend(self._flush_comment_lines(stmt.lineno))
+            out.append(self.ast_parse(stmt))
+        return out
 
     def ast_parse(self, node: ast.AST) -> deque:
         """
@@ -331,16 +407,18 @@ class AST_Parser:
 
             # "test": The condition (nested list via recursive call)
             if_block.test = self.ast_parse(node.test)
+            # Evaluate against a flattened *copy* of the namespace so that the
+            # `__builtins__` that eval injects lands in this throwaway dict
+            # rather than mutating the caller's globals. Works whether
+            # self.globals is a ChainMap or a plain dict.
             if_block.is_true = eval(
                 compile(
                     py_ast.Expression(node.test), mode='eval', filename='<ast>'
-                ), 
-                locals=self.globals.maps[0], globals=self.globals.maps[1]
+                ),
+                dict(self.globals),
             )
             # "body": The block of code inside the if (nested list of statements)
-            if_block.lines.extend(
-                deque([self.ast_parse(item) for item in node.body])
-            )
+            if_block.lines.extend(self._parse_body(node.body))
 
             # "orelse": The block of code inside the else/elif (nested list)
             if node.orelse:
@@ -350,9 +428,7 @@ class AST_Parser:
                     if_block.orelse = deque([self.ast_parse(node.orelse[0])])
                 else:
                     # Standard `else` block or multiple statements in `orelse`
-                    if_block.orelse = deque(
-                        [self.ast_parse(item) for item in node.orelse]
-                    )
+                    if_block.orelse = self._parse_body(node.orelse)
             else:
                 if_block.orelse = deque()  # Empty list for no `else`
 
@@ -370,9 +446,7 @@ class AST_Parser:
                 print(f"ForBlock, alternate target: {node.target=}")
 
             # "body": nested list of the for loop's body
-            for_block.lines.extend(
-                deque([self.ast_parse(item) for item in node.body])
-            )
+            for_block.lines.extend(self._parse_body(node.body))
 
             # "iter": str showing the name of the iteration variable
             # Assumes the iterator is a simple variable name (ast.Name)
@@ -456,26 +530,24 @@ class AST_Parser:
             val = self.current_block = for_block
 
         # elif isinstance(node, ast.Comment):
-        #     if new_line: # Inline comments
-        #         if is_comment_command(node.value):
-        #             val = CommentCommand.from_raw_comment(node.value)
-        #         else:
-        #             val = InlineComment(comment=node.value)
-        #     else:
+        #     if new_line:
         #         comment_value = node.value
         #         if is_markdown_heading(comment_value):
-        #             val = MarkdownHeading(comment=comment_value)
+        #             val = MarkdownComment(comment=comment_value)
         #         elif is_comment_command(comment_value):
         #             split_commands = split_commands(comment_value)
         #             parsed_commands = InlineCommand.from_raw_comment(node.value)
         #             val = parsed_commands
         #         else:
         #             val = CommentLine(comment=comment_value)
+        #     else:
+        #         val = NoValue() # Is inline Comment, no node created
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            f: ast.FST = node.f
-            comment_value = f.get_line_comment() or ""
+            # get_line_comment() returns the trailing comment already stripped
+            # of its leading '#' and surrounding whitespace (e.g. "hc: sympy").
+            comment_value = node.f.get_line_comment() or ""
             if is_comment_command(comment_value):
                 parsed_commands = InlineCommand.from_raw_comment(comment_value)
                 comment_content = parsed_commands
@@ -520,8 +592,10 @@ class AST_Parser:
             val = Attribute(namespace=name, attr_name=attribute)
 
         elif isinstance(node, ast.Module):
-            # Entry point: process all body statements
-            val = deque([self.ast_parse(item) for item in node.body])
+            # Entry point: process all body statements, interleaving standalone
+            # comment lines, then append any trailing comments after the last stmt.
+            val = self._parse_body(node.body)
+            val.extend(self._flush_comment_lines(before=2 ** 63))
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)

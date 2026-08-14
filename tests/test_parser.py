@@ -1,8 +1,8 @@
 from handcalcs.parsing.ast_parser import AST_Parser
-from handcalcs.parsing.sequence import HCSequence
+from handcalcs.parsing.sequence import HcSequence
 from handcalcs.parsing.comment_parser import is_comment_command, split_commands, is_markdown_heading
 from handcalcs.parsing.block_nodes import (
-    IfBlock, 
+    IfBlock,
     ForBlock,
     ElifBlock,
     ElseBlock
@@ -11,12 +11,14 @@ from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
     CommentLine,
-    MarkdownHeading,
+    MarkdownComment,
+    Import,
 )
 
 from handcalcs.parsing.nodes import (
     List,
     Name,
+    Constant,
 )
 
 from handcalcs.parsing.null_values import (
@@ -28,10 +30,27 @@ from handcalcs.parsing.inline_nodes import (
     FunctionCall,
     ComprehensionChain,
     Comprehension,
+    Compare,
+)
+
+from handcalcs.parsing.operator_nodes import (
+    AddOp,
+    SubOp,
+    MultOp,
+    DivOp,
+    FloorOp,
+    ModuloOp,
+    PowOp,
+    EqOp,
+    NeqOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
 )
 import math
 import pytest
-from collections import deque
+from collections import deque, ChainMap
 
 import submodule_1 as sub1
 import submodule_2 as sub2
@@ -47,136 +66,141 @@ def test_calc_lines(basic_parser):
     source_3 = """c = math.sin(b / a)**2 + math.cos(b / a)**2"""
 
     assert basic_parser(source_1) == deque([
-        CalcLine(assigns=deque([Name('a'), Name("d")]), expression_tree=deque([4]))
-    ])
-    assert basic_parser(source_2) == deque([
             CalcLine(
-                assigns=deque([Name('b')]), 
+                assigns=deque([
+                    Name(
+                        identifier='a'
+                    ),
+                    Name(
+                        identifier='d'
+                    )
+                ]),
                 expression_tree=deque([
-                    deque([
-                        Name("a"), "+", deque([Name("b"), "*", deque([2, "+", deque([Name("a"), "/", 4])])])
-                    ]),
-                    "/",
-                    deque([3, "*", Name("a")])
+                    Constant(
+                        value=4
+                    )
                 ])
             )
-    ])
+        ])
+
+    assert basic_parser(source_2) == deque([
+                CalcLine(
+                    assigns=deque([
+                        Name(
+                            identifier='b'
+                        )
+                    ]),
+                    expression_tree=deque([
+                        DivOp(
+                            left=AddOp(
+                                left=Name(
+                                    identifier='a'
+                                ),
+                                right=MultOp(
+                                    left=Name(
+                                        identifier='b'
+                                    ),
+                                    right=AddOp(
+                                        left=Constant(
+                                            value=2
+                                        ),
+                                        right=DivOp(
+                                            left=Name(
+                                                identifier='a'
+                                            ),
+                                            right=Constant(
+                                                value=4
+                                            )
+                                        )
+                                    )
+                                )
+                            ),
+                            right=MultOp(
+                                left=Constant(
+                                    value=3
+                                ),
+                                right=Name(
+                                    identifier='a'
+                                )
+                            )
+                        )
+                    ])
+                )
+            ])
 
     assert basic_parser(source_3) == deque([
-            CalcLine(
-                assigns=deque([Name("c")]), 
-                expression_tree=deque([
-                    deque([
-                        FunctionCall(
-                            namespace=deque(["math"]), 
-                            function_name=deque(["sin"]), 
-                            args=deque([deque([Name("b"), "/", Name("a")])]), 
-                        ), "**", 2]),
-                    "+",
-                    deque([
-                    FunctionCall(
-                        namespace=deque(["math"]),
-                        function_name=deque(["cos"]),
-                        args=deque([deque([Name("b"), "/", Name("a")])]),
-                    ), "**", 2]),
-                ])
-            ),
-        ])
+                CalcLine(
+                    assigns=deque([
+                        Name(
+                            identifier='c'
+                        )
+                    ]),
+                    expression_tree=deque([
+                        AddOp(
+                            left=PowOp(
+                                left=FunctionCall(
+                                    namespace=Name(
+                                        identifier='math',
+                                        value='math'
+                                    ),
+                                    function_name=Name(
+                                        identifier='sin',
+                                        value='sin'
+                                    ),
+                                    args=deque([
+                                        DivOp(
+                                            left=Name(
+                                                identifier='b'
+                                            ),
+                                            right=Name(
+                                                identifier='a'
+                                            )
+                                        )
+                                    ])
+                                ),
+                                right=Constant(
+                                    value=2
+                                )
+                            ),
+                            right=PowOp(
+                                left=FunctionCall(
+                                    namespace=Name(
+                                        identifier='math',
+                                        value='math'
+                                    ),
+                                    function_name=Name(
+                                        identifier='cos',
+                                        value='cos'
+                                    ),
+                                    args=deque([
+                                        DivOp(
+                                            left=Name(
+                                                identifier='b'
+                                            ),
+                                            right=Name(
+                                                identifier='a'
+                                            )
+                                        )
+                                    ])
+                                ),
+                                right=Constant(
+                                    value=2
+                                )
+                            )
+                        )
+                    ])
+                )
+            ])
 
 
 # def test_function_recursion(basic_parser):
 #     source_1 = "a = sub1.my_calc(2, 3)"
-#     source_2 = "b = 4; c = 5; d=6; e=3; p = sub1.my_other_calc(b, c, d, e)"
-#     assert basic_parser(source_1) == deque([
-#                 CalcLine(
-#                     assigns=deque([Name("a")]),
-#                     expression_tree=deque([
-#                         FunctionBlock(
-#                             namespace=deque(["sub1"]),
-#                             function_name=deque(["my_calc"]),
-#                             args=deque([2, 3]),
-#                             params=deque([Name("q"), Name("r")]),
-#                             lines=deque([
-#                                 CalcLine(assigns=deque([Name("area")]), expression_tree=deque([Name("q"), "*", Name("r")])),
-#                                 CalcLine(assigns=deque([Name("perimeter")]), expression_tree=deque([deque([2, "*", Name("q")]), "+", deque([2, "*", Name("r")])])),
-#                                 CalcLine(assigns=deque([Name("ratio")]), expression_tree=deque([Name("area"), "/", Name("perimeter")])),
-#                                 ExprLine(expression_tree=deque([Name("ratio")]), return_expr=True)
-#                             ])
-#                         )
-#                     ])
-#                 )
-#         ])
-    
-#     assert basic_parser(source_2) == deque([
-#         CalcLine(
-#             assigns=deque([Name('b', 4)]),
-#             expression_tree=deque([4])
-#         ),
-#         CalcLine(
-#             assigns=deque([Name('c', 5)]),
-#             expression_tree=deque([5])
-#         ),
-#         CalcLine(
-#             assigns=deque([Name('d', 6)]),
-#             expression_tree=deque([6])
-#         ),
-#         CalcLine(
-#             assigns=deque([Name('e', 3)]),
-#             expression_tree=deque([3])
-#         ),
-#         CalcLine(
-#             assigns=deque(['p']),
-#             expression_tree=deque([
-#                 FunctionBlock(
-#                     namespace=deque(["sub1"]),
-#                     function_name=deque(["my_other_calc"]),
-#                     args=deque([Name("b", 4), Name("c", 5), Name("d", 6), Name("e", 3)]),
-#                     params=deque([Name("w"), Name("y"), Name("t"), Name("s")]),
-#                     lines=deque([
-#                         CalcLine(
-#                             assigns=deque(['factored']),
-#                             expression_tree=deque([
-#                                 0.9, '*', FunctionBlock(
-#                                     namespace='__main__',
-#                                     function_name='different_calc',
-#                                     args=deque([Name('w'), Name('y'), Name('t'), Name('s')]),
-#                                     params=deque([Name('s'), Name('t'), Name('u'), Name('v')]),
-#                                     lines=deque([
-#                                         ExprLine(
-#                                             return_expr=True,
-#                                             expression_tree=deque([
-#                                                 deque([
-#                                                     Attribute(
-#                                                         namespace='math',
-#                                                         attr_name='pi'
-#                                                     ),
-#                                                     '*', 's', '*', 't',
-#                                                 ]),
-#                                                 "/",
-#                                                 deque([
-#                                                     deque([
-#                                                         'u', '*', 'v'
-#                                                     ])
-#                                                     , '**', 2
-#                                                 ])
-#                                             ])
-#                                         )
-#                                     ])
-#                                 )
-#                             ])
-#                         ),
-#                         ExprLine(
-#                             return_expr=True,
-#                             expression_tree=deque(['factored'])
-#                         )
-#                     ])
-#                 )
-#             ])
-#         ),
-#     ])
+#     ...  # (left commented out; predates the operator-node AST)
 
 
-def test_if_blocks(basic_parser):
+def test_if_blocks():
+    # The if/elif/else evaluation needs `a` and `b` resolvable, so build a
+    # parser whose context (locals, globals) is a ChainMap like HcSequence does.
     source_1 = """
 a = 4
 b = 5
@@ -190,71 +214,175 @@ else:
     d = 6
     print(d)
 """
+    basic_parser = AST_Parser(
+        ChainMap({}, {"a": 4, "b": 5}), global_exclusions=['collections', 'deque']
+    )
     assert basic_parser(source_1) == deque([
         CalcLine(
-            assigns=deque([Name("a")]),
-            expression_tree=deque([4]),
+            assigns=deque([
+                Name(
+                    identifier='a',
+                    value=4
+                )
+            ]),
+            expression_tree=deque([
+                Constant(
+                    value=4
+                )
+            ])
         ),
         CalcLine(
-            assigns=deque([Name("b")]),
-            expression_tree=deque([5])
+            assigns=deque([
+                Name(
+                    identifier='b',
+                    value=5
+                )
+            ]),
+            expression_tree=deque([
+                Constant(
+                    value=5
+                )
+            ])
         ),
         IfBlock(
-            test=deque([2, "<=", Name("a"), "<", 5]),
-            orelse=deque([
-                IfBlock(
-                    test=deque([Name("a"), ">", Name("b")]),
-                    orelse=deque([
-                        CalcLine(
-                            assigns=deque([Name("d")]),
-                            expression_tree=deque([6]),
-                        ),
-                        ExprLine(
-                            expression_tree=deque([
-                                FunctionCall(
-                                    namespace=deque(["__main__"]),
-                                    function_name=deque(["print"]),
-                                    args=deque([Name("d")]),
-                                ),
-                            ])
-                        ),
+            lines=deque([
+                CalcLine(
+                    assigns=deque([
+                        Name(
+                            identifier='d'
+                        )
                     ]),
-                        
-                    lines=deque([
-                        CalcLine(
-                            assigns=deque([Name("d")]),
-                            expression_tree=deque([5])
-                        ),
-                        ExprLine(
-                            expression_tree=deque([
-                                FunctionCall(
-                                    namespace=deque(["__main__"]),
-                                    function_name=deque(["print"]),
-                                    args=deque([Name("d")]),
+                    expression_tree=deque([
+                        Constant(
+                            value=4
+                        )
+                    ])
+                ),
+                ExprLine(
+                    expression_tree=deque([
+                        FunctionCall(
+                            namespace=Name(
+                                identifier='__main__',
+                                value='__main__'
+                            ),
+                            function_name=Name(
+                                identifier='print',
+                                value='print'
+                            ),
+                            args=deque([
+                                Name(
+                                    identifier='d'
                                 )
                             ])
                         )
                     ])
                 )
             ]),
-            lines=deque([
-                CalcLine(
-                    assigns=deque([Name("d")]),
-                    expression_tree=deque([4])
-                ),
-                ExprLine(
-                    expression_tree=deque([
-                        FunctionCall(
-                            namespace=deque(["__main__"]),
-                            function_name=deque(["print"]),
-                            args=deque([Name("d")]),
+            test=Compare(
+                comparison=deque([
+                    Constant(
+                        value=2
+                    ),
+                    LtEOp,
+                    Name(
+                        identifier='a',
+                        value=4
+                    ),
+                    LtOp,
+                    Constant(
+                        value=5
+                    )
+                ])
+            ),
+            orelse=deque([
+                IfBlock(
+                    lines=deque([
+                        CalcLine(
+                            assigns=deque([
+                                Name(
+                                    identifier='d'
+                                )
+                            ]),
+                            expression_tree=deque([
+                                Constant(
+                                    value=5
+                                )
+                            ])
+                        ),
+                        ExprLine(
+                            expression_tree=deque([
+                                FunctionCall(
+                                    namespace=Name(
+                                        identifier='__main__',
+                                        value='__main__'
+                                    ),
+                                    function_name=Name(
+                                        identifier='print',
+                                        value='print'
+                                    ),
+                                    args=deque([
+                                        Name(
+                                            identifier='d'
+                                        )
+                                    ])
+                                )
+                            ])
                         )
-                    ])
+                    ]),
+                    test=Compare(
+                        comparison=deque([
+                            Name(
+                                identifier='a',
+                                value=4
+                            ),
+                            GtOp,
+                            Name(
+                                identifier='b',
+                                value=5
+                            )
+                        ])
+                    ),
+                    orelse=deque([
+                        CalcLine(
+                            assigns=deque([
+                                Name(
+                                    identifier='d'
+                                )
+                            ]),
+                            expression_tree=deque([
+                                Constant(
+                                    value=6
+                                )
+                            ])
+                        ),
+                        ExprLine(
+                            expression_tree=deque([
+                                FunctionCall(
+                                    namespace=Name(
+                                        identifier='__main__',
+                                        value='__main__'
+                                    ),
+                                    function_name=Name(
+                                        identifier='print',
+                                        value='print'
+                                    ),
+                                    args=deque([
+                                        Name(
+                                            identifier='d'
+                                        )
+                                    ])
+                                )
+                            ])
+                        )
+                    ]),
+                    is_true=False
                 )
             ]),
+            is_true=True
         )
     ])
-    
+
+
 def test_for_blocks():
     source_1 = """import math
 a = [0, 1, 2, 3, 4, 5]
@@ -273,41 +401,146 @@ values = [elem + b for elem in a]
     exec(source_1, locals=source_1_locals)
     basic_parser = AST_Parser(globals() | source_1_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_1) == deque([
-        HcNotImplemented(node_name="Import"),
-        CalcLine(
-            assigns=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
-            expression_tree=deque([
-                List(
-                    elems=deque([0, 1, 2, 3, 4, 5])
+        Import(
+            names=deque([
+                Name(
+                    identifier='math',
+                    value=None
                 )
             ])
         ),
         CalcLine(
-            assigns=deque([Name("b", 6)]),
-            expression_tree=deque([6]),
+            assigns=deque([
+                Name(
+                    identifier='a',
+                    value=[
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ]
+                )
+            ]),
+            expression_tree=deque([
+                List(
+                    elems=deque([
+                        Constant(
+                            value=0
+                        ),
+                        Constant(
+                            value=1
+                        ),
+                        Constant(
+                            value=2
+                        ),
+                        Constant(
+                            value=3
+                        ),
+                        Constant(
+                            value=4
+                        ),
+                        Constant(
+                            value=5
+                        )
+                    ])
+                )
+            ])
         ),
         CalcLine(
-            assigns=deque([Name('acc', [6, 7, 8, 9, 10, 11])]),
-            expression_tree=deque([List(elems=deque([]))])
+            assigns=deque([
+                Name(
+                    identifier='b',
+                    value=6
+                )
+            ]),
+            expression_tree=deque([
+                Constant(
+                    value=6
+                )
+            ])
+        ),
+        CalcLine(
+            assigns=deque([
+                Name(
+                    identifier='acc',
+                    value=[
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11
+                    ]
+                )
+            ]),
+            expression_tree=deque([
+                List(
+                    elems=deque([])
+                )
+            ])
         ),
         ForBlock(
-            assigns=deque([Name("elem", 5)]),
-            iterator=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
             lines=deque([
                 CalcLine(
-                    assigns=deque([Name("value", 11)]),
+                    assigns=deque([
+                        Name(
+                            identifier='value',
+                            value=11
+                        )
+                    ]),
                     expression_tree=deque([
-                        Name('elem', 5), '+', Name('b', 6)
+                        AddOp(
+                            left=Name(
+                                identifier='elem',
+                                value=5
+                            ),
+                            right=Name(
+                                identifier='b',
+                                value=6
+                            )
+                        )
                     ])
                 ),
                 ExprLine(
                     expression_tree=deque([
                         FunctionCall(
-                            namespace=deque(["acc"]),
-                            function_name=deque(["append"]),
-                            args=deque([Name("value", 11)])
+                            namespace=Name(
+                                identifier='acc',
+                                value='acc'
+                            ),
+                            function_name=Name(
+                                identifier='append',
+                                value='append'
+                            ),
+                            args=deque([
+                                Name(
+                                    identifier='value',
+                                    value=11
+                                )
+                            ])
                         )
                     ])
+                )
+            ]),
+            assigns=deque([
+                Name(
+                    identifier='elem',
+                    value=5
+                )
+            ]),
+            iterator=deque([
+                Name(
+                    identifier='a',
+                    value=[
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ]
                 )
             ])
         )
@@ -318,25 +551,105 @@ values = [elem + b for elem in a]
     basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_2) == deque([
         CalcLine(
-            assigns=deque([Name("a", [0, 1, 2, 3, 4, 5])]),
-            expression_tree=deque([List(elems=deque([0, 1, 2, 3, 4, 5]))])
+            assigns=deque([
+                Name(
+                    identifier='a',
+                    value=[
+                        0,
+                        1,
+                        2,
+                        3,
+                        4,
+                        5
+                    ]
+                )
+            ]),
+            expression_tree=deque([
+                List(
+                    elems=deque([
+                        Constant(
+                            value=0
+                        ),
+                        Constant(
+                            value=1
+                        ),
+                        Constant(
+                            value=2
+                        ),
+                        Constant(
+                            value=3
+                        ),
+                        Constant(
+                            value=4
+                        ),
+                        Constant(
+                            value=5
+                        )
+                    ])
+                )
+            ])
         ),
         CalcLine(
-            assigns=deque([Name('b', 6)]),
-            expression_tree=deque([6])
+            assigns=deque([
+                Name(
+                    identifier='b',
+                    value=6
+                )
+            ]),
+            expression_tree=deque([
+                Constant(
+                    value=6
+                )
+            ])
         ),
         CalcLine(
-            assigns=deque([Name("values", [6, 7, 8, 9, 10, 11])]),
+            assigns=deque([
+                Name(
+                    identifier='values',
+                    value=[
+                        6,
+                        7,
+                        8,
+                        9,
+                        10,
+                        11
+                    ]
+                )
+            ]),
             expression_tree=deque([
                 ComprehensionChain(
-                    _type="list",
+                    _type='list',
                     assign=deque([
-                        deque([Name('elem'), '+', Name('b', 6)])
+                        AddOp(
+                            left=Name(
+                                identifier='elem'
+                            ),
+                            right=Name(
+                                identifier='b',
+                                value=6
+                            )
+                        )
                     ]),
                     comprehensions=deque([
                         Comprehension(
-                            assigns=deque([Name("elem")]),
-                            iterator=deque([Name('a', [0, 1, 2, 3, 4, 5])]),
+                            assigns=deque([
+                                Name(
+                                    identifier='elem'
+                                )
+                            ]),
+                            iterator=deque([
+                                Name(
+                                    identifier='a',
+                                    value=[
+                                        0,
+                                        1,
+                                        2,
+                                        3,
+                                        4,
+                                        5
+                                    ]
+                                )
+                            ]),
                             _is_async=False
                         )
                     ])
@@ -348,16 +661,17 @@ values = [elem + b for elem in a]
 # # TESTS: Comments, Inline comments, comment commands
 # # TODO: Implement inline comment commands? Possible? Easy?
 
+
 def test_elif_block():
     ib = IfBlock(
-            test=deque([2, "<=", Name("a"), "<", 5]),
+            test=deque([Constant(2), "<=", Name("a"), "<", Constant(5)]),
             orelse=deque([
                 IfBlock(
                     test=deque([Name("a"), ">", Name("b")]),
                     orelse=deque([
                         CalcLine(
                             assigns=deque([Name("d")]),
-                            expression_tree=deque([6]),
+                            expression_tree=deque([Constant(6)]),
                         ),
                         ExprLine(
                             expression_tree=deque([
@@ -369,11 +683,10 @@ def test_elif_block():
                             ])
                         ),
                     ]),
-                        
                     lines=deque([
                         CalcLine(
                             assigns=deque([Name("d")]),
-                            expression_tree=deque([5])
+                            expression_tree=deque([Constant(5)])
                         ),
                         ExprLine(
                             expression_tree=deque([
@@ -390,7 +703,7 @@ def test_elif_block():
             lines=deque([
                 CalcLine(
                     assigns=deque([Name("d")]),
-                    expression_tree=deque([4])
+                    expression_tree=deque([Constant(4)])
                 ),
                 ExprLine(
                     expression_tree=deque([
@@ -404,101 +717,203 @@ def test_elif_block():
             ]),
         )
     assert ElifBlock.from_if_tree(ib) == ElifBlock(
-    lines=deque([
-        IfBlock(
-            lines=deque([
-                CalcLine(
-                    level=0,
-                    assigns=deque([Name(identifier='d', value=NoValue())]),
-                    expression_tree=deque([4]),
-                    symbolic=deque(),
-                    numeric=deque(),
-                    comment=None,
-                    
-                ),
-                ExprLine(
-                    level=0,
-                    expression_tree=deque([
-                        FunctionCall(
-                            namespace=deque(['__main__']),
-                            function_name=deque(['print']),
-                            args=deque([Name(identifier='d', value=NoValue())])
-                        )
-                    ]),
-                    numeric=deque(),
-                    return_expr=False,
-                    symbolic=deque(),
-                    comment=None,
-                    
-                )
-            ]),
-            test=deque([2, '<=', Name(identifier='a', value=NoValue()), '<', 5]),
-            orelse=None
-        ),
-        IfBlock(
-            lines=deque([
-                CalcLine(
-                    level=0,
-                    assigns=deque([Name(identifier='d', value=NoValue())]),
-                    expression_tree=deque([5]),
-                    numeric=deque(),
-                    symbolic=deque(),
-                    comment=None,
-                    
-                ),
-                ExprLine(
-                    level=0,
-                    expression_tree=deque([
-                        FunctionCall(
-                            namespace=deque(['__main__']),
-                            function_name=deque(['print']),
-                            args=deque([Name(identifier='d', value=NoValue())])
-                        )
-                    ]),
-                    numeric=deque(),
-                    return_expr=False,
-                    symbolic=deque(),
-                    comment=None,
-                    
-                )
-            ]),
-            test=deque([
-                Name(identifier='a', value=NoValue()),
-                '>',
-                Name(identifier='b', value=NoValue())
-            ]),
-            orelse=None
-        ),
-        ElseBlock(
-            lines=deque([
-                CalcLine(
-                    level=0,
-                    assigns=deque([Name(identifier='d', value=NoValue())]),
-                    expression_tree=deque([6]),
-                    numeric=deque(),
-                    symbolic=deque(),
-                    comment=None,
-                    
-                ),
-                ExprLine(
-                    level=0,
-                    expression_tree=deque([
-                        FunctionCall(
-                            namespace=deque(['__main__']),
-                            function_name=deque(['print']),
-                            args=deque([Name(identifier='d', value=NoValue())])
-                        )
-                    ]),
-                    numeric=deque(),
-                    return_expr=False,
-                    symbolic=deque(),
-                    comment=None,
-                    
-                )
-            ])
-        )
-    ])
-)  
+        lines=deque([
+            IfBlock(
+                lines=deque([
+                    CalcLine(
+                        assigns=deque([
+                            Name(
+                                identifier='d'
+                            )
+                        ]),
+                        expression_tree=deque([
+                            Constant(
+                                value=4
+                            )
+                        ])
+                    ),
+                    ExprLine(
+                        expression_tree=deque([
+                            FunctionCall(
+                                namespace=deque([
+                                    '__main__'
+                                ]),
+                                function_name=deque([
+                                    'print'
+                                ]),
+                                args=deque([
+                                    Name(
+                                        identifier='d'
+                                    )
+                                ])
+                            )
+                        ])
+                    )
+                ]),
+                test=deque([
+                    Constant(
+                        value=2
+                    ),
+                    '<=',
+                    Name(
+                        identifier='a'
+                    ),
+                    '<',
+                    Constant(
+                        value=5
+                    )
+                ]),
+                orelse=deque([
+                    IfBlock(
+                        lines=deque([
+                            CalcLine(
+                                assigns=deque([
+                                    Name(
+                                        identifier='d'
+                                    )
+                                ]),
+                                expression_tree=deque([
+                                    Constant(
+                                        value=5
+                                    )
+                                ])
+                            ),
+                            ExprLine(
+                                expression_tree=deque([
+                                    FunctionCall(
+                                        namespace=deque([
+                                            '__main__'
+                                        ]),
+                                        function_name=deque([
+                                            'print'
+                                        ]),
+                                        args=deque([
+                                            Name(
+                                                identifier='d'
+                                            )
+                                        ])
+                                    )
+                                ])
+                            )
+                        ]),
+                        test=deque([
+                            Name(
+                                identifier='a'
+                            ),
+                            '>',
+                            Name(
+                                identifier='b'
+                            )
+                        ]),
+                        orelse=deque([
+                            CalcLine(
+                                assigns=deque([
+                                    Name(
+                                        identifier='d'
+                                    )
+                                ]),
+                                expression_tree=deque([
+                                    Constant(
+                                        value=6
+                                    )
+                                ])
+                            ),
+                            ExprLine(
+                                expression_tree=deque([
+                                    FunctionCall(
+                                        namespace=deque([
+                                            '__main__'
+                                        ]),
+                                        function_name=deque([
+                                            'print'
+                                        ]),
+                                        args=deque([
+                                            Name(
+                                                identifier='d'
+                                            )
+                                        ])
+                                    )
+                                ])
+                            )
+                        ])
+                    )
+                ])
+            ),
+            IfBlock(
+                lines=deque([
+                    CalcLine(
+                        assigns=deque([
+                            Name(
+                                identifier='d'
+                            )
+                        ]),
+                        expression_tree=deque([
+                            Constant(
+                                value=5
+                            )
+                        ])
+                    ),
+                    ExprLine(
+                        expression_tree=deque([
+                            FunctionCall(
+                                namespace=deque([
+                                    '__main__'
+                                ]),
+                                function_name=deque([
+                                    'print'
+                                ]),
+                                args=deque([
+                                    Name(
+                                        identifier='d'
+                                    )
+                                ])
+                            )
+                        ])
+                    )
+                ]),
+                test=deque([
+                    Name(
+                        identifier='a'
+                    ),
+                    '>',
+                    Name(
+                        identifier='b'
+                    )
+                ]),
+                orelse=deque([
+                    CalcLine(
+                        assigns=deque([
+                            Name(
+                                identifier='d'
+                            )
+                        ]),
+                        expression_tree=deque([
+                            Constant(
+                                value=6
+                            )
+                        ])
+                    ),
+                    ExprLine(
+                        expression_tree=deque([
+                            FunctionCall(
+                                namespace=deque([
+                                    '__main__'
+                                ]),
+                                function_name=deque([
+                                    'print'
+                                ]),
+                                args=deque([
+                                    Name(
+                                        identifier='d'
+                                    )
+                                ])
+                            )
+                        ])
+                    )
+                ])
+            )
+        ])
+    )
 
 
 def test_hcsequence():
@@ -511,7 +926,7 @@ if 2 <= a < 5:
         print(d)
     elif d == 5:
         print(d)
-    elif d == 4: 
+    elif d == 4:
         print(d)
     else:
         print("TWELVE")
@@ -523,267 +938,583 @@ else:
     d = 6
     print(d)
 """
-    seq = HCSequence.from_source(source_1, {"a": 4, "b": 5, "d": 4}, {})
-    from rich import print
-    assert False
-    assert seq == HCSequence(
-    sequence=deque([
-        CalcLine(
-            level=0,
-            assigns=deque([Name(identifier='a', value=4)]),
-            expression_tree=deque([4]),
-            numeric=deque(),
-            symbolic=deque(),
-            comment=None,
-            
-        ),
-        CalcLine(
-            level=0,
-            assigns=deque([Name(identifier='b', value=5)]),
-            expression_tree=deque([5]),
-            numeric=deque(),
-            symbolic=deque(),
-            comment=None,
-            
-        ),
-        ElifBlock(
-            lines=deque([
-                IfBlock(
-                    lines=deque([
-                        CalcLine(
-                            level=0,
-                            assigns=deque([Name(identifier='d', value=4)]),
-                            expression_tree=deque([4]),
-                            numeric=deque(),
-                            symbolic=deque(),
-                            comment=None,
-                            
-                        ),
-                        ElifBlock(
-                            lines=deque([
-                                IfBlock(
-                                    lines=deque([
-                                        ExprLine(
-                                            level=0,
-                                            expression_tree=deque([
-                                                FunctionCall(
-                                                    namespace=deque([
-                                                        '__main__'
-                                                    ]),
-                                                    function_name=deque([
-                                                        'print'
-                                                    ]),
-                                                    args=deque([
+    seq = HcSequence.from_source(source_1, {"a": 4, "b": 5, "d": 4}, {})
+    assert seq.sequence == deque([
+            CalcLine(
+                assigns=deque([
+                    Name(
+                        identifier='a',
+                        value=4
+                    )
+                ]),
+                expression_tree=deque([
+                    Constant(
+                        value=4
+                    )
+                ])
+            ),
+            CalcLine(
+                assigns=deque([
+                    Name(
+                        identifier='b',
+                        value=5
+                    )
+                ]),
+                expression_tree=deque([
+                    Constant(
+                        value=5
+                    )
+                ])
+            ),
+            ElifBlock(
+                lines=deque([
+                    IfBlock(
+                        lines=deque([
+                            CalcLine(
+                                level=1,
+                                assigns=deque([
+                                    Name(
+                                        identifier='d',
+                                        value=4
+                                    )
+                                ]),
+                                expression_tree=deque([
+                                    Constant(
+                                        value=4
+                                    )
+                                ])
+                            ),
+                            ElifBlock(
+                                level=1,
+                                lines=deque([
+                                    IfBlock(
+                                        level=1,
+                                        lines=deque([
+                                            ExprLine(
+                                                level=2,
+                                                expression_tree=deque([
+                                                    FunctionCall(
+                                                        namespace=Name(
+                                                            identifier='__main__',
+                                                            value='__main__'
+                                                        ),
+                                                        function_name=Name(
+                                                            identifier='print',
+                                                            value='print'
+                                                        ),
+                                                        args=deque([
+                                                            Name(
+                                                                identifier='d',
+                                                                value=4
+                                                            )
+                                                        ])
+                                                    )
+                                                ])
+                                            )
+                                        ]),
+                                        test=Compare(
+                                            comparison=deque([
+                                                Name(
+                                                    identifier='d',
+                                                    value=4
+                                                ),
+                                                EqOp,
+                                                Constant(
+                                                    value=3
+                                                )
+                                            ])
+                                        ),
+                                        orelse=deque([
+                                            IfBlock(
+                                                level=1,
+                                                lines=deque([
+                                                    ExprLine(
+                                                        level=2,
+                                                        expression_tree=deque([
+                                                            FunctionCall(
+                                                                namespace=Name(
+                                                                    identifier='__main__',
+                                                                    value='__main__'
+                                                                ),
+                                                                function_name=Name(
+                                                                    identifier='print',
+                                                                    value='print'
+                                                                ),
+                                                                args=deque([
+                                                                    Name(
+                                                                        identifier='d',
+                                                                        value=4
+                                                                    )
+                                                                ])
+                                                            )
+                                                        ])
+                                                    )
+                                                ]),
+                                                test=Compare(
+                                                    comparison=deque([
                                                         Name(
                                                             identifier='d',
                                                             value=4
+                                                        ),
+                                                        EqOp,
+                                                        Constant(
+                                                            value=5
                                                         )
                                                     ])
+                                                ),
+                                                orelse=deque([
+                                                    IfBlock(
+                                                        level=1,
+                                                        lines=deque([
+                                                            ExprLine(
+                                                                level=2,
+                                                                expression_tree=deque([
+                                                                    FunctionCall(
+                                                                        namespace=Name(
+                                                                            identifier='__main__',
+                                                                            value='__main__'
+                                                                        ),
+                                                                        function_name=Name(
+                                                                            identifier='print',
+                                                                            value='print'
+                                                                        ),
+                                                                        args=deque([
+                                                                            Name(
+                                                                                identifier='d',
+                                                                                value=4
+                                                                            )
+                                                                        ])
+                                                                    )
+                                                                ])
+                                                            )
+                                                        ]),
+                                                        test=Compare(
+                                                            comparison=deque([
+                                                                Name(
+                                                                    identifier='d',
+                                                                    value=4
+                                                                ),
+                                                                EqOp,
+                                                                Constant(
+                                                                    value=4
+                                                                )
+                                                            ])
+                                                        ),
+                                                        orelse=deque([
+                                                            ExprLine(
+                                                                expression_tree=deque([
+                                                                    FunctionCall(
+                                                                        namespace=Name(
+                                                                            identifier='__main__',
+                                                                            value='__main__'
+                                                                        ),
+                                                                        function_name=Name(
+                                                                            identifier='print',
+                                                                            value='print'
+                                                                        ),
+                                                                        args=deque([
+                                                                            Constant(
+                                                                                value='TWELVE'
+                                                                            )
+                                                                        ])
+                                                                    )
+                                                                ])
+                                                            )
+                                                        ]),
+                                                        is_true=True
+                                                    )
+                                                ]),
+                                                is_true=False
+                                            )
+                                        ]),
+                                        is_true=False
+                                    ),
+                                    IfBlock(
+                                        level=1,
+                                        lines=deque([
+                                            ExprLine(
+                                                level=2,
+                                                expression_tree=deque([
+                                                    FunctionCall(
+                                                        namespace=Name(
+                                                            identifier='__main__',
+                                                            value='__main__'
+                                                        ),
+                                                        function_name=Name(
+                                                            identifier='print',
+                                                            value='print'
+                                                        ),
+                                                        args=deque([
+                                                            Name(
+                                                                identifier='d',
+                                                                value=4
+                                                            )
+                                                        ])
+                                                    )
+                                                ])
+                                            )
+                                        ]),
+                                        test=Compare(
+                                            comparison=deque([
+                                                Name(
+                                                    identifier='d',
+                                                    value=4
+                                                ),
+                                                EqOp,
+                                                Constant(
+                                                    value=5
                                                 )
-                                            ]),
-                                            numeric=deque(),
-                                            return_expr=False,
-                                            symbolic=deque(),
-                                            comment=None,
-                                            
-                                        )
-                                    ]),
-                                    test=deque([
-                                        Name(identifier='d', value=4),
-                                        '==',
-                                        3
-                                    ]),
-                                    orelse=None
-                                ),
-                                IfBlock(
-                                    lines=deque([
-                                        ExprLine(
-                                            level=0,
-                                            expression_tree=deque([
-                                                FunctionCall(
-                                                    namespace=deque([
-                                                        '__main__'
-                                                    ]),
-                                                    function_name=deque([
-                                                        'print'
-                                                    ]),
-                                                    args=deque([
+                                            ])
+                                        ),
+                                        orelse=deque([
+                                            IfBlock(
+                                                level=1,
+                                                lines=deque([
+                                                    ExprLine(
+                                                        level=2,
+                                                        expression_tree=deque([
+                                                            FunctionCall(
+                                                                namespace=Name(
+                                                                    identifier='__main__',
+                                                                    value='__main__'
+                                                                ),
+                                                                function_name=Name(
+                                                                    identifier='print',
+                                                                    value='print'
+                                                                ),
+                                                                args=deque([
+                                                                    Name(
+                                                                        identifier='d',
+                                                                        value=4
+                                                                    )
+                                                                ])
+                                                            )
+                                                        ])
+                                                    )
+                                                ]),
+                                                test=Compare(
+                                                    comparison=deque([
                                                         Name(
                                                             identifier='d',
                                                             value=4
-                                                        )
-                                                    ])
-                                                )
-                                            ]),
-                                            numeric=deque(),
-                                            return_expr=False,
-                                            symbolic=deque(),
-                                            comment=None,
-                                            
-                                        )
-                                    ]),
-                                    test=deque([
-                                        Name(identifier='d', value=4),
-                                        '==',
-                                        5
-                                    ]),
-                                    orelse=None
-                                ),
-                                IfBlock(
-                                    lines=deque([
-                                        ExprLine(
-                                            level=0,
-                                            expression_tree=deque([
-                                                FunctionCall(
-                                                    namespace=deque([
-                                                        '__main__'
-                                                    ]),
-                                                    function_name=deque([
-                                                        'print'
-                                                    ]),
-                                                    args=deque([
-                                                        Name(
-                                                            identifier='d',
+                                                        ),
+                                                        EqOp,
+                                                        Constant(
                                                             value=4
                                                         )
                                                     ])
+                                                ),
+                                                orelse=deque([
+                                                    ExprLine(
+                                                        expression_tree=deque([
+                                                            FunctionCall(
+                                                                namespace=Name(
+                                                                    identifier='__main__',
+                                                                    value='__main__'
+                                                                ),
+                                                                function_name=Name(
+                                                                    identifier='print',
+                                                                    value='print'
+                                                                ),
+                                                                args=deque([
+                                                                    Constant(
+                                                                        value='TWELVE'
+                                                                    )
+                                                                ])
+                                                            )
+                                                        ])
+                                                    )
+                                                ]),
+                                                is_true=True
+                                            )
+                                        ]),
+                                        is_true=False
+                                    ),
+                                    IfBlock(
+                                        level=1,
+                                        lines=deque([
+                                            ExprLine(
+                                                level=2,
+                                                expression_tree=deque([
+                                                    FunctionCall(
+                                                        namespace=Name(
+                                                            identifier='__main__',
+                                                            value='__main__'
+                                                        ),
+                                                        function_name=Name(
+                                                            identifier='print',
+                                                            value='print'
+                                                        ),
+                                                        args=deque([
+                                                            Name(
+                                                                identifier='d',
+                                                                value=4
+                                                            )
+                                                        ])
+                                                    )
+                                                ])
+                                            )
+                                        ]),
+                                        test=Compare(
+                                            comparison=deque([
+                                                Name(
+                                                    identifier='d',
+                                                    value=4
+                                                ),
+                                                EqOp,
+                                                Constant(
+                                                    value=4
                                                 )
-                                            ]),
-                                            numeric=deque(),
-                                            return_expr=False,
-                                            symbolic=deque(),
-                                            comment=None,
-                                            
-                                        )
-                                    ]),
-                                    test=deque([
-                                        Name(identifier='d', value=4),
-                                        '==',
-                                        4
-                                    ]),
-                                    orelse=None
+                                            ])
+                                        ),
+                                        orelse=deque([
+                                            ExprLine(
+                                                expression_tree=deque([
+                                                    FunctionCall(
+                                                        namespace=Name(
+                                                            identifier='__main__',
+                                                            value='__main__'
+                                                        ),
+                                                        function_name=Name(
+                                                            identifier='print',
+                                                            value='print'
+                                                        ),
+                                                        args=deque([
+                                                            Constant(
+                                                                value='TWELVE'
+                                                            )
+                                                        ])
+                                                    )
+                                                ])
+                                            )
+                                        ]),
+                                        is_true=True
+                                    ),
+                                    ElseBlock(
+                                        level=1
+                                    )
+                                ])
+                            ),
+                            ExprLine(
+                                level=1,
+                                expression_tree=deque([
+                                    FunctionCall(
+                                        namespace=Name(
+                                            identifier='__main__',
+                                            value='__main__'
+                                        ),
+                                        function_name=Name(
+                                            identifier='print',
+                                            value='print'
+                                        ),
+                                        args=deque([
+                                            Name(
+                                                identifier='d',
+                                                value=4
+                                            )
+                                        ])
+                                    )
+                                ])
+                            )
+                        ]),
+                        test=Compare(
+                            comparison=deque([
+                                Constant(
+                                    value=2
                                 ),
-                                ElseBlock(
-                                    lines=deque([
-                                        ExprLine(
-                                            level=0,
-                                            expression_tree=deque([
-                                                FunctionCall(
-                                                    namespace=deque([
-                                                        '__main__'
-                                                    ]),
-                                                    function_name=deque([
-                                                        'print'
-                                                    ]),
-                                                    args=deque(['TWELVE'])
-                                                )
-                                            ]),
-                                            numeric=deque(),
-                                            return_expr=False,
-                                            symbolic=deque(),
-                                            comment=None,
-                                            
-                                        )
-                                    ])
+                                LtEOp,
+                                Name(
+                                    identifier='a',
+                                    value=4
+                                ),
+                                LtOp,
+                                Constant(
+                                    value=5
                                 )
                             ])
                         ),
-                        ExprLine(
-                            level=0,
-                            expression_tree=deque([
-                                FunctionCall(
-                                    namespace=deque(['__main__']),
-                                    function_name=deque(['print']),
-                                    args=deque([
-                                        Name(identifier='d', value=4)
+                        orelse=deque([
+                            IfBlock(
+                                lines=deque([
+                                    CalcLine(
+                                        level=1,
+                                        assigns=deque([
+                                            Name(
+                                                identifier='d',
+                                                value=4
+                                            )
+                                        ]),
+                                        expression_tree=deque([
+                                            Constant(
+                                                value=5
+                                            )
+                                        ])
+                                    ),
+                                    ExprLine(
+                                        level=1,
+                                        expression_tree=deque([
+                                            FunctionCall(
+                                                namespace=Name(
+                                                    identifier='__main__',
+                                                    value='__main__'
+                                                ),
+                                                function_name=Name(
+                                                    identifier='print',
+                                                    value='print'
+                                                ),
+                                                args=deque([
+                                                    Name(
+                                                        identifier='d',
+                                                        value=4
+                                                    )
+                                                ])
+                                            )
+                                        ])
+                                    )
+                                ]),
+                                test=Compare(
+                                    comparison=deque([
+                                        Name(
+                                            identifier='a',
+                                            value=4
+                                        ),
+                                        GtOp,
+                                        Name(
+                                            identifier='b',
+                                            value=5
+                                        )
                                     ])
+                                ),
+                                orelse=deque([
+                                    CalcLine(
+                                        assigns=deque([
+                                            Name(
+                                                identifier='d',
+                                                value=4
+                                            )
+                                        ]),
+                                        expression_tree=deque([
+                                            Constant(
+                                                value=6
+                                            )
+                                        ])
+                                    ),
+                                    ExprLine(
+                                        expression_tree=deque([
+                                            FunctionCall(
+                                                namespace=Name(
+                                                    identifier='__main__',
+                                                    value='__main__'
+                                                ),
+                                                function_name=Name(
+                                                    identifier='print',
+                                                    value='print'
+                                                ),
+                                                args=deque([
+                                                    Name(
+                                                        identifier='d',
+                                                        value=4
+                                                    )
+                                                ])
+                                            )
+                                        ])
+                                    )
+                                ]),
+                                is_true=False
+                            )
+                        ]),
+                        is_true=True
+                    ),
+                    IfBlock(
+                        lines=deque([
+                            CalcLine(
+                                level=1,
+                                assigns=deque([
+                                    Name(
+                                        identifier='d',
+                                        value=4
+                                    )
+                                ]),
+                                expression_tree=deque([
+                                    Constant(
+                                        value=5
+                                    )
+                                ])
+                            ),
+                            ExprLine(
+                                level=1,
+                                expression_tree=deque([
+                                    FunctionCall(
+                                        namespace=Name(
+                                            identifier='__main__',
+                                            value='__main__'
+                                        ),
+                                        function_name=Name(
+                                            identifier='print',
+                                            value='print'
+                                        ),
+                                        args=deque([
+                                            Name(
+                                                identifier='d',
+                                                value=4
+                                            )
+                                        ])
+                                    )
+                                ])
+                            )
+                        ]),
+                        test=Compare(
+                            comparison=deque([
+                                Name(
+                                    identifier='a',
+                                    value=4
+                                ),
+                                GtOp,
+                                Name(
+                                    identifier='b',
+                                    value=5
                                 )
-                            ]),
-                            numeric=deque(),
-                            return_expr=False,
-                            symbolic=deque(),
-                            comment=None,
-                            
-                        )
-                    ]),
-                    test=deque([
-                        2,
-                        '<=',
-                        Name(identifier='a', value=4),
-                        '<',
-                        5
-                    ]),
-                    orelse=None
-                ),
-                IfBlock(
-                    lines=deque([
-                        CalcLine(
-                            level=0,
-                            assigns=deque([Name(identifier='d', value=4)]),
-                            expression_tree=deque([5]),
-                            numeric=deque(),
-                            symbolic=deque(),
-                            comment=None,
-                            
+                            ])
                         ),
-                        ExprLine(
-                            level=0,
-                            expression_tree=deque([
-                                FunctionCall(
-                                    namespace=deque(['__main__']),
-                                    function_name=deque(['print']),
-                                    args=deque([
-                                        Name(identifier='d', value=4)
-                                    ])
-                                )
-                            ]),
-                            numeric=deque(),
-                            return_expr=False,
-                            symbolic=deque(),
-                            comment=None,
-                            
-                        )
-                    ]),
-                    test=deque([
-                        Name(identifier='a', value=4),
-                        '>',
-                        Name(identifier='b', value=5)
-                    ]),
-                    orelse=None
-                ),
-                ElseBlock(
-                    lines=deque([
-                        CalcLine(
-                            level=0,
-                            assigns=deque([Name(identifier='d', value=4)]),
-                            expression_tree=deque([6]),
-                            numeric=deque(),
-                            symbolic=deque(),
-                            comment=None,
-                            
-                        ),
-                        ExprLine(
-                            level=0,
-                            expression_tree=deque([
-                                FunctionCall(
-                                    namespace=deque(['__main__']),
-                                    function_name=deque(['print']),
-                                    args=deque([
-                                        Name(identifier='d', value=4)
-                                    ])
-                                )
-                            ]),
-                            numeric=deque(),
-                            return_expr=False,
-                            symbolic=deque(),
-                            comment=None,
-                            
-                        )
-                    ])
-                )
-            ])
-        )
-    ]),
-    c_globals={'a': 4, 'b': 5, 'd': 4},
-    c_locals={}
-)
+                        orelse=deque([
+                            CalcLine(
+                                assigns=deque([
+                                    Name(
+                                        identifier='d',
+                                        value=4
+                                    )
+                                ]),
+                                expression_tree=deque([
+                                    Constant(
+                                        value=6
+                                    )
+                                ])
+                            ),
+                            ExprLine(
+                                expression_tree=deque([
+                                    FunctionCall(
+                                        namespace=Name(
+                                            identifier='__main__',
+                                            value='__main__'
+                                        ),
+                                        function_name=Name(
+                                            identifier='print',
+                                            value='print'
+                                        ),
+                                        args=deque([
+                                            Name(
+                                                identifier='d',
+                                                value=4
+                                            )
+                                        ])
+                                    )
+                                ])
+                            )
+                        ]),
+                        is_true=False
+                    )
+                ])
+            )
+        ])
+    assert seq.hc_globals == {"a": 4, "b": 5, "d": 4}
+    assert seq.hc_locals == {}

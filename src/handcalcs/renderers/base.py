@@ -38,7 +38,8 @@ from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
     Import,
-    CommentCommand
+    CommentCommand,
+    MarkdownComment
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -324,6 +325,10 @@ def render_comment_command(renderer: BR, node: CommentCommand, base_context: Bas
     base_context.global_context = base_context.global_context | RenderContext(**node.commands)
     return ''
 
+@BaseRenderer.register('markdown_comment')
+def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
+    return node.comment
+
 
 @BaseRenderer.register('inline_command')
 def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseRenderContext) -> str:
@@ -468,25 +473,50 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRen
     context = base_context.current
     _ = context.space
     condition: deque = node.test.comparison
+
+    # First render the symbolic portion of the condition test
     sym_acc = []
     context.current_mode = 'sym'
     for elem in condition:
         sym_acc.append(renderer.render(elem, base_context))
     sym_expr = "".join(sym_acc)
 
+    # Then render the numeric portion of the condition test
     context.current_mode = 'num'
     num_acc = []
     for elem in condition:
         num_acc.append(renderer.render(elem, base_context))
     num_expr = "".join(num_acc)
+
+    # Create a header line for the block
     if_block_header = f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
 
+    # Render each of the lines under the block
     context.current_mode = None
     lines_acc = []
     for line in node.lines:
         lines_acc.append(renderer.render(line, base_context))
     lines = f"{context.newline}".join(lines_acc)
+
+    # Indent the block header appropriately
     block_header = f"{context.indent * node.level}{if_block_header}"
+    # Join the block header and the lines below it
     block_text = f"{block_header}\n{lines}"
+    
     return block_text
 
+
+@BaseRenderer.register("sym:toggle_param_line")
+def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
+    context = base_context.current
+    if node.type not in ('calc_line',):
+        base_context.line_context.param_line = False
+    else:
+        if (
+            len(node.expression_tree) == 1
+            and isinstance(node.expression_tree[0], Constant)
+        ):
+            base_context.line_context.param_line = True
+        else:
+            base_context.line_context.param_line = node.pars_nesting
+    return node

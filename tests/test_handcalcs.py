@@ -10,7 +10,7 @@ beta = 5 # Inline comment
 # Comment
 d = 3
 # hc: cat = "hat"
-c = ((d * (alpha + beta)) / 2) # hc: mode='ass+sym+res'
+c = (d * (alpha + beta)) / 2 # hc: mode='ass+sym+num+res'
 e = sqrt(beta**2 - alpha**2) # hc: --sf 3
 if e <= 3:
     if 2 < beta < alpha:

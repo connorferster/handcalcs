@@ -1,5 +1,6 @@
 from collections import deque
 from dataclasses import dataclass, field
+import re
 from typing import Optional
 from .nodes import HcNode, Name
 from .inline_nodes import InlineComment, InlineCommand
@@ -34,31 +35,37 @@ class CommentLine(HcLineNode):
     content: Optional[str] = None
     type: str = "comment_line"
 
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        return cls(content=comment.lstrip("# "))
+
 
 @dataclass
-class MarkdownHeading(HcLineNode):
-    comment: Optional[CommentLine] = None
-    heading_level: Optional[int] = None
+class MarkdownComment(HcLineNode):
     content: Optional[str] = None
-    type: str = "markdown_heading"
+    type: str = "markdown_comment"
+
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        pattern = r"^#[ ]*(.+)"
+        matches = re.search(pattern, comment)
+        if matches is not None:
+            content = matches.groups()[0]
+        return cls(content=content)
 
 @dataclass
 class CommentCommand(HcLineNode):
-    comment: Optional[CommentLine] = None
     commands: dict = field(default_factory=dict)
     type: str = "comment_command"
 
     @classmethod
     def from_raw_comment(cls, comment: str):
-        if is_comment_command(comment):
-            # parsed = parse_kwargs(comment)
-            try:
-                parsed = parse_kwargs(comment)
-            except SyntaxError:
-                parsed = vars(command_parser.parse_args(split_commands(comment)))
-            return cls(comment=comment, commands=parsed)
-        else:
-            return CommentLine(comment=comment)
+        stripped = comment.lstrip("# ")
+        try:
+            parsed = parse_kwargs(stripped)
+        except SyntaxError:
+            parsed = vars(command_parser.parse_args(split_commands(stripped)))
+        return cls(commands=parsed)
 
 @dataclass
 class Import(HcLineNode):

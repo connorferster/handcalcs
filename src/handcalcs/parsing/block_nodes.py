@@ -2,7 +2,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional, Callable
 from .nodes import Attribute, List, Tuple, Dictionary, Set, HcNode
-from .line_nodes import CalcLine, ExprLine, MarkdownHeading, CommentCommand, CommentLine
+from .line_nodes import CalcLine, ExprLine, MarkdownComment, CommentCommand, CommentLine
 
 
 @dataclass
@@ -11,7 +11,7 @@ class HcBlockNode(HcNode):
 
 @dataclass
 class FunctionBlock(HcBlockNode):
-    lines: deque[HcBlockNode | CalcLine | ExprLine | MarkdownHeading | CommentCommand | CommentLine] = field(default_factory=deque)
+    lines: deque[HcBlockNode | CalcLine | ExprLine | MarkdownComment | CommentCommand | CommentLine] = field(default_factory=deque)
     namespace: deque[str] = field(default_factory=deque)
     function_name: deque[Attribute | str] = field(default_factory=deque)
     args: deque[Any] = field(default_factory=deque)
