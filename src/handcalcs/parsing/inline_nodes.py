@@ -52,7 +52,7 @@ class InlineCommand(HcInlineNode):
         if is_comment_command(comment):
             try:
                 parsed = parse_kwargs(comment)
-            except SyntaxError:
+            except (SyntaxError, NameError):
                 parsed = vars(command_parser.parse_args(split_commands(comment)))
             return cls(content=comment, commands=parsed)
         else:

@@ -63,7 +63,7 @@ class CommentCommand(HcLineNode):
         stripped = comment.lstrip("# ")
         try:
             parsed = parse_kwargs(stripped)
-        except SyntaxError:
+        except (SyntaxError, NameError):
             parsed = vars(command_parser.parse_args(split_commands(stripped)))
         return cls(commands=parsed)
 
