@@ -14,7 +14,7 @@ dependencies = [
     "more_itertools",
     "innerscope >= 0.7.0",
     "pyparsing",
-    "ast-comments>=1.2.3",
+    "pfst>=0.3.2",
 ]
 
 [project.urls]

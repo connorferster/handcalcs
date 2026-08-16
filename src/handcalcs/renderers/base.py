@@ -1,6 +1,7 @@
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
+from sigfig import round as round_sf
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
 
@@ -9,6 +10,10 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Constant,
+    List,
+    Dictionary,
+    Tuple,
+    Set,
     
 )
 from handcalcs.parsing.operator_nodes import (
@@ -39,7 +44,8 @@ from handcalcs.parsing.line_nodes import (
     ExprLine,
     Import,
     CommentCommand,
-    MarkdownComment
+    MarkdownComment,
+    CommentLine
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -62,12 +68,14 @@ class RenderContext:
         newline: str = '\n', 
         indent: int = "    ",
         mode: str = 'full',
+        format_code: str = ".5g",
         **kwargs
     ):
         self.space = space
         self.newline = newline
         self.indent = indent
         self.mode = mode
+        self.format = format_code
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -226,7 +234,35 @@ BRC = RenderContext
 
 @BaseRenderer.register('constant')
 def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> Any:
-    return f"{node.value}"
+    context = base_context.current
+    fc = context.format
+    try:
+        return f"{node.value:{fc}}"
+    except ValueError: # Format code not implemented
+        return f"{node.value}"
+
+@BaseRenderer.register('list')
+def render_list(renderer: BaseRenderer, node: List, base_context: BaseRenderContext) -> Any:
+    rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    return f"[{', '.join(rendered_elems)}]"
+
+@BaseRenderer.register('set')
+def render_list(renderer: BaseRenderer, node: Set, base_context: BaseRenderContext) -> Any:
+    rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    return f"{{{', '.join(rendered_elems)}}}"
+
+@BaseRenderer.register('dictionary')
+def render_list(renderer: BaseRenderer, node: Dictionary, base_context: BaseRenderContext) -> Any:
+    rendered_keys = [renderer.render(elem, base_context) for elem in node.keys]
+    rendered_values = [renderer.render(elem, base_context) for elem in node.values]
+    rkv = zip(rendered_keys, rendered_values)
+    items = [": ".join(item) for item in rkv]
+    return f"{{{', '.join(items)}}}"
+
+@BaseRenderer.register('tuple')
+def render_list(renderer: BaseRenderer, node: Tuple, base_context: BaseRenderContext) -> Any:
+    rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    return f"({', '.join(rendered_elems)})"
 
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, base_context: BaseRenderContext) -> str:
@@ -245,7 +281,11 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
     if context.current_mode == 'sym':
         return node.identifier
     elif context.current_mode == 'num':
-        return f"{node.value}"
+        fc = context.format
+        try:
+            return f"{node.value:{fc}}"
+        except ValueError: # Format code not implemented
+            return f"{node.value}"
     else:
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
@@ -301,7 +341,8 @@ def render_neq_op(renderer: BR, node: NeqOp, base_context: BaseRenderContext) ->
 
 @BaseRenderer.register('compare')
 def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext) -> str:
-    acc = [renderer.render(node, base_context) for node in node.comparison]
+    context = base_context.current
+    acc = [renderer.render(node, context) for node in node.comparison]
     return f"".join(acc)
 
 @BaseRenderer.register('function_call')
@@ -324,6 +365,12 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
 def render_comment_command(renderer: BR, node: CommentCommand, base_context: BaseRenderContext) -> str:
     base_context.global_context = base_context.global_context | RenderContext(**node.commands)
     return ''
+
+@BaseRenderer.register('comment_line')
+def render_comment_command(renderer: BR, node: CommentLine, base_context: BaseRenderContext) -> str:
+    context = base_context.current
+    nl = context.newline
+    return f"{node.content}{nl}"
 
 @BaseRenderer.register('markdown_comment')
 def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
@@ -454,6 +501,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
 @BaseRenderer.register('elif_block')
 def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: BaseRenderContext) -> str:
     clauses: deque = node.lines
+    context = base_context.current
     try:
         true_clause: IfBlock = next(ib for ib in clauses if ib.is_true)
     except StopIteration:
@@ -476,13 +524,13 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRen
 
     # First render the symbolic portion of the condition test
     sym_acc = []
-    context.current_mode = 'sym'
+    base_context.line_context.current_mode = 'sym'
     for elem in condition:
         sym_acc.append(renderer.render(elem, base_context))
     sym_expr = "".join(sym_acc)
 
     # Then render the numeric portion of the condition test
-    context.current_mode = 'num'
+    base_context.line_context.current_mode = 'num'
     num_acc = []
     for elem in condition:
         num_acc.append(renderer.render(elem, base_context))
@@ -502,12 +550,12 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRen
     block_header = f"{context.indent * node.level}{if_block_header}"
     # Join the block header and the lines below it
     block_text = f"{block_header}\n{lines}"
-    
+
     return block_text
 
 
 @BaseRenderer.register("sym:toggle_param_line")
-def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
+def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
     context = base_context.current
     if node.type not in ('calc_line',):
         base_context.line_context.param_line = False
@@ -520,3 +568,5 @@ def toggle_param_line(node: CalcLine, base_context:BRC) -> CalcLine:
         else:
             base_context.line_context.param_line = node.pars_nesting
     return node
+
+

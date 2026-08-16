@@ -1531,10 +1531,10 @@ def test_comment_lines():
     source = """## A heading
 # hc: decimals=2
 # a plain note
-# hc: -f 3
+# hc: -f 2g
 a = 2  # an inline note
-b = a + 1  # hc: precision=3
-c = b + 1 # hc: -e
+b = a + 12321  # hc: precision=3
+c = b + 1.6578468413515 # hc: -f 5E
 """
     basic_parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
     assert basic_parser(source) == deque([
@@ -1548,7 +1548,7 @@ c = b + 1 # hc: -e
                 content='a plain note'
             ),
             CommentCommand(
-                commands={'multiline': False, 'sigfigs': '3', 'sigdigs': None, 'scientific_notation': False, 'if_winner_only': True}
+                commands={'multiline': False, 'format':  '2g', 'if_winner_only': True}
             ),
             CalcLine(
                 assigns=deque([
@@ -1577,7 +1577,7 @@ c = b + 1 # hc: -e
                             identifier='a'
                         ),
                         right=Constant(
-                            value=1
+                            value=12321
                         )
                     )
                 ]),
@@ -1598,13 +1598,13 @@ c = b + 1 # hc: -e
                             identifier='b'
                         ),
                         right=Constant(
-                            value=1
+                            value=1.6578468413515
                         )
                     )
                 ]),
                 comment=InlineCommand(
-                    content='hc: -e',
-                    commands={'multiline': False, 'sigfigs': None, 'sigdigs': None, 'scientific_notation': True, 'if_winner_only': True}
+                    content='hc: -f 5E',
+                    commands={'multiline': False, 'format': '5E', 'if_winner_only': True}
                 )
             )
         ])
