@@ -1,7 +1,6 @@
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
-from sigfig import round as round_sf
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
 
@@ -67,6 +66,7 @@ class RenderContext:
         space: str = ' ', 
         newline: str = '\n', 
         indent: int = "    ",
+        equality: str = "=",
         mode: str = 'full',
         format_code: str = ".5g",
         **kwargs
@@ -74,6 +74,7 @@ class RenderContext:
         self.space = space
         self.newline = newline
         self.indent = indent
+        self.equality = equality
         self.mode = mode
         self.format = format_code
 
@@ -165,6 +166,7 @@ class BaseRenderer:
             node = rule(node, base_context)
         for rule in self.numeric_rules.values():
             node = rule(node, base_context)
+        context = base_context.current
         handler = self._handlers.get(node.type)
         if handler is None:
             return self.render_unknown(node, base_context)
@@ -410,19 +412,23 @@ def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -
 
 @BaseRenderer.register('calc_line')
 def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> str:
-    context = base_context.current
     comment_render = None
     # TODO: Remove param_line from base implementation and move to PTRC
     #   - Break out rendering code into subroutines
     #   - Make sure you no longer need to maintain retrieving context before parsing other nodes
     # Retrieve param_line immediately before the next .render method is called because it will change
     # the state of the current context to the context of the next node.
-    param_line = getattr(context, 'param_line', False)
-    comment_render = None
+    context = base_context.current
+    param_line_pre_comment = getattr(context, 'param_line', False)
     if node.comment is not None:
         comment_render = renderer.render(node.comment, base_context)
     # Update the context from teh comment render
     context = base_context.current
+    param_line_post_comment = getattr(context, 'param_line', False)
+    param_line = param_line_pre_comment or param_line_post_comment # 
+    if getattr(context, 'ignore', False):
+        base_context.line_context.ignore = False
+        return ''
     rendered = f"{context.indent * node.level}"
     if context.mode == 'full' or 'ass' in context.mode:
         base_context.line_context.current_mode = 'sym'
@@ -437,7 +443,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             for subnode in node.expression_tree:
                 symbolic.append(renderer.render(subnode, base_context))
             symbolic = "".join(symbolic)
-            symbolic_portion = f"{context.space}={context.space}{symbolic}"
+            symbolic_portion = f"{context.space}{context.equality}{context.space}{symbolic}"
             rendered += symbolic_portion
         if context.mode == "full" or "num" in context.mode:
             base_context.line_context.current_mode = "num"
@@ -445,7 +451,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             for subnode in node.expression_tree:
                 numeric.append(renderer.render(subnode, base_context))
             numeric = "".join(numeric)
-            numeric_portion = f"{context.space}={context.space}{numeric}"
+            numeric_portion = f"{context.space}{context.equality}{context.space}{numeric}"
             rendered += numeric_portion
     if context.mode == "full" or "res" in context.mode:
         base_context.line_context.current_mode = "num"
@@ -455,7 +461,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
             for idx, result in enumerate(results):
                 results[idx] = rule(result, base_context)
         result_portion = f',{context.space}'.join(results)
-        result_portion = f"{context.space}={context.space}{result_portion}"
+        result_portion = f"{context.space}{context.equality}{context.space}{result_portion}"
         rendered += result_portion
     if comment_render is not None:
         rendered += comment_render
@@ -474,7 +480,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
         for subnode in node.expression_tree:
             symbolic.append(renderer.render(subnode, base_context))
         symbolic = "".join(symbolic)
-        symbolic_portion = f"{symbolic}{context.space}={context.space}"
+        symbolic_portion = f"{symbolic}{context.space}{context.equality}{context.space}"
         rendered += symbolic_portion
     if context.mode == "full" or "num" in context.mode:
         context.current_mode = "num"
@@ -482,7 +488,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
         for subnode in node.expression_tree:
             numeric.append(renderer.render(subnode, base_context))
         numeric = "".join(numeric)
-        numeric_portion = f"{numeric}{context.space}={context.space}"
+        numeric_portion = f"{numeric}{context.space}{context.equality}{context.space}"
         rendered += numeric_portion
     # if context.mode == "full" or "res" in context.mode:
     #     context.current_mode = "num"
@@ -559,6 +565,8 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
     context = base_context.current
     if node.type not in ('calc_line',):
         base_context.line_context.param_line = False
+    elif context.param_line == True:
+        return node
     else:
         if (
             len(node.expression_tree) == 1

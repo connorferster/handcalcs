@@ -4,14 +4,14 @@ from rich import print
 
 def test_basic_arithmetic():
     source = """
-from math import sqrt
+from math import sqrt, pi
 alpha = 4
 beta = 5 # Inline comment
 # Comment
 d = 3
 # hc: cat = "hat"
-c = (d * (alpha + beta)) / 2 # hc: mode='ass+sym+num+res'
-e = sqrt(beta**2 - alpha**2) # hc: -f .2g
+c = (d * (alpha + beta)) / pi # hc: -f .4g
+e = sqrt(beta**2 - alpha**2) # hc: -i
 if e <= 3:
     if 2 < beta < alpha:
         f = 12
