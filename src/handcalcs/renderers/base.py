@@ -49,7 +49,8 @@ from handcalcs.parsing.line_nodes import (
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
-    ElifBlock
+    ElifBlock,
+    ForBlock
 )
 
 RenderHandler = Callable
