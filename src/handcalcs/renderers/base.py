@@ -578,3 +578,11 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
     return node
 
 
+@BaseRenderer.register("sym:populate_for_header")
+def populate_for_header(node: ForBlock, base_context: BRC) -> ForBlock:
+    if node.type != "for_block":
+        return node
+    node.header = "Iterating{_}over{_}each{_}{assigns[0].identifier}{_}in{_}{iterable.identifier}"
+    return node
+
+
