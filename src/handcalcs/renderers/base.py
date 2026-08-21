@@ -234,6 +234,11 @@ BR = BaseRenderer
 BRC = RenderContext
 
 
+@BaseRenderer.register('no_value')
+def render_novalue(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> str:
+    return ''
+
+
 @BaseRenderer.register('constant')
 def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> Any:
     context = base_context.current
