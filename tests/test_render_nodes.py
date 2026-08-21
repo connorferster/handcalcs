@@ -231,12 +231,6 @@ def test_comment_command_renders_empty(renderer, make_context):
     assert renderer.render(node, make_context()) == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="render_comment_command reassigns global_context via "
-    "RenderContext.__or__, which jams the merged dict into the `space` "
-    "positional instead of setting `decimals`; see the union bug.",
-)
 def test_comment_command_mutates_global_context(renderer, make_context):
     node = CommentCommand(commands={"decimals": 2})
     ctx = make_context()
@@ -327,25 +321,15 @@ def test_elif_block_no_true_clause_message(render):
 
 
 # ---------------------------------------------------------------------------
-# Documented bugs (xfail)
+# Previously-buggy paths, now fixed
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="toggle_param_line reads context.param_line with no default, so a "
-    "CalcLine cannot render from a clean context (AttributeError). This also "
-    "breaks the real HandCalcs pipeline on a plain calc line.",
-)
 def test_calc_line_renders_from_clean_context(render):
+    # A CalcLine as the very first rendered node (no param_line seeded) must
+    # render rather than raise; toggle_param_line now defaults param_line.
     assert render(_calc_c_equals_a_plus_2()) == "c = a+2 = 3+2 = 5\n"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="render_exprline sets current_mode on the throwaway `.current` "
-    "snapshot rather than the line context, so nested Name renders raise "
-    "ContextKeyError.",
-)
 def test_expr_line_rendering(render):
     node = ExprLine(
         expression_tree=deque([
@@ -356,23 +340,14 @@ def test_expr_line_rendering(render):
             )
         ])
     )
-    render(node, param_line=False)
+    # sym then num columns; __main__ namespace suppressed.
+    assert render(node, param_line=False) == " print(d)  =  print(4)  = "
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="render_markdown_comment returns node.comment, but MarkdownComment "
-    "has attribute `content`, raising AttributeError.",
-)
+
 def test_markdown_comment_rendering(render):
     assert render(MarkdownComment(content="A heading")) == "A heading"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="render_compare passes the RenderContext (context) rather than the "
-    "BaseRenderContext into the recursive render, so downstream handlers fail "
-    "on context.current (AttributeError).",
-)
 def test_compare_rendering(render):
     node = Compare(deque([Name("a", 3), GtOp, Constant(2)]))
     assert render(node, current_mode="sym") == "a>2"

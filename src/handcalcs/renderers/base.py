@@ -90,7 +90,7 @@ class RenderContext:
         if not isinstance(other, self.__class__):
             raise ValueError(f"Can only union between two RenderContexts, not {type(other)}.")
         else:
-            return RenderContext(self.__dict__ | other.__dict__)
+            return RenderContext(**(self.__dict__ | other.__dict__))
 
 
 class BaseRenderContext:
@@ -150,11 +150,11 @@ class BaseRenderer:
         """
         Render an HcSequence (root node) with the registered pre/post render callables.
         """
-        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers]
+        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers.values()]
         for node in root.sequence:
             parts.append(self.render(node, base_context))
         parts.extend(
-            [post(self, root, base_context) for post in self._root_post_renderers]
+            [post(self, root, base_context) for post in self._root_post_renderers.values()]
         )
         return parts
 
@@ -162,9 +162,9 @@ class BaseRenderer:
         """
         Render one node with an existing context.
         """
-        for rule in self.symbolic_rules.values():
+        for rule in self._symbolic_rules.values():
             node = rule(node, base_context)
-        for rule in self.numeric_rules.values():
+        for rule in self._numeric_rules.values():
             node = rule(node, base_context)
         context = base_context.current
         handler = self._handlers.get(node.type)
@@ -348,8 +348,7 @@ def render_neq_op(renderer: BR, node: NeqOp, base_context: BaseRenderContext) ->
 
 @BaseRenderer.register('compare')
 def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    acc = [renderer.render(node, context) for node in node.comparison]
+    acc = [renderer.render(elem, base_context) for elem in node.comparison]
     return f"".join(acc)
 
 @BaseRenderer.register('function_call')
@@ -381,7 +380,7 @@ def render_comment_command(renderer: BR, node: CommentLine, base_context: BaseRe
 
 @BaseRenderer.register('markdown_comment')
 def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
-    return node.comment
+    return node.content
 
 
 @BaseRenderer.register('inline_command')
@@ -480,7 +479,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
     context = base_context.current
     rendered = f"{context.indent * node.level}"
     if context.mode == 'full' or 'sym' in context.mode:
-        context.current_mode = 'sym'
+        base_context.line_context.current_mode = 'sym'
         symbolic = deque([])
         for subnode in node.expression_tree:
             symbolic.append(renderer.render(subnode, base_context))
@@ -488,7 +487,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
         symbolic_portion = f"{symbolic}{context.space}{context.equality}{context.space}"
         rendered += symbolic_portion
     if context.mode == "full" or "num" in context.mode:
-        context.current_mode = "num"
+        base_context.line_context.current_mode = "num"
         numeric = deque([])
         for subnode in node.expression_tree:
             numeric.append(renderer.render(subnode, base_context))
@@ -570,7 +569,7 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
     context = base_context.current
     if node.type not in ('calc_line',):
         base_context.line_context.param_line = False
-    elif context.param_line == True:
+    elif getattr(context, 'param_line', False) == True:
         return node
     else:
         if (

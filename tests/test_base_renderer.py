@@ -130,11 +130,6 @@ def test_current_overlays_line_over_global():
     assert base.current.format == ".5g"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="RenderContext.__or__ passes the merged dict as the first positional "
-    "arg (space), corrupting the context instead of unioning fields.",
-)
 def test_render_context_union_merges_fields():
     a = RenderContext(mode="full")
     b = RenderContext(mode="sym", format_code=".2f")
@@ -149,12 +144,6 @@ def test_render_context_union_merges_fields():
 # Rule pipelines
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="render_root iterates the pre/post renderer dicts (keys) rather than "
-    ".values(), so a registered renderer is a str and is called, raising "
-    "TypeError.",
-)
 def test_root_pre_and_post_renderers_wrap_sequence(renderer):
     renderer.register_handler("pre:banner", lambda rn, root, ctx: "PRE")
     renderer.register_handler("post:footer", lambda rn, root, ctx: "POST")
@@ -165,11 +154,6 @@ def test_root_pre_and_post_renderers_wrap_sequence(renderer):
     assert "1" in parts
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="render_node iterates the class-level symbolic_rules/numeric_rules, "
-    "so rules added via the instance register_handler are never applied.",
-)
 def test_instance_registered_sym_rule_is_applied(renderer):
     seen = []
 
