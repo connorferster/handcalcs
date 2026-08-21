@@ -601,14 +601,8 @@ class AST_Parser:
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
-            if isinstance(node.value, ast.Constant):
-                doc_string = f"Doc string: {self.ast_parse(node.value)}"
-                val = ExprLine(expression_tree=deque([doc_string]))
-            else:
-                parsed_node = self.ast_parse(node.value)
-                if not isinstance(parsed_node, deque):
-                    parsed_node = deque([parsed_node])
-                val = ExprLine(expression_tree=parsed_node)
+            parsed_node = self.ast_parse(node.value)
+            val = ExprLine(expression_tree=deque([parsed_node]))
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
