@@ -23,3 +23,17 @@ if e <= 3:
     hc = HandCalcs()
     print(hc(source))
     assert False
+
+
+def test_scripting():
+    source = """
+from math import sqrt, pi
+def circle_area(diam: float) -> float:
+    return pi * diam**2 / 4
+
+radius = 5
+area = circle_area(2 * radius)
+    """
+    hc = HandCalcs()
+    print(hc(source))
+    assert False
