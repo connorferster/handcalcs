@@ -291,7 +291,7 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
         fc = context.format
         try:
             return f"{node.value:{fc}}"
-        except ValueError: # Format code not implemented
+        except (TypeError, ValueError): # Format code not implemented
             return f"{node.value}"
     else:
         raise ContextValueError(
