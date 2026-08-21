@@ -277,6 +277,46 @@ def test_calc_line_ignore_short_circuits(render):
 
 
 # ---------------------------------------------------------------------------
+# ExprLine (bare expression statements: no assignment, so no result column)
+# ---------------------------------------------------------------------------
+
+def test_expr_line_statement_call_shows_symbolic_and_numeric(render):
+    # A statement call renders `sym = num` (substitution view), with no
+    # trailing equals and no fabricated result.
+    node = ExprLine(
+        expression_tree=deque([
+            FunctionCall(
+                namespace=Name("__main__", "__main__"),
+                function_name=Name("print", "print"),
+                args=deque([Name("d", 4)]),
+            )
+        ])
+    )
+    assert render(node) == " print(d)  =  print(4) \n"
+
+
+def test_expr_line_value_bearing_expression(render):
+    node = ExprLine(expression_tree=deque([AddOp(left=Name("x", 10), right=Name("y", 20))]))
+    assert render(node) == "x+y = 10+20\n"
+
+
+def test_expr_line_return_is_symbolic_only(render):
+    # A return statement lives in a symbolic function definition: symbolic form
+    # only, no numeric substitution (its names have no runtime value).
+    node = ExprLine(
+        expression_tree=deque([AddOp(left=Name("pi"), right=Constant(1))]),
+        return_expr=True,
+    )
+    assert render(node) == "pi+1\n"
+
+
+def test_expr_line_docstring_renders_as_plain_line(render):
+    # A bare string statement parses to a single Constant holding the string.
+    node = ExprLine(expression_tree=deque([Constant("Module note.")]))
+    assert render(node) == "Module note.\n"
+
+
+# ---------------------------------------------------------------------------
 # Blocks
 # ---------------------------------------------------------------------------
 
@@ -288,6 +328,21 @@ def test_if_block_renders_header_and_lines(render):
         is_true=True,
     )
     assert render(node, param_line=False) == "Since (2<=a<5) -> (2<=3<5) is True:\na = 2\n"
+
+
+def test_if_block_multiple_lines_single_newlines(render):
+    # Rendered lines self-terminate; the block must not double-space them.
+    node = IfBlock(
+        lines=deque([
+            CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)])),
+            CalcLine(assigns=deque([Name("b", 3)]), expression_tree=deque([Constant(3)])),
+        ]),
+        test=Compare(deque([Name("a", 3), GtOp, Constant(2)])),
+        is_true=True,
+    )
+    assert render(node, param_line=False) == (
+        "Since (a>2) -> (3>2) is True:\na = 2\nb = 3\n"
+    )
 
 
 def test_elif_block_selects_true_clause(render):
@@ -328,20 +383,6 @@ def test_calc_line_renders_from_clean_context(render):
     # A CalcLine as the very first rendered node (no param_line seeded) must
     # render rather than raise; toggle_param_line now defaults param_line.
     assert render(_calc_c_equals_a_plus_2()) == "c = a+2 = 3+2 = 5\n"
-
-
-def test_expr_line_rendering(render):
-    node = ExprLine(
-        expression_tree=deque([
-            FunctionCall(
-                namespace=Name("__main__", "__main__"),
-                function_name=Name("print", "print"),
-                args=deque([Name("d", 4)]),
-            )
-        ])
-    )
-    # sym then num columns; __main__ namespace suppressed.
-    assert render(node, param_line=False) == " print(d)  =  print(4)  = "
 
 
 def test_markdown_comment_rendering(render):
