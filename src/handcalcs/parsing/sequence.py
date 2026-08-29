@@ -47,7 +47,8 @@ class HcSequence(HcNode):
         IfBlocks do.
         """
         for idx, node in enumerate(tree):
-            updated_node = set_level(node, level)
+            if hasattr(node, 'level'): # Omit NoValue nodes
+                updated_node = set_level(node, level)
             if hasattr(node, 'lines') and isinstance(node, ElifBlock):
                 tree[idx] = updated_node
                 HcSequence.set_levels(node.lines, level)

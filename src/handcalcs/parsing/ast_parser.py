@@ -110,57 +110,59 @@ class AST_Parser:
     module_cache: dict = field(default_factory=dict)
     functions_cache: ChainMap = field(default_factory=ChainMap)
     ast_cache: dict = field(default_factory=dict)
+    show_notimplemented: bool = False
 
     def __post_init__(self):
+        pass
         # self.module_cache.update(self.globals)
 
-        self.function_recurse_exclusions.append(f"{self.__class__.__name__}")
-        if self.global_exclusions is not None:
-            self.function_recurse_exclusions.extend(self.global_exclusions)
-        local_callables = {}
-        for name, obj in self.globals.items():
-            if (
-                isinstance(obj, ModuleType)
-                and name not in self.function_recurse_exclusions
-                and not name.startswith("__")
-                and not name.startswith("@")
-            ):
-                source = inspect.getsource(obj)
-                source_tree = ast.parse(source)
-                module_callables = {}
-                for node in source_tree.body:
-                    if isinstance(
-                        node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-                    ):
-                        module_callables[node.name] = node
-                self.module_cache[name] = module_callables
-                self.functions_cache = self.functions_cache.new_child(module_callables)
-            elif (
-                isinstance(obj, Callable)
-                and name not in self.function_recurse_exclusions
-                and not isinstance(obj, self.__class__)
-            ):
-                try:
-                    obj_tree = ast.parse(inspect.getsource(obj).lstrip())
-                except:
-                    # I think it is okay to allow this to fail quietly
-                    # because any missing source code either represents
-                    # source code which should not be found (it is not part
-                    # of the parsed source) or could not be found (we do not
-                    # want it parsed anyway).
-                    # Ultimately, it will lead to an unsubstituted function
-                    # call.
-                    pass
-                if isinstance(obj_tree, (ast.Module)):
-                    obj_tree = obj_tree.body[
-                        0
-                    ]  # First function def within the ast.module
-                local_callables.update({name: obj_tree})
-                self.functions_cache = self.functions_cache.new_child(local_callables)
-            else:
-                self.module_cache[name] = {}
-                self.functions_cache[name] = {}
-        self.module_cache["__main__"] = local_callables
+        # self.function_recurse_exclusions.append(f"{self.__class__.__name__}")
+        # if self.global_exclusions is not None:
+        #     self.function_recurse_exclusions.extend(self.global_exclusions)
+        # local_callables = {}
+        # for name, obj in self.globals.items():
+        #     if (
+        #         isinstance(obj, ModuleType)
+        #         and name not in self.function_recurse_exclusions
+        #         and not name.startswith("__")
+        #         and not name.startswith("@")
+        #     ):
+        #         source = inspect.getsource(obj)
+        #         source_tree = ast.parse(source)
+        #         module_callables = {}
+        #         for node in source_tree.body:
+        #             if isinstance(
+        #                 node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        #             ):
+        #                 module_callables[node.name] = node
+        #         self.module_cache[name] = module_callables
+        #         self.functions_cache = self.functions_cache.new_child(module_callables)
+        #     elif (
+        #         isinstance(obj, Callable)
+        #         and name not in self.function_recurse_exclusions
+        #         and not isinstance(obj, self.__class__)
+        #     ):
+        #         try:
+        #             obj_tree = ast.parse(inspect.getsource(obj).lstrip())
+        #         except:
+        #             # I think it is okay to allow this to fail quietly
+        #             # because any missing source code either represents
+        #             # source code which should not be found (it is not part
+        #             # of the parsed source) or could not be found (we do not
+        #             # want it parsed anyway).
+        #             # Ultimately, it will lead to an unsubstituted function
+        #             # call.
+        #             pass
+        #         if isinstance(obj_tree, (ast.Module)):
+        #             obj_tree = obj_tree.body[
+        #                 0
+        #             ]  # First function def within the ast.module
+        #         local_callables.update({name: obj_tree})
+        #         self.functions_cache = self.functions_cache.new_child(local_callables)
+        #     else:
+        #         self.module_cache[name] = {}
+        #         self.functions_cache[name] = {}
+        # self.module_cache["__main__"] = local_callables
 
     def __call__(self, source: str) -> deque:
         """
@@ -589,12 +591,12 @@ class AST_Parser:
             parsed_value = self.ast_parse(node.value)
             if not isinstance(parsed_value, deque):
                 parsed_value = deque([parsed_value])
-            val = ExprLine(expression_tree=parsed_value, _return_expr=True)
+            val = ExprLine(expression_tree=parsed_value, return_expr=True)
 
         elif isinstance(node, ast.Attribute):
             name = node.value.id
             attribute = node.attr
-            val = Attribute(namespace=name, attr_name=attribute)
+            val = Attribute(namespace=name, identifier=attribute)
 
         elif isinstance(node, ast.Module):
             # Entry point: process all body statements, interleaving standalone
@@ -604,18 +606,15 @@ class AST_Parser:
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
-            if isinstance(node.value, ast.Constant):
-                doc_string = f"Doc string: {self.ast_parse(node.value)}"
-                val = ExprLine(expression_tree=deque([doc_string]))
-            else:
-                parsed_node = self.ast_parse(node.value)
-                if not isinstance(parsed_node, deque):
-                    parsed_node = deque([parsed_node])
-                val = ExprLine(expression_tree=parsed_node)
+            parsed_node = self.ast_parse(node.value)
+            val = ExprLine(expression_tree=deque([parsed_node]))
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
-            val = HcNotImplemented(node_name=type(node).__name__)
+            if self.show_notimplemented:
+                val = HcNotImplemented(node_name=type(node).__name__)
+            else:
+                val = NoValue()
 
         self.prev_line_number = self.current_line_number
         return val

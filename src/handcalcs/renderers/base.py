@@ -93,7 +93,7 @@ class RenderContext:
         if not isinstance(other, self.__class__):
             raise ValueError(f"Can only union between two RenderContexts, not {type(other)}.")
         else:
-            return RenderContext(self.__dict__ | other.__dict__)
+            return RenderContext(**(self.__dict__ | other.__dict__))
 
 
 class BaseRenderContext:
@@ -156,11 +156,11 @@ class BaseRenderer:
         """
         Render an HcSequence (root node) with the registered pre/post render callables.
         """
-        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers]
+        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers.values()]
         for node in root.sequence:
             parts.append(self.render(node, base_context))
         parts.extend(
-            [post(self, root, base_context) for post in self._root_post_renderers]
+            [post(self, root, base_context) for post in self._root_post_renderers.values()]
         )
         return parts
 
@@ -168,9 +168,9 @@ class BaseRenderer:
         """
         Render one node with an existing context.
         """
-        for rule in self.symbolic_rules.values():
+        for rule in self._symbolic_rules.values():
             node = rule(node, base_context)
-        for rule in self.numeric_rules.values():
+        for rule in self._numeric_rules.values():
             node = rule(node, base_context)
         context = base_context.current
         handler = self._handlers.get(node.type)
@@ -257,6 +257,11 @@ class BaseRenderer:
 
 BR = BaseRenderer
 BRC = RenderContext
+
+
+@BaseRenderer.register('no_value')
+def render_novalue(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> str:
+    return ''
 
 
 @BaseRenderer.register('constant')
@@ -372,8 +377,7 @@ def render_neq_op(renderer: BR, node: NeqOp, base_context: BaseRenderContext) ->
 
 @BaseRenderer.register('compare')
 def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    acc = [renderer.render(node, context) for node in node.comparison]
+    acc = [renderer.render(elem, base_context) for elem in node.comparison]
     return f"".join(acc)
 
 @BaseRenderer.register('function_call')
@@ -405,7 +409,7 @@ def render_comment_command(renderer: BR, node: CommentLine, base_context: BaseRe
 
 @BaseRenderer.register('markdown_comment')
 def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
-    return node.comment
+    return node.content
 
 
 @BaseRenderer.register('inline_command')
@@ -501,37 +505,50 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
 
 @BaseRenderer.register('expr_line')
 def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRenderContext) -> str:
+    """
+    Render a bare expression statement (an ExprLine).
+
+    An ExprLine has no assignment target, so there is no result column. Until a
+    value-capture pass exists, the three kinds of ExprLine are classified and
+    rendered honestly (no dangling equals, no fabricated result):
+
+    - *docstring / bare string*: the expression tree is a single ``str`` (built
+      by the parser for a string-literal statement); render it as a plain line.
+    - *return statement* (``return_expr``): lives inside a symbolic function
+      definition whose names have no runtime value, so render the symbolic form
+      only -- no numeric substitution.
+    - *ordinary expression statement* (e.g. ``print(x)``, ``x + y``): render the
+      symbolic form and its numeric substitution joined by the equality, with no
+      trailing equals and no result.
+    """
     context = base_context.current
-    rendered = f"{context.indent * node.level}"
+    indent = f"{context.indent * node.level}"
+
+    # A bare string-literal statement (e.g. a module or block docstring) is a
+    # single Constant holding a str; render it as a plain line, not a calc.
+    tree = node.expression_tree
+    if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
+        return f"{indent}{tree[0].value}{context.newline}"
+
+    def render_tree(mode: str) -> str:
+        base_context.line_context.current_mode = mode
+        return "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
+
+    portions = deque([])
     if context.mode == 'full' or 'sym' in context.mode:
-        context.current_mode = 'sym'
-        symbolic = deque([])
-        for subnode in node.expression_tree:
-            symbolic.append(renderer.render(subnode, base_context))
-        symbolic = "".join(symbolic)
-        symbolic_portion = f"{symbolic}{context.space}{context.equality}{context.space}"
-        rendered += symbolic_portion
-    if context.mode == "full" or "num" in context.mode:
-        context.current_mode = "num"
-        numeric = deque([])
-        for subnode in node.expression_tree:
-            numeric.append(renderer.render(subnode, base_context))
-        numeric = "".join(numeric)
-        numeric_portion = f"{numeric}{context.space}{context.equality}{context.space}"
-        rendered += numeric_portion
-    # if context.mode == "full" or "res" in context.mode:
-    #     context.current_mode = "num"
-    #     result = node.assign.value
-    #     for rule in renderer.numeric_rules:
-    #         result = rule(result, base_context)
-    #     result_portion = f"{result}"
-    #     rendered += result_portion
+        portions.append(render_tree('sym'))
+    # A return statement has no single runtime value; omit numeric substitution.
+    if not node.return_expr and (context.mode == 'full' or 'num' in context.mode):
+        portions.append(render_tree('num'))
+
+    joiner = f"{context.space}{context.equality}{context.space}"
+    rendered = f"{indent}{joiner.join(portions)}"
+
     if node.comment is not None:
-        comment_portion = renderer.render(node.comment, base_context)
-        rendered += comment_portion
-    ready_for_next_line = f"{rendered}{context.newline}"
-    return rendered
-    
+        rendered += renderer.render(node.comment, base_context)
+
+    return f"{rendered}{context.newline}"
+
 
 @BaseRenderer.register('elif_block')
 def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: BaseRenderContext) -> str:
@@ -623,7 +640,7 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
     context = base_context.current
     if node.type not in ('calc_line',):
         base_context.line_context.param_line = False
-    elif context.param_line == True:
+    elif getattr(context, 'param_line', False) == True:
         return node
     else:
         if (
