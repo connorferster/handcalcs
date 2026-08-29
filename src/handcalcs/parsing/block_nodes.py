@@ -8,7 +8,6 @@ from .line_nodes import CalcLine, ExprLine, MarkdownComment, CommentCommand, Com
 @dataclass
 class HcBlockNode(HcNode):
     level: int = 0
-    header: str = ""
 
 @dataclass
 class FunctionBlock(HcBlockNode):

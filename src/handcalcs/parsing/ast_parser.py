@@ -411,6 +411,11 @@ class AST_Parser:
             # `__builtins__` that eval injects lands in this throwaway dict
             # rather than mutating the caller's globals. Works whether
             # self.globals is a ChainMap or a plain dict.
+            # TODO: This eval raises NameError when a variable used in the test
+            # is absent from the supplied namespace (e.g. caller passes
+            # supplied_globals without every referenced name). Decide on the
+            # fallback: skip evaluation, treat as indeterminate, or surface a
+            # clearer error naming the missing variable.
             if_block.is_true = eval(
                 compile(
                     py_ast.Expression(node.test), mode='eval', filename='<ast>'
