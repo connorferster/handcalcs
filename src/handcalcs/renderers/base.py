@@ -49,7 +49,8 @@ from handcalcs.parsing.line_nodes import (
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
-    ElifBlock
+    ElifBlock,
+    ForBlock
 )
 
 RenderHandler = Callable
@@ -69,6 +70,7 @@ class RenderContext:
         equality: str = "=",
         mode: str = 'full',
         format_code: str = ".5g",
+        param_line: bool = False,
         **kwargs
     ):
         self.space = space
@@ -77,6 +79,7 @@ class RenderContext:
         self.equality = equality
         self.mode = mode
         self.format = format_code
+        self.param_line = param_line
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -108,6 +111,7 @@ class BaseRenderContext:
 class BaseRenderer:
     name: ClassVar[str] = 'base'
     node_handlers: ClassVar[dict[str, Callable]] = {}
+    header_handlers: ClassVar[dict[str, Callable]] = {}
     symbolic_rules: ClassVar[dict[str, Callable]] = {}
     numeric_rules: ClassVar[dict[str, Callable]] = {}
     root_pre_renderers: ClassVar[dict[str, Callable]] = {}
@@ -115,6 +119,7 @@ class BaseRenderer:
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
+        self._header_handlers: dict[str, Callable] = dict(self.header_handlers)
         self._symbolic_rules: dict[str, Callable] = dict(self.symbolic_rules)
         self._numeric_rules: dict[str, Callable] = dict(self.numeric_rules)
         self._root_pre_renderers: dict[str, Callable] = dict(self.root_pre_renderers)
@@ -124,6 +129,7 @@ class BaseRenderer:
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         cls.node_handlers = dict(cls.node_handlers)
+        cls.header_handlers = dict(cls.header_handlers)
         cls.symbolic_rules = dict(cls.symbolic_rules)
         cls.numeric_rules = dict(cls.numeric_rules)
         cls.root_pre_renderers = dict(cls.root_pre_renderers)
@@ -172,6 +178,19 @@ class BaseRenderer:
             return self.render_unknown(node, base_context)
         return handler(self, node, base_context)
 
+    def render_header(self, node: HcNode, base_context: BaseRenderContext) -> str:
+        """
+        Render the introductory/context-establishing header line for a block node.
+
+        Dispatches to the handler registered under 'header:{node.type}'. Block
+        nodes with no registered header handler render no header (empty string),
+        letting a renderer opt in per block type.
+        """
+        handler = self._header_handlers.get(node.type)
+        if handler is None:
+            return ""
+        return handler(self, node, base_context)
+
     @classmethod
     def register(cls, node_classifier: str) -> Callable[[Callable], Callable]:
         """
@@ -187,13 +206,17 @@ class BaseRenderer:
                     cls.root_post_renderers.update({callable_identifier: handler})
                 elif node_name == "sym":
                     cls.symbolic_rules.update({callable_identifier: handler})
-                elif node_name == "num": 
+                elif node_name == "num":
                     cls.numeric_rules.update({callable_identifier: handler})
+                elif node_name == "header":
+                    # 'header:{node_type}' registers the header handler for a
+                    # block node, keyed by the node's type (e.g. 'if_block').
+                    cls.header_handlers.update({callable_identifier: handler})
                 else:
                     raise NotImplementedError(
                         f"Cannot register a method for {node_classifier}.\n"
                         "Node classifiers must be either in the form of {prefix}:{unique_identifier} "
-                        "where {prefix} is one of: 'pre', 'post', 'sym', 'num'\n-or-\n"
+                        "where {prefix} is one of: 'pre', 'post', 'sym', 'num', 'header'\n-or-\n"
                         "the node classifier must be the name of a recognized HcNode (in snake_case)."
                     )
             else:
@@ -211,13 +234,15 @@ class BaseRenderer:
                 self._root_post_renderers.update({callable_identifier: handler})
             elif node_name == "sym":
                 self._symbolic_rules.update({callable_identifier: handler})
-            elif node_name == "num": 
+            elif node_name == "num":
                 self._numeric_rules.update({callable_identifier: handler})
+            elif node_name == "header":
+                self._header_handlers.update({callable_identifier: handler})
             else:
                 raise NotImplementedError(
                     f"Cannot register a method for {node_classifier}.\n"
                     "Node classifiers must be either in the form of {prefix}:{unique_identifier} "
-                    "where {prefix} is one of: 'pre', 'post', 'sym', 'num'\n-or-\n"
+                    "where {prefix} is one of: 'pre', 'post', 'sym', 'num', 'header'\n-or-\n"
                     "the node classifier must be the name of a recognized HcNode (in snake_case)."
                 )
         else:
@@ -289,6 +314,10 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
         return node.identifier
     elif context.current_mode == 'num':
         fc = context.format
+        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray). A Name
+        # bound to a list raises TypeError ("unsupported format string passed to
+        # list.__format__") here, since only ValueError is caught. Decide how
+        # such values should render numerically (element-wise, repr, etc.).
         try:
             return f"{node.value:{fc}}"
         except ValueError: # Format code not implemented
@@ -539,44 +568,71 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: Base
         block_text = renderer.render(true_clause, base_context)
         return block_text
 
+def render_condition(
+    renderer: BaseRenderer,
+    condition: deque,
+    base_context: BaseRenderContext,
+    mode: str,
+) -> str:
+    """
+    Render a comparison/condition (a deque of nodes) in the given mode
+    ('sym' or 'num') and return the joined string. Shared by the if/elif
+    header handlers.
+    """
+    base_context.line_context.current_mode = mode
+    acc = [renderer.render(elem, base_context) for elem in condition]
+    return "".join(acc)
+
+
+def render_block_body(
+    renderer: BaseRenderer,
+    node: HcNode,
+    base_context: BaseRenderContext,
+) -> str:
+    """
+    Render a block's header line followed by its indented body lines.
+
+    The header is produced by the handler registered under 'header:{node.type}'
+    (empty string if none is registered), so a renderer customizes a block's
+    intro line simply by registering its own 'header:...' handler.
+    """
+    context = base_context.current
+    header = renderer.render_header(node, base_context)
+
+    lines_acc = [renderer.render(line, base_context) for line in node.lines]
+    lines = f"{context.newline}".join(lines_acc)
+
+    block_header = f"{context.indent * node.level}{header}"
+    return f"{block_header}\n{lines}"
+
+
 @BaseRenderer.register('if_block')
 def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
+    return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register('for_block')
+def render_for_block(renderer: BaseRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
+    return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register("header:if_block")
+def if_block_header(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
     context = base_context.current
     _ = context.space
-    condition: deque = node.test.comparison
+    sym_expr = render_condition(renderer, node.test.comparison, base_context, 'sym')
+    num_expr = render_condition(renderer, node.test.comparison, base_context, 'num')
+    return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
 
-    # First render the symbolic portion of the condition test
-    sym_acc = []
+
+@BaseRenderer.register("header:for_block")
+def for_block_header(renderer: BaseRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
+    context = base_context.current
+    _ = context.space
     base_context.line_context.current_mode = 'sym'
-    for elem in condition:
-        sym_acc.append(renderer.render(elem, base_context))
-    sym_expr = "".join(sym_acc)
-
-    # Then render the numeric portion of the condition test
-    base_context.line_context.current_mode = 'num'
-    num_acc = []
-    for elem in condition:
-        num_acc.append(renderer.render(elem, base_context))
-    num_expr = "".join(num_acc)
-
-    # Create a header line for the block
-    if_block_header = f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
-
-    # Render each of the lines under the block
-    context.current_mode = None
-    lines_acc = []
-    for line in node.lines:
-        lines_acc.append(renderer.render(line, base_context))
-    # Rendered lines already self-terminate with a newline, so concatenate
-    # them directly rather than re-inserting newlines between them.
-    lines = "".join(lines_acc)
-
-    # Indent the block header appropriately
-    block_header = f"{context.indent * node.level}{if_block_header}"
-    # Join the block header and the lines below it
-    block_text = f"{block_header}\n{lines}"
-
-    return block_text
+    target = renderer.render(node.assigns[0], base_context)
+    iterable = renderer.render(node.iterator[0], base_context)
+    return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:"
 
 
 @BaseRenderer.register("sym:toggle_param_line")
@@ -595,5 +651,7 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
         else:
             base_context.line_context.param_line = node.pars_nesting
     return node
+
+
 
 
