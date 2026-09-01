@@ -9,11 +9,12 @@ agreed policy so the suite documents them and flags a fix via an unexpected
 pass.
 """
 from collections import deque
+from decimal import Decimal
 
 import pytest
 
 from handcalcs.renderers.base import ContextKeyError, ContextValueError
-from handcalcs.parsing.nodes import Name, Constant, List, Tuple, Set, Dictionary
+from handcalcs.parsing.nodes import Name, Constant, List, Tuple, Set, Dictionary, Attribute
 from handcalcs.parsing.operator_nodes import (
     AddOp,
     SubOp,
@@ -109,6 +110,93 @@ def test_collection_rendering(render, node, expected):
 
 
 # ---------------------------------------------------------------------------
+# Attribute (no handler registered)
+# ---------------------------------------------------------------------------
+
+def test_attribute_has_no_handler_raises(render):
+    # Attribute is defined in nodes.py but no BaseRenderer handler is registered
+    # for it yet, so render_node raises NotImplementedError. Pinning current
+    # behavior; add/adjust when an 'attribute' handler is implemented.
+    with pytest.raises(NotImplementedError):
+        render(Attribute("math", "pi", 3.14159), current_mode="num")
+
+
+# ---------------------------------------------------------------------------
+# Name value renderability (numeric mode)
+#
+# In numeric mode, render_name renders ``node.value`` via ``render_node`` when
+# the value is itself an HcNode (e.g. a collection literal), and otherwise
+# formats/stringifies the raw Python value. These tests exercise both paths for
+# the basic collection nodes, plain int/float, float-like objects (complex,
+# Decimal, forallpeople Physical), and an arbitrary custom object.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (List(deque([Constant(1), Constant(2), Constant(3)])), "[1, 2, 3]"),
+        (List(deque([])), "[]"),
+        (Set(deque([Constant(1)])), "{1}"),
+        (Tuple(deque([Constant(1), Constant(2)])), "(1, 2)"),
+        (Dictionary(deque([Constant(1)]), deque([Constant(2)])), "{1: 2}"),
+    ],
+    ids=["list", "empty-list", "set", "tuple", "dict"],
+)
+def test_name_value_renders_collection_node(render, value, expected):
+    # A Name bound to a collection literal renders the collection in numeric
+    # mode (render_name delegates to render_node for HcNode values).
+    assert render(Name("x", value), current_mode="num") == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (4, "4"),
+        (-7, "-7"),
+        (0, "0"),
+        (3.14159, "3.1416"),
+        (2.0, "2"),
+    ],
+    ids=["int", "neg-int", "zero", "float", "float-whole"],
+)
+def test_name_value_renders_int_and_float(render, value, expected):
+    # Plain ints/floats are not HcNodes, so render_name falls back to formatting
+    # the raw value with the context format code (default ".5g").
+    assert render(Name("n", value), current_mode="num") == expected
+
+
+def test_name_value_complex_renders(render):
+    # complex is not a node; the ".5g" format code applies to it.
+    assert render(Name("z", complex(1, 2)), current_mode="num") == "1+2j"
+
+
+def test_name_value_decimal_renders(render):
+    # Decimal supports the ".5g" format code like a float.
+    assert render(Name("d", Decimal("3.14159")), current_mode="num") == "3.1416"
+
+
+def test_name_value_physical_renders(render):
+    # A forallpeople Physical is float-like: it honours the ".5g" format code
+    # and renders with its unit.
+    si = pytest.importorskip("forallpeople")
+    si.environment("default")
+    assert render(Name("F", 5000 * si.N), current_mode="num") == "5 kN"
+
+
+def test_name_value_custom_object_falls_back_to_str(render):
+    # An arbitrary object rejects the format code (TypeError) and has no node
+    # handler, so render_name falls back to its string representation.
+    class Widget:
+        def __repr__(self):
+            return "Widget(repr)"
+
+        def __str__(self):
+            return "a widget"
+
+    assert render(Name("w", Widget()), current_mode="num") == "a widget"
+
+
+# ---------------------------------------------------------------------------
 # Binary operators
 # ---------------------------------------------------------------------------
 
@@ -132,12 +220,12 @@ def test_binary_operator_pre_and_post_wrap(render):
     assert render(node) == "(1+2)"
 
 
-def test_floor_op_has_no_handler_and_falls_back(render):
-    # FloorOp (and ModuloOp) are not registered in BaseRenderer; they hit
-    # render_unknown and stringify. Pinning current behavior; if a handler is
-    # added, update this test.
-    out = render(FloorOp(left=Constant(1), right=Constant(2)))
-    assert out.startswith("FloorOp(")
+def test_floor_op_has_no_handler_raises(render):
+    # FloorOp (and ModuloOp) are not registered in BaseRenderer. An unregistered
+    # node type is a programming error rather than something to stringify, so
+    # render_node raises NotImplementedError. If a handler is added, update this.
+    with pytest.raises(NotImplementedError):
+        render(FloorOp(left=Constant(1), right=Constant(2)))
 
 
 # ---------------------------------------------------------------------------

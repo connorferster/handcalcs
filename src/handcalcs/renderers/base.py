@@ -324,7 +324,7 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
         # such values should render numerically (element-wise, repr, etc.).
         try:
             return renderer.render_node(node.value, base_context)
-        except NotImplementedError:
+        except (AttributeError, NotImplementedError):
             try:
                 return f"{node.value:{fc}}"
             except (ValueError, TypeError): # Format code not implemented
