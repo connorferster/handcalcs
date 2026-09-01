@@ -66,7 +66,7 @@ class RenderContext:
         self, 
         space: str = ' ', 
         newline: str = '\n', 
-        indent: int = "    ",
+        indent: str = "    ",
         equality: str = "=",
         mode: str = 'full',
         format_code: str = ".5g",
@@ -175,7 +175,10 @@ class BaseRenderer:
         context = base_context.current
         handler = self._handlers.get(node.type)
         if handler is None:
-            return self.render_unknown(node, base_context)
+            raise NotImplementedError(
+                f"A handler for node type = '{node.type}' has not been registered in this renderer."
+            )
+            # return self.render_unknown(node, base_context)
         return handler(self, node, base_context)
 
     def render_header(self, node: HcNode, base_context: BaseRenderContext) -> str:
@@ -313,15 +316,19 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
     if context.current_mode == 'sym':
         return node.identifier
     elif context.current_mode == 'num':
+
         fc = context.format
         # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray). A Name
         # bound to a list raises TypeError ("unsupported format string passed to
         # list.__format__") here, since only ValueError is caught. Decide how
         # such values should render numerically (element-wise, repr, etc.).
         try:
-            return f"{node.value:{fc}}"
-        except ValueError: # Format code not implemented
-            return f"{node.value}"
+            return renderer.render_node(node.value, base_context)
+        except NotImplementedError:
+            try:
+                return f"{node.value:{fc}}"
+            except (ValueError, TypeError): # Format code not implemented
+                return f"{node.value}"
     else:
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
