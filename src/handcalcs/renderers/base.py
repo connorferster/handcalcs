@@ -606,8 +606,10 @@ def render_block_body(
     context = base_context.current
     header = renderer.render_header(node, base_context)
 
+    # Rendered lines already self-terminate with a newline, so concatenate them
+    # directly; joining on newline would insert a blank line between each.
     lines_acc = [renderer.render(line, base_context) for line in node.lines]
-    lines = f"{context.newline}".join(lines_acc)
+    lines = "".join(lines_acc)
 
     block_header = f"{context.indent * node.level}{header}"
     return f"{block_header}\n{lines}"
