@@ -36,14 +36,17 @@ def test_render_node_dispatches_by_type(render):
     assert render(Constant(4)) == "4"
 
 
-def test_unknown_node_type_falls_back_to_str(render):
+def test_unknown_node_type_raises_not_implemented(render):
+    # A node whose ``type`` has no registered handler is a programming error,
+    # not something to silently stringify: render_node raises NotImplementedError.
     class Mystery:
         type = "no_such_handler"
 
         def __repr__(self):
             return "MYSTERY"
 
-    assert render(Mystery()) == "MYSTERY"
+    with pytest.raises(NotImplementedError):
+        render(Mystery())
 
 
 def test_render_creates_default_context_when_none_given(renderer):
