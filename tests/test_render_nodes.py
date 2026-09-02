@@ -36,7 +36,7 @@ from handcalcs.parsing.inline_nodes import (
     InlineCommand,
 )
 from handcalcs.parsing.line_nodes import (
-    MarkdownComment,
+    Heading,
     CalcLine,
     ExprLine,
     Import,
@@ -275,7 +275,9 @@ def test_function_call_with_namespace(render):
 # ---------------------------------------------------------------------------
 
 def test_inline_comment_rendering(render):
-    assert render(InlineComment("a note")) == " (a note)"
+    # A comment is a component atom; the separating space is supplied by the
+    # join step, not embedded in the atom.
+    assert render(InlineComment("a note")) == "(a note)"
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +286,7 @@ def test_inline_comment_rendering(render):
 
 def test_import_plain(render):
     node = Import(names=deque([Name("math", None)]))
-    assert render(node) == "[Python import]: import math\n\n"
+    assert render(node) == ["[Python import]:", "import", "math"]
 
 
 def test_import_from_module(render):
@@ -294,15 +296,17 @@ def test_import_from_module(render):
         import_from_level=0,
         names=deque([Name("sqrt", None), Name("pi", None)]),
     )
-    assert render(node) == "[Python import]: from math import sqrt, pi\n\n"
+    assert render(node) == ["[Python import]:", "from", "math", "import", "sqrt, pi"]
 
 
 # ---------------------------------------------------------------------------
 # Comment nodes
 # ---------------------------------------------------------------------------
 
-def test_comment_line_appends_newline(render):
-    assert render(CommentLine(content="a note")) == "a note\n"
+def test_comment_line_renders_as_bare_string(render):
+    # A comment line is a single string in the master list; the trailing newline
+    # is added by the join step, not the handler.
+    assert render(CommentLine(content="a note")) == "a note"
 
 
 def test_inline_command_mutates_line_context_and_renders_empty(renderer, make_context):
@@ -329,9 +333,8 @@ def test_comment_command_mutates_global_context(renderer, make_context):
 # ---------------------------------------------------------------------------
 # CalcLine
 #
-# NOTE: CalcLine rendering requires `param_line` to be seeded on the context.
-# From a clean/default context the `toggle_param_line` sym-rule raises (see the
-# clean-context xfail below); these tests seed it to exercise the render logic.
+# A CalcLine renders as a list of string components (columns interleaved with
+# the equality symbol); spaces/indent/newline are inserted by the join step.
 # ---------------------------------------------------------------------------
 
 def _calc_c_equals_a_plus_2():
@@ -342,22 +345,24 @@ def _calc_c_equals_a_plus_2():
 
 
 def test_calc_line_full_mode(render):
-    assert render(_calc_c_equals_a_plus_2(), param_line=False) == "c = a+2 = 3+2 = 5\n"
+    assert render(_calc_c_equals_a_plus_2(), param_line=False) == [
+        "c", "=", "a+2", "=", "3+2", "=", "5",
+    ]
 
 
 def test_calc_line_symbolic_only_mode(render):
-    # Current behavior: assigns and result columns are omitted; a leading
-    # " = " prefix remains. Pinned as-is.
-    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="sym") == " = a+2\n"
+    # Symbolic-only mode: just the symbolic column, no assign/num/result.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="sym") == ["a+2"]
 
 
 def test_calc_line_numeric_only_mode(render):
-    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="num") == " = 3+2\n"
+    # Numeric-only mode: just the numeric-substitution column.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="num") == ["3+2"]
 
 
 def test_calc_line_param_line_single_constant(render):
     node = CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)]))
-    assert render(node, param_line=False) == "a = 2\n"
+    assert render(node, param_line=False) == ["a", "=", "2"]
 
 
 def test_calc_line_ignore_short_circuits(render):
@@ -380,12 +385,12 @@ def test_expr_line_statement_call_shows_symbolic_and_numeric(render):
             )
         ])
     )
-    assert render(node) == " print(d)  =  print(4) \n"
+    assert render(node) == [" print(d) ", "=", " print(4) "]
 
 
 def test_expr_line_value_bearing_expression(render):
     node = ExprLine(expression_tree=deque([AddOp(left=Name("x", 10), right=Name("y", 20))]))
-    assert render(node) == "x+y = 10+20\n"
+    assert render(node) == ["x+y", "=", "10+20"]
 
 
 def test_expr_line_return_is_symbolic_only(render):
@@ -395,13 +400,13 @@ def test_expr_line_return_is_symbolic_only(render):
         expression_tree=deque([AddOp(left=Name("pi"), right=Constant(1))]),
         return_expr=True,
     )
-    assert render(node) == "pi+1\n"
+    assert render(node) == ["pi+1"]
 
 
 def test_expr_line_docstring_renders_as_plain_line(render):
     # A bare string statement parses to a single Constant holding the string.
     node = ExprLine(expression_tree=deque([Constant("Module note.")]))
-    assert render(node) == "Module note.\n"
+    assert render(node) == ["Module note."]
 
 
 # ---------------------------------------------------------------------------
@@ -409,17 +414,21 @@ def test_expr_line_docstring_renders_as_plain_line(render):
 # ---------------------------------------------------------------------------
 
 def test_if_block_renders_header_and_lines(render):
+    # A block renders as ``[header_string, body_list]`` -- the body lines in
+    # their own nested sublist. Indent/newlines are applied later, by join.
     param = CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)]))
     node = IfBlock(
         lines=deque([param]),
         test=Compare(deque([Constant(2), LtEOp, Name("a", 3), LtOp, Constant(5)])),
         is_true=True,
     )
-    assert render(node, param_line=False) == "Since (2<=a<5) -> (2<=3<5) is True:\na = 2\n"
+    assert render(node, param_line=False) == [
+        "Since (2<=a<5) -> (2<=3<5) is True:",
+        [["a", "=", "2"]],
+    ]
 
 
-def test_if_block_multiple_lines_single_newlines(render):
-    # Rendered lines self-terminate; the block must not double-space them.
+def test_if_block_multiple_lines(render):
     node = IfBlock(
         lines=deque([
             CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)])),
@@ -428,9 +437,10 @@ def test_if_block_multiple_lines_single_newlines(render):
         test=Compare(deque([Name("a", 3), GtOp, Constant(2)])),
         is_true=True,
     )
-    assert render(node, param_line=False) == (
-        "Since (a>2) -> (3>2) is True:\na = 2\nb = 3\n"
-    )
+    assert render(node, param_line=False) == [
+        "Since (a>2) -> (3>2) is True:",
+        [["a", "=", "2"], ["b", "=", "3"]],
+    ]
 
 
 def test_elif_block_selects_true_clause(render):
@@ -445,10 +455,11 @@ def test_elif_block_selects_true_clause(render):
         is_true=False,
     )
     node = ElifBlock(lines=deque([loser, winner]))
-    out = render(node, param_line=False)
-    assert "is True:" in out
-    assert "d = 5" in out
-    assert "d = 6" not in out
+    # The elif block renders only the selected (true) clause's [header, body].
+    assert render(node, param_line=False) == [
+        "Since (a>2) -> (3>2) is True:",
+        [["d", "=", "5"]],
+    ]
 
 
 def test_elif_block_no_true_clause_message(render):
@@ -469,12 +480,14 @@ def test_elif_block_no_true_clause_message(render):
 
 def test_calc_line_renders_from_clean_context(render):
     # A CalcLine as the very first rendered node (no param_line seeded) must
-    # render rather than raise; toggle_param_line now defaults param_line.
-    assert render(_calc_c_equals_a_plus_2()) == "c = a+2 = 3+2 = 5\n"
+    # render rather than raise; the calc_line:pre rule defaults param_line.
+    assert render(_calc_c_equals_a_plus_2()) == ["c", "=", "a+2", "=", "3+2", "=", "5"]
 
 
-def test_markdown_comment_rendering(render):
-    assert render(MarkdownComment(content="A heading")) == "A heading"
+def test_heading_rendering(render):
+    # A heading renders as a single markdown string, its level reproduced from
+    # the node's heading_level.
+    assert render(Heading(content="A heading", heading_level=2)) == "## A heading"
 
 
 def test_compare_rendering(render):

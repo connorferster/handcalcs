@@ -30,7 +30,7 @@ if e <= 3:
     out = HandCalcs()(source)
 
     assert out == (
-        "[Python import]: from math import sqrt, pi\n\n"
+        "[Python import]: from math import sqrt, pi\n"
         "α = 4\n"
         "β = 5 (Inline comment)\n"
         "Comment\n"
@@ -59,7 +59,7 @@ area = circle_area(2 * radius)
     out = HandCalcs()(source)
 
     assert out == (
-        "[Python import]: from math import sqrt, pi\n\n"
+        "[Python import]: from math import sqrt, pi\n"
         "radius = 5\n"
         "area =  circle_area((2)(radius))  =  circle_area((2)(5))  = 78.54\n"
     )

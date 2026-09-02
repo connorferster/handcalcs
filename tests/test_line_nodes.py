@@ -11,7 +11,7 @@ from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
     CommentLine,
-    MarkdownComment,
+    Heading,
     CommentCommand,
     Import,
 )
@@ -53,16 +53,20 @@ def test_comment_line_strips_all_leading_hashes():
     assert CommentLine.from_raw_comment("## heading").content == "heading"
 
 
-# --- MarkdownComment.from_raw_comment -----------------------------------
+# --- Heading.from_raw_comment -------------------------------------------
 
-def test_markdown_comment_single_hash():
-    assert MarkdownComment.from_raw_comment("# Title").content == "Title"
+def test_heading_single_hash():
+    heading = Heading.from_raw_comment("# Title")
+    assert heading.content == "Title"
+    assert heading.heading_level == 1
 
 
-def test_markdown_comment_double_hash_keeps_inner_hash():
-    # Regex `^#[ ]*(.+)` consumes only the first '#'; a heading written with
-    # '##' therefore keeps the second '#' in its content.
-    assert MarkdownComment.from_raw_comment("## A heading").content == "# A heading"
+def test_heading_double_hash_sets_level_and_strips_hashes():
+    # The number of leading '#' is the markdown heading level; all '#'s are
+    # stripped from the content.
+    heading = Heading.from_raw_comment("## A heading")
+    assert heading.content == "A heading"
+    assert heading.heading_level == 2
 
 
 # --- CommentCommand.from_raw_comment: kwarg vs flag ---------------------
