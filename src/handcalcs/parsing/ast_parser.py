@@ -32,7 +32,7 @@ from .line_nodes import (
     ExprLine,
     CommentLine,
     CommentCommand,
-    MarkdownComment,
+    Heading,
     Import
 )
 from .inline_nodes import (
@@ -221,7 +221,7 @@ class AST_Parser:
         """
         stripped = raw.lstrip("# ")
         if is_markdown_heading(raw):
-            return MarkdownComment.from_raw_comment(raw)
+            return Heading.from_raw_comment(raw)
         elif is_comment_command(stripped):
             return CommentCommand.from_raw_comment(raw)
         else:

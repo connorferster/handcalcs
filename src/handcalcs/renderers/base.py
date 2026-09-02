@@ -43,7 +43,7 @@ from handcalcs.parsing.line_nodes import (
     ExprLine,
     Import,
     CommentCommand,
-    MarkdownComment,
+    Heading,
     CommentLine
 )
 from handcalcs.parsing.block_nodes import (
@@ -163,6 +163,48 @@ class BaseRenderer:
             [post(self, root, base_context) for post in self._root_post_renderers.values()]
         )
         return parts
+
+    def join(self, tree: list, context: Optional[RenderContext] = None) -> str:
+        """
+        Join a rendered nested-list structure into final text.
+
+        This is the post-render pass that inserts the spacing, indentation and
+        newlines that the node handlers deliberately leave out:
+
+        - a string item is a whole line (heading, comment, block header);
+        - an all-string list is a rendered line whose components are joined by a
+          single space;
+        - a ``[header_string, body_list]`` list is a block: the header is a line
+          at the current depth and the body lines are rendered one level deeper.
+
+        Falsy items (``None``, ``""``, ``[]``) render nothing (they are
+        command/ignored lines), so they never produce a stray blank line.
+        """
+        if context is None:
+            context = RenderContext()
+        return "".join(self._join_items(tree, 0, context))
+
+    def _join_items(self, items: list, depth: int, context: RenderContext) -> list[str]:
+        lines: list[str] = []
+        for item in items:
+            lines.extend(self._join_item(item, depth, context))
+        return lines
+
+    def _join_item(self, item, depth: int, context: RenderContext) -> list[str]:
+        if not item:
+            return []
+        indent = context.indent * depth
+        nl = context.newline
+        if isinstance(item, str):
+            return [f"{indent}{item}{nl}"]
+        # A block is ``[header_string, body_list]`` -- detected by its body being
+        # a list. An all-string list is a rendered line.
+        if isinstance(item[-1], list):
+            header, body = item[0], item[-1]
+            lines = [f"{indent}{header}{nl}"]
+            lines.extend(self._join_items(body, depth + 1, context))
+            return lines
+        return [f"{indent}{context.space.join(item)}{nl}"]
 
     def render_node(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
@@ -301,9 +343,9 @@ def render_list(renderer: BaseRenderer, node: Tuple, base_context: BaseRenderCon
 
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    _ = context.space
-    return f"{_}({node.content})"
+    # A component atom: the separating space before it is supplied by the join
+    # step (which joins a line's components with a single space).
+    return f"({node.content})"
 
 @BaseRenderer.register('name')
 def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderContext) -> str:
@@ -409,14 +451,16 @@ def render_comment_command(renderer: BR, node: CommentCommand, base_context: Bas
     return ''
 
 @BaseRenderer.register('comment_line')
-def render_comment_command(renderer: BR, node: CommentLine, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    nl = context.newline
-    return f"{node.content}{nl}"
-
-@BaseRenderer.register('markdown_comment')
-def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
+def render_comment_line(renderer: BR, node: CommentLine, base_context: BaseRenderContext) -> str:
+    # A standalone comment renders as a plain-text line (a single string in the
+    # master list). The trailing newline is inserted by the join step, not here.
     return node.content
+
+@BaseRenderer.register('heading')
+def render_heading(renderer: BR, node: Heading, base_context: BaseRenderContext) -> str:
+    # A heading renders as a single markdown string in the master list, its
+    # markdown level reproduced from the node's ``heading_level``.
+    return f"{'#' * node.heading_level} {node.content}"
 
 
 @BaseRenderer.register('inline_command')
@@ -426,88 +470,87 @@ def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseR
 
 
 @BaseRenderer.register('import')
-def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    _ = context.space
-    nl = context.newline
+def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -> list[str]:
+    # An import renders as a list of string components; the join step supplies
+    # the single spaces between them.
     names = [
-        f"{name.identifier}{_}as{_}{name.value}" if name.value is not None
+        f"{name.identifier} as {name.value}" if name.value is not None
         else f"{name.identifier}"
         for name in node.names
     ]
-    rendered_names = f",{_}".join(names)
+    rendered_names = ", ".join(names)
+    components = ["[Python import]:"]
     if node.import_from:
         module = node.import_from_module
-        level = node.import_from_level
-        dots = "." * level
+        dots = "." * (node.import_from_level or 0)
+        components.append("from")
         if module is not None:
-            rendered = f"[Python{_}import]:{_}from{_}{dots}{module}{_}import{_}{rendered_names}"
-        else:
-            rendered = f"[Python{_}import]:{_}from{_}{dots}{_}import{_}{rendered_names}"
+            components.append(f"{dots}{module}")
+        elif dots:
+            components.append(dots)
+        components.append("import")
+        components.append(rendered_names)
     else:
-        rendered = f"[Python{_}import]:{_}import{_}{rendered_names}"
-    rendered = rendered + f"{nl}{nl}"
-    return rendered
-        
+        components.append("import")
+        components.append(rendered_names)
+    return components
+
 
 @BaseRenderer.register('calc_line')
-def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> str:
+def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> list[str] | str:
+    """
+    Render a CalcLine as a list of string components (columns interleaved with
+    the equality symbol), e.g. ``["c", "=", "a+2", "=", "3+2", "=", "5"]``.
+
+    Spaces, indent and the trailing newline are NOT embedded here; the join step
+    inserts them. The columns present depend on ``context.mode``:
+    ``ass`` (assignment target), ``sym`` (symbolic), ``num`` (numeric
+    substitution) and ``res`` (result); ``full`` shows all of them. A param line
+    (a bare value assignment) collapses to ``target = value``.
+    """
     comment_render = None
-    # TODO: Remove param_line from base implementation and move to PTRC
-    #   - Break out rendering code into subroutines
-    #   - Make sure you no longer need to maintain retrieving context before parsing other nodes
-    # Retrieve param_line immediately before the next .render method is called because it will change
-    # the state of the current context to the context of the next node.
+    # The comment is rendered first because a command comment (e.g. ``# hc: -f``)
+    # mutates the context that the expression columns below are rendered under.
     context = base_context.current
     param_line_pre_comment = getattr(context, 'param_line', False)
     if node.comment is not None:
         comment_render = renderer.render(node.comment, base_context)
-    # Update the context from teh comment render
     context = base_context.current
     param_line_post_comment = getattr(context, 'param_line', False)
-    param_line = param_line_pre_comment or param_line_post_comment # 
+    param_line = param_line_pre_comment or param_line_post_comment
     if getattr(context, 'ignore', False):
         base_context.line_context.ignore = False
         return ''
-    rendered = f"{context.indent * node.level}"
+
+    columns: deque = deque([])
     if context.mode == 'full' or 'ass' in context.mode:
         base_context.line_context.current_mode = 'sym'
-        assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
-        assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}"
-        rendered += assign_portion
+        assign_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
+        columns.append(", ".join(assign_nodes))
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
             base_context.line_context.current_mode = 'sym'
-            symbolic = deque([])
-            for subnode in node.expression_tree:
-                symbolic.append(renderer.render(subnode, base_context))
-            symbolic = "".join(symbolic)
-            symbolic_portion = f"{context.space}{context.equality}{context.space}{symbolic}"
-            rendered += symbolic_portion
+            symbolic = "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
+            columns.append(symbolic)
         if context.mode == "full" or "num" in context.mode:
             base_context.line_context.current_mode = "num"
-            numeric = deque([])
-            for subnode in node.expression_tree:
-                numeric.append(renderer.render(subnode, base_context))
-            numeric = "".join(numeric)
-            numeric_portion = f"{context.space}{context.equality}{context.space}{numeric}"
-            rendered += numeric_portion
+            numeric = "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
+            columns.append(numeric)
     if context.mode == "full" or "res" in context.mode:
         base_context.line_context.current_mode = "num"
-        assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
-        results = deque([val for val in assign_nodes])
-        for rule in renderer.numeric_rules:
-            for idx, result in enumerate(results):
-                results[idx] = rule(result, base_context)
-        result_portion = f',{context.space}'.join(results)
-        result_portion = f"{context.space}{context.equality}{context.space}{result_portion}"
-        rendered += result_portion
-    if comment_render is not None:
-        rendered += comment_render
-    ready_for_next_line = f"{rendered}{context.newline}"
-    context.line_context = RenderContext() # Clear any line-specific context
-    return ready_for_next_line
+        result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
+        columns.append(", ".join(result_nodes))
+
+    components: deque = deque([])
+    for idx, column in enumerate(columns):
+        if idx > 0:
+            components.append(context.equality)
+        components.append(column)
+    if comment_render:
+        components.append(comment_render)
+
+    base_context.line_context = RenderContext()  # Clear any line-specific context
+    return list(components)
 
 
 @BaseRenderer.register('expr_line')
@@ -529,32 +572,41 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
       trailing equals and no result.
     """
     context = base_context.current
-    indent = f"{context.indent * node.level}"
 
     # A bare string-literal statement (e.g. a module or block docstring) is a
     # single Constant holding a str; render it as a plain line, not a calc.
     tree = node.expression_tree
     if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
-        return f"{indent}{tree[0].value}{context.newline}"
+        line = [tree[0].value]
+        if node.comment is not None:
+            comment_render = renderer.render(node.comment, base_context)
+            if comment_render:
+                line.append(comment_render)
+        return line
 
     def render_tree(mode: str) -> str:
         base_context.line_context.current_mode = mode
         return "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
 
-    portions = deque([])
+    columns = deque([])
     if context.mode == 'full' or 'sym' in context.mode:
-        portions.append(render_tree('sym'))
+        columns.append(render_tree('sym'))
     # A return statement has no single runtime value; omit numeric substitution.
     if not node.return_expr and (context.mode == 'full' or 'num' in context.mode):
-        portions.append(render_tree('num'))
+        columns.append(render_tree('num'))
 
-    joiner = f"{context.space}{context.equality}{context.space}"
-    rendered = f"{indent}{joiner.join(portions)}"
+    components = deque([])
+    for idx, column in enumerate(columns):
+        if idx > 0:
+            components.append(context.equality)
+        components.append(column)
 
     if node.comment is not None:
-        rendered += renderer.render(node.comment, base_context)
+        comment_render = renderer.render(node.comment, base_context)
+        if comment_render:
+            components.append(comment_render)
 
-    return f"{rendered}{context.newline}"
+    return list(components)
 
 
 @BaseRenderer.register('elif_block')
@@ -595,24 +647,20 @@ def render_block_body(
     renderer: BaseRenderer,
     node: HcNode,
     base_context: BaseRenderContext,
-) -> str:
+) -> list:
     """
-    Render a block's header line followed by its indented body lines.
+    Render a block as ``[header_string, body_list]``: the header line as a
+    string (the first element), followed by the block's body lines gathered
+    into their own nested sublist. Indentation is applied by the join step,
+    according to nesting depth, not embedded here.
 
     The header is produced by the handler registered under 'header:{node.type}'
     (empty string if none is registered), so a renderer customizes a block's
     intro line simply by registering its own 'header:...' handler.
     """
-    context = base_context.current
     header = renderer.render_header(node, base_context)
-
-    # Rendered lines already self-terminate with a newline, so concatenate them
-    # directly; joining on newline would insert a blank line between each.
-    lines_acc = [renderer.render(line, base_context) for line in node.lines]
-    lines = "".join(lines_acc)
-
-    block_header = f"{context.indent * node.level}{header}"
-    return f"{block_header}\n{lines}"
+    body = [renderer.render(line, base_context) for line in node.lines]
+    return [header, body]
 
 
 @BaseRenderer.register('if_block')
