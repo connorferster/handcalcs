@@ -55,6 +55,25 @@ from handcalcs.parsing.block_nodes import (
 
 RenderHandler = Callable
 
+# The rule sub-categories that may be registered against a particular node type,
+# in the order they execute within ``render_node``:
+#   pre  -> transform the node before it is rendered (any mode)
+#   sym  -> transform the node while ``context.current_mode == 'sym'``
+#   num  -> transform the node while ``context.current_mode == 'num'``
+#   post -> transform the rendered result (string or list of strings)
+RULE_CATEGORIES = ("pre", "sym", "num", "post")
+
+
+def _copy_rule_handlers(
+    src: dict[str, dict[str, list[Callable]]],
+) -> dict[str, dict[str, list[Callable]]]:
+    """Deep-ish copy of the ``{node_type: {category: [fn, ...]}}`` rule store."""
+    return {
+        node_type: {category: list(fns) for category, fns in categories.items()}
+        for node_type, categories in src.items()
+    }
+
+
 class ContextValueError(Exception):
     pass
 
@@ -112,28 +131,24 @@ class BaseRenderer:
     name: ClassVar[str] = 'base'
     node_handlers: ClassVar[dict[str, Callable]] = {}
     header_handlers: ClassVar[dict[str, Callable]] = {}
-    symbolic_rules: ClassVar[dict[str, Callable]] = {}
-    numeric_rules: ClassVar[dict[str, Callable]] = {}
-    root_pre_renderers: ClassVar[dict[str, Callable]] = {}
-    root_post_renderers: ClassVar[dict[str, Callable]] = {}
+    # Rules keyed by node type, then by category ('pre'/'sym'/'num'/'post'),
+    # each an ordered list executed in registration order. The node type is the
+    # master category and the pre/sym/num/post are the sub-categories (mirroring
+    # the 'header:{node_type}' block-header registration). The pseudo node type
+    # 'root' carries the sequence-level pre/post renderers.
+    rule_handlers: ClassVar[dict[str, dict[str, list[Callable]]]] = {}
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
         self._header_handlers: dict[str, Callable] = dict(self.header_handlers)
-        self._symbolic_rules: dict[str, Callable] = dict(self.symbolic_rules)
-        self._numeric_rules: dict[str, Callable] = dict(self.numeric_rules)
-        self._root_pre_renderers: dict[str, Callable] = dict(self.root_pre_renderers)
-        self._root_post_renderers: dict[str, Callable] = dict(self.root_post_renderers)
+        self._rule_handlers: dict[str, dict[str, list[Callable]]] = _copy_rule_handlers(self.rule_handlers)
 
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         cls.node_handlers = dict(cls.node_handlers)
         cls.header_handlers = dict(cls.header_handlers)
-        cls.symbolic_rules = dict(cls.symbolic_rules)
-        cls.numeric_rules = dict(cls.numeric_rules)
-        cls.root_pre_renderers = dict(cls.root_pre_renderers)
-        cls.root_post_renderers = dict(cls.root_post_renderers)
+        cls.rule_handlers = _copy_rule_handlers(cls.rule_handlers)
 
     def create_context(self, **kwargs) -> RenderContext:
         return BaseRenderContext(RenderContext(**kwargs), RenderContext())
@@ -152,15 +167,20 @@ class BaseRenderer:
         return self.render_node(node, base_context)
 
 
-    def render_root(self, root: HcSequence, base_context: BaseRenderContext) -> str:
+    def render_root(self, root: HcSequence, base_context: BaseRenderContext) -> list:
         """
-        Render an HcSequence (root node) with the registered pre/post render callables.
+        Render an HcSequence (root node) into the master list.
+
+        The sequence-level pre/post renderers are registered against the pseudo
+        node type 'root' (i.e. 'root:pre' and 'root:post'); they run before and
+        after the sequence body and contribute leading/trailing items.
         """
-        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers.values()]
+        root_rules = self._rule_handlers.get('root', {})
+        parts = [pre(self, root, base_context) for pre in root_rules.get('pre', [])]
         for node in root.sequence:
             parts.append(self.render(node, base_context))
         parts.extend(
-            [post(self, root, base_context) for post in self._root_post_renderers.values()]
+            post(self, root, base_context) for post in root_rules.get('post', [])
         )
         return parts
 
@@ -209,19 +229,34 @@ class BaseRenderer:
     def render_node(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
         Render one node with an existing context.
+
+        Rules registered against this node type run in category order: 'pre'
+        (always), then 'sym' or 'num' gated on ``context.current_mode``, then the
+        node handler, then 'post' on the rendered result. Multiple rules in a
+        category run in registration order.
         """
-        for rule in self._symbolic_rules.values():
-            node = rule(node, base_context)
-        for rule in self._numeric_rules.values():
-            node = rule(node, base_context)
-        context = base_context.current
+        node_rules = self._rule_handlers.get(node.type, {})
+        current_mode = getattr(base_context.current, 'current_mode', None)
+
+        for rule in node_rules.get('pre', []):
+            node = rule(self, node, base_context)
+        if current_mode == 'sym':
+            for rule in node_rules.get('sym', []):
+                node = rule(self, node, base_context)
+        elif current_mode == 'num':
+            for rule in node_rules.get('num', []):
+                node = rule(self, node, base_context)
+
         handler = self._handlers.get(node.type)
         if handler is None:
             raise NotImplementedError(
                 f"A handler for node type = '{node.type}' has not been registered in this renderer."
             )
-            # return self.render_unknown(node, base_context)
-        return handler(self, node, base_context)
+        rendered = handler(self, node, base_context)
+
+        for rule in node_rules.get('post', []):
+            rendered = rule(self, rendered, node, base_context)
+        return rendered
 
     def render_header(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
@@ -236,62 +271,60 @@ class BaseRenderer:
             return ""
         return handler(self, node, base_context)
 
+    @staticmethod
+    def _route_registration(
+        node_classifier: str,
+        handler: Callable,
+        node_handlers: dict,
+        header_handlers: dict,
+        rule_handlers: dict,
+    ) -> None:
+        """
+        Route a registration to the right store based on its classifier:
+
+        - ``header:{node_type}`` -> the block-header handler for that node type;
+        - ``{node_type}:{category}`` where category is one of pre/sym/num/post ->
+          appended to that node type's ordered rule list for that category
+          (the pseudo node type 'root' carries the sequence pre/post renderers);
+        - a bare name -> the node handler for that node type.
+        """
+        if ":" in node_classifier and node_classifier.count(":") == 1:
+            left, right = node_classifier.split(":")
+            if left == "header":
+                # 'header:{node_type}' registers the header handler for a block
+                # node, keyed by the node's type (e.g. 'if_block').
+                header_handlers[right] = handler
+            elif right in RULE_CATEGORIES:
+                rule_handlers.setdefault(left, {}).setdefault(right, []).append(handler)
+            else:
+                raise NotImplementedError(
+                    f"Cannot register a method for {node_classifier}.\n"
+                    "Node classifiers must be either in the form of "
+                    "'{node_type}:{category}' where {category} is one of: "
+                    f"{', '.join(RULE_CATEGORIES)}, or 'header:{{node_type}}'\n-or-\n"
+                    "the node classifier must be the name of a recognized HcNode (in snake_case)."
+                )
+        else:
+            node_handlers[node_classifier] = handler
+
     @classmethod
     def register(cls, node_classifier: str) -> Callable[[Callable], Callable]:
         """
-        Register a render handler for a given node classifier.
+        Register a render handler (or a pre/sym/num/post/header rule) for a given
+        node classifier, at the class level. See ``_route_registration``.
         """
         def decorator(handler: Callable) -> Callable:
-            if ":" in node_classifier and node_classifier.count(":") == 1:
-                node_name, callable_identifier = node_classifier.split(":")
-
-                if node_name == "pre":
-                    cls.root_pre_renderers.update({callable_identifier: handler})
-                elif node_name == "post":
-                    cls.root_post_renderers.update({callable_identifier: handler})
-                elif node_name == "sym":
-                    cls.symbolic_rules.update({callable_identifier: handler})
-                elif node_name == "num":
-                    cls.numeric_rules.update({callable_identifier: handler})
-                elif node_name == "header":
-                    # 'header:{node_type}' registers the header handler for a
-                    # block node, keyed by the node's type (e.g. 'if_block').
-                    cls.header_handlers.update({callable_identifier: handler})
-                else:
-                    raise NotImplementedError(
-                        f"Cannot register a method for {node_classifier}.\n"
-                        "Node classifiers must be either in the form of {prefix}:{unique_identifier} "
-                        "where {prefix} is one of: 'pre', 'post', 'sym', 'num', 'header'\n-or-\n"
-                        "the node classifier must be the name of a recognized HcNode (in snake_case)."
-                    )
-            else:
-                cls.node_handlers.update({node_classifier: handler})
+            cls._route_registration(
+                node_classifier, handler, cls.node_handlers, cls.header_handlers, cls.rule_handlers
+            )
             return handler
         return decorator
 
     def register_handler(self, node_classifier: str, handler: RenderHandler) -> None:
-    
-        if ":" in node_classifier and node_classifier.count(":") == 1:
-            node_name, callable_identifier = node_classifier.split(":")
-            if node_name == "pre":
-                self._root_pre_renderers.update({callable_identifier: handler})
-            elif node_name == "post":
-                self._root_post_renderers.update({callable_identifier: handler})
-            elif node_name == "sym":
-                self._symbolic_rules.update({callable_identifier: handler})
-            elif node_name == "num":
-                self._numeric_rules.update({callable_identifier: handler})
-            elif node_name == "header":
-                self._header_handlers.update({callable_identifier: handler})
-            else:
-                raise NotImplementedError(
-                    f"Cannot register a method for {node_classifier}.\n"
-                    "Node classifiers must be either in the form of {prefix}:{unique_identifier} "
-                    "where {prefix} is one of: 'pre', 'post', 'sym', 'num', 'header'\n-or-\n"
-                    "the node classifier must be the name of a recognized HcNode (in snake_case)."
-                )
-        else:
-            self._handlers.update({node_classifier: handler})
+        """Instance-scoped counterpart of ``register``. See ``_route_registration``."""
+        self._route_registration(
+            node_classifier, handler, self._handlers, self._header_handlers, self._rule_handlers
+        )
 
 
     def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
@@ -692,21 +725,24 @@ def for_block_header(renderer: BaseRenderer, node: ForBlock, base_context: BaseR
     return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:"
 
 
-@BaseRenderer.register("sym:toggle_param_line")
-def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
+@BaseRenderer.register("calc_line:pre")
+def toggle_param_line(renderer: BaseRenderer, node: CalcLine, base_context: BRC) -> CalcLine:
+    """
+    A 'pre' rule on calc_line: decide whether the line is a "param line" (a bare
+    value assignment that collapses to ``target = value``, hiding the symbolic
+    and numeric-substitution columns). Runs before the calc_line handler reads
+    ``context.param_line``.
+    """
     context = base_context.current
-    if node.type not in ('calc_line',):
-        base_context.line_context.param_line = False
-    elif getattr(context, 'param_line', False) == True:
+    if getattr(context, 'param_line', False) == True:
         return node
+    if (
+        len(node.expression_tree) == 1
+        and isinstance(node.expression_tree[0], Constant)
+    ):
+        base_context.line_context.param_line = True
     else:
-        if (
-            len(node.expression_tree) == 1
-            and isinstance(node.expression_tree[0], Constant)
-        ):
-            base_context.line_context.param_line = True
-        else:
-            base_context.line_context.param_line = node.pars_nesting
+        base_context.line_context.param_line = node.pars_nesting
     return node
 
 
