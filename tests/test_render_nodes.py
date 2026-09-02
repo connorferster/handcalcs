@@ -22,6 +22,7 @@ from handcalcs.parsing.operator_nodes import (
     DivOp,
     PowOp,
     FloorOp,
+    ModuloOp,
     GtOp,
     GtEOp,
     LtOp,
@@ -34,6 +35,8 @@ from handcalcs.parsing.inline_nodes import (
     Compare,
     InlineComment,
     InlineCommand,
+    Comprehension,
+    ComprehensionChain,
 )
 from handcalcs.parsing.line_nodes import (
     Heading,
@@ -113,12 +116,22 @@ def test_collection_rendering(render, node, expected):
 # Attribute (no handler registered)
 # ---------------------------------------------------------------------------
 
-def test_attribute_has_no_handler_raises(render):
-    # Attribute is defined in nodes.py but no BaseRenderer handler is registered
-    # for it yet, so render_node raises NotImplementedError. Pinning current
-    # behavior; add/adjust when an 'attribute' handler is implemented.
-    with pytest.raises(NotImplementedError):
-        render(Attribute("math", "pi", 3.14159), current_mode="num")
+def test_attribute_symbolic_renders_namespace_and_identifier(render):
+    assert render(Attribute("math", "pi", 3.14159), current_mode="sym") == "math.pi"
+
+
+def test_attribute_numeric_renders_value(render):
+    assert render(Attribute("math", "pi", 3.14159), current_mode="num") == "3.1416"
+
+
+def test_attribute_main_namespace_suppressed(render):
+    assert render(Attribute("__main__", "pi", 3.14159), current_mode="sym") == "pi"
+
+
+def test_attribute_numeric_no_value_falls_back_to_symbolic(render):
+    # Attribute's default value is NoValue; with no captured value the numeric
+    # column falls back to the symbolic form.
+    assert render(Attribute("math", "pi"), current_mode="num") == "math.pi"
 
 
 # ---------------------------------------------------------------------------
@@ -220,12 +233,9 @@ def test_binary_operator_pre_and_post_wrap(render):
     assert render(node) == "(1+2)"
 
 
-def test_floor_op_has_no_handler_raises(render):
-    # FloorOp (and ModuloOp) are not registered in BaseRenderer. An unregistered
-    # node type is a programming error rather than something to stringify, so
-    # render_node raises NotImplementedError. If a handler is added, update this.
-    with pytest.raises(NotImplementedError):
-        render(FloorOp(left=Constant(1), right=Constant(2)))
+def test_floor_and_modulo_operators_render(render):
+    assert render(FloorOp(left=Constant(7), right=Constant(2))) == "7//2"
+    assert render(ModuloOp(left=Constant(7), right=Constant(2))) == "7%2"
 
 
 # ---------------------------------------------------------------------------
@@ -472,6 +482,62 @@ def test_elif_block_no_true_clause_message(render):
     assert render(node, param_line=False) == (
         "No conditions were satisfied within the if-elif block"
     )
+
+
+# ---------------------------------------------------------------------------
+# Comprehensions (best-guess rendering)
+# ---------------------------------------------------------------------------
+
+def _range_call():
+    return FunctionCall(
+        namespace=Name("__main__", "__main__"),
+        function_name=Name("range", "range"),
+        args=deque([Constant(3)]),
+    )
+
+
+def test_list_comprehension_renders(render):
+    node = ComprehensionChain(
+        _type="list",
+        assign=deque([MultOp(left=Name("i"), right=Constant(2))]),
+        comprehensions=deque([
+            Comprehension(
+                assigns=deque([Name("i")]),
+                iterator=deque([_range_call()]),
+                _is_async=False,
+            )
+        ]),
+    )
+    assert render(node, current_mode="sym") == "[i*2 for i in range(3)]"
+
+
+def test_dict_comprehension_renders(render):
+    node = ComprehensionChain(
+        _type="dict",
+        key=deque([Name("k")]),
+        value=deque([MultOp(left=Name("k"), right=Constant(2))]),
+        comprehensions=deque([
+            Comprehension(
+                assigns=deque([Name("k")]),
+                iterator=deque([_range_call()]),
+                _is_async=False,
+            )
+        ]),
+    )
+    assert render(node, current_mode="sym") == "{k: k*2 for k in range(3)}"
+
+
+# ---------------------------------------------------------------------------
+# ElseBlock
+# ---------------------------------------------------------------------------
+
+def test_else_block_renders_header_and_body(render):
+    node = ElseBlock(
+        lines=deque([
+            CalcLine(assigns=deque([Name("b", 2)]), expression_tree=deque([Constant(2)])),
+        ]),
+    )
+    assert render(node, param_line=False) == ["Otherwise:", [["b", "=", "2"]]]
 
 
 # ---------------------------------------------------------------------------

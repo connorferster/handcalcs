@@ -9,12 +9,14 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Constant,
+    Attribute,
     List,
     Dictionary,
     Tuple,
     Set,
-    
+
 )
+from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
     AddOp,
     MultOp,
@@ -36,7 +38,9 @@ from handcalcs.parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
     Compare,
-    InlineCommand
+    InlineCommand,
+    Comprehension,
+    ComprehensionChain,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -50,7 +54,8 @@ from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
     ElifBlock,
-    ForBlock
+    ForBlock,
+    FunctionBlock,
 )
 
 RenderHandler = Callable
@@ -409,6 +414,46 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
         )
 
+@BaseRenderer.register('attribute')
+def render_attribute(renderer: BaseRenderer, node: Attribute, base_context: BaseRenderContext) -> str:
+    """
+    Render an attribute access (e.g. ``math.pi``).
+
+    Mirrors ``render_name``: the symbolic form is ``namespace.identifier`` (the
+    ``__main__`` namespace is suppressed); the numeric form renders the captured
+    value, falling back to the symbolic form when no value was captured.
+    """
+    context = base_context.current
+    if not hasattr(context, 'current_mode'):
+        raise ContextKeyError(
+            f"Attempting to render the Attribute node while context does not have a 'current_mode' key.\n"
+            f"{context=}"
+        )
+    namespace = node.namespace
+    if namespace in ('', '__main__', None):
+        symbolic = node.identifier
+    else:
+        symbolic = f"{namespace}.{node.identifier}"
+    if context.current_mode == 'sym':
+        return symbolic
+    elif context.current_mode == 'num':
+        if isinstance(node.value, NoValue):
+            # No runtime value was captured; fall back to the symbolic form.
+            return symbolic
+        fc = context.format
+        try:
+            return renderer.render_node(node.value, base_context)
+        except (AttributeError, NotImplementedError):
+            try:
+                return f"{node.value:{fc}}"
+            except (ValueError, TypeError):
+                return f"{node.value}"
+    else:
+        raise ContextValueError(
+            f"The context.current_mode has an unrecognized value: {context.current_mode}"
+        )
+
+
 @BaseRenderer.register('add_op')
 def render_add_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
     return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
@@ -431,6 +476,16 @@ def render_div_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) ->
 
 @BaseRenderer.register('pow_op')
 def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+
+
+@BaseRenderer.register('floor_op')
+def render_floor_op(renderer: BR, node: FloorOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+
+
+@BaseRenderer.register('modulo_op')
+def render_modulo_op(renderer: BR, node: ModuloOp, base_context: BaseRenderContext) -> str:
     return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 @BaseRenderer.register('gt_op')
@@ -476,6 +531,49 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     else:
         rendered = f"{context.space}{function_name}({arg_str}){context.space}"
     return rendered
+
+
+@BaseRenderer.register('comprehension')
+def render_comprehension(renderer: BR, node: Comprehension, base_context: BaseRenderContext) -> str:
+    """
+    Render a single ``for ... in ...`` clause of a comprehension (best-guess).
+    """
+    targets = ", ".join(renderer.render(target, base_context) for target in node.assigns)
+    iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
+    prefix = "async for" if node._is_async else "for"
+    return f"{prefix} {targets} in{iterator}"
+
+
+@BaseRenderer.register('comprehension_chain')
+def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_context: BaseRenderContext) -> str:
+    """
+    Render a list/set/dict/generator comprehension (best-guess).
+
+    Comprehension internals are loop-scoped and have no substitutable runtime
+    value, so they are rendered symbolically in both the symbolic and numeric
+    columns; the surrounding brackets follow the comprehension kind.
+    """
+    prev_mode = getattr(base_context.line_context, 'current_mode', None)
+    base_context.line_context.current_mode = 'sym'
+    try:
+        if node._type == 'dict':
+            key = "".join(renderer.render(part, base_context) for part in node.key)
+            value = "".join(renderer.render(part, base_context) for part in node.value)
+            head = f"{key}: {value}"
+        else:
+            head = "".join(renderer.render(part, base_context) for part in node.assign)
+        clauses = " ".join(renderer.render(comp, base_context) for comp in node.comprehensions)
+        inner = f"{head} {clauses}".strip()
+    finally:
+        base_context.line_context.current_mode = prev_mode
+    brackets = {
+        'list': ('[', ']'),
+        'set': ('{', '}'),
+        'dict': ('{', '}'),
+        'generator': ('(', ')'),
+    }
+    opener, closer = brackets.get(node._type, ('[', ']'))
+    return f"{opener}{inner}{closer}"
 
 
 @BaseRenderer.register('comment_command')
@@ -647,7 +745,8 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: Base
     clauses: deque = node.lines
     context = base_context.current
     try:
-        true_clause: IfBlock = next(ib for ib in clauses if ib.is_true)
+        # Only IfBlock clauses carry ``is_true``; a trailing ElseBlock does not.
+        true_clause: IfBlock = next(ib for ib in clauses if getattr(ib, 'is_true', False))
     except StopIteration:
         if len(clauses) >= 1 and isinstance(clauses[-1], ElseBlock):
             true_clause: ElseBlock = clauses[-1]
@@ -704,6 +803,36 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRen
 @BaseRenderer.register('for_block')
 def render_for_block(renderer: BaseRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
     return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register('else_block')
+def render_else_block(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> list:
+    return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register('function_block')
+def render_function_block(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> list:
+    return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register("header:else_block")
+def else_block_header(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> str:
+    return "Otherwise:"
+
+
+@BaseRenderer.register("header:function_block")
+def function_block_header(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> str:
+    """Best-guess header for a symbolic function definition block."""
+    context = base_context.current
+    _ = context.space
+    base_context.line_context.current_mode = 'sym'
+    name_parts = [
+        renderer.render(part, base_context) if hasattr(part, 'type') else str(part)
+        for part in node.function_name
+    ]
+    name = "".join(name_parts)
+    params = ", ".join(str(param) for param in node.params)
+    return f"Evaluating{_}{name}({params}):"
 
 
 @BaseRenderer.register("header:if_block")
