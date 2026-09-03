@@ -9,12 +9,14 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Constant,
+    Attribute,
     List,
     Dictionary,
     Tuple,
     Set,
-    
+
 )
+from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
     AddOp,
     MultOp,
@@ -36,24 +38,46 @@ from handcalcs.parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
     Compare,
-    InlineCommand
+    InlineCommand,
+    Comprehension,
+    ComprehensionChain,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
     Import,
     CommentCommand,
-    MarkdownComment,
+    Heading,
     CommentLine
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
     ElifBlock,
-    ForBlock
+    ForBlock,
+    FunctionBlock,
 )
 
 RenderHandler = Callable
+
+# The rule sub-categories that may be registered against a particular node type,
+# in the order they execute within ``render_node``:
+#   pre  -> transform the node before it is rendered (any mode)
+#   sym  -> transform the node while ``context.current_mode == 'sym'``
+#   num  -> transform the node while ``context.current_mode == 'num'``
+#   post -> transform the rendered result (string or list of strings)
+RULE_CATEGORIES = ("pre", "sym", "num", "post")
+
+
+def _copy_rule_handlers(
+    src: dict[str, dict[str, list[Callable]]],
+) -> dict[str, dict[str, list[Callable]]]:
+    """Deep-ish copy of the ``{node_type: {category: [fn, ...]}}`` rule store."""
+    return {
+        node_type: {category: list(fns) for category, fns in categories.items()}
+        for node_type, categories in src.items()
+    }
+
 
 class ContextValueError(Exception):
     pass
@@ -112,28 +136,24 @@ class BaseRenderer:
     name: ClassVar[str] = 'base'
     node_handlers: ClassVar[dict[str, Callable]] = {}
     header_handlers: ClassVar[dict[str, Callable]] = {}
-    symbolic_rules: ClassVar[dict[str, Callable]] = {}
-    numeric_rules: ClassVar[dict[str, Callable]] = {}
-    root_pre_renderers: ClassVar[dict[str, Callable]] = {}
-    root_post_renderers: ClassVar[dict[str, Callable]] = {}
+    # Rules keyed by node type, then by category ('pre'/'sym'/'num'/'post'),
+    # each an ordered list executed in registration order. The node type is the
+    # master category and the pre/sym/num/post are the sub-categories (mirroring
+    # the 'header:{node_type}' block-header registration). The pseudo node type
+    # 'root' carries the sequence-level pre/post renderers.
+    rule_handlers: ClassVar[dict[str, dict[str, list[Callable]]]] = {}
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
         self._header_handlers: dict[str, Callable] = dict(self.header_handlers)
-        self._symbolic_rules: dict[str, Callable] = dict(self.symbolic_rules)
-        self._numeric_rules: dict[str, Callable] = dict(self.numeric_rules)
-        self._root_pre_renderers: dict[str, Callable] = dict(self.root_pre_renderers)
-        self._root_post_renderers: dict[str, Callable] = dict(self.root_post_renderers)
+        self._rule_handlers: dict[str, dict[str, list[Callable]]] = _copy_rule_handlers(self.rule_handlers)
 
 
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
         cls.node_handlers = dict(cls.node_handlers)
         cls.header_handlers = dict(cls.header_handlers)
-        cls.symbolic_rules = dict(cls.symbolic_rules)
-        cls.numeric_rules = dict(cls.numeric_rules)
-        cls.root_pre_renderers = dict(cls.root_pre_renderers)
-        cls.root_post_renderers = dict(cls.root_post_renderers)
+        cls.rule_handlers = _copy_rule_handlers(cls.rule_handlers)
 
     def create_context(self, **kwargs) -> RenderContext:
         return BaseRenderContext(RenderContext(**kwargs), RenderContext())
@@ -152,34 +172,96 @@ class BaseRenderer:
         return self.render_node(node, base_context)
 
 
-    def render_root(self, root: HcSequence, base_context: BaseRenderContext) -> str:
+    def render_root(self, root: HcSequence, base_context: BaseRenderContext) -> list:
         """
-        Render an HcSequence (root node) with the registered pre/post render callables.
+        Render an HcSequence (root node) into the master list.
+
+        The sequence-level pre/post renderers are registered against the pseudo
+        node type 'root' (i.e. 'root:pre' and 'root:post'); they run before and
+        after the sequence body and contribute leading/trailing items.
         """
-        parts = [pre(self, root, base_context) for pre in self._root_pre_renderers.values()]
+        root_rules = self._rule_handlers.get('root', {})
+        parts = [pre(self, root, base_context) for pre in root_rules.get('pre', [])]
         for node in root.sequence:
             parts.append(self.render(node, base_context))
         parts.extend(
-            [post(self, root, base_context) for post in self._root_post_renderers.values()]
+            post(self, root, base_context) for post in root_rules.get('post', [])
         )
         return parts
+
+    def join(self, tree: list, context: Optional[RenderContext] = None) -> str:
+        """
+        Join a rendered nested-list structure into final text.
+
+        This is the post-render pass that inserts the spacing, indentation and
+        newlines that the node handlers deliberately leave out:
+
+        - a string item is a whole line (heading, comment, block header);
+        - an all-string list is a rendered line whose components are joined by a
+          single space;
+        - a ``[header_string, body_list]`` list is a block: the header is a line
+          at the current depth and the body lines are rendered one level deeper.
+
+        Falsy items (``None``, ``""``, ``[]``) render nothing (they are
+        command/ignored lines), so they never produce a stray blank line.
+        """
+        if context is None:
+            context = RenderContext()
+        return "".join(self._join_items(tree, 0, context))
+
+    def _join_items(self, items: list, depth: int, context: RenderContext) -> list[str]:
+        lines: list[str] = []
+        for item in items:
+            lines.extend(self._join_item(item, depth, context))
+        return lines
+
+    def _join_item(self, item, depth: int, context: RenderContext) -> list[str]:
+        if not item:
+            return []
+        indent = context.indent * depth
+        nl = context.newline
+        if isinstance(item, str):
+            return [f"{indent}{item}{nl}"]
+        # A block is ``[header_string, body_list]`` -- detected by its body being
+        # a list. An all-string list is a rendered line.
+        if isinstance(item[-1], list):
+            header, body = item[0], item[-1]
+            lines = [f"{indent}{header}{nl}"]
+            lines.extend(self._join_items(body, depth + 1, context))
+            return lines
+        return [f"{indent}{context.space.join(item)}{nl}"]
 
     def render_node(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
         Render one node with an existing context.
+
+        Rules registered against this node type run in category order: 'pre'
+        (always), then 'sym' or 'num' gated on ``context.current_mode``, then the
+        node handler, then 'post' on the rendered result. Multiple rules in a
+        category run in registration order.
         """
-        for rule in self._symbolic_rules.values():
-            node = rule(node, base_context)
-        for rule in self._numeric_rules.values():
-            node = rule(node, base_context)
-        context = base_context.current
+        node_rules = self._rule_handlers.get(node.type, {})
+        current_mode = getattr(base_context.current, 'current_mode', None)
+
+        for rule in node_rules.get('pre', []):
+            node = rule(self, node, base_context)
+        if current_mode == 'sym':
+            for rule in node_rules.get('sym', []):
+                node = rule(self, node, base_context)
+        elif current_mode == 'num':
+            for rule in node_rules.get('num', []):
+                node = rule(self, node, base_context)
+
         handler = self._handlers.get(node.type)
         if handler is None:
             raise NotImplementedError(
                 f"A handler for node type = '{node.type}' has not been registered in this renderer."
             )
-            # return self.render_unknown(node, base_context)
-        return handler(self, node, base_context)
+        rendered = handler(self, node, base_context)
+
+        for rule in node_rules.get('post', []):
+            rendered = rule(self, rendered, node, base_context)
+        return rendered
 
     def render_header(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
@@ -194,62 +276,60 @@ class BaseRenderer:
             return ""
         return handler(self, node, base_context)
 
+    @staticmethod
+    def _route_registration(
+        node_classifier: str,
+        handler: Callable,
+        node_handlers: dict,
+        header_handlers: dict,
+        rule_handlers: dict,
+    ) -> None:
+        """
+        Route a registration to the right store based on its classifier:
+
+        - ``header:{node_type}`` -> the block-header handler for that node type;
+        - ``{node_type}:{category}`` where category is one of pre/sym/num/post ->
+          appended to that node type's ordered rule list for that category
+          (the pseudo node type 'root' carries the sequence pre/post renderers);
+        - a bare name -> the node handler for that node type.
+        """
+        if ":" in node_classifier and node_classifier.count(":") == 1:
+            left, right = node_classifier.split(":")
+            if left == "header":
+                # 'header:{node_type}' registers the header handler for a block
+                # node, keyed by the node's type (e.g. 'if_block').
+                header_handlers[right] = handler
+            elif right in RULE_CATEGORIES:
+                rule_handlers.setdefault(left, {}).setdefault(right, []).append(handler)
+            else:
+                raise NotImplementedError(
+                    f"Cannot register a method for {node_classifier}.\n"
+                    "Node classifiers must be either in the form of "
+                    "'{node_type}:{category}' where {category} is one of: "
+                    f"{', '.join(RULE_CATEGORIES)}, or 'header:{{node_type}}'\n-or-\n"
+                    "the node classifier must be the name of a recognized HcNode (in snake_case)."
+                )
+        else:
+            node_handlers[node_classifier] = handler
+
     @classmethod
     def register(cls, node_classifier: str) -> Callable[[Callable], Callable]:
         """
-        Register a render handler for a given node classifier.
+        Register a render handler (or a pre/sym/num/post/header rule) for a given
+        node classifier, at the class level. See ``_route_registration``.
         """
         def decorator(handler: Callable) -> Callable:
-            if ":" in node_classifier and node_classifier.count(":") == 1:
-                node_name, callable_identifier = node_classifier.split(":")
-
-                if node_name == "pre":
-                    cls.root_pre_renderers.update({callable_identifier: handler})
-                elif node_name == "post":
-                    cls.root_post_renderers.update({callable_identifier: handler})
-                elif node_name == "sym":
-                    cls.symbolic_rules.update({callable_identifier: handler})
-                elif node_name == "num":
-                    cls.numeric_rules.update({callable_identifier: handler})
-                elif node_name == "header":
-                    # 'header:{node_type}' registers the header handler for a
-                    # block node, keyed by the node's type (e.g. 'if_block').
-                    cls.header_handlers.update({callable_identifier: handler})
-                else:
-                    raise NotImplementedError(
-                        f"Cannot register a method for {node_classifier}.\n"
-                        "Node classifiers must be either in the form of {prefix}:{unique_identifier} "
-                        "where {prefix} is one of: 'pre', 'post', 'sym', 'num', 'header'\n-or-\n"
-                        "the node classifier must be the name of a recognized HcNode (in snake_case)."
-                    )
-            else:
-                cls.node_handlers.update({node_classifier: handler})
+            cls._route_registration(
+                node_classifier, handler, cls.node_handlers, cls.header_handlers, cls.rule_handlers
+            )
             return handler
         return decorator
 
     def register_handler(self, node_classifier: str, handler: RenderHandler) -> None:
-    
-        if ":" in node_classifier and node_classifier.count(":") == 1:
-            node_name, callable_identifier = node_classifier.split(":")
-            if node_name == "pre":
-                self._root_pre_renderers.update({callable_identifier: handler})
-            elif node_name == "post":
-                self._root_post_renderers.update({callable_identifier: handler})
-            elif node_name == "sym":
-                self._symbolic_rules.update({callable_identifier: handler})
-            elif node_name == "num":
-                self._numeric_rules.update({callable_identifier: handler})
-            elif node_name == "header":
-                self._header_handlers.update({callable_identifier: handler})
-            else:
-                raise NotImplementedError(
-                    f"Cannot register a method for {node_classifier}.\n"
-                    "Node classifiers must be either in the form of {prefix}:{unique_identifier} "
-                    "where {prefix} is one of: 'pre', 'post', 'sym', 'num', 'header'\n-or-\n"
-                    "the node classifier must be the name of a recognized HcNode (in snake_case)."
-                )
-        else:
-            self._handlers.update({node_classifier: handler})
+        """Instance-scoped counterpart of ``register``. See ``_route_registration``."""
+        self._route_registration(
+            node_classifier, handler, self._handlers, self._header_handlers, self._rule_handlers
+        )
 
 
     def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
@@ -278,32 +358,40 @@ def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRe
 
 @BaseRenderer.register('list')
 def render_list(renderer: BaseRenderer, node: List, base_context: BaseRenderContext) -> Any:
+    context = base_context.current
+    _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"[{', '.join(rendered_elems)}]"
+    return f"[{f',{_}'.join(rendered_elems)}]"
 
 @BaseRenderer.register('set')
 def render_list(renderer: BaseRenderer, node: Set, base_context: BaseRenderContext) -> Any:
+    context = base_context.current
+    _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"{{{', '.join(rendered_elems)}}}"
+    return f"{{{f',{_}'.join(rendered_elems)}}}"
 
 @BaseRenderer.register('dictionary')
 def render_list(renderer: BaseRenderer, node: Dictionary, base_context: BaseRenderContext) -> Any:
     rendered_keys = [renderer.render(elem, base_context) for elem in node.keys]
     rendered_values = [renderer.render(elem, base_context) for elem in node.values]
+    context = base_context.current
+    _ = context.space
     rkv = zip(rendered_keys, rendered_values)
-    items = [": ".join(item) for item in rkv]
-    return f"{{{', '.join(items)}}}"
+    items = [f":{_}".join(item) for item in rkv]
+    return f"{{{f',{_}'.join(items)}}}"
 
 @BaseRenderer.register('tuple')
 def render_list(renderer: BaseRenderer, node: Tuple, base_context: BaseRenderContext) -> Any:
+    context = base_context.current
+    _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"({', '.join(rendered_elems)})"
+    return f"({f',{_}'.join(rendered_elems)})"
 
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    _ = context.space
-    return f"{_}({node.content})"
+    # A component atom: the separating space before it is supplied by the join
+    # step (which joins a line's components with a single space).
+    return f"({node.content})"
 
 @BaseRenderer.register('name')
 def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderContext) -> str:
@@ -318,10 +406,7 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
     elif context.current_mode == 'num':
 
         fc = context.format
-        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray). A Name
-        # bound to a list raises TypeError ("unsupported format string passed to
-        # list.__format__") here, since only ValueError is caught. Decide how
-        # such values should render numerically (element-wise, repr, etc.).
+        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray).
         try:
             return renderer.render_node(node.value, base_context)
         except (AttributeError, NotImplementedError):
@@ -333,6 +418,46 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
         )
+
+@BaseRenderer.register('attribute')
+def render_attribute(renderer: BaseRenderer, node: Attribute, base_context: BaseRenderContext) -> str:
+    """
+    Render an attribute access (e.g. ``math.pi``).
+
+    Mirrors ``render_name``: the symbolic form is ``namespace.identifier`` (the
+    ``__main__`` namespace is suppressed); the numeric form renders the captured
+    value, falling back to the symbolic form when no value was captured.
+    """
+    context = base_context.current
+    if not hasattr(context, 'current_mode'):
+        raise ContextKeyError(
+            f"Attempting to render the Attribute node while context does not have a 'current_mode' key.\n"
+            f"{context=}"
+        )
+    namespace = node.namespace
+    if namespace in ('', '__main__', None):
+        symbolic = node.identifier
+    else:
+        symbolic = f"{namespace}.{node.identifier}"
+    if context.current_mode == 'sym':
+        return symbolic
+    elif context.current_mode == 'num':
+        if isinstance(node.value, NoValue):
+            # No runtime value was captured; fall back to the symbolic form.
+            return symbolic
+        fc = context.format
+        try:
+            return renderer.render_node(node.value, base_context)
+        except (AttributeError, NotImplementedError):
+            try:
+                return f"{node.value:{fc}}"
+            except (ValueError, TypeError):
+                return f"{node.value}"
+    else:
+        raise ContextValueError(
+            f"The context.current_mode has an unrecognized value: {context.current_mode}"
+        )
+
 
 @BaseRenderer.register('add_op')
 def render_add_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
@@ -356,6 +481,16 @@ def render_div_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) ->
 
 @BaseRenderer.register('pow_op')
 def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+
+
+@BaseRenderer.register('floor_op')
+def render_floor_op(renderer: BR, node: FloorOp, base_context: BaseRenderContext) -> str:
+    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+
+
+@BaseRenderer.register('modulo_op')
+def render_modulo_op(renderer: BR, node: ModuloOp, base_context: BaseRenderContext) -> str:
     return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 @BaseRenderer.register('gt_op')
@@ -403,20 +538,67 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     return rendered
 
 
+@BaseRenderer.register('comprehension')
+def render_comprehension(renderer: BR, node: Comprehension, base_context: BaseRenderContext) -> str:
+    """
+    Render a single ``for ... in ...`` clause of a comprehension (best-guess).
+    """
+    targets = ", ".join(renderer.render(target, base_context) for target in node.assigns)
+    iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
+    prefix = "async for" if node._is_async else "for"
+    return f"{prefix} {targets} in{iterator}"
+
+
+@BaseRenderer.register('comprehension_chain')
+def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_context: BaseRenderContext) -> str:
+    """
+    Render a list/set/dict/generator comprehension (best-guess).
+
+    Comprehension internals are loop-scoped and have no substitutable runtime
+    value, so they are rendered symbolically in both the symbolic and numeric
+    columns; the surrounding brackets follow the comprehension kind.
+    """
+    prev_mode = getattr(base_context.line_context, 'current_mode', None)
+    base_context.line_context.current_mode = 'sym'
+    context = base_context.current
+    _ = context.space
+    try:
+        if node._type == 'dict':
+            key = "".join(renderer.render(part, base_context) for part in node.key)
+            value = "".join(renderer.render(part, base_context) for part in node.value)
+            head = f"{key}: {value}"
+        else:
+            head = "".join(renderer.render(part, base_context) for part in node.assign)
+        clauses = f"{_}".join(renderer.render(comp, base_context) for comp in node.comprehensions)
+        inner = f"{head} {clauses}".strip()
+    finally:
+        base_context.line_context.current_mode = prev_mode
+    brackets = {
+        'list': ('[', ']'),
+        'set': ('{', '}'),
+        'dict': ('{', '}'),
+        'generator': ('(', ')'),
+    }
+    opener, closer = brackets.get(node._type, ('[', ']'))
+    return f"{opener}{inner}{closer}"
+
+
 @BaseRenderer.register('comment_command')
 def render_comment_command(renderer: BR, node: CommentCommand, base_context: BaseRenderContext) -> str:
     base_context.global_context = base_context.global_context | RenderContext(**node.commands)
     return ''
 
 @BaseRenderer.register('comment_line')
-def render_comment_command(renderer: BR, node: CommentLine, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    nl = context.newline
-    return f"{node.content}{nl}"
-
-@BaseRenderer.register('markdown_comment')
-def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
+def render_comment_line(renderer: BR, node: CommentLine, base_context: BaseRenderContext) -> str:
+    # A standalone comment renders as a plain-text line (a single string in the
+    # master list). The trailing newline is inserted by the join step, not here.
     return node.content
+
+@BaseRenderer.register('heading')
+def render_heading(renderer: BR, node: Heading, base_context: BaseRenderContext) -> str:
+    # A heading renders as a single markdown string in the master list, its
+    # markdown level reproduced from the node's ``heading_level``.
+    return f"{'#' * node.heading_level} {node.content}"
 
 
 @BaseRenderer.register('inline_command')
@@ -426,88 +608,88 @@ def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseR
 
 
 @BaseRenderer.register('import')
-def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -> str:
-    context = base_context.current
-    _ = context.space
-    nl = context.newline
+def render_import(renderer: BR, node: Import, base_context: BaseRenderContext) -> list[str]:
+    # An import renders as a list of string components; the join step supplies
+    # the single spaces between them.
     names = [
-        f"{name.identifier}{_}as{_}{name.value}" if name.value is not None
+        f"{name.identifier} as {name.value}" if name.value is not None
         else f"{name.identifier}"
         for name in node.names
     ]
-    rendered_names = f",{_}".join(names)
+    rendered_names = ", ".join(names)
+    components = ["[Python import]:"]
     if node.import_from:
         module = node.import_from_module
-        level = node.import_from_level
-        dots = "." * level
+        dots = "." * (node.import_from_level or 0)
+        components.append("from")
         if module is not None:
-            rendered = f"[Python{_}import]:{_}from{_}{dots}{module}{_}import{_}{rendered_names}"
-        else:
-            rendered = f"[Python{_}import]:{_}from{_}{dots}{_}import{_}{rendered_names}"
+            components.append(f"{dots}{module}")
+        elif dots:
+            components.append(dots)
+        components.append("import")
+        components.append(rendered_names)
     else:
-        rendered = f"[Python{_}import]:{_}import{_}{rendered_names}"
-    rendered = rendered + f"{nl}{nl}"
-    return rendered
-        
+        components.append("import")
+        components.append(rendered_names)
+    return components
+
 
 @BaseRenderer.register('calc_line')
-def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> str:
+def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRenderContext) -> list[str] | str:
+    """
+    Render a CalcLine as a list of string components (columns interleaved with
+    the equality symbol), e.g. ``["c", "=", "a+2", "=", "3+2", "=", "5"]``.
+
+    Spaces, indent and the trailing newline are NOT embedded here; the join step
+    inserts them. The columns present depend on ``context.mode``:
+    ``ass`` (assignment target), ``sym`` (symbolic), ``num`` (numeric
+    substitution) and ``res`` (result); ``full`` shows all of them. A param line
+    (a bare value assignment) collapses to ``target = value``.
+    """
     comment_render = None
-    # TODO: Remove param_line from base implementation and move to PTRC
-    #   - Break out rendering code into subroutines
-    #   - Make sure you no longer need to maintain retrieving context before parsing other nodes
-    # Retrieve param_line immediately before the next .render method is called because it will change
-    # the state of the current context to the context of the next node.
+    # The comment is rendered first because a command comment (e.g. ``# hc: -f``)
+    # mutates the context that the expression columns below are rendered under.
     context = base_context.current
     param_line_pre_comment = getattr(context, 'param_line', False)
     if node.comment is not None:
         comment_render = renderer.render(node.comment, base_context)
-    # Update the context from teh comment render
     context = base_context.current
+    _ = context.space
     param_line_post_comment = getattr(context, 'param_line', False)
-    param_line = param_line_pre_comment or param_line_post_comment # 
+    param_line = param_line_pre_comment or param_line_post_comment
     if getattr(context, 'ignore', False):
         base_context.line_context.ignore = False
         return ''
-    rendered = f"{context.indent * node.level}"
+
+    columns: deque = deque([])
     if context.mode == 'full' or 'ass' in context.mode:
         base_context.line_context.current_mode = 'sym'
-        assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
-        assigns = ", ".join([name for name in assign_nodes])
-        assign_portion = f"{assigns}"
-        rendered += assign_portion
+        assign_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
+        columns.append(",{_}".join(assign_nodes))
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
             base_context.line_context.current_mode = 'sym'
-            symbolic = deque([])
-            for subnode in node.expression_tree:
-                symbolic.append(renderer.render(subnode, base_context))
-            symbolic = "".join(symbolic)
-            symbolic_portion = f"{context.space}{context.equality}{context.space}{symbolic}"
-            rendered += symbolic_portion
+            symbolic = "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
+            columns.append(symbolic)
         if context.mode == "full" or "num" in context.mode:
             base_context.line_context.current_mode = "num"
-            numeric = deque([])
-            for subnode in node.expression_tree:
-                numeric.append(renderer.render(subnode, base_context))
-            numeric = "".join(numeric)
-            numeric_portion = f"{context.space}{context.equality}{context.space}{numeric}"
-            rendered += numeric_portion
+            numeric = "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
+            columns.append(numeric)
     if context.mode == "full" or "res" in context.mode:
         base_context.line_context.current_mode = "num"
-        assign_nodes = deque([renderer.render(subnode, base_context) for subnode in node.assigns])
-        results = deque([val for val in assign_nodes])
-        for rule in renderer.numeric_rules:
-            for idx, result in enumerate(results):
-                results[idx] = rule(result, base_context)
-        result_portion = f',{context.space}'.join(results)
-        result_portion = f"{context.space}{context.equality}{context.space}{result_portion}"
-        rendered += result_portion
-    if comment_render is not None:
-        rendered += comment_render
-    ready_for_next_line = f"{rendered}{context.newline}"
-    context.line_context = RenderContext() # Clear any line-specific context
-    return ready_for_next_line
+        result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
+        columns.append(f",{_}".join(result_nodes))
+
+    components: deque = deque([])
+    for idx, column in enumerate(columns):
+        if idx > 0:
+            components.append(context.equality)
+        components.append(column)
+    if comment_render:
+        components.append(comment_render)
+
+    base_context.line_context = RenderContext()  # Clear any line-specific context
+    return list(components)
 
 
 @BaseRenderer.register('expr_line')
@@ -529,32 +711,41 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
       trailing equals and no result.
     """
     context = base_context.current
-    indent = f"{context.indent * node.level}"
 
     # A bare string-literal statement (e.g. a module or block docstring) is a
     # single Constant holding a str; render it as a plain line, not a calc.
     tree = node.expression_tree
     if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
-        return f"{indent}{tree[0].value}{context.newline}"
+        line = [tree[0].value]
+        if node.comment is not None:
+            comment_render = renderer.render(node.comment, base_context)
+            if comment_render:
+                line.append(comment_render)
+        return line
 
     def render_tree(mode: str) -> str:
         base_context.line_context.current_mode = mode
         return "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
 
-    portions = deque([])
+    columns = deque([])
     if context.mode == 'full' or 'sym' in context.mode:
-        portions.append(render_tree('sym'))
+        columns.append(render_tree('sym'))
     # A return statement has no single runtime value; omit numeric substitution.
     if not node.return_expr and (context.mode == 'full' or 'num' in context.mode):
-        portions.append(render_tree('num'))
+        columns.append(render_tree('num'))
 
-    joiner = f"{context.space}{context.equality}{context.space}"
-    rendered = f"{indent}{joiner.join(portions)}"
+    components = deque([])
+    for idx, column in enumerate(columns):
+        if idx > 0:
+            components.append(context.equality)
+        components.append(column)
 
     if node.comment is not None:
-        rendered += renderer.render(node.comment, base_context)
+        comment_render = renderer.render(node.comment, base_context)
+        if comment_render:
+            components.append(comment_render)
 
-    return f"{rendered}{context.newline}"
+    return list(components)
 
 
 @BaseRenderer.register('elif_block')
@@ -562,7 +753,8 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: Base
     clauses: deque = node.lines
     context = base_context.current
     try:
-        true_clause: IfBlock = next(ib for ib in clauses if ib.is_true)
+        # Only IfBlock clauses carry ``is_true``; a trailing ElseBlock does not.
+        true_clause: IfBlock = next(ib for ib in clauses if getattr(ib, 'is_true', False))
     except StopIteration:
         if len(clauses) >= 1 and isinstance(clauses[-1], ElseBlock):
             true_clause: ElseBlock = clauses[-1]
@@ -595,24 +787,20 @@ def render_block_body(
     renderer: BaseRenderer,
     node: HcNode,
     base_context: BaseRenderContext,
-) -> str:
+) -> list:
     """
-    Render a block's header line followed by its indented body lines.
+    Render a block as ``[header_string, body_list]``: the header line as a
+    string (the first element), followed by the block's body lines gathered
+    into their own nested sublist. Indentation is applied by the join step,
+    according to nesting depth, not embedded here.
 
     The header is produced by the handler registered under 'header:{node.type}'
     (empty string if none is registered), so a renderer customizes a block's
     intro line simply by registering its own 'header:...' handler.
     """
-    context = base_context.current
     header = renderer.render_header(node, base_context)
-
-    # Rendered lines already self-terminate with a newline, so concatenate them
-    # directly; joining on newline would insert a blank line between each.
-    lines_acc = [renderer.render(line, base_context) for line in node.lines]
-    lines = "".join(lines_acc)
-
-    block_header = f"{context.indent * node.level}{header}"
-    return f"{block_header}\n{lines}"
+    body = [renderer.render(line, base_context) for line in node.lines]
+    return [header, body]
 
 
 @BaseRenderer.register('if_block')
@@ -623,6 +811,36 @@ def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRen
 @BaseRenderer.register('for_block')
 def render_for_block(renderer: BaseRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
     return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register('else_block')
+def render_else_block(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> list:
+    return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register('function_block')
+def render_function_block(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> list:
+    return render_block_body(renderer, node, base_context)
+
+
+@BaseRenderer.register("header:else_block")
+def else_block_header(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> str:
+    return "Otherwise:"
+
+
+@BaseRenderer.register("header:function_block")
+def function_block_header(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> str:
+    """Best-guess header for a symbolic function definition block."""
+    context = base_context.current
+    _ = context.space
+    base_context.line_context.current_mode = 'sym'
+    name_parts = [
+        renderer.render(part, base_context) if hasattr(part, 'type') else str(part)
+        for part in node.function_name
+    ]
+    name = "".join(name_parts)
+    params = f",{_}".join(str(param) for param in node.params)
+    return f"Evaluating{_}{name}({params}):"
 
 
 @BaseRenderer.register("header:if_block")
@@ -644,21 +862,24 @@ def for_block_header(renderer: BaseRenderer, node: ForBlock, base_context: BaseR
     return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:"
 
 
-@BaseRenderer.register("sym:toggle_param_line")
-def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
+@BaseRenderer.register("calc_line:pre")
+def toggle_param_line(renderer: BaseRenderer, node: CalcLine, base_context: BRC) -> CalcLine:
+    """
+    A 'pre' rule on calc_line: decide whether the line is a "param line" (a bare
+    value assignment that collapses to ``target = value``, hiding the symbolic
+    and numeric-substitution columns). Runs before the calc_line handler reads
+    ``context.param_line``.
+    """
     context = base_context.current
-    if node.type not in ('calc_line',):
-        base_context.line_context.param_line = False
-    elif getattr(context, 'param_line', False) == True:
+    if getattr(context, 'param_line', False) == True:
         return node
+    if (
+        len(node.expression_tree) == 1
+        and isinstance(node.expression_tree[0], Constant)
+    ):
+        base_context.line_context.param_line = True
     else:
-        if (
-            len(node.expression_tree) == 1
-            and isinstance(node.expression_tree[0], Constant)
-        ):
-            base_context.line_context.param_line = True
-        else:
-            base_context.line_context.param_line = node.pars_nesting
+        base_context.line_context.param_line = node.pars_nesting
     return node
 
 

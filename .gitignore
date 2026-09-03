@@ -147,3 +147,5 @@ cython_debug/
 
 # VSCode
 .vscode/
+joblist.md
+src/handcalcs/renderers/example_output.py

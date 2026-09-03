@@ -12,7 +12,7 @@ from handcalcs.parsing.line_nodes import (
     ExprLine,
     CommentLine,
     CommentCommand,
-    MarkdownComment,
+    Heading,
     Import,
 )
 
@@ -1524,7 +1524,7 @@ else:
 
 
 def test_comment_lines():
-    # Covers the three standalone comment-line node types (MarkdownComment,
+    # Covers the three standalone comment-line node types (Heading,
     # CommentCommand, CommentLine) and the two inline comment types attached
     # to a CalcLine (InlineComment, InlineCommand), plus their ordering. An
     # inline comment must stay on its CalcLine, not become a separate line node.
@@ -1538,8 +1538,9 @@ c = b + 1.6578468413515 # hc: -f 5E
 """
     basic_parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
     assert basic_parser(source) == deque([
-            MarkdownComment(
-                content='# A heading'
+            Heading(
+                content='A heading',
+                heading_level=2,
             ),
             CommentCommand(
                 commands={'decimals': 2}

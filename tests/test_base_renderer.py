@@ -36,6 +36,41 @@ def test_render_node_dispatches_by_type(render):
     assert render(Constant(4)) == "4"
 
 
+# ---------------------------------------------------------------------------
+# join: the post-render pass that inserts spacing, indent and newlines
+# ---------------------------------------------------------------------------
+
+def test_join_strings_and_component_lines(renderer):
+    # A string is a whole line; an all-string list is a line whose components
+    # are joined by a single space. Each line self-terminates with a newline.
+    tree = ["A heading", ["c", "=", "a+2", "=", "5"]]
+    assert renderer.join(tree) == "A heading\nc = a+2 = 5\n"
+
+
+def test_join_indents_block_body_by_depth(renderer):
+    # A [header, body] block renders the header at the current depth and its
+    # body one indent level deeper; nesting compounds the indent. The tree is a
+    # root list containing one block (as render_root produces).
+    tree = [
+        ["Since x:", [
+            ["a", "=", "2"],
+            ["Inner:", [["b", "=", "3"]]],
+        ]],
+    ]
+    assert renderer.join(tree) == (
+        "Since x:\n"
+        "    a = 2\n"
+        "    Inner:\n"
+        "        b = 3\n"
+    )
+
+
+def test_join_skips_falsy_items(renderer):
+    # Command/ignored lines render to falsy values and must not emit blank lines.
+    tree = ["kept", "", None, [], ["x", "=", "1"]]
+    assert renderer.join(tree) == "kept\nx = 1\n"
+
+
 def test_unknown_node_type_raises_not_implemented(render):
     # A node whose ``type`` has no registered handler is a programming error,
     # not something to silently stringify: render_node raises NotImplementedError.
@@ -88,18 +123,27 @@ def test_subclass_gets_independent_handler_copies():
 # Classifier parsing in register_handler
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize(
-    "prefix,target_attr",
-    [
-        ("pre", "_root_pre_renderers"),
-        ("post", "_root_post_renderers"),
-        ("sym", "_symbolic_rules"),
-        ("num", "_numeric_rules"),
-    ],
-)
-def test_register_handler_routes_prefixes(renderer, prefix, target_attr):
-    renderer.register_handler(f"{prefix}:thing", lambda *a: None)
-    assert "thing" in getattr(renderer, target_attr)
+@pytest.mark.parametrize("category", ["pre", "sym", "num", "post"])
+def test_register_handler_routes_categories(renderer, category):
+    # A '{node_type}:{category}' classifier appends to that node type's ordered
+    # rule list for the category.
+    renderer.register_handler(f"faketype:{category}", lambda *a: None)
+    assert category in renderer._rule_handlers.get("faketype", {})
+    assert len(renderer._rule_handlers["faketype"][category]) == 1
+
+
+def test_register_handler_multiple_rules_preserve_order(renderer):
+    # Multiple rules registered to one node type/category run in registration
+    # order.
+    renderer.register_handler("faketype:sym", lambda *a: "first")
+    renderer.register_handler("faketype:sym", lambda *a: "second")
+    rules = renderer._rule_handlers["faketype"]["sym"]
+    assert [r(None, None, None) for r in rules] == ["first", "second"]
+
+
+def test_register_handler_header_still_routes(renderer):
+    renderer.register_handler("header:if_block", lambda *a: "hdr")
+    assert "if_block" in renderer._header_handlers
 
 
 def test_register_handler_bare_name_is_node_handler(renderer):
@@ -107,13 +151,13 @@ def test_register_handler_bare_name_is_node_handler(renderer):
     assert "some_node" in renderer._handlers
 
 
-def test_register_handler_unknown_prefix_raises(renderer):
+def test_register_handler_unknown_category_raises(renderer):
     with pytest.raises(NotImplementedError):
-        renderer.register_handler("bogus:thing", lambda *a: None)
+        renderer.register_handler("faketype:thing", lambda *a: None)
 
 
 def test_register_handler_two_colons_treated_as_node_name(renderer):
-    # Only a single colon triggers prefix routing; otherwise it is a node name.
+    # Only a single colon triggers category routing; otherwise it is a node name.
     renderer.register_handler("a:b:c", lambda *a: None)
     assert "a:b:c" in renderer._handlers
 
@@ -148,8 +192,10 @@ def test_render_context_union_merges_fields():
 # ---------------------------------------------------------------------------
 
 def test_root_pre_and_post_renderers_wrap_sequence(renderer):
-    renderer.register_handler("pre:banner", lambda rn, root, ctx: "PRE")
-    renderer.register_handler("post:footer", lambda rn, root, ctx: "POST")
+    # The sequence-level pre/post renderers register against the pseudo node
+    # type 'root'.
+    renderer.register_handler("root:pre", lambda rn, root, ctx: "PRE")
+    renderer.register_handler("root:post", lambda rn, root, ctx: "POST")
     root = HcSequence(deque([Constant(1)]))
     parts = renderer.render(root)
     assert parts[0] == "PRE"
@@ -158,16 +204,47 @@ def test_root_pre_and_post_renderers_wrap_sequence(renderer):
 
 
 def test_instance_registered_sym_rule_is_applied(renderer):
+    # A 'sym' rule on a node type fires only while current_mode == 'sym'.
     seen = []
 
-    def spy(node, base_context):
+    def spy(rn, node, base_context):
         seen.append(node.type)
         return node
 
-    renderer.register_handler("sym:spy", spy)
+    renderer.register_handler("constant:sym", spy)
     base = BaseRenderContext(
         RenderContext(mode="full", format_code=".5g"),
         RenderContext(current_mode="sym"),
     )
     renderer.render(Constant(1), base)
     assert seen == ["constant"]
+
+
+def test_registered_num_rule_only_fires_in_num_mode(renderer):
+    # A 'num' rule does not fire while current_mode == 'sym'.
+    seen = []
+
+    def spy(rn, node, base_context):
+        seen.append(node.type)
+        return node
+
+    renderer.register_handler("constant:num", spy)
+    sym_ctx = BaseRenderContext(
+        RenderContext(mode="full", format_code=".5g"),
+        RenderContext(current_mode="sym"),
+    )
+    renderer.render(Constant(1), sym_ctx)
+    assert seen == []
+
+    num_ctx = BaseRenderContext(
+        RenderContext(mode="full", format_code=".5g"),
+        RenderContext(current_mode="num"),
+    )
+    renderer.render(Constant(1), num_ctx)
+    assert seen == ["constant"]
+
+
+def test_registered_post_rule_transforms_rendered_output(renderer):
+    # A 'post' rule receives the rendered result and returns a replacement.
+    renderer.register_handler("constant:post", lambda rn, rendered, node, ctx: f"[{rendered}]")
+    assert renderer.render(Constant(4)) == "[4]"

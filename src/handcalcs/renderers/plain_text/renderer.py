@@ -62,13 +62,14 @@ BRC = BaseRenderContext
 
 ## SWAP RULES
 
-@PlainTextRenderer.register("sym:swap_greeks")
-def swap_greeks(node: Name, base_base_context:BRC) -> HcNode:
+@PlainTextRenderer.register("name:sym")
+def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     """
-    Swaps out any greek substrings or unicode symbols
-    """
+    Swaps out any greek substrings or unicode symbols in a Name's identifier.
 
-    if not isinstance(node, Name): return node
+    Registered as a 'sym' rule on the Name node: the identifier is only shown in
+    symbolic mode (numeric mode renders the Name's value instead).
+    """
     GREEK_LOWER = {
         "alpha": "α",
         "beta": "β",
@@ -141,13 +142,24 @@ def swap_greeks(node: Name, base_base_context:BRC) -> HcNode:
     return node
     
     
-@PlainTextRenderer.register("sym:swap_py_operators")
-def swap_py_operators(node: HcBinOp, base_context:BRC) -> HcBinOp:
+@PlainTextRenderer.register("mult_op:pre")
+@PlainTextRenderer.register("pow_op:pre")
+@PlainTextRenderer.register("div_op:pre")
+@PlainTextRenderer.register("floor_op:pre")
+@PlainTextRenderer.register("add_op:pre")
+@PlainTextRenderer.register("sub_op:pre")
+def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinOp:
+    """
+    Rewrite a binary operator's display symbol/pre/post to the plain-text form.
+
+    Registered as a 'pre' rule on each arithmetic operator node: the swap is
+    mode-independent (the same symbol is shown in both the symbolic and numeric
+    columns), so it must run before rendering regardless of mode. The mutation
+    is idempotent, so re-running it on the second (numeric) pass is harmless.
+    """
     context = base_context.current
     _ = context.space
-    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
-        return node
-    elif node.type == 'mult_op':
+    if node.type == 'mult_op':
         node.symbol = ')('
         node.pre = '('
         node.post = ')'
@@ -205,9 +217,15 @@ def swap_py_operators(node: HcBinOp, base_context:BRC) -> HcBinOp:
         return node
 
 
-@PlainTextRenderer.register("sym:swap_sqrt_symbol")
-def swap_sqrt_symbol(node: FunctionCall, base_context:BRC) -> FunctionCall:
-    if node.type not in ('function_call',): return node
+@PlainTextRenderer.register("function_call:pre")
+def swap_sqrt_symbol(renderer: PTR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+    """
+    Swap a ``sqrt(...)`` call's function name for the '√' symbol.
+
+    Registered as a 'pre' rule on function_call: the function name is shown in
+    both symbolic and numeric columns, so the swap must be mode-independent. The
+    mutation is idempotent across the two render passes.
+    """
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '√'
         node.function_name.value = '√'
