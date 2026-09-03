@@ -358,26 +358,34 @@ def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRe
 
 @BaseRenderer.register('list')
 def render_list(renderer: BaseRenderer, node: List, base_context: BaseRenderContext) -> Any:
+    context = base_context.current
+    _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"[{', '.join(rendered_elems)}]"
+    return f"[{f',{_}'.join(rendered_elems)}]"
 
 @BaseRenderer.register('set')
 def render_list(renderer: BaseRenderer, node: Set, base_context: BaseRenderContext) -> Any:
+    context = base_context.current
+    _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"{{{', '.join(rendered_elems)}}}"
+    return f"{{{f',{_}'.join(rendered_elems)}}}"
 
 @BaseRenderer.register('dictionary')
 def render_list(renderer: BaseRenderer, node: Dictionary, base_context: BaseRenderContext) -> Any:
     rendered_keys = [renderer.render(elem, base_context) for elem in node.keys]
     rendered_values = [renderer.render(elem, base_context) for elem in node.values]
+    context = base_context.current
+    _ = context.space
     rkv = zip(rendered_keys, rendered_values)
-    items = [": ".join(item) for item in rkv]
-    return f"{{{', '.join(items)}}}"
+    items = [f":{_}".join(item) for item in rkv]
+    return f"{{{f',{_}'.join(items)}}}"
 
 @BaseRenderer.register('tuple')
 def render_list(renderer: BaseRenderer, node: Tuple, base_context: BaseRenderContext) -> Any:
+    context = base_context.current
+    _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"({', '.join(rendered_elems)})"
+    return f"({f',{_}'.join(rendered_elems)})"
 
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, base_context: BaseRenderContext) -> str:
@@ -398,10 +406,7 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
     elif context.current_mode == 'num':
 
         fc = context.format
-        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray). A Name
-        # bound to a list raises TypeError ("unsupported format string passed to
-        # list.__format__") here, since only ValueError is caught. Decide how
-        # such values should render numerically (element-wise, repr, etc.).
+        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray).
         try:
             return renderer.render_node(node.value, base_context)
         except (AttributeError, NotImplementedError):
@@ -555,6 +560,8 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
     """
     prev_mode = getattr(base_context.line_context, 'current_mode', None)
     base_context.line_context.current_mode = 'sym'
+    context = base_context.current
+    _ = context.space
     try:
         if node._type == 'dict':
             key = "".join(renderer.render(part, base_context) for part in node.key)
@@ -562,7 +569,7 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
             head = f"{key}: {value}"
         else:
             head = "".join(renderer.render(part, base_context) for part in node.assign)
-        clauses = " ".join(renderer.render(comp, base_context) for comp in node.comprehensions)
+        clauses = f"{_}".join(renderer.render(comp, base_context) for comp in node.comprehensions)
         inner = f"{head} {clauses}".strip()
     finally:
         base_context.line_context.current_mode = prev_mode
@@ -647,6 +654,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     if node.comment is not None:
         comment_render = renderer.render(node.comment, base_context)
     context = base_context.current
+    _ = context.space
     param_line_post_comment = getattr(context, 'param_line', False)
     param_line = param_line_pre_comment or param_line_post_comment
     if getattr(context, 'ignore', False):
@@ -657,7 +665,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     if context.mode == 'full' or 'ass' in context.mode:
         base_context.line_context.current_mode = 'sym'
         assign_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
-        columns.append(", ".join(assign_nodes))
+        columns.append(",{_}".join(assign_nodes))
     if not param_line:
         if context.mode == 'full' or 'sym' in context.mode:
             base_context.line_context.current_mode = 'sym'
@@ -670,7 +678,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     if context.mode == "full" or "res" in context.mode:
         base_context.line_context.current_mode = "num"
         result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
-        columns.append(", ".join(result_nodes))
+        columns.append(f",{_}".join(result_nodes))
 
     components: deque = deque([])
     for idx, column in enumerate(columns):
@@ -831,7 +839,7 @@ def function_block_header(renderer: BaseRenderer, node: FunctionBlock, base_cont
         for part in node.function_name
     ]
     name = "".join(name_parts)
-    params = ", ".join(str(param) for param in node.params)
+    params = f",{_}".join(str(param) for param in node.params)
     return f"Evaluating{_}{name}({params}):"
 
 
