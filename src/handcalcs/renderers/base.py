@@ -637,4 +637,55 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
 
 
 
+def infix_binop(
+    node: BinOp,
+    stack: Optional[queue],
+    allow_spaces=True,
+    base_context: BRC,
+) -> str:
+     precedence = {
+         AddOp: 1,
+         SubOp: 1,
+         MultOp: 2,
+         DivOp: 2,
+         FloorOp: 2,
+         ModOp: 2,
+         PowOp: 3
+    }
+    associativity = {
+         AddOp: "left",
+         SubOp: "left",
+         MultOp: "left",
+         DivOp: "left",
+         FloorOp: "left",
+         ModOp: "left",
+         PowOp: "right"
+    }
+    commutativity= {
+         AddOp: 1,
+         SubOp: 0,
+         MultOp: 1,
+         DivOp: 0,
+         FloorOp: 0,
+         ModOp: 0,
+         PowOp: 0
+    }
+    node_type = node.__class__
+    pre = precedence.get(node_type)
+    assoc = associativity.get(node_type)
+    commut = commutativity.get(node_type)
+    context = base_context.current
+    lpar = context.lpar
+    rpar = context.rpar
+    left = node.left
+    right = node.right
+    ltype = node.__class__
+    rtype = node.__class__
+    lpre= precedence.get(ltype)
+    rpre = precedence.get(rtype)
+    left_is_binop = isinstance(left, BinOp)
+    right_is_binop = isinstance(right, BinOp)
+    if left_is_binop:
+        l_type = left.__class__
+        
 
