@@ -639,7 +639,8 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
 
 def infix_binop(
     node: BinOp,
-    stack: Optional[queue],
+    renderer: BaseRenderer,
+    stack: Optional[queue] = None,
     allow_spaces=True,
     base_context: BRC,
 ) -> str:
@@ -679,13 +680,33 @@ def infix_binop(
     rpar = context.rpar
     left = node.left
     right = node.right
+    symbol = node.symbol
     ltype = node.__class__
     rtype = node.__class__
-    lpre= precedence.get(ltype)
-    rpre = precedence.get(rtype)
-    left_is_binop = isinstance(left, BinOp)
-    right_is_binop = isinstance(right, BinOp)
-    if left_is_binop:
-        l_type = left.__class__
+    lpre= precedence.get(ltype, float('inf')
+    rpre = precedence.get(rtype, float('inf')
+    _ = context.space
+    if not allow_spaces:
+        _ = ""
+    render_left = render_node(left, renderer, base_context)
+    render_right = render_node(right, renderer, base_context)
+    if lpre < pre:              
+        left_portion = f"{lpar}{render_left}{rpar}"
+    else:
+        left_portion = render_left
+
+    if rpre <= pre:
+        if rpre < pre:
+            right_portion = f"{lpar}{render_right}{rpar}"
+        elif rpre == pre and not commut:
+            right_portion = f"{lpar}{render_right}{rpar}"
+        else:
+            right_portion = render_right
+    return f"{left_portion}{_}{symbol}{_}{right_portion}"
+                                     
+                                       
+                                           
+
+                                       
         
 
