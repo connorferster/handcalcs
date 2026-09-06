@@ -351,6 +351,20 @@ def render_div_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) ->
     return f"{node.pre}{as_infix}{node.post}"
 
 
+@BaseRenderer.register('floor_op')
+def render_floor_op(renderer: BR, node: FloorOp, base_context: BaseRenderContext) -> str:
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
+
+
+@BaseRenderer.register('modulo_op')
+def render_modulo_op(renderer: BR, node: ModuloOp, base_context: BaseRenderContext) -> str:
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
+
+
 @BaseRenderer.register('pow_op')
 def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
     as_infix = infix_binop(
