@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
@@ -324,27 +325,37 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
 
 @BaseRenderer.register('add_op')
 def render_add_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('sub_op')
 def render_sub_op(renderer: BR, node: SubOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('mult_op')
 def render_mult_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('div_op')
 def render_div_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('pow_op')
 def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 @BaseRenderer.register('gt_op')
 def render_gt_op(renderer: BR, node: GtOp, base_context: BaseRenderContext) -> str:
@@ -640,17 +651,16 @@ def toggle_param_line(node: CalcLine | HcNode, base_context:BRC) -> HcNode:
 def infix_binop(
     node: BinOp,
     renderer: BaseRenderer,
-    stack: Optional[queue] = None,
     allow_spaces=True,
-    base_context: BRC,
+    base_context: BRC = None,
 ) -> str:
-     precedence = {
+    precedence = {
          AddOp: 1,
          SubOp: 1,
          MultOp: 2,
          DivOp: 2,
          FloorOp: 2,
-         ModOp: 2,
+         ModuloOp: 2,
          PowOp: 3
     }
     associativity = {
@@ -659,7 +669,7 @@ def infix_binop(
          MultOp: "left",
          DivOp: "left",
          FloorOp: "left",
-         ModOp: "left",
+         ModuloOp: "left",
          PowOp: "right"
     }
     commutativity= {
@@ -668,10 +678,11 @@ def infix_binop(
          MultOp: 1,
          DivOp: 0,
          FloorOp: 0,
-         ModOp: 0,
+         ModuloOp: 0,
          PowOp: 0
     }
     node_type = node.__class__
+    print(f"{node_type=}")
     pre = precedence.get(node_type)
     assoc = associativity.get(node_type)
     commut = commutativity.get(node_type)
@@ -681,27 +692,28 @@ def infix_binop(
     left = node.left
     right = node.right
     symbol = node.symbol
-    ltype = node.__class__
-    rtype = node.__class__
-    lpre= precedence.get(ltype, float('inf')
-    rpre = precedence.get(rtype, float('inf')
+    ltype = left.__class__
+    rtype = right.__class__
+    print(f"{ltype=}")
+    print(f"{rtype=}")
+    lpre= precedence.get(ltype, float('inf'))
+    rpre = precedence.get(rtype, float('inf'))
     _ = context.space
     if not allow_spaces:
         _ = ""
-    render_left = render_node(left, renderer, base_context)
-    render_right = render_node(right, renderer, base_context)
+    render_left = renderer.render_node(left, base_context)
+    render_right = renderer.render_node(right, base_context)
     if lpre < pre:              
         left_portion = f"{lpar}{render_left}{rpar}"
     else:
         left_portion = render_left
 
+    right_portion = render_right
     if rpre <= pre:
         if rpre < pre:
             right_portion = f"{lpar}{render_right}{rpar}"
         elif rpre == pre and not commut:
             right_portion = f"{lpar}{render_right}{rpar}"
-        else:
-            right_portion = render_right
     return f"{left_portion}{_}{symbol}{_}{right_portion}"
                                      
                                        
