@@ -72,6 +72,8 @@ class RenderContext:
         mode: str = 'full',
         format_code: str = ".5g",
         param_line: bool = False,
+        lpar = "(",
+        rpar = ")",
         **kwargs
     ):
         self.space = space
@@ -81,6 +83,8 @@ class RenderContext:
         self.mode = mode
         self.format = format_code
         self.param_line = param_line
+        self.lpar = lpar
+        self.rpar = rpar
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -696,7 +700,6 @@ def infix_binop(
          PowOp: 0
     }
     node_type = node.__class__
-    print(f"{node_type=}")
     pre = precedence.get(node_type)
     assoc = associativity.get(node_type)
     commut = commutativity.get(node_type)
@@ -708,8 +711,6 @@ def infix_binop(
     symbol = node.symbol
     ltype = left.__class__
     rtype = right.__class__
-    print(f"{ltype=}")
-    print(f"{rtype=}")
     lpre= precedence.get(ltype, float('inf'))
     rpre = precedence.get(rtype, float('inf'))
     _ = context.space
