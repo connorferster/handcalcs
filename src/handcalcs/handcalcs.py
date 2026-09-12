@@ -1,13 +1,13 @@
 import pathlib
 from typing import Optional
 from .parsing.sequence import HcSequence
-from .renderers.plain_text.renderer import PlainTextRenderer
+from .renderers.plain_text.renderer import PlainTextRenderer, BaseRenderer
 
 
 
 class HandCalcs:
 
-    def __init__(self, renderer = PlainTextRenderer()):
+    def __init__(self, renderer = BaseRenderer()):
         self.renderer = renderer
         self.hc_ast = None
 
@@ -37,7 +37,7 @@ class HandCalcs:
         self.hc_ast = HcSequence.from_source(source, hc_globals=supplied_globals, hc_locals=supplied_locals)
         
         rendered_tree = self.renderer.render(self.hc_ast)
-        return self.renderer.join(rendered_tree)
+        return rendered_tree
 
     def __repr__(self):
         return f"HandCalcs(renderer={self.renderer}())"
