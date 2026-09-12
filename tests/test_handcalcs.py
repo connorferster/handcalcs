@@ -11,7 +11,7 @@ beta = 5 # Inline comment
 d = 3
 # hc: cat = "hat"
 c = (d * (alpha + beta)) / pi # hc: -f .4g
-e = sqrt(beta**2 - alpha**2) # hc: -i
+e = sqrt(beta**2 - alpha**2)
 if e <= 3:
     if 2 < beta < alpha:
         f = 12
@@ -20,6 +20,7 @@ if e <= 3:
     else:
         f = 30
     """
+    print(source)
     hc = HandCalcs()
     print(hc(source))
     assert False
