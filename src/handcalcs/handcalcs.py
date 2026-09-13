@@ -43,3 +43,32 @@ class HandCalcs:
     def __repr__(self):
         return f"HandCalcs(renderer={self.renderer}())"
         
+        
+    def __read(self, source_or_path: str | pathlib.Path, supplied_globals: Optional[dict] = None, supplied_locals: Optional[dict] = None): 
+        if isinstance(source_or_path, pathlib.Path):
+            with open(source_or_path, 'r') as file:
+                source = file.read()
+        elif isinstance(source_or_path, str):
+            source = source_or_path
+        else:
+            raise TypeError(
+                "'source_or_path' must be either a string representing Python source code "
+                f"or a pathlib.Path object to an existing .py file, not {type(source_or_path)}"
+            )
+        return source
+        
+    def __evaluate(self, source):
+        eval_globals = eval_locals = {}
+        eval(source, eval_globals, eval_locals)
+        return eval_globals
+        
+        
+    def __parse(self, source: str, supplied_globals: Optional[dict] = None, supplied_locals: Optional[dict] = None):
+        if supplied_globals is None and supplied_locals is None:
+            supplied_globals = {}
+            supplied_locals= {}
+    
+        hc_ast = HcSequence.from_source(source, hc_globals=supplied_globals, hc_locals=supplied_locals)
+        return hc_ast
+    
+    
