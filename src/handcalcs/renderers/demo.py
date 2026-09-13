@@ -2,7 +2,7 @@ source = """
 ## HandCalcs v2.0 Demo
 
 # This is a demo of the main rendering features of HandCalcs v2.x. It is intended
-# to be useful to showcase the output of a given renderer and make comparisons between
+# to showcase the output of a given renderer and make comparisons between
 # renderers. This paragraph demonstrates the rendering of a series of comment lines
 # which can be used for explanation within your Python script.
 # hc: -b
@@ -12,7 +12,7 @@ source = """
 from math import sqrt, sin, radians
 import math
 
-# The variables 'a' and 'b' below have been formatted with different
+# The variables 'a' and 'b' below have been formatted with different line-scopes
 # formatting codes. Both originally have nine decimal places.
 # hc: -b
 a = 5.253932023 # hc: -f .3g
@@ -65,6 +65,8 @@ elif b / (2 * t) <= 200 / sqrt(F_y):
         class = 4
 else:
     class = 4
+    
+class 
 
 ### Iteration using for-loops
 
