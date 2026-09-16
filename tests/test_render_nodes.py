@@ -216,11 +216,11 @@ def test_name_value_custom_object_falls_back_to_str(render):
 @pytest.mark.parametrize(
     "node,expected",
     [
-        (AddOp(left=Constant(1), right=Constant(2)), "1+2"),
-        (SubOp(left=Constant(1), right=Constant(2)), "1-2"),
-        (MultOp(left=Constant(1), right=Constant(2)), "1*2"),
-        (DivOp(left=Constant(1), right=Constant(2)), "1/2"),
-        (PowOp(left=Constant(1), right=Constant(2)), "1**2"),
+        (AddOp(left=Constant(1), right=Constant(2)), "1 + 2"),
+        (SubOp(left=Constant(1), right=Constant(2)), "1 - 2"),
+        (MultOp(left=Constant(1), right=Constant(2)), "1 * 2"),
+        (DivOp(left=Constant(1), right=Constant(2)), "1 / 2"),
+        (PowOp(left=Constant(1), right=Constant(2)), "1 ** 2"),
     ],
     ids=["add", "sub", "mult", "div", "pow"],
 )
@@ -230,12 +230,12 @@ def test_binary_operator_rendering(render, node, expected):
 
 def test_binary_operator_pre_and_post_wrap(render):
     node = AddOp(left=Constant(1), right=Constant(2), pre="(", post=")")
-    assert render(node) == "(1+2)"
+    assert render(node) == "(1 + 2)"
 
 
 def test_floor_and_modulo_operators_render(render):
-    assert render(FloorOp(left=Constant(7), right=Constant(2))) == "7//2"
-    assert render(ModuloOp(left=Constant(7), right=Constant(2))) == "7%2"
+    assert render(FloorOp(left=Constant(7), right=Constant(2))) == "7 // 2"
+    assert render(ModuloOp(left=Constant(7), right=Constant(2))) == "7 % 2"
 
 
 # ---------------------------------------------------------------------------
@@ -356,18 +356,18 @@ def _calc_c_equals_a_plus_2():
 
 def test_calc_line_full_mode(render):
     assert render(_calc_c_equals_a_plus_2(), param_line=False) == [
-        "c", "=", "a+2", "=", "3+2", "=", "5",
+        "c", "=", "a + 2", "=", "3 + 2", "=", "5",
     ]
 
 
 def test_calc_line_symbolic_only_mode(render):
     # Symbolic-only mode: just the symbolic column, no assign/num/result.
-    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="sym") == ["a+2"]
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="sym") == ["a + 2"]
 
 
 def test_calc_line_numeric_only_mode(render):
     # Numeric-only mode: just the numeric-substitution column.
-    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="num") == ["3+2"]
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="num") == ["3 + 2"]
 
 
 def test_calc_line_param_line_single_constant(render):
@@ -400,7 +400,7 @@ def test_expr_line_statement_call_shows_symbolic_and_numeric(render):
 
 def test_expr_line_value_bearing_expression(render):
     node = ExprLine(expression_tree=deque([AddOp(left=Name("x", 10), right=Name("y", 20))]))
-    assert render(node) == ["x+y", "=", "10+20"]
+    assert render(node) == ["x + y", "=", "10 + 20"]
 
 
 def test_expr_line_return_is_symbolic_only(render):
@@ -410,7 +410,7 @@ def test_expr_line_return_is_symbolic_only(render):
         expression_tree=deque([AddOp(left=Name("pi"), right=Constant(1))]),
         return_expr=True,
     )
-    assert render(node) == ["pi+1"]
+    assert render(node) == ["pi + 1"]
 
 
 def test_expr_line_docstring_renders_as_plain_line(render):
@@ -508,7 +508,7 @@ def test_list_comprehension_renders(render):
             )
         ]),
     )
-    assert render(node, current_mode="sym") == "[i*2 for i in range(3)]"
+    assert render(node, current_mode="sym") == "[i * 2 for i in range(3)]"
 
 
 def test_dict_comprehension_renders(render):
@@ -524,7 +524,7 @@ def test_dict_comprehension_renders(render):
             )
         ]),
     )
-    assert render(node, current_mode="sym") == "{k: k*2 for k in range(3)}"
+    assert render(node, current_mode="sym") == "{k: k * 2 for k in range(3)}"
 
 
 # ---------------------------------------------------------------------------
@@ -547,7 +547,7 @@ def test_else_block_renders_header_and_body(render):
 def test_calc_line_renders_from_clean_context(render):
     # A CalcLine as the very first rendered node (no param_line seeded) must
     # render rather than raise; the calc_line:pre rule defaults param_line.
-    assert render(_calc_c_equals_a_plus_2()) == ["c", "=", "a+2", "=", "3+2", "=", "5"]
+    assert render(_calc_c_equals_a_plus_2()) == ["c", "=", "a + 2", "=", "3 + 2", "=", "5"]
 
 
 def test_heading_rendering(render):

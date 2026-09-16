@@ -35,7 +35,7 @@ if e <= 3:
         "β = 5 (Inline comment)\n"
         "Comment\n"
         "d = 3\n"
-        "c = ((d)(α + β)) / (π) = ((3)(4 + 5)) / (3.142) = 8.594\n"
+        "c = d * (α + β) / π = 3 * (4 + 5) / 3.142 = 8.594\n"
         "Since (e<=3) -> (3.0<=3) is True:\n"
         "    Since (2<α<β) -> (2<4<5) is True:\n"
         "        f = 20\n"
@@ -61,5 +61,5 @@ area = circle_area(2 * radius)
     assert out == (
         "[Python import]: from math import sqrt, pi\n"
         "radius = 5\n"
-        "area =  circle_area((2)(radius))  =  circle_area((2)(5))  = 78.54\n"
+        "area =  circle_area(2 * radius)  =  circle_area(2 * 5)  = 78.54\n"
     )
