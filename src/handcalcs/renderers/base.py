@@ -513,15 +513,6 @@ def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) ->
     return f"{node.pre}{as_infix}{node.post}"
 
 
-@BaseRenderer.register('floor_op')
-def render_floor_op(renderer: BR, node: FloorOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
-
-
-@BaseRenderer.register('modulo_op')
-def render_modulo_op(renderer: BR, node: ModuloOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
-
 @BaseRenderer.register('gt_op')
 def render_gt_op(renderer: BR, node: GtOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
