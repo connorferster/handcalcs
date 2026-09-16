@@ -17,6 +17,7 @@ from .nodes import (
     Attribute,
     List,
     Tuple,
+    Set,
     Dictionary,
     Name,
     Constant
@@ -61,7 +62,8 @@ from .operator_nodes import (
     LtOp,
     LtEOp,
     EqOp,
-    NeqOp
+    NeqOp,
+    HcUnaryOp
 )
 # from handcalcs.parsing.commands import command_parser
 from .comment_parser import (
@@ -79,6 +81,13 @@ ARITHMETIC_OPS = {
     "Floor": FloorOp,
     "Pow": PowOp,
     "Mod": ModuloOp,
+}
+
+UNARY_OPS = {
+    "USub": "-",
+    "UAdd": "+",
+    "Not": "not ",
+    "Invert": "~",
 }
 
 COMPARE_OPS = {
@@ -295,6 +304,13 @@ class AST_Parser:
             # # The recursive call `self.ast_parse` naturally handles the nesting.
 
             # val = deque([left, op, right])
+
+        # --- Unary operations (e.g. -b, -10.423, ~x, not x) ---
+        elif isinstance(node, ast.UnaryOp):
+            operand = self.ast_parse(node.operand)
+            op_name = type(node.op).__name__
+            symbol = UNARY_OPS.get(op_name, op_name)
+            val = HcUnaryOp(operand=operand, symbol=symbol)
 
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):
@@ -580,6 +596,9 @@ class AST_Parser:
 
         elif isinstance(node, ast.Tuple):
             val = Tuple(elems=deque([self.ast_parse(el) for el in node.elts]))
+
+        elif isinstance(node, ast.Set):
+            val = Set(elems=deque([self.ast_parse(el) for el in node.elts]))
 
         elif isinstance(node, ast.Dict):
             val = Dictionary(

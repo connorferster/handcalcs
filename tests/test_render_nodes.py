@@ -29,6 +29,7 @@ from handcalcs.parsing.operator_nodes import (
     LtEOp,
     EqOp,
     NeqOp,
+    HcUnaryOp,
 )
 from handcalcs.parsing.inline_nodes import (
     FunctionCall,
@@ -112,6 +113,13 @@ def test_collection_rendering(render, node, expected):
     assert render(node) == expected
 
 
+def test_collection_float_elements_apply_format_code(render):
+    # Each Constant element of a collection is formatted with the active format
+    # code, just like a scalar constant.
+    node = List(deque([Constant(11.309932474020215), Constant(45.0), Constant(78.69006752597979)]))
+    assert render(node, format_code=".5g") == "[11.31, 45, 78.69]"
+
+
 # ---------------------------------------------------------------------------
 # Attribute (no handler registered)
 # ---------------------------------------------------------------------------
@@ -178,6 +186,23 @@ def test_name_value_renders_int_and_float(render, value, expected):
     assert render(Name("n", value), current_mode="num") == expected
 
 
+def test_name_value_raw_list_of_floats_formats_each_element(render):
+    # A Name bound to a *raw Python list* of floats (e.g. an accumulated result)
+    # formats each element with the format code -- not a plain repr.
+    value = [11.309932474020215, 45.0, 78.69006752597979]
+    assert render(Name("acc", value), current_mode="num", format_code=".5g") == "[11.31, 45, 78.69]"
+
+
+def test_name_value_raw_dict_of_floats_formats_each_element(render):
+    value = {"a": 3.14159, "b": 2.0}
+    assert render(Name("d", value), current_mode="num", format_code=".3g") == "{a: 3.14, b: 2}"
+
+
+def test_name_value_raw_nested_collection_formats_elements(render):
+    value = [(1.23456, 2.0), [3.5]]
+    assert render(Name("m", value), current_mode="num", format_code=".3g") == "[(1.23, 2), [3.5]]"
+
+
 def test_name_value_complex_renders(render):
     # complex is not a node; the ".5g" format code applies to it.
     assert render(Name("z", complex(1, 2)), current_mode="num") == "1+2j"
@@ -236,6 +261,36 @@ def test_binary_operator_pre_and_post_wrap(render):
 def test_floor_and_modulo_operators_render(render):
     assert render(FloorOp(left=Constant(7), right=Constant(2))) == "7 // 2"
     assert render(ModuloOp(left=Constant(7), right=Constant(2))) == "7 % 2"
+
+
+# ---------------------------------------------------------------------------
+# Unary operators
+# ---------------------------------------------------------------------------
+
+def test_unary_op_on_name_symbolic(render):
+    assert render(HcUnaryOp(operand=Name("b", -10.423)), current_mode="sym") == "-b"
+
+
+def test_unary_op_on_constant_symbolic(render):
+    assert render(HcUnaryOp(operand=Constant(5)), current_mode="sym") == "-5"
+
+
+def test_unary_op_numeric_signed_operand_parenthesized(render):
+    # -b where b is negative must read as -(-10.423), not the ambiguous --10.423.
+    node = HcUnaryOp(operand=Name("b", -10.423))
+    assert render(node, current_mode="num") == "-(-10.423)"
+
+
+def test_unary_op_parenthesizes_lower_precedence_operand(render):
+    # A binary operand that binds looser than the unary op is parenthesized.
+    node = HcUnaryOp(operand=AddOp(left=Name("a", "a"), right=Name("b", "b")))
+    assert render(node, current_mode="sym") == "-(a + b)"
+
+
+def test_unary_op_no_parens_for_power_operand(render):
+    # Exponentiation binds tighter than the unary op, so no parentheses.
+    node = HcUnaryOp(operand=PowOp(left=Name("a", "a"), right=Constant(2)))
+    assert render(node, current_mode="sym") == "-a ** 2"
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +395,18 @@ def test_comment_command_mutates_global_context(renderer, make_context):
     assert ctx.global_context.decimals == 2
 
 
+def test_line_break_command_renders_single_newline(renderer, make_context):
+    # A line_break directive (# hc: -b) renders as a bare newline.
+    node = CommentCommand(commands={"line_break": True})
+    assert renderer.render(node, make_context()) == "\n"
+
+
+def test_line_break_join_produces_single_blank_line(renderer):
+    # The join step must not append another newline to a bare-newline item,
+    # otherwise the blank line is doubled.
+    assert renderer.join(["a", "\n", "b"]) == "a\n\nb\n"
+
+
 # ---------------------------------------------------------------------------
 # CalcLine
 #
@@ -373,6 +440,40 @@ def test_calc_line_numeric_only_mode(render):
 def test_calc_line_param_line_single_constant(render):
     node = CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)]))
     assert render(node, param_line=False) == ["a", "=", "2"]
+
+
+def test_calc_line_param_line_unary_negated_constant(render):
+    # A unary-negated literal (e.g. b = -10.423) collapses to a param line.
+    node = CalcLine(
+        assigns=deque([Name("b", -10.423)]),
+        expression_tree=deque([HcUnaryOp(operand=Constant(10.423))]),
+    )
+    assert render(node, param_line=False, format_code=".5g") == ["b", "=", "-10.423"]
+
+
+@pytest.mark.parametrize(
+    "rhs,value,expected_result",
+    [
+        (List(deque([Constant(1), Constant(2), Constant(3)])), [1, 2, 3], "[1, 2, 3]"),
+        (Tuple(deque([Constant(1), Constant(2)])), (1, 2), "(1, 2)"),
+        (Set(deque([Constant(1)])), {1}, "{1}"),
+        (Dictionary(deque([Constant(1)]), deque([Constant(2)])), {1: 2}, "{1: 2}"),
+    ],
+    ids=["list", "tuple", "set", "dict"],
+)
+def test_calc_line_param_line_literal_collection(render, rhs, value, expected_result):
+    # A collection literal whose elements are all literals collapses to a param
+    # line (identifier = result), hiding the symbolic/numeric columns.
+    node = CalcLine(assigns=deque([Name("x", value)]), expression_tree=deque([rhs]))
+    assert render(node, param_line=False) == ["x", "=", expected_result]
+
+
+def test_calc_line_collection_with_variable_shows_substitution(render):
+    # A collection containing a variable name is NOT a param line; it still
+    # renders the symbolic and numeric-substitution columns.
+    rhs = List(deque([Name("a", 1), Name("b", 2)]))
+    node = CalcLine(assigns=deque([Name("pts", [1, 2])]), expression_tree=deque([rhs]))
+    assert render(node, param_line=False) == ["pts", "=", "[a, b]", "=", "[1, 2]", "=", "[1, 2]"]
 
 
 def test_calc_line_ignore_short_circuits(render):
@@ -554,6 +655,15 @@ def test_heading_rendering(render):
     # A heading renders as a single markdown string, its level reproduced from
     # the node's heading_level.
     assert render(Heading(content="A heading", heading_level=2)) == "## A heading"
+
+
+@pytest.mark.parametrize(
+    "level,expected",
+    [(1, "# A heading"), (2, "## A heading"), (3, "### A heading")],
+    ids=["h1", "h2", "h3"],
+)
+def test_heading_rendering_reproduces_level(render, level, expected):
+    assert render(Heading(content="A heading", heading_level=level)) == expected
 
 
 def test_compare_rendering(render):

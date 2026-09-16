@@ -73,6 +73,17 @@ class SubOp(HcBinOp):
     type: str = 'sub_op'
 
 
+# Unary Operators
+
+@dataclass
+class HcUnaryOp(HcNode):
+    operand: object
+    symbol: str = "-"
+    pre: str = ""
+    post: str = ""
+    type: str = 'unary_op'
+
+
 # Comparison Operators
 
 @dataclass

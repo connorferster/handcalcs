@@ -18,6 +18,7 @@ from handcalcs.parsing.line_nodes import (
 
 from handcalcs.parsing.nodes import (
     List,
+    Set,
     Name,
     Constant,
 )
@@ -50,6 +51,7 @@ from handcalcs.parsing.operator_nodes import (
     GtEOp,
     LtOp,
     LtEOp,
+    HcUnaryOp,
 )
 import math
 import pytest
@@ -1540,7 +1542,7 @@ c = b + 1.6578468413515 # hc: -f 5E
     assert basic_parser(source) == deque([
             Heading(
                 content='A heading',
-                heading_level=2,
+                heading_level=1,
             ),
             CommentCommand(
                 commands={'decimals': 2}
@@ -1666,3 +1668,51 @@ def test_comment_interleaving_in_block():
                 ])
             )
         ])
+
+
+def test_unary_operator_parsing():
+    # Unary operators (e.g. -10.423, -b) are parsed into HcUnaryOp nodes rather
+    # than falling through to NoValue/HcNotImplemented.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+
+    assert parser("b = -10.423") == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='b')]),
+            expression_tree=deque([HcUnaryOp(operand=Constant(value=10.423))]),
+        )
+    ])
+
+    assert parser("x = -b + c") == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='x')]),
+            expression_tree=deque([
+                AddOp(
+                    left=HcUnaryOp(operand=Name(identifier='b')),
+                    right=Name(identifier='c'),
+                )
+            ]),
+        )
+    ])
+
+
+def test_set_literal_parsing():
+    # Set literals ({1, 2, 3}) are parsed into a Set node.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    assert parser("s = {1, 2, 3}") == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='s')]),
+            expression_tree=deque([
+                Set(elems=deque([Constant(1), Constant(2), Constant(3)]))
+            ]),
+        )
+    ])
+
+
+def test_line_break_comment_command_parsing():
+    # A standalone `# hc: -b` parses to a CommentCommand carrying line_break=True.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    result = parser("# hc: -b\n")
+    assert len(result) == 1
+    node = result[0]
+    assert isinstance(node, CommentCommand)
+    assert node.commands["line_break"] is True

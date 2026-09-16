@@ -5,13 +5,11 @@ source = """
 # to showcase the output of a given renderer and make comparisons between
 # renderers. This paragraph demonstrates the rendering of a series of comment lines
 # which can be used for explanation within your Python script.
-# hc: -b
 
 ### The quadratic formula
-# hc: -b
 from math import atan, sqrt, sin, radians, degrees
 import math
-
+# hc: -b
 # The variables 'a' and 'b' below have been formatted with different line-scopes
 # formatting codes. Both originally have nine decimal places.
 # hc: -b

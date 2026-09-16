@@ -14,6 +14,7 @@ from handcalcs.parsing.operator_nodes import (
     MultOp,
     AddOp,
     SubOp,
+    HcUnaryOp,
     HcCompOp,
     EqOp,
     NeqOp,
@@ -22,6 +23,7 @@ from handcalcs.parsing.operator_nodes import (
     LtOp,
     LtEOp,
 )
+from handcalcs.parsing.nodes import HcNode
 
 
 @pytest.mark.parametrize(
@@ -54,6 +56,24 @@ def test_binary_operator_pre_post_settable():
 
 def test_binop_base_is_hcnode_subclass():
     assert issubclass(AddOp, HcBinOp)
+
+
+def test_unary_operator_defaults():
+    node = HcUnaryOp(operand=Constant(10))
+    assert node.operand == Constant(10)
+    assert node.symbol == "-"
+    assert node.type == "unary_op"
+    assert node.pre == ""
+    assert node.post == ""
+
+
+def test_unary_operator_symbol_settable():
+    node = HcUnaryOp(operand=Constant(10), symbol="~")
+    assert node.symbol == "~"
+
+
+def test_unary_operator_is_hcnode_subclass():
+    assert issubclass(HcUnaryOp, HcNode)
 
 
 @pytest.mark.parametrize(

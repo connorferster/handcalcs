@@ -56,17 +56,28 @@ def test_comment_line_strips_all_leading_hashes():
 # --- Heading.from_raw_comment -------------------------------------------
 
 def test_heading_single_hash():
+    # A single '#' is only the Python comment marker (not a markdown heading);
+    # is_markdown_heading requires '##', so from_raw_comment floors the level at 1.
     heading = Heading.from_raw_comment("# Title")
     assert heading.content == "Title"
     assert heading.heading_level == 1
 
 
-def test_heading_double_hash_sets_level_and_strips_hashes():
-    # The number of leading '#' is the markdown heading level; all '#'s are
-    # stripped from the content.
-    heading = Heading.from_raw_comment("## A heading")
+@pytest.mark.parametrize(
+    "raw,expected_level",
+    [
+        ("## A heading", 1),
+        ("### A heading", 2),
+        ("#### A heading", 3),
+    ],
+    ids=["h1", "h2", "h3"],
+)
+def test_heading_level_excludes_comment_marker(raw, expected_level):
+    # The first '#' is the comment marker and is excluded from the heading level;
+    # the remaining '#'s set it. All '#'s are stripped from the content.
+    heading = Heading.from_raw_comment(raw)
     assert heading.content == "A heading"
-    assert heading.heading_level == 2
+    assert heading.heading_level == expected_level
 
 
 # --- CommentCommand.from_raw_comment: kwarg vs flag ---------------------
