@@ -169,6 +169,17 @@ class BaseRenderer:
         )
         return parts
 
+    def join(self, tree: list, context: Optional[RenderContext] = None) -> str:
+        """
+        Join a list of rendered parts into the final rendered text.
+
+        On this renderer the node handlers each return a fully-formed string
+        (spaces, indentation and trailing newlines already baked in), so the
+        join step is a straight concatenation. Falsy parts (``''`` from
+        command/ignored lines) contribute nothing.
+        """
+        return "".join(part for part in tree if part)
+
     def render_node(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
         Render one node with an existing context.
@@ -270,7 +281,7 @@ def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRe
     fc = context.format
     try:
         return f"{node.value:{fc}}"
-    except ValueError: # Format code not implemented
+    except (ValueError, TypeError): # Format code not implemented / not a scalar
         return f"{node.value}"
 
 @BaseRenderer.register('list')
@@ -314,13 +325,13 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
         return node.identifier
     elif context.current_mode == 'num':
         fc = context.format
-        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray). A Name
-        # bound to a list raises TypeError ("unsupported format string passed to
-        # list.__format__") here, since only ValueError is caught. Decide how
-        # such values should render numerically (element-wise, repr, etc.).
+        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray) more
+        # richly (element-wise formatting, truncation, etc.). For now a value
+        # that does not accept the format code (raising ValueError, e.g. an
+        # unsupported code, or TypeError, e.g. a list) falls back to its repr.
         try:
             return f"{node.value:{fc}}"
-        except ValueError: # Format code not implemented
+        except (ValueError, TypeError): # Format code not implemented / not a scalar
             return f"{node.value}"
     else:
         raise ContextValueError(
@@ -423,7 +434,20 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
 
 @BaseRenderer.register('comment_command')
 def render_comment_command(renderer: BR, node: CommentCommand, base_context: BaseRenderContext) -> str:
-    base_context.global_context = base_context.global_context | RenderContext(**node.commands)
+    context = base_context.current
+    nl = context.newline
+    # A standalone comment command updates the *global* render context with its
+    # options so they persist to the following lines. 'line_break' is a one-shot
+    # directive (insert a blank line here), so it is applied locally and never
+    # merged into the global context. 'None' values are argparse defaults for
+    # unset flags (e.g. an unset -f) and must not clobber the current context.
+    line_break = node.commands.get('line_break', False)
+    for key, value in node.commands.items():
+        if key == 'line_break' or value is None:
+            continue
+        setattr(base_context.global_context, key, value)
+    if line_break:
+        return f"{nl}"
     return ''
 
 @BaseRenderer.register('comment_line')
@@ -434,7 +458,8 @@ def render_comment_command(renderer: BR, node: CommentLine, base_context: BaseRe
 
 @BaseRenderer.register('markdown_comment')
 def render_markdown_comment(renderer: BR, node: MarkdownComment, base_context: BaseRenderContext) -> str:
-    return node.comment
+    context = base_context.current
+    return f"{node.content}{context.newline}"
 
 
 @BaseRenderer.register('inline_command')
@@ -523,8 +548,13 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         rendered += result_portion
     if comment_render is not None:
         rendered += comment_render
+    # An inline command (e.g. '# hc: -b') set line-specific context while its
+    # comment was rendered above; read the merged context to see it.
+    final_context = base_context.current
     ready_for_next_line = f"{rendered}{context.newline}"
-    context.line_context = RenderContext() # Clear any line-specific context
+    if getattr(final_context, 'line_break', False):
+        ready_for_next_line += context.newline
+    base_context.line_context = RenderContext() # Clear any line-specific context
     return ready_for_next_line
 
 
@@ -533,7 +563,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
     context = base_context.current
     rendered = f"{context.indent * node.level}"
     if context.mode == 'full' or 'sym' in context.mode:
-        context.current_mode = 'sym'
+        base_context.line_context.current_mode = 'sym'
         symbolic = deque([])
         for subnode in node.expression_tree:
             symbolic.append(renderer.render(subnode, base_context))
@@ -541,7 +571,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
         symbolic_portion = f"{symbolic}{context.space}{context.equality}{context.space}"
         rendered += symbolic_portion
     if context.mode == "full" or "num" in context.mode:
-        context.current_mode = "num"
+        base_context.line_context.current_mode = "num"
         numeric = deque([])
         for subnode in node.expression_tree:
             numeric.append(renderer.render(subnode, base_context))
@@ -559,7 +589,8 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
         comment_portion = renderer.render(node.comment, base_context)
         rendered += comment_portion
     ready_for_next_line = f"{rendered}{context.newline}"
-    return rendered
+    base_context.line_context = RenderContext() # Clear any line-specific context
+    return ready_for_next_line
     
 
 @BaseRenderer.register('elif_block')

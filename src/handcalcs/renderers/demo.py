@@ -9,7 +9,7 @@ source = """
 
 ### The quadratic formula
 # hc: -b
-from math import sqrt, sin, radians
+from math import atan, sqrt, sin, radians, degrees
 import math
 
 # The variables 'a' and 'b' below have been formatted with different line-scopes
@@ -36,37 +36,37 @@ M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y 
 
 ### Steel section class checks
 # The purpose of this demo is to show nested if/elif/else statements
-b = 200 # mm
+b_w = 200 # mm
 h = 310 # mm
 t_f = 10 # mm
 t_w = 6 # mm
 F_y = 350 # MPa
 
-if b / (2 * t) <= 145 / sqrt(F_y):
+if b_w / (2 * t_f) <= 145 / sqrt(F_y):
     if h / t_w <= 1000 / sqrt(F_y):
-        class = 1
+        class_section = 1
     elif h / t_w <= 1700 / sqrt(F_y):
-        class = 2
+        class_section = 2
     elif h / t_w <= 2400 / sqrt(F_y):
-        class = 3
+        class_section = 3
     else:
-        class = 4
-elif b / (2 * t) <= 170 / sqrt(F_y):
+        class_section = 4
+elif b_w / (2 * t_f) <= 170 / sqrt(F_y):
     if h / t_w <= 1700 / sqrt(F_y):
-        class = 2
+        class_section = 2
     elif h / t_w <= 2400 / sqrt(F_y):
-        class = 3
+        class_section = 3
     else: 
-        class = 4
-elif b / (2 * t) <= 200 / sqrt(F_y):
+        class_section = 4
+elif b_w / (2 * t_f) <= 200 / sqrt(F_y):
     if h / t_w <= 2400 / sqrt(F_y):
-        class = 3
+        class_section = 3
     else:
-        class = 4
+        class_section = 4
 else:
-    class = 4
+    class_section = 4
     
-class 
+class_section 
 
 ### Iteration using for-loops
 

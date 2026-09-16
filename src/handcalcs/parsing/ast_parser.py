@@ -592,9 +592,13 @@ class AST_Parser:
             val = ExprLine(expression_tree=parsed_value, _return_expr=True)
 
         elif isinstance(node, ast.Attribute):
-            name = node.value.id
+            namespace = node.value.id
             attribute = node.attr
-            val = Attribute(namespace=name, attr_name=attribute)
+            val = Attribute(
+                namespace=namespace,
+                identifier=attribute,
+                value=getattr(self.globals.get(namespace, NoValue()), attribute, NoValue())
+            )
 
         elif isinstance(node, ast.Module):
             # Entry point: process all body statements, interleaving standalone
