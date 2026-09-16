@@ -30,15 +30,14 @@ class HandCalcs:
                 "'source_or_path' must be either a string representing Python source code "
                 f"or a pathlib.Path object to an existing .py file, not {type(source_or_path)}"
             )
-        if supplied_globals is None and supplied_locals is None:
-            supplied_globals = {}
-            supplied_locals = {}
+        if supplied_globals is None:
+            supplied_globals = supplied_locals = {}
             exec(source, supplied_globals, supplied_locals)
             
         self.hc_ast = HcSequence.from_source(source, hc_globals=supplied_globals, hc_locals=supplied_locals)
         
-        rendered_lines = self.renderer.render(self.hc_ast)
-        return "".join(rendered_lines)
+        rendered_tree = self.renderer.render(self.hc_ast)
+        return self.renderer.join(rendered_tree)
 
     def __repr__(self):
         return f"HandCalcs(renderer={self.renderer}())"

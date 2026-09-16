@@ -11,6 +11,9 @@ class NoValue:
     
     def __neq__(self, other):
         return False
+    
+    def render(self):
+        return ""
 
 
 @dataclass
