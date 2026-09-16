@@ -258,6 +258,13 @@ def test_binary_operator_pre_and_post_wrap(render):
     assert render(node) == "(1 + 2)"
 
 
+def test_binary_operator_empty_symbol_juxtaposes_without_spaces(render):
+    # An empty symbol (e.g. a superscript power rendered as b²) means the
+    # operands butt together with no surrounding spaces -- not "b  ²".
+    node = PowOp(left=Name("b", "b"), right=Constant("²"), symbol="")
+    assert render(node, current_mode="sym") == "b²"
+
+
 def test_floor_and_modulo_operators_render(render):
     assert render(FloorOp(left=Constant(7), right=Constant(2))) == "7 // 2"
     assert render(ModuloOp(left=Constant(7), right=Constant(2))) == "7 % 2"

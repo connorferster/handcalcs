@@ -1077,6 +1077,10 @@ def infix_binop(
             right_portion = f"{lpar}{render_right}{rpar}"
         elif rpre == pre and not commut:
             right_portion = f"{lpar}{render_right}{rpar}"
+    # An empty symbol means juxtaposition (e.g. a superscript power like b²), so
+    # the operands butt together with no surrounding spaces.
+    if symbol == "":
+        return f"{left_portion}{right_portion}"
     return f"{left_portion}{_}{symbol}{_}{right_portion}"
                                      
                                        
