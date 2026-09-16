@@ -49,13 +49,15 @@ class Heading(HcLineNode):
 
     @classmethod
     def from_raw_comment(cls, comment: str):
-        # The number of leading '#' characters is the markdown heading level;
-        # the remaining text (with '#'s and surrounding whitespace stripped) is
-        # the heading content.
+        # The first '#' is the Python comment marker, not part of the heading; the
+        # remaining leading '#' characters set the markdown heading level (so '##'
+        # -> level 1, '###' -> level 2). The remaining text (with '#'s and
+        # surrounding whitespace stripped) is the heading content.
         stripped = comment.lstrip()
-        heading_level = len(stripped) - len(stripped.lstrip("#"))
+        leading = len(stripped) - len(stripped.lstrip("#"))
+        heading_level = max(leading - 1, 1)
         content = stripped.lstrip("#").strip()
-        return cls(content=content, heading_level=heading_level or 1)
+        return cls(content=content, heading_level=heading_level)
 
 @dataclass
 class CommentCommand(HcLineNode):

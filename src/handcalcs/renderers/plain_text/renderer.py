@@ -167,20 +167,9 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
         node.post = ''
         return node
     elif node.type == 'div_op':
-        symbol = f"/"
-        pre = ""
-        post = ""
-        # If it is a simple denominator, trim the parenths
-        if isinstance(node.right, Constant):
-            symbol = symbol[:-1]
-            post = ""
-        # And if it is also a simple numerator, trim the parenths
-        if isinstance(node.left, Constant):
-            symbol = symbol[1:]
-            pre = ""
-        node.symbol = symbol
-        node.pre = pre
-        node.post = post
+        node.symbol = '/'
+        node.pre = ''
+        node.post = ''
         return node
     elif node.type == 'floor_op':
         node.symbol = '//'

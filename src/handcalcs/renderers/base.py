@@ -33,7 +33,8 @@ from handcalcs.parsing.operator_nodes import (
     LtOp,
     LtEOp,
     NeqOp,
-    HcCompOp
+    HcCompOp,
+    HcUnaryOp,
 )
 from handcalcs.parsing.inline_nodes import (
     InlineComment,
@@ -68,6 +69,47 @@ RenderHandler = Callable
 #   num  -> transform the node while ``context.current_mode == 'num'``
 #   post -> transform the rendered result (string or list of strings)
 RULE_CATEGORIES = ("pre", "sym", "num", "post")
+
+# Operator precedence, shared by ``infix_binop`` (binary operands) and
+# ``render_unary_op`` (parenthesizing a unary operator's operand). Unary
+# arithmetic operators bind tighter than the binary arithmetic operators but
+# looser than exponentiation, hence the 2.5 slot between MultOp (2) and PowOp (3).
+UNARY_PRECEDENCE = 2.5
+OP_PRECEDENCE = {
+    AddOp: 1,
+    SubOp: 1,
+    MultOp: 2,
+    DivOp: 2,
+    FloorOp: 2,
+    ModuloOp: 2,
+    HcUnaryOp: UNARY_PRECEDENCE,
+    PowOp: 3,
+}
+
+
+def _reify(value):
+    """
+    Wrap a raw runtime Python value in the matching HcNode so it renders through
+    the existing node handlers (and their format-code logic). A scalar becomes a
+    ``Constant``; ``list``/``tuple``/``set``/``dict`` become the corresponding
+    collection node, recursively. An existing HcNode is returned unchanged. This
+    keeps all value formatting in one place (``render_constant`` and the
+    collection handlers) rather than duplicating it.
+    """
+    if isinstance(value, HcNode):
+        return value
+    if isinstance(value, list):
+        return List(elems=deque(_reify(v) for v in value))
+    if isinstance(value, tuple):
+        return Tuple(elems=deque(_reify(v) for v in value))
+    if isinstance(value, set):
+        return Set(elems=deque(_reify(v) for v in value))
+    if isinstance(value, dict):
+        return Dictionary(
+            keys=deque(_reify(k) for k in value.keys()),
+            values=deque(_reify(v) for v in value.values()),
+        )
+    return Constant(value=value)
 
 
 def _copy_rule_handlers(
@@ -226,6 +268,11 @@ class BaseRenderer:
         indent = context.indent * depth
         nl = context.newline
         if isinstance(item, str):
+            # A one-shot line-break directive renders as a bare newline; it is
+            # already a complete blank line, so don't append another newline
+            # (which would produce a double blank line).
+            if item and not item.strip("\n"):
+                return [item]
             return [f"{indent}{item}{nl}"]
         # A block is ``[header_string, body_list]`` -- detected by its body being
         # a list. An all-string list is a rendered line.
@@ -245,6 +292,14 @@ class BaseRenderer:
         node handler, then 'post' on the rendered result. Multiple rules in a
         category run in registration order.
         """
+        # A raw runtime value (e.g. a Name/Attribute's captured value) has no
+        # ``type`` discriminant, so it is wrapped in the matching HcNode and
+        # rendered through the existing handlers, picking up the format code
+        # (scalars and collection elements alike). Anything already carrying a
+        # ``type`` (a node instance, or an operator class stored on a Compare)
+        # passes through unchanged.
+        if not hasattr(node, 'type'):
+            node = _reify(node)
         node_rules = self._rule_handlers.get(node.type, {})
         current_mode = getattr(base_context.current, 'current_mode', None)
 
@@ -358,7 +413,7 @@ def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRe
     fc = context.format
     try:
         return f"{node.value:{fc}}"
-    except ValueError: # Format code not implemented
+    except (ValueError, TypeError): # Format code not implemented / not a scalar
         return f"{node.value}"
 
 @BaseRenderer.register('list')
@@ -409,16 +464,9 @@ def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderCont
     if context.current_mode == 'sym':
         return node.identifier
     elif context.current_mode == 'num':
-
-        fc = context.format
-        # TODO: Handle non-scalar Name values (e.g. list/tuple/ndarray).
-        try:
-            return renderer.render_node(node.value, base_context)
-        except (AttributeError, NotImplementedError):
-            try:
-                return f"{node.value:{fc}}"
-            except (ValueError, TypeError): # Format code not implemented
-                return f"{node.value}"
+        # The value may be a raw scalar or a collection; render_node reifies it
+        # into the matching node so each element picks up the format code.
+        return renderer.render_node(node.value, base_context)
     else:
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
@@ -450,14 +498,9 @@ def render_attribute(renderer: BaseRenderer, node: Attribute, base_context: Base
         if isinstance(node.value, NoValue):
             # No runtime value was captured; fall back to the symbolic form.
             return symbolic
-        fc = context.format
-        try:
-            return renderer.render_node(node.value, base_context)
-        except (AttributeError, NotImplementedError):
-            try:
-                return f"{node.value:{fc}}"
-            except (ValueError, TypeError):
-                return f"{node.value}"
+        # The value may be a raw scalar or a collection; render_node reifies it
+        # into the matching node so each element picks up the format code.
+        return renderer.render_node(node.value, base_context)
     else:
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
@@ -513,14 +556,23 @@ def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) ->
     return f"{node.pre}{as_infix}{node.post}"
 
 
-@BaseRenderer.register('floor_op')
-def render_floor_op(renderer: BR, node: FloorOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+@BaseRenderer.register('unary_op')
+def render_unary_op(renderer: BR, node: HcUnaryOp, base_context: BaseRenderContext) -> str:
+    context = base_context.current
+    rendered = renderer.render_node(node.operand, base_context)
+    # Parenthesize the operand when it is a binary operator that binds looser
+    # than the unary operator (e.g. -(a + b)); tighter operands such as a name, a
+    # constant or a power (-a**b) need no parentheses. Also parenthesize a +/-
+    # operand that renders with a leading sign so a numeric substitution reads as
+    # -(-10.423) rather than the ambiguous --10.423.
+    operand_pre = OP_PRECEDENCE.get(type(node.operand), float('inf'))
+    needs_parens = operand_pre < UNARY_PRECEDENCE
+    if node.symbol in ('-', '+') and rendered.lstrip().startswith(('-', '+')):
+        needs_parens = True
+    if needs_parens:
+        rendered = f"{context.lpar}{rendered}{context.rpar}"
+    return f"{node.pre}{node.symbol}{rendered}{node.post}"
 
-
-@BaseRenderer.register('modulo_op')
-def render_modulo_op(renderer: BR, node: ModuloOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
 
 @BaseRenderer.register('gt_op')
 def render_gt_op(renderer: BR, node: GtOp, base_context: BaseRenderContext) -> str:
@@ -561,9 +613,9 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     if namespace == '__main__':
         namespace = ''
     if namespace:
-        rendered = f"{context.space}{namespace}.{function_name}({arg_str}){context.space}"
+        rendered = f"{namespace}.{function_name}({arg_str})"
     else:
-        rendered = f"{context.space}{function_name}({arg_str}){context.space}"
+        rendered = f"{function_name}({arg_str})"
     return rendered
 
 
@@ -575,7 +627,7 @@ def render_comprehension(renderer: BR, node: Comprehension, base_context: BaseRe
     targets = ", ".join(renderer.render(target, base_context) for target in node.assigns)
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
     prefix = "async for" if node._is_async else "for"
-    return f"{prefix} {targets} in{iterator}"
+    return f"{prefix} {targets} in {iterator}"
 
 
 @BaseRenderer.register('comprehension_chain')
@@ -614,7 +666,20 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
 
 @BaseRenderer.register('comment_command')
 def render_comment_command(renderer: BR, node: CommentCommand, base_context: BaseRenderContext) -> str:
-    base_context.global_context = base_context.global_context | RenderContext(**node.commands)
+    context = base_context.current
+    nl = context.newline
+    # A standalone comment command updates the *global* render context with its
+    # options so they persist to the following lines. 'line_break' is a one-shot
+    # directive (insert a blank line here), so it is applied locally and never
+    # merged into the global context. 'None' values are argparse defaults for
+    # unset flags (e.g. an unset -f) and must not clobber the current context.
+    line_break = node.commands.get('line_break', False)
+    for key, value in node.commands.items():
+        if key == 'line_break' or value is None:
+            continue
+        setattr(base_context.global_context, key, value)
+    if line_break:
+        return f"{nl}"
     return ''
 
 @BaseRenderer.register('comment_line')
@@ -687,7 +752,10 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     param_line_post_comment = getattr(context, 'param_line', False)
     param_line = param_line_pre_comment or param_line_post_comment
     if getattr(context, 'ignore', False):
-        base_context.line_context.ignore = False
+        # Clear the line-specific context (as the normal return path does) so the
+        # ignored line's command options -- e.g. a `format=None` left by an inline
+        # command -- don't leak into the following lines.
+        base_context.line_context = RenderContext()
         return ''
 
     columns: deque = deque([])
@@ -891,6 +959,41 @@ def for_block_header(renderer: BaseRenderer, node: ForBlock, base_context: BaseR
     return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:"
 
 
+def is_literal_expr(node) -> bool:
+    """
+    True if ``node`` is a compile-time literal: a constant, a unary op or binary
+    op whose operands are literals (e.g. ``-5``, ``3 + 4j``), or a collection
+    whose elements are all literals. Used to decide whether a collection
+    assignment is a param line.
+    """
+    if isinstance(node, Constant):
+        return True
+    if isinstance(node, HcUnaryOp):
+        return is_literal_expr(node.operand)
+    if isinstance(node, HcBinOp):
+        return is_literal_expr(node.left) and is_literal_expr(node.right)
+    if isinstance(node, (List, Tuple, Set)):
+        return all(is_literal_expr(el) for el in node.elems)
+    if isinstance(node, Dictionary):
+        return all(is_literal_expr(el) for el in node.keys) and all(
+            is_literal_expr(el) for el in node.values
+        )
+    return False
+
+
+def _is_scalar_literal(node) -> bool:
+    """
+    A bare scalar literal, or a unary op applied to one (e.g. ``2``, ``-10.423``).
+    Deliberately excludes bare binary ops so an ordinary calc like ``y = 2 + 3``
+    still shows its symbolic/numeric substitution.
+    """
+    if isinstance(node, Constant):
+        return True
+    if isinstance(node, HcUnaryOp):
+        return _is_scalar_literal(node.operand)
+    return False
+
+
 @BaseRenderer.register("calc_line:pre")
 def toggle_param_line(renderer: BaseRenderer, node: CalcLine, base_context: BRC) -> CalcLine:
     """
@@ -898,14 +1001,20 @@ def toggle_param_line(renderer: BaseRenderer, node: CalcLine, base_context: BRC)
     value assignment that collapses to ``target = value``, hiding the symbolic
     and numeric-substitution columns). Runs before the calc_line handler reads
     ``context.param_line``.
+
+    A line is a param line when its RHS is a single scalar literal (a constant or
+    a unary-negated constant, e.g. ``-10.423``) or a literal collection (a
+    ``list``/``tuple``/``set``/``dict`` whose every element is itself a literal).
+    A collection containing a variable name still shows its substitution.
     """
     context = base_context.current
     if getattr(context, 'param_line', False) == True:
         return node
-    if (
-        len(node.expression_tree) == 1
-        and isinstance(node.expression_tree[0], Constant)
-    ):
+    rhs = node.expression_tree[0] if len(node.expression_tree) == 1 else None
+    is_literal_collection = (
+        isinstance(rhs, (List, Tuple, Set, Dictionary)) and is_literal_expr(rhs)
+    )
+    if rhs is not None and (_is_scalar_literal(rhs) or is_literal_collection):
         base_context.line_context.param_line = True
     else:
         base_context.line_context.param_line = node.pars_nesting
@@ -919,15 +1028,7 @@ def infix_binop(
     allow_spaces=True,
     base_context: BRC = None,
 ) -> str:
-    precedence = {
-         AddOp: 1,
-         SubOp: 1,
-         MultOp: 2,
-         DivOp: 2,
-         FloorOp: 2,
-         ModuloOp: 2,
-         PowOp: 3
-    }
+    precedence = OP_PRECEDENCE
     associativity = {
          AddOp: "left",
          SubOp: "left",
@@ -976,6 +1077,10 @@ def infix_binop(
             right_portion = f"{lpar}{render_right}{rpar}"
         elif rpre == pre and not commut:
             right_portion = f"{lpar}{render_right}{rpar}"
+    # An empty symbol means juxtaposition (e.g. a superscript power like b²), so
+    # the operands butt together with no surrounding spaces.
+    if symbol == "":
+        return f"{left_portion}{right_portion}"
     return f"{left_portion}{_}{symbol}{_}{right_portion}"
                                      
                                        
