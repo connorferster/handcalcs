@@ -1,17 +1,17 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from ..base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError
+from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError
 
 
 # Node type imports only used for typing
-from ...parsing.nodes import (
+from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Constant,
     
 )
-from ...parsing.operator_nodes import (
+from handcalcs.parsing.operator_nodes import (
     AddOp,
     MultOp,
     SubOp,
@@ -28,17 +28,17 @@ from ...parsing.operator_nodes import (
     NeqOp,
     HcCompOp
 )
-from ...parsing.inline_nodes import (
+from handcalcs.parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
     Compare
 )
-from ...parsing.line_nodes import (
+from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
     Import
 )
-from ...parsing.block_nodes import (
+from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
     ElifBlock
@@ -167,9 +167,20 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
         node.post = ''
         return node
     elif node.type == 'div_op':
-        node.symbol = '/'
-        node.pre = ''
-        node.post = ''
+        symbol = f"/"
+        pre = ""
+        post = ""
+        # If it is a simple denominator, trim the parenths
+        if isinstance(node.right, Constant):
+            symbol = symbol[:-1]
+            post = ""
+        # And if it is also a simple numerator, trim the parenths
+        if isinstance(node.left, Constant):
+            symbol = symbol[1:]
+            pre = ""
+        node.symbol = symbol
+        node.pre = pre
+        node.post = post
         return node
     elif node.type == 'floor_op':
         node.symbol = '//'

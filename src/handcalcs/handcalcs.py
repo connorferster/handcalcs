@@ -1,7 +1,7 @@
 import pathlib
 from typing import Optional
 from .parsing.sequence import HcSequence
-from .renderers.base import BaseRenderer
+from .renderers import BaseRenderer
 from .renderers import demo
 
 
