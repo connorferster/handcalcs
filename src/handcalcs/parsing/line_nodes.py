@@ -1,6 +1,5 @@
 from collections import deque
 from dataclasses import dataclass, field
-import re
 from typing import Optional
 from .nodes import HcNode, Name
 from .inline_nodes import InlineComment, InlineCommand
@@ -41,17 +40,22 @@ class CommentLine(HcLineNode):
 
 
 @dataclass
-class MarkdownComment(HcLineNode):
+class Heading(HcLineNode):
     content: Optional[str] = None
-    type: str = "markdown_comment"
+    # The markdown heading level (number of leading '#'). Note this is distinct
+    # from ``HcLineNode.level``, which is the block-nesting/indent level.
+    heading_level: int = 1
+    type: str = "heading"
 
     @classmethod
     def from_raw_comment(cls, comment: str):
-        pattern = r"^#[ ]*(.+)"
-        matches = re.search(pattern, comment)
-        if matches is not None:
-            content = matches.groups()[0]
-        return cls(content=content)
+        # The number of leading '#' characters is the markdown heading level;
+        # the remaining text (with '#'s and surrounding whitespace stripped) is
+        # the heading content.
+        stripped = comment.lstrip()
+        heading_level = len(stripped) - len(stripped.lstrip("#"))
+        content = stripped.lstrip("#").strip()
+        return cls(content=content, heading_level=heading_level or 1)
 
 @dataclass
 class CommentCommand(HcLineNode):
