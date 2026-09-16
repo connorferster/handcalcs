@@ -61,5 +61,5 @@ area = circle_area(2 * radius)
     assert out == (
         "[Python import]: from math import sqrt, pi\n"
         "radius = 5\n"
-        "area =  circle_area(2 * radius)  =  circle_area(2 * 5)  = 78.54\n"
+        "area = circle_area(2 * radius) = circle_area(2 * 5) = 78.54\n"
     )

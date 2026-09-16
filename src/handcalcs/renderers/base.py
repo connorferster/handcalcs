@@ -613,9 +613,9 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     if namespace == '__main__':
         namespace = ''
     if namespace:
-        rendered = f"{context.space}{namespace}.{function_name}({arg_str}){context.space}"
+        rendered = f"{namespace}.{function_name}({arg_str})"
     else:
-        rendered = f"{context.space}{function_name}({arg_str}){context.space}"
+        rendered = f"{function_name}({arg_str})"
     return rendered
 
 
@@ -627,7 +627,7 @@ def render_comprehension(renderer: BR, node: Comprehension, base_context: BaseRe
     targets = ", ".join(renderer.render(target, base_context) for target in node.assigns)
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
     prefix = "async for" if node._is_async else "for"
-    return f"{prefix} {targets} in{iterator}"
+    return f"{prefix} {targets} in {iterator}"
 
 
 @BaseRenderer.register('comprehension_chain')

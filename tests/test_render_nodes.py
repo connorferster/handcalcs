@@ -323,7 +323,7 @@ def test_function_call_suppresses_main_namespace(render):
         function_name=Name("sin", "sin"),
         args=deque([Constant(2)]),
     )
-    assert render(node, current_mode="sym") == " sin(2) "
+    assert render(node, current_mode="sym") == "sin(2)"
 
 
 def test_function_call_with_namespace(render):
@@ -332,7 +332,7 @@ def test_function_call_with_namespace(render):
         function_name=Name("sin", "sin"),
         args=deque([Constant(2)]),
     )
-    assert render(node, current_mode="sym") == " math.sin(2) "
+    assert render(node, current_mode="sym") == "math.sin(2)"
 
 
 # ---------------------------------------------------------------------------
@@ -496,7 +496,7 @@ def test_expr_line_statement_call_shows_symbolic_and_numeric(render):
             )
         ])
     )
-    assert render(node) == [" print(d) ", "=", " print(4) "]
+    assert render(node) == ["print(d)", "=", "print(4)"]
 
 
 def test_expr_line_value_bearing_expression(render):
