@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
@@ -95,6 +96,8 @@ class RenderContext:
         mode: str = 'full',
         format_code: str = ".5g",
         param_line: bool = False,
+        lpar = "(",
+        rpar = ")",
         **kwargs
     ):
         self.space = space
@@ -104,6 +107,8 @@ class RenderContext:
         self.mode = mode
         self.format = format_code
         self.param_line = param_line
+        self.lpar = lpar
+        self.rpar = rpar
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -461,27 +466,51 @@ def render_attribute(renderer: BaseRenderer, node: Attribute, base_context: Base
 
 @BaseRenderer.register('add_op')
 def render_add_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('sub_op')
 def render_sub_op(renderer: BR, node: SubOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('mult_op')
 def render_mult_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('div_op')
 def render_div_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
+
+
+@BaseRenderer.register('floor_op')
+def render_floor_op(renderer: BR, node: FloorOp, base_context: BaseRenderContext) -> str:
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
+
+
+@BaseRenderer.register('modulo_op')
+def render_modulo_op(renderer: BR, node: ModuloOp, base_context: BaseRenderContext) -> str:
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('pow_op')
 def render_pow_op(renderer: BR, node: AddOp, base_context: BaseRenderContext) -> str:
-    return f"{node.pre}{renderer.render(node.left, base_context)}{node.symbol}{renderer.render(node.right, base_context)}{node.post}"
+    as_infix = infix_binop(
+        node, renderer, True, base_context)
+    return f"{node.pre}{as_infix}{node.post}"
 
 
 @BaseRenderer.register('floor_op')
@@ -884,4 +913,74 @@ def toggle_param_line(renderer: BaseRenderer, node: CalcLine, base_context: BRC)
 
 
 
+def infix_binop(
+    node: BinOp,
+    renderer: BaseRenderer,
+    allow_spaces=True,
+    base_context: BRC = None,
+) -> str:
+    precedence = {
+         AddOp: 1,
+         SubOp: 1,
+         MultOp: 2,
+         DivOp: 2,
+         FloorOp: 2,
+         ModuloOp: 2,
+         PowOp: 3
+    }
+    associativity = {
+         AddOp: "left",
+         SubOp: "left",
+         MultOp: "left",
+         DivOp: "left",
+         FloorOp: "left",
+         ModuloOp: "left",
+         PowOp: "right"
+    }
+    commutativity= {
+         AddOp: 1,
+         SubOp: 0,
+         MultOp: 1,
+         DivOp: 0,
+         FloorOp: 0,
+         ModuloOp: 0,
+         PowOp: 0
+    }
+    node_type = node.__class__
+    pre = precedence.get(node_type)
+    assoc = associativity.get(node_type)
+    commut = commutativity.get(node_type)
+    context = base_context.current
+    lpar = context.lpar
+    rpar = context.rpar
+    left = node.left
+    right = node.right
+    symbol = node.symbol
+    ltype = left.__class__
+    rtype = right.__class__
+    lpre= precedence.get(ltype, float('inf'))
+    rpre = precedence.get(rtype, float('inf'))
+    _ = context.space
+    if not allow_spaces:
+        _ = ""
+    render_left = renderer.render_node(left, base_context)
+    render_right = renderer.render_node(right, base_context)
+    if lpre < pre:              
+        left_portion = f"{lpar}{render_left}{rpar}"
+    else:
+        left_portion = render_left
+
+    right_portion = render_right
+    if rpre <= pre:
+        if rpre < pre:
+            right_portion = f"{lpar}{render_right}{rpar}"
+        elif rpre == pre and not commut:
+            right_portion = f"{lpar}{render_right}{rpar}"
+    return f"{left_portion}{_}{symbol}{_}{right_portion}"
+                                     
+                                       
+                                           
+
+                                       
+        
 

@@ -159,15 +159,17 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
     """
     context = base_context.current
     _ = context.space
-    if node.type == 'mult_op':
-        node.symbol = ')('
-        node.pre = '('
-        node.post = ')'
+    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
+        return node
+    elif node.type == 'mult_op':
+        node.symbol = '*'
+        node.pre = ''
+        node.post = ''
         return node
     elif node.type == 'div_op':
-        symbol = f"){_}/{_}("
-        pre = "("
-        post = ")"
+        symbol = f"/"
+        pre = ""
+        post = ""
         # If it is a simple denominator, trim the parenths
         if isinstance(node.right, Constant):
             symbol = symbol[:-1]
@@ -181,15 +183,15 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
         node.post = post
         return node
     elif node.type == 'floor_op':
-        node.symbol = ') / ('
-        node.pre = 'floor[('
-        node.post = ')]'
+        node.symbol = '//'
+        node.pre = ''
+        node.post = ''
         return node
     elif node.type == 'add_op':
-        node.symbol = ' + '
+        node.symbol = '+'
         return node
     elif node.type == 'sub_op':
-        node.symbol = ' - '
+        node.symbol = '-'
         return node
     elif node.type == 'pow_op' and isinstance(node.right, Constant):
         exp_str = str(node.right.value)
