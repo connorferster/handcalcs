@@ -37,7 +37,7 @@ class HandCalcs:
         eval_globals = self.__evaluate(source)
         demo_ast = self.__parse(source, eval_globals)
         rendered_tree = self.renderer.render(demo_ast)
-        return self.renderer.join(rendered_tree)
+        return rendered_tree
 
 
 
