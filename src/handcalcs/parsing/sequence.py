@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from collections import deque, ChainMap
 from typing import Callable, Optional
 from .ast_parser import AST_Parser
-from .block_nodes import ElifBlock, IfBlock, HcBlockNode
+from .block_nodes import ElifBlock, IfBlock, HcBlockNode, ParamsBlock
 from copy import deepcopy
 from typing import Any
 from .nodes import HcNode
@@ -46,15 +46,19 @@ class HcSequence(HcNode):
         ElifBlocks do not cause an increment but their child
         IfBlocks do.
         """
+        # ElifBlock and ParamsBlock are not nested scopes: their child lines
+        # render at the same level as the block itself, so they do not increment
+        # the indent level for their children.
+        flat_blocks = (ElifBlock, ParamsBlock)
         for idx, node in enumerate(tree):
             if hasattr(node, 'level'): # Omit NoValue nodes
                 updated_node = set_level(node, level)
-            if hasattr(node, 'lines') and isinstance(node, ElifBlock):
+            if hasattr(node, 'lines') and isinstance(node, flat_blocks):
                 tree[idx] = updated_node
                 HcSequence.set_levels(node.lines, level)
-            elif hasattr(node, 'lines') and not isinstance(node, ElifBlock):
+            elif hasattr(node, 'lines') and not isinstance(node, flat_blocks):
                 tree[idx] = updated_node
-                HcSequence.set_levels(node.lines, level+1)  
+                HcSequence.set_levels(node.lines, level+1)
         return tree
 
     @staticmethod

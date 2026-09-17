@@ -18,6 +18,7 @@ b = -10.423140293 # hc: -f .5e
 c = 2
 x_1 = (-b + sqrt(b**2 - 4 * a * c)) / (2 * a)
 x_2 = (-b - sqrt(b**2 - 4 * a * c)) / (2 * a)
+f = 1; g = 2; h = 4
 
 ### Lateral torsional buckling
 
@@ -35,29 +36,29 @@ M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y 
 ### Steel section class checks
 # The purpose of this demo is to show nested if/elif/else statements
 b_w = 200 # mm
-h = 310 # mm
+h_w = 310 # mm
 t_f = 10 # mm
 t_w = 6 # mm
 F_y = 350 # MPa
 
 if b_w / (2 * t_f) <= 145 / sqrt(F_y):
-    if h / t_w <= 1000 / sqrt(F_y):
+    if h_w / t_w <= 1000 / sqrt(F_y):
         class_section = 1
-    elif h / t_w <= 1700 / sqrt(F_y):
+    elif h_w / t_w <= 1700 / sqrt(F_y):
         class_section = 2
-    elif h / t_w <= 2400 / sqrt(F_y):
+    elif h_w / t_w <= 2400 / sqrt(F_y):
         class_section = 3
     else:
         class_section = 4
 elif b_w / (2 * t_f) <= 170 / sqrt(F_y):
-    if h / t_w <= 1700 / sqrt(F_y):
+    if h_w / t_w <= 1700 / sqrt(F_y):
         class_section = 2
-    elif h / t_w <= 2400 / sqrt(F_y):
+    elif h_w / t_w <= 2400 / sqrt(F_y):
         class_section = 3
     else: 
         class_section = 4
 elif b_w / (2 * t_f) <= 200 / sqrt(F_y):
-    if h / t_w <= 2400 / sqrt(F_y):
+    if h_w / t_w <= 2400 / sqrt(F_y):
         class_section = 3
     else:
         class_section = 4
