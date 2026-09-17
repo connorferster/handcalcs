@@ -6,7 +6,7 @@ These guard the wiring between the layers and pin current rendered output.
 Node- and BaseRenderer-level behavior is covered in the dedicated unit
 modules; here we only assert that a realistic script renders coherently.
 """
-from handcalcs import HandCalcs
+from handcalcs import HandCalcs, PlainTextRenderer
 
 
 def test_basic_arithmetic():
@@ -18,7 +18,7 @@ beta = 5 # Inline comment
 d = 3
 # hc: cat = "hat"
 c = (d * (alpha + beta)) / pi # hc: -f .4g
-e = sqrt(beta**2 - alpha**2)
+e = sqrt(beta**2 - alpha**2) # hc: -i
 if e <= 3:
     if 2 < beta < alpha:
         f = 12
@@ -27,7 +27,7 @@ if e <= 3:
     else:
         f = 30
     """
-    out = HandCalcs()(source)
+    out = HandCalcs(PlainTextRenderer())(source)
 
     assert out == (
         "[Python import]: from math import sqrt, pi\n"
@@ -36,7 +36,7 @@ if e <= 3:
         "Comment\n"
         "d = 3\n"
         "c = d * (α + β) / π = 3 * (4 + 5) / 3.142 = 8.594\n"
-        "Since (e<=3) -> (3.0<=3) is True:\n"
+        "Since (e<=3) -> (3<=3) is True:\n"
         "    Since (2<α<β) -> (2<4<5) is True:\n"
         "        f = 20\n"
     )

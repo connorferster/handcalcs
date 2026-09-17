@@ -1,16 +1,46 @@
 import pathlib
+import warnings
 from typing import Optional
 from .parsing.sequence import HcSequence
-from .renderers import BaseRenderer
+from .renderers import BaseRenderer, get_renderer
 from .renderers import demo
+from . import config
 
 
 
 class HandCalcs:
 
-    def __init__(self, renderer = BaseRenderer()):
+    def __init__(self, renderer = None):
+        if renderer is None:
+            renderer = self.__default_renderer()
         self.renderer = renderer
+        # Global config settings (format_code + any custom fields) seed the render
+        # context of every HandCalcs instance, whatever renderer is used. Only
+        # 'default_renderer' is specific to bare instantiation and is excluded here.
+        self._context_settings = {
+            key: value
+            for key, value in config.get_config().items()
+            if key != "default_renderer"
+        }
         self.hc_ast = None
+
+    @staticmethod
+    def __default_renderer():
+        """
+        Instantiate the renderer named by the 'default_renderer' global config
+        option. If that name is not registered (e.g. a custom renderer whose module
+        has not been imported), warn and fall back to BaseRenderer.
+        """
+        name = config.get_option("default_renderer", "base")
+        renderer_cls = get_renderer(name)
+        if renderer_cls is None:
+            warnings.warn(
+                f"Configured default_renderer '{name}' is not a registered renderer; "
+                "falling back to BaseRenderer. If it is a custom renderer, ensure its "
+                "module is imported before instantiating HandCalcs()."
+            )
+            renderer_cls = BaseRenderer
+        return renderer_cls()
 
     
     def __call__(self, source_or_path: str | pathlib.Path, supplied_globals: Optional[dict] = None, supplied_locals: Optional[dict] = None) -> str:
@@ -26,7 +56,8 @@ class HandCalcs:
         if supplied_globals is None:
             passed_globals = self.__evaluate(source)
         self.hc_ast = self.__parse(source, passed_globals)
-        rendered_tree = self.renderer.render(self.hc_ast)
+        base_context = self.renderer.create_context(**self._context_settings)
+        rendered_tree = self.renderer.render(self.hc_ast, base_context)
         return self.renderer.join(rendered_tree)
 
     def demo(self):
@@ -36,7 +67,8 @@ class HandCalcs:
         source = self.__read(demo.source)
         eval_globals = self.__evaluate(source)
         demo_ast = self.__parse(source, eval_globals)
-        rendered_tree = self.renderer.render(demo_ast)
+        base_context = self.renderer.create_context(**self._context_settings)
+        rendered_tree = self.renderer.render(demo_ast, base_context)
         return rendered_tree
 
 
