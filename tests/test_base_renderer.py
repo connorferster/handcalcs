@@ -248,3 +248,34 @@ def test_registered_post_rule_transforms_rendered_output(renderer):
     # A 'post' rule receives the rendered result and returns a replacement.
     renderer.register_handler("constant:post", lambda rn, rendered, node, ctx: f"[{rendered}]")
     assert renderer.render(Constant(4)) == "[4]"
+
+
+# ---------------------------------------------------------------------------
+# ParamsBlock: ';'-joined assignments rendered as an id = value grid
+# ---------------------------------------------------------------------------
+
+def test_params_block_renders_as_grid(renderer):
+    # Consecutive ';'-lines flatten and reflow into the default 3 columns; the
+    # short final row is padded (trailing blank trimmed).
+    tree = HcSequence.from_source(
+        "a = 1; b = 2; c = 3\nd = 4; e = 5\n",
+        {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == (
+        "a = 1    b = 2    c = 3\n"
+        "d = 4    e = 5\n"
+    )
+
+
+def test_params_block_respects_param_cols(renderer):
+    # A `# hc: param_cols=N` command sets the grid width for the block below it.
+    tree = HcSequence.from_source(
+        "# hc: param_cols=2\na = 1; b = 2; c = 3\n",
+        {"a": 1, "b": 2, "c": 3}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == (
+        "a = 1    b = 2\n"
+        "c = 3\n"
+    )

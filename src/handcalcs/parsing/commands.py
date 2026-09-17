@@ -8,3 +8,4 @@ command_parser.add_argument("-w", "--if-winner-only", "--winner", action="store_
 command_parser.add_argument("-i", "--ignore", action="store_true")
 command_parser.add_argument("-p", "--param-line", action="store_true")
 command_parser.add_argument("-b", "--line-break", action="store_true")
+command_parser.add_argument("-c", "--param-cols", "--param_cols", type=int)

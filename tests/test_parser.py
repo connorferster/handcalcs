@@ -5,7 +5,8 @@ from handcalcs.parsing.block_nodes import (
     IfBlock,
     ForBlock,
     ElifBlock,
-    ElseBlock
+    ElseBlock,
+    ParamsBlock
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -1551,7 +1552,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 content='a plain note'
             ),
             CommentCommand(
-                commands={'multiline': False, 'format':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False}
+                commands={'multiline': False, 'format':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
             ),
             CalcLine(
                 assigns=deque([
@@ -1607,7 +1608,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 ]),
                 comment=InlineCommand(
                     content='hc: -f 5E',
-                    commands={'multiline': False, 'format': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False}
+                    commands={'multiline': False, 'format': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
                 )
             )
         ])
@@ -1716,3 +1717,33 @@ def test_line_break_comment_command_parsing():
     node = result[0]
     assert isinstance(node, CommentCommand)
     assert node.commands["line_break"] is True
+
+
+def test_params_block_groups_semicolon_line():
+    # Two or more assignments on one physical line (';') group into a
+    # ParamsBlock; a lone assignment on its own line does not.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    result = parser("a = 1; b = 2; c = 3\nd = 4\n")
+    assert len(result) == 2
+    block, lone = result
+    assert isinstance(block, ParamsBlock)
+    assert [line.assigns[0].identifier for line in block.lines] == ['a', 'b', 'c']
+    assert isinstance(lone, CalcLine)
+    assert lone.assigns[0].identifier == 'd'
+
+
+def test_params_block_merges_consecutive_semicolon_lines():
+    # Consecutive multi-assignment lines merge into a single ParamsBlock.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    result = parser("a = 1; b = 2\nc = 3; d = 4\n")
+    assert len(result) == 1
+    assert isinstance(result[0], ParamsBlock)
+    assert [line.assigns[0].identifier for line in result[0].lines] == ['a', 'b', 'c', 'd']
+
+
+def test_lone_assignments_are_not_grouped():
+    # A run of single-assignment lines is left as individual CalcLines.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    result = parser("a = 1\nb = 2\nc = 3\n")
+    assert len(result) == 3
+    assert all(isinstance(node, CalcLine) for node in result)

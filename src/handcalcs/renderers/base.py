@@ -58,6 +58,7 @@ from handcalcs.parsing.block_nodes import (
     ElifBlock,
     ForBlock,
     FunctionBlock,
+    ParamsBlock,
 )
 
 RenderHandler = Callable
@@ -273,6 +274,10 @@ class BaseRenderer:
             # (which would produce a double blank line).
             if item and not item.strip("\n"):
                 return [item]
+            # A multi-line string (e.g. a rendered params grid) is indented line
+            # by line so it sits at the correct depth inside a nested block.
+            if nl in item:
+                return [f"{indent}{line}{nl}" for line in item.split(nl)]
             return [f"{indent}{item}{nl}"]
         # A block is ``[header_string, body_list]`` -- detected by its body being
         # a list. An all-string list is a rendered line.
@@ -394,6 +399,41 @@ class BaseRenderer:
 
     def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
         return str(node)
+
+    def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
+        """
+        Format a params grid (``rows`` of cells, each cell already rendered to a
+        list of components like ``["f", "=", "1"]``, or ``None`` for padding) into
+        the final text block.
+
+        The base implementation is plain-text oriented: cell components are joined
+        by the context space, columns are left-justified to a shared per-column
+        width, columns are separated by a gap and rows by the context newline.
+        Renderers that emit tabular markup (LaTeX array, HTML table) override this.
+        """
+        context = base_context.current
+        _ = context.space
+        nl = context.newline
+
+        def cell_text(cell) -> str:
+            if cell is None:
+                return ""
+            if isinstance(cell, (list, tuple, deque)):
+                return _.join(str(part) for part in cell)
+            return str(cell)
+
+        text_rows = [[cell_text(cell) for cell in row] for row in rows]
+        ncols = max((len(row) for row in text_rows), default=0)
+        widths = [
+            max((len(row[i]) for row in text_rows if i < len(row)), default=0)
+            for i in range(ncols)
+        ]
+        gap = _ * 4
+        lines = []
+        for row in text_rows:
+            padded = [row[i].ljust(widths[i]) for i in range(len(row))]
+            lines.append(gap.join(padded).rstrip())
+        return nl.join(lines)
 
 
 ## Register BaseRenderer basic node implementations
@@ -787,6 +827,35 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
 
     base_context.line_context = RenderContext()  # Clear any line-specific context
     return list(components)
+
+
+@BaseRenderer.register('params_block')
+def render_params_block(renderer: BaseRenderer, node: ParamsBlock, base_context: BaseRenderContext) -> str:
+    """
+    Render a ParamsBlock (a run of consecutive ``;``-joined assignment lines) as a
+    grid of ``identifier = value`` cells.
+
+    Each child line is rendered as a param line (forced ``param_line=True``), so it
+    collapses to a ``["id", "=", "value"]`` cell via the existing ``render_calcline``
+    handler -- any trailing comment on the line is dropped. All cells are flattened
+    and reflowed into ``param_cols`` columns (default 3, min 1, configurable via
+    ``# hc: param_cols=N``); the final row is padded with ``None`` so the grid stays
+    rectangular. ``format_param_grid`` turns the cell grid into the final text.
+    """
+    context = base_context.current
+    cols = max(1, int(getattr(context, 'param_cols', 3)))
+    cells: list = []
+    for line in node.lines:
+        base_context.line_context.param_line = True
+        rendered = renderer.render(line, base_context)
+        # Keep only the id / equality / value components; drop a trailing comment.
+        if isinstance(rendered, list):
+            rendered = rendered[:3]
+        cells.append(rendered)
+    rows = [cells[k:k + cols] for k in range(0, len(cells), cols)]
+    if rows:
+        rows[-1].extend([None] * (cols - len(rows[-1])))
+    return renderer.format_param_grid(rows, base_context)
 
 
 @BaseRenderer.register('expr_line')

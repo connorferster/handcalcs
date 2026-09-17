@@ -10,6 +10,11 @@ class HcBlockNode(HcNode):
     level: int = 0
 
 @dataclass
+class ParamsBlock(HcBlockNode):
+    lines: deque[CalcLine] = field(default_factory=deque)
+    type: str = 'params_block'
+
+@dataclass
 class FunctionBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine | Heading | CommentCommand | CommentLine] = field(default_factory=deque)
     namespace: deque[str] = field(default_factory=deque)

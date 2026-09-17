@@ -12,7 +12,7 @@ import inspect
 import tokenize
 from typing import List, Dict, Union, Any, Optional, Callable
 from types import ModuleType
-from collections import deque, ChainMap
+from collections import deque, ChainMap, Counter
 from .nodes import (
     Attribute,
     List,
@@ -26,7 +26,8 @@ from .block_nodes import (
     ForBlock,
     IfBlock,
     ElifBlock,
-    HcBlockNode
+    HcBlockNode,
+    ParamsBlock
 )
 from .line_nodes import (
     CalcLine,
@@ -248,17 +249,58 @@ class AST_Parser:
             out.append(self._make_comment_line(self.line_comments[row]))
         return out
 
+    def _has_pending_comment_before(self, before: int) -> bool:
+        """
+        True if a standalone comment row is still pending strictly before
+        ``before``. Used to keep an interleaved comment from silently merging two
+        otherwise-adjacent ``;``-lines into one params block.
+        """
+        pending = getattr(self, "_pending_comment_rows", deque())
+        return bool(pending) and pending[0] < before
+
     def _parse_body(self, body: list) -> deque:
         """
         Parses a list of statements, interleaving any standalone comment lines
         that fall before each statement. Use in place of a bare
         ``[self.ast_parse(item) for item in body]`` comprehension.
+
+        Two or more assignments on one physical line (``a = 1; b = 2``) share a
+        ``lineno``; a run of consecutive such multi-assignment lines is collected
+        into a single :class:`ParamsBlock`. A lone single assignment is parsed as
+        an ordinary line.
         """
+        # A lineno carrying >= 2 assignments is a ';'-line (a params line).
+        line_counts = Counter(
+            s.lineno for s in body if isinstance(s, ast.Assign) and hasattr(s, "lineno")
+        )
+
+        def is_params_stmt(stmt) -> bool:
+            return (
+                isinstance(stmt, ast.Assign)
+                and hasattr(stmt, "lineno")
+                and line_counts[stmt.lineno] >= 2
+            )
+
         out = deque()
-        for stmt in body:
+        i = 0
+        n = len(body)
+        while i < n:
+            stmt = body[i]
             if hasattr(stmt, "lineno"):
                 out.extend(self._flush_comment_lines(stmt.lineno))
-            out.append(self.ast_parse(stmt))
+            if is_params_stmt(stmt):
+                run = deque()
+                while i < n and is_params_stmt(body[i]):
+                    # A standalone comment interleaved before this line ends the
+                    # run so the comment is not swallowed into the grid.
+                    if run and self._has_pending_comment_before(body[i].lineno):
+                        break
+                    run.append(self.ast_parse(body[i]))
+                    i += 1
+                out.append(ParamsBlock(lines=run))
+            else:
+                out.append(self.ast_parse(stmt))
+                i += 1
         return out
 
     def ast_parse(self, node: ast.AST) -> deque:
