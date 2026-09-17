@@ -15,6 +15,7 @@ dependencies = [
     "innerscope >= 0.7.0",
     "pyparsing",
     "pfst>=0.3.2",
+    "platformdirs>=3.0.0",
 ]
 
 [project.urls]

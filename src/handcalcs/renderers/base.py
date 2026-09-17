@@ -156,6 +156,22 @@ class RenderContext:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    @classmethod
+    def sparse(cls, **kwargs) -> "RenderContext":
+        """
+        Build a context that carries *only* the given attributes, with no defaults.
+
+        This is the line-scoped layer of a ``BaseRenderContext``: because it holds
+        only explicitly-set overrides, ``BaseRenderContext.current`` (a ChainMap of
+        line over global) falls through to the global context for every key the
+        line does not override. A full ``RenderContext()`` here would instead
+        shadow the global context with its own defaults.
+        """
+        obj = cls.__new__(cls)
+        for k, v in kwargs.items():
+            setattr(obj, k, v)
+        return obj
+
     def __repr__(self):
         attrs = [f"{k}={v}" for k, v in self.__dict__.items() if not k.startswith("_") and k.islower()]
         repr_attrs = ", ".join(attrs)
@@ -180,6 +196,20 @@ class BaseRenderContext:
         return RenderContext(**ChainMap(self.line_context.__dict__, self.global_context.__dict__))
 
 
+# Registry mapping a renderer's 'name' to its class. Populated automatically as
+# renderer subclasses are defined (see BaseRenderer.__init_subclass__) and used to
+# resolve the 'default_renderer' global config option to a class.
+_RENDERER_REGISTRY: dict[str, "type[BaseRenderer]"] = {}
+
+
+def get_renderer(name: str) -> "Optional[type[BaseRenderer]]":
+    """
+    Return the renderer class registered under 'name', or None if no renderer
+    with that name has been defined/imported.
+    """
+    return _RENDERER_REGISTRY.get(name)
+
+
 class BaseRenderer:
     name: ClassVar[str] = 'base'
     node_handlers: ClassVar[dict[str, Callable]] = {}
@@ -202,9 +232,17 @@ class BaseRenderer:
         cls.node_handlers = dict(cls.node_handlers)
         cls.header_handlers = dict(cls.header_handlers)
         cls.rule_handlers = _copy_rule_handlers(cls.rule_handlers)
+        # Auto-register the renderer under its 'name' so that a renderer can be
+        # looked up by name (e.g. the 'default_renderer' global config option).
+        # Only register when the subclass declares its own 'name' -- an inherited
+        # name must not clobber the parent's registry entry (e.g. an anonymous
+        # BaseRenderer subclass would otherwise overwrite 'base').
+        name = cls.__dict__.get('name')
+        if name:
+            _RENDERER_REGISTRY[name] = cls
 
     def create_context(self, **kwargs) -> RenderContext:
-        return BaseRenderContext(RenderContext(**kwargs), RenderContext())
+        return BaseRenderContext(RenderContext(**kwargs), RenderContext.sparse())
 
 
     def render(self, node: HcNode, base_context: Optional[BaseRenderContext] = None) -> str:
@@ -737,7 +775,10 @@ def render_heading(renderer: BR, node: Heading, base_context: BaseRenderContext)
 
 @BaseRenderer.register('inline_command')
 def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseRenderContext) -> str:
-    base_context.line_context =  RenderContext(**node.commands)
+    # Only explicitly-set command options become line overrides; 'None' values are
+    # argparse defaults for unset flags and must fall through to the global context.
+    overrides = {k: v for k, v in node.commands.items() if v is not None}
+    base_context.line_context = RenderContext.sparse(**overrides)
     return ''
 
 
@@ -795,7 +836,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         # Clear the line-specific context (as the normal return path does) so the
         # ignored line's command options -- e.g. a `format=None` left by an inline
         # command -- don't leak into the following lines.
-        base_context.line_context = RenderContext()
+        base_context.line_context = RenderContext.sparse()
         return ''
 
     columns: deque = deque([])
@@ -825,7 +866,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     if comment_render:
         components.append(comment_render)
 
-    base_context.line_context = RenderContext()  # Clear any line-specific context
+    base_context.line_context = RenderContext.sparse()  # Clear any line-specific context
     return list(components)
 
 
@@ -1158,3 +1199,7 @@ def infix_binop(
                                        
         
 
+
+
+# __init_subclass__ does not fire for BaseRenderer itself, so register it explicitly.
+_RENDERER_REGISTRY.setdefault(BaseRenderer.name, BaseRenderer)
