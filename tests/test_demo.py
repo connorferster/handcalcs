@@ -13,8 +13,23 @@ from handcalcs import HandCalcs, PlainTextRenderer
 
 
 @pytest.fixture(scope="module")
-def demo_output():
+def demo_tree():
+    # demo() returns the rendered tree (a nested list of components), not joined
+    # text, so a caller can post-process it before joining.
     return HandCalcs(PlainTextRenderer()).demo()
+
+
+@pytest.fixture(scope="module")
+def demo_output():
+    # The joined-text form of the demo tree, used for the substring assertions
+    # below.
+    hc = HandCalcs(PlainTextRenderer())
+    return hc.renderer.join(hc.demo())
+
+
+def test_demo_returns_render_tree(demo_tree):
+    # demo() returns the rendered tree (a list), which the caller joins.
+    assert isinstance(demo_tree, list) and demo_tree
 
 
 def test_demo_renders_without_error(demo_output):
