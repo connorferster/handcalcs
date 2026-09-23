@@ -1031,6 +1031,8 @@ def render_block_body(
     """
     header = renderer.render_header(node, base_context)
     body = [renderer.render(line, base_context) for line in node.lines]
+    if isinstance(body[0], str): # Caused by a comment command
+        body = [body]
     return [header, body]
 
 @BaseRenderer.register('comments_block')
@@ -1062,11 +1064,11 @@ def render_function_block(renderer: BaseRenderer, node: FunctionBlock, base_cont
 
 @BaseRenderer.register('header:comments_block')
 def comments_block_header(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> Optional[str]:
-    return None
+    return ""
 
 @BaseRenderer.register('header:calcs_block')
 def calcs_block_header(renderer: BaseRenderer, node: CalcsBlock, base_context: BaseRenderContext) -> Optional[str]:
-    return None
+    return ""
 
 @BaseRenderer.register("header:else_block")
 def else_block_header(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> str:

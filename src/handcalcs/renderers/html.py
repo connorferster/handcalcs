@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, infix_binop, BaseRenderContext, ContextKeyError, ContextValueError
+from handcalcs.renderers.base import BaseRenderer, RenderContext, render_block_body, infix_binop, BaseRenderContext, ContextKeyError, ContextValueError
 
 
 # Node type imports only used for typing
@@ -43,7 +43,9 @@ from handcalcs.parsing.line_nodes import (
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
-    ElifBlock
+    ElifBlock,
+    CommentsBlock,
+    CalcsBlock
 )
 
 
@@ -74,6 +76,21 @@ def render_comment_line(renderer: HTMLR, node: CommentLine, base_context: BaseRe
     # A standalone comment renders as a plain-text line (a single string in the
     # master list). The trailing newline is inserted by the join step, not here.
     return f"{node.content}"
+
+
+@HTMLRenderer.register('comments_block')
+def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: BaseRenderContext) -> str:
+    block_body = render_block_body(renderer, node, base_context)
+    para_body = [block_body[0]] + [['<p>']] + [block_body[1:]] + [['</p>']]
+    return para_body
+
+@HTMLRenderer.register('calcs_block')
+def render_calcs_block(renderer: HTMLR, node: CalcsBlock, base_context: BaseRenderContext) -> str:
+    block_body = render_block_body(renderer, node, base_context)
+    print(f"{block_body=}")
+    for line in block_body[1]:
+        line.append("<br>")
+    return block_body
 
 @HTMLR.register("name:sym")
 def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
