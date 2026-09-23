@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, render_block_body, infix_binop, BaseRenderContext, ContextKeyError, ContextValueError
+from handcalcs.renderers.base import BaseRenderer, RenderContext, render_condition, render_block_body, infix_binop, BaseRenderContext, ContextKeyError, ContextValueError
 
 
 # Node type imports only used for typing
@@ -45,7 +45,8 @@ from handcalcs.parsing.block_nodes import (
     ElseBlock,
     ElifBlock,
     CommentsBlock,
-    CalcsBlock
+    CalcsBlock,
+    ForBlock
 )
 
 
@@ -98,6 +99,24 @@ def render_calcs_block(renderer: HTMLR, node: CalcsBlock, base_context: BaseRend
         line.append("<br>")
     para_body = [block_body[0]], [['<p>']] + [block_body[1:]] + [['</p>']]
     return para_body
+
+@HTMLRenderer.register("header:if_block")
+def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
+    context = base_context.current
+    _ = context.space
+    sym_expr = render_condition(renderer, node.test.comparison, base_context, 'sym')
+    num_expr = render_condition(renderer, node.test.comparison, base_context, 'num')
+    return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:<br>"
+
+
+@HTMLRenderer.register("header:for_block")
+def for_block_header(renderer: HTMLRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
+    context = base_context.current
+    _ = context.space
+    base_context.line_context.current_mode = 'sym'
+    target = renderer.render(node.assigns[0], base_context)
+    iterable = renderer.render(node.iterator[0], base_context)
+    return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:<br>"
 
 @HTMLR.register("name:sym")
 def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
