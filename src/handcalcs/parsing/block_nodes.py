@@ -15,6 +15,21 @@ class ParamsBlock(HcBlockNode):
     type: str = 'params_block'
 
 @dataclass
+class CommentsBlock(HcBlockNode):
+    """CommentsBlock is an abstraction to allow formatting to apply to a group of CommentLines
+    recognizing that the linebreaks in the code are not necessarily important
+    to the rendered result."""
+    lines: deque[CommentLine] = field(default_factory=deque)
+    type: str = 'comments_block'
+
+@dataclass
+class CalcsBlock(HcBlockNode):
+    """CalcsBlock is an abstraction to allow formatting to apply to a group of CalcLines
+    recognizing that groups of calcs look good if they are grouped together."""
+    lines: deque[CalcLine] = field(default_factory=deque)
+    type: str = 'calcs_block'
+
+@dataclass
 class FunctionBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine | Heading | CommentCommand | CommentLine] = field(default_factory=deque)
     namespace: deque[str] = field(default_factory=deque)

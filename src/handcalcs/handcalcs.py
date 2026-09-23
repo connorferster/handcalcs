@@ -58,7 +58,9 @@ class HandCalcs:
         self.hc_ast = self.__parse(source, passed_globals)
         base_context = self.renderer.create_context(**self._context_settings)
         rendered_tree = self.renderer.render(self.hc_ast, base_context)
-        return self.renderer.join(rendered_tree)
+        completed_render = self.renderer.complete(rendered_tree, base_context)
+        return completed_render
+
 
     def demo(self):
         """
@@ -69,9 +71,8 @@ class HandCalcs:
         demo_ast = self.__parse(source, eval_globals)
         base_context = self.renderer.create_context(**self._context_settings)
         rendered_tree = self.renderer.render(demo_ast, base_context)
-        return rendered_tree
-
-
+        completed_render = self.renderer.complete(rendered_tree, base_context)
+        return completed_render
 
 
     def __repr__(self):

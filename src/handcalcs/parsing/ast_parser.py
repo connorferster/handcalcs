@@ -395,7 +395,7 @@ class AST_Parser:
             # Get the function name being called
             if isinstance(node.func, ast.Name):
                 func_name = node.func.id
-                module_name = "__main__"
+                module_name = ""
             elif isinstance(node.func, ast.Attribute):
                 # Example: module.external_func
                 func_name = node.func.attr
