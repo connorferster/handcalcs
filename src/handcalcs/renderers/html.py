@@ -57,6 +57,13 @@ class HTMLRenderer(BaseRenderer):
         return self.join(tree, base_context)
 
 
+    def create_context(self, **config_kwargs):
+        html_render_context = dict(
+            indent='&nbsp;&nbsp;&nbsp;&nbsp;',
+        ) | config_kwargs
+        return BaseRenderContext(RenderContext(**html_render_context), RenderContext.sparse())
+
+
 HTMLR = HTMLRenderer
 BRC = BaseRenderContext
 
@@ -81,16 +88,16 @@ def render_comment_line(renderer: HTMLR, node: CommentLine, base_context: BaseRe
 @HTMLRenderer.register('comments_block')
 def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: BaseRenderContext) -> str:
     block_body = render_block_body(renderer, node, base_context)
-    para_body = [block_body[0]] + [['<p>']] + [block_body[1:]] + [['</p>']]
+    para_body = [block_body[0]], [['<p>']] + [block_body[1:]] + [['</p>']]
     return para_body
 
 @HTMLRenderer.register('calcs_block')
 def render_calcs_block(renderer: HTMLR, node: CalcsBlock, base_context: BaseRenderContext) -> str:
     block_body = render_block_body(renderer, node, base_context)
-    print(f"{block_body=}")
     for line in block_body[1]:
         line.append("<br>")
-    return block_body
+    para_body = [block_body[0]], [['<p>']] + [block_body[1:]] + [['</p>']]
+    return para_body
 
 @HTMLR.register("name:sym")
 def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
