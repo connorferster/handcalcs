@@ -60,16 +60,28 @@ class HTMLRenderer(BaseRenderer):
     # ``--hc-indent`` are the two knobs everything else references.
     STYLE = (
         ".handcalcs{"
-        "--hc-gap:0.35em;--hc-indent:1.5em;"
+        "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;"
         "display:flex;flex-direction:column;gap:var(--hc-gap);"
         "line-height:1.6;font-variant-numeric:tabular-nums;}"
         ".handcalcs :where(.hc-block,.hc-body){"
         "display:flex;flex-direction:column;gap:var(--hc-gap);}"
         ".handcalcs :where(.hc-body){padding-inline-start:var(--hc-indent);}"
-        ".handcalcs :where(.hc-line,.hc-header,.hc-comment,.hc-params){"
+        ".handcalcs :where(.hc-line,.hc-header,.hc-comment){"
         "margin-block:0;}"
-        ".handcalcs :where(.hc-params){"
-        "white-space:pre;font-variant-numeric:tabular-nums;}"
+        # A params block is a real table so each ``id = value`` group aligns on
+        # its ``=`` (identifier right, ``=`` centered, value left), separated by
+        # an empty spacer column. Alignment no longer depends on the fragile
+        # ``white-space: pre`` (a zero-specificity rule any host style can beat).
+        ".handcalcs :where(table.hc-params){"
+        "margin-block:0;border-collapse:collapse;"
+        "font-variant-numeric:tabular-nums;}"
+        ".handcalcs :where(table.hc-params td){"
+        "padding:0;border:0;vertical-align:baseline;}"
+        ".handcalcs :where(.hc-param-id){text-align:right;}"
+        ".handcalcs :where(.hc-param-eq){text-align:center;padding-inline:0.35em;}"
+        ".handcalcs :where(.hc-param-val){text-align:left;}"
+        ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
+        ".handcalcs :where(.hc-pre){white-space:pre;}"
         "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
     )
 
@@ -95,7 +107,7 @@ class HTMLRenderer(BaseRenderer):
         Master-list shapes (identical to the base renderer):
         - bare string -> a whole line; block-level HTML (headings, prose ``<p>``,
           etc.) passes through untouched, plain text is wrapped in ``.hc-line``,
-          and a multi-line plain string (a params grid) keeps its whitespace;
+          and a multi-line plain string keeps its whitespace via ``.hc-pre``;
         - ``[header, body]`` with a non-empty header -> ``.hc-block`` wrapping a
           ``.hc-header`` line and an indented ``.hc-body``;
         - a headerless (flat) block -- a CommentsBlock/CalcsBlock group -- emits
@@ -118,10 +130,11 @@ class HTMLRenderer(BaseRenderer):
             # already a complete element; pass it through as a flex child.
             if stripped.startswith("<"):
                 return [stripped]
-            # A multi-line plain string (a params grid) keeps its column
-            # alignment via ``white-space: pre`` on ``.hc-params``.
+            # A multi-line plain string keeps its embedded newlines/whitespace
+            # via ``white-space: pre`` on ``.hc-pre`` (params grids now render as
+            # a table, so this is only a fallback for any other pre-formatted text).
             if "\n" in item:
-                return [f'<div class="hc-line hc-params">{item}</div>']
+                return [f'<div class="hc-line hc-pre">{item}</div>']
             return [f'<div class="hc-line">{item}</div>']
         # A block is ``[header, body]`` -- detected by its body being a list.
         if isinstance(item[-1], list):
@@ -142,11 +155,31 @@ class HTMLRenderer(BaseRenderer):
         return [f'<div class="hc-line">{line}</div>']
 
     def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
-        # Reuse the base (plain-text) grid layout, then wrap it so ``join``
-        # passes it through and ``.hc-params`` (white-space: pre) preserves the
-        # column alignment that HTML would otherwise collapse.
-        grid = super().format_param_grid(rows, base_context)
-        return f'<div class="hc-params">{grid}</div>'
+        # Emit a real table instead of the plain-text grid: every cell is an
+        # ``["id", "=", "value"]`` triple (or ``None`` padding) that becomes three
+        # ``<td>``s -- identifier / ``=`` / value -- so each assignment aligns on
+        # its ``=``. Adjacent groups are separated by an empty spacer ``<td>``.
+        # Cell components are already rendered HTML (e.g. ``c<sub>x</sub>``), so
+        # they are interpolated as-is, not escaped.
+        def cell_tds(cell) -> str:
+            if isinstance(cell, (list, tuple, deque)):
+                parts = [str(part) for part in cell]
+            elif cell is None:
+                parts = []
+            else:
+                parts = [str(cell)]
+            ident, eq, val = (parts + ["", "", ""])[:3]
+            return (
+                f'<td class="hc-param-id">{ident}</td>'
+                f'<td class="hc-param-eq">{eq}</td>'
+                f'<td class="hc-param-val">{val}</td>'
+            )
+
+        gap = '<td class="hc-param-gap"></td>'
+        body = "".join(
+            f'<tr>{gap.join(cell_tds(cell) for cell in row)}</tr>' for row in rows
+        )
+        return f'<table class="hc-params">{body}</table>'
 
 
 HTMLR = HTMLRenderer
