@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, render_condition, render_block_body, infix_binop, BaseRenderContext, ContextKeyError, ContextValueError
+from handcalcs.renderers.base import BaseRenderer, RenderContext, render_condition, infix_binop, BaseRenderContext, ContextKeyError, ContextValueError
 
 
 # Node type imports only used for typing
@@ -54,15 +54,99 @@ from handcalcs.parsing.block_nodes import (
 class HTMLRenderer(BaseRenderer):
     name = 'html'
 
-    def complete(self, tree: list, base_context: BaseRenderContext) -> str:
-        return self.join(tree, base_context)
+    # One scoped stylesheet owns ALL vertical rhythm and indentation. Emitted
+    # once by ``complete``; every rule uses ``:where()`` so it contributes zero
+    # specificity and a host page's own styles always win. ``--hc-gap`` and
+    # ``--hc-indent`` are the two knobs everything else references.
+    STYLE = (
+        ".handcalcs{"
+        "--hc-gap:0.35em;--hc-indent:1.5em;"
+        "display:flex;flex-direction:column;gap:var(--hc-gap);"
+        "line-height:1.6;font-variant-numeric:tabular-nums;}"
+        ".handcalcs :where(.hc-block,.hc-body){"
+        "display:flex;flex-direction:column;gap:var(--hc-gap);}"
+        ".handcalcs :where(.hc-body){padding-inline-start:var(--hc-indent);}"
+        ".handcalcs :where(.hc-line,.hc-header,.hc-comment,.hc-params){"
+        "margin-block:0;}"
+        ".handcalcs :where(.hc-params){"
+        "white-space:pre;font-variant-numeric:tabular-nums;}"
+        "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
+    )
 
+    def complete(self, tree: list, base_context: BaseRenderContext) -> str:
+        # ``self.join`` (inherited) walks the master list via the overridden
+        # ``_join_item`` below, emitting nested ``<div>``s. Wrap the whole body
+        # once in ``.handcalcs`` and inject the scoped stylesheet a single time.
+        body = self.join(tree, base_context)
+        return f'<div class="handcalcs"><style>{self.STYLE}</style>{body}</div>'
 
     def create_context(self, **config_kwargs):
-        html_render_context = dict(
-            indent='&nbsp;&nbsp;&nbsp;&nbsp;',
-        ) | config_kwargs
-        return BaseRenderContext(RenderContext(**html_render_context), RenderContext.sparse())
+        # Indentation is now structural (``.hc-body`` padding), not a text
+        # prefix, so no ``&nbsp;`` indent is injected into the context.
+        return BaseRenderContext(RenderContext(**config_kwargs), RenderContext.sparse())
+
+    def _join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
+        """
+        HTML counterpart of ``BaseRenderer._join_item``: same master-list
+        dispatch, but every line becomes a block-level ``<div>`` and nesting
+        (not an indent prefix) expresses depth. ``depth`` is unused because the
+        scoped stylesheet's ``.hc-body`` padding supplies indentation.
+
+        Master-list shapes (identical to the base renderer):
+        - bare string -> a whole line; block-level HTML (headings, prose ``<p>``,
+          etc.) passes through untouched, plain text is wrapped in ``.hc-line``,
+          and a multi-line plain string (a params grid) keeps its whitespace;
+        - ``[header, body]`` with a non-empty header -> ``.hc-block`` wrapping a
+          ``.hc-header`` line and an indented ``.hc-body``;
+        - a headerless (flat) block -- a CommentsBlock/CalcsBlock group -- emits
+          its body lines directly, at the current level (no wrapper);
+        - an all-string list -> one ``.hc-line`` whose components join with a
+          single space.
+        Falsy items (``''``/``None``/``[]``) and one-shot line-break directives
+        emit nothing -- CSS ``gap`` owns inter-line spacing.
+        """
+        if not item:
+            return []
+        context = base_context.current
+        if isinstance(item, str):
+            # A one-shot line-break directive is a bare newline; the CSS gap
+            # already supplies vertical rhythm, so it emits nothing.
+            if not item.strip("\n"):
+                return []
+            stripped = item.strip()
+            # Block-level HTML built by a handler (a heading, a prose <p>) is
+            # already a complete element; pass it through as a flex child.
+            if stripped.startswith("<"):
+                return [stripped]
+            # A multi-line plain string (a params grid) keeps its column
+            # alignment via ``white-space: pre`` on ``.hc-params``.
+            if "\n" in item:
+                return [f'<div class="hc-line hc-params">{item}</div>']
+            return [f'<div class="hc-line">{item}</div>']
+        # A block is ``[header, body]`` -- detected by its body being a list.
+        if isinstance(item[-1], list):
+            header, body = item[0], item[-1]
+            inner = "".join(self._join_items(body, depth + 1, base_context))
+            # A headerless (flat) block only groups consecutive lines and
+            # introduces no intro line: emit its body directly, no wrapper.
+            if not (isinstance(header, str) and header.strip()):
+                return [inner] if inner else []
+            return [
+                f'<div class="hc-block"><div class="hc-header">{header}</div>'
+                f'<div class="hc-body">{inner}</div></div>'
+            ]
+        # An all-string list is a rendered line (calc line, import, ...).
+        line = context.space.join(item)
+        if not line.strip():
+            return []
+        return [f'<div class="hc-line">{line}</div>']
+
+    def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
+        # Reuse the base (plain-text) grid layout, then wrap it so ``join``
+        # passes it through and ``.hc-params`` (white-space: pre) preserves the
+        # column alignment that HTML would otherwise collapse.
+        grid = super().format_param_grid(rows, base_context)
+        return f'<div class="hc-params">{grid}</div>'
 
 
 HTMLR = HTMLRenderer
@@ -73,11 +157,11 @@ BRC = BaseRenderContext
 
 @HTMLRenderer.register('heading')
 def render_heading(renderer: HTMLR, node: Heading, base_context: BaseRenderContext) -> str:
-    # A heading renders as a single markdown string in the master list, its
-    # markdown level reproduced from the node's ``heading_level``.
-    context = base_context.current
-    nl = context.newline
-    return f"<h{node.heading_level}>{node.content}</h{node.heading_level}>{nl}"
+    # A heading renders as a single block-level element in the master list, its
+    # markdown level reproduced from the node's ``heading_level``. It carries no
+    # trailing newline: ``join`` passes block-level HTML through as a flex child
+    # and the container's ``gap`` supplies the spacing.
+    return f"<h{node.heading_level}>{node.content}</h{node.heading_level}>"
 
 @HTMLRenderer.register('comment_line')
 def render_comment_line(renderer: HTMLR, node: CommentLine, base_context: BaseRenderContext) -> str:
@@ -88,17 +172,27 @@ def render_comment_line(renderer: HTMLR, node: CommentLine, base_context: BaseRe
 
 @HTMLRenderer.register('comments_block')
 def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: BaseRenderContext) -> str:
-    block_body = render_block_body(renderer, node, base_context)
-    para_body = [block_body[0]], [['<p>']] + [block_body[1:]] + [['</p>']]
-    return para_body
+    # A run of consecutive comment lines is true prose, so it renders as a single
+    # flowing ``<p>`` paragraph (its lines joined by a space) rather than one
+    # ``.hc-line`` per source line. ``join`` passes the ``<p>`` through as a
+    # block-level flex child; ``.hc-comment`` tames its margin. Comment commands
+    # (``# hc: ...``) in the run render to '' and drop out; an all-empty block
+    # (e.g. only commands) emits nothing.
+    context = base_context.current
+    _ = context.space
+    lines = [renderer.render(line, base_context) for line in node.lines]
+    texts = [line for line in lines if isinstance(line, str) and line.strip()]
+    if not texts:
+        return ''
+    return f'<p class="hc-comment">{_.join(texts)}</p>'
 
-@HTMLRenderer.register('calcs_block')
-def render_calcs_block(renderer: HTMLR, node: CalcsBlock, base_context: BaseRenderContext) -> str:
-    block_body = render_block_body(renderer, node, base_context)
-    for line in block_body[1]:
-        line.append("<br>")
-    para_body = [block_body[0]], [['<p>']] + [block_body[1:]] + [['</p>']]
-    return para_body
+
+# ``calcs_block`` intentionally has no HTML override: the inherited
+# ``BaseRenderer`` handler returns a clean headerless ``[header, body]`` group
+# and the overridden ``_join_item`` emits one ``.hc-line`` per calc line, with
+# vertical rhythm owned by the stylesheet's ``gap`` (no per-line ``<br>``, no
+# wrapping ``<p>``). An ignored/``-i`` line renders to '' and is skipped, so no
+# empty element is emitted.
 
 @HTMLRenderer.register("header:if_block")
 def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
@@ -106,7 +200,8 @@ def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRen
     _ = context.space
     sym_expr = render_condition(renderer, node.test.comparison, base_context, 'sym')
     num_expr = render_condition(renderer, node.test.comparison, base_context, 'num')
-    return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:<br>"
+    # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
+    return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
 
 
 @HTMLRenderer.register("header:for_block")
@@ -116,7 +211,8 @@ def for_block_header(renderer: HTMLRenderer, node: ForBlock, base_context: BaseR
     base_context.line_context.current_mode = 'sym'
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
-    return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:<br>"
+    # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
+    return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:"
 
 @HTMLR.register("name:sym")
 def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
