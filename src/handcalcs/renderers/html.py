@@ -95,7 +95,7 @@ def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: Ba
 @HTMLRenderer.register('calcs_block')
 def render_calcs_block(renderer: HTMLR, node: CalcsBlock, base_context: BaseRenderContext) -> str:
     block_body = render_block_body(renderer, node, base_context)
-    for line in block_body[1]:
+    for line in block_body[1][:-1]:
         line.append("<br>")
     para_body = [block_body[0]], [['<p>']] + [block_body[1:]] + [['</p>']]
     return para_body
