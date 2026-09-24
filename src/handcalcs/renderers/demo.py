@@ -64,18 +64,16 @@ elif b_w / (2 * t_f) <= 200 / sqrt(F_y):
         class_section = 4
 else:
     class_section = 4
-    
-class_section 
 
 ### Iteration using for-loops
 
-x_values = [1, 2, 3, 4, 5]
-y_values = [5, 4, 3, 2, 1]
+vals_x = [1, 2, 3, 4, 5]
+vals_y = [5, 4, 3, 2, 1]
 # hc: -b
 acc = [] # hc: -i
-for x_value in x_values:
-    for y_value in y_values:
-        value_computed = degrees(atan(x_value / y_value))
+for val_x in vals_x:
+    for val_y in vals_y:
+        value_computed = degrees(atan(val_y / val_x))
         acc.append(value_computed)
 acc
 
