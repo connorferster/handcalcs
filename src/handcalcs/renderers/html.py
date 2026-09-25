@@ -60,7 +60,7 @@ class HTMLRenderer(BaseRenderer):
     # ``--hc-indent`` are the two knobs everything else references.
     STYLE = (
         ".handcalcs{"
-        "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;"
+        "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;--hc-eq-gap:0.3em;"
         "display:flex;flex-direction:column;gap:var(--hc-gap);"
         "line-height:1.6;font-variant-numeric:tabular-nums;}"
         ".handcalcs :where(.hc-block,.hc-body){"
@@ -72,14 +72,20 @@ class HTMLRenderer(BaseRenderer):
         # its ``=`` (identifier right, ``=`` centered, value left), separated by
         # an empty spacer column. Alignment no longer depends on the fragile
         # ``white-space: pre`` (a zero-specificity rule any host style can beat).
+        # ``table-layout:auto`` (the default, stated for intent) sizes every
+        # column to its own widest cell; the ``=`` column carries no padding so
+        # it shrinks to the sign itself, and the breathing room around it lives
+        # on the id/value columns instead (``--hc-eq-gap``).
         ".handcalcs :where(table.hc-params){"
-        "margin-block:0;border-collapse:collapse;"
+        "margin-block:0;border-collapse:collapse;table-layout:auto;"
         "font-variant-numeric:tabular-nums;}"
         ".handcalcs :where(table.hc-params td){"
         "padding:0;border:0;vertical-align:baseline;}"
-        ".handcalcs :where(.hc-param-id){text-align:right;}"
-        ".handcalcs :where(.hc-param-eq){text-align:center;padding-inline:0.35em;}"
-        ".handcalcs :where(.hc-param-val){text-align:left;}"
+        ".handcalcs :where(.hc-param-id){"
+        "text-align:right;padding-inline-end:var(--hc-eq-gap);}"
+        ".handcalcs :where(.hc-param-eq){text-align:center;}"
+        ".handcalcs :where(.hc-param-val){"
+        "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
         "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
