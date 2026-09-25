@@ -62,7 +62,9 @@ def test_from_source_converts_top_level_if_to_elif_block():
     source = "a = 2\nif a > 1:\n    b = 3\n"
     seq = HcSequence.from_source(source, {"a": 2, "b": 3}, {})
     kinds = [type(node).__name__ for node in seq.sequence]
-    assert kinds == ["CalcLine", "ElifBlock"]
+    # The top-level 'a = 2' calc line is gathered into a CalcsBlock by the
+    # consecutive-line grouping pass; the if statement becomes an ElifBlock.
+    assert kinds == ["CalcsBlock", "ElifBlock"]
 
 
 def test_from_source_assigns_nesting_levels():
@@ -70,6 +72,8 @@ def test_from_source_assigns_nesting_levels():
     seq = HcSequence.from_source(source, {"a": 2, "b": 3}, {})
     elif_block = seq.sequence[-1]
     inner_if = elif_block.lines[0]
-    # The CalcLine nested one block deep is at level 1.
-    nested_calc = inner_if.lines[0]
+    # The CalcLine nested one block deep is gathered into a CalcsBlock; both the
+    # block and the calc line it holds sit at level 1.
+    nested_calcs = inner_if.lines[0]
+    nested_calc = nested_calcs.lines[0]
     assert nested_calc.level == 1

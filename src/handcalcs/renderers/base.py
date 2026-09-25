@@ -59,6 +59,8 @@ from handcalcs.parsing.block_nodes import (
     ForBlock,
     FunctionBlock,
     ParamsBlock,
+    CommentsBlock,
+    CalcsBlock,
 )
 
 RenderHandler = Callable
@@ -275,7 +277,23 @@ class BaseRenderer:
         )
         return parts
 
-    def join(self, tree: list, context: Optional[RenderContext] = None) -> str:
+    def complete(self, tree: list, base_context: Optional[BaseRenderContext] = None) -> Any:
+        """
+        A function called at the completion of every render. This function is intended
+        to be over-ridden by individual renderers in order to "complete" the rendering.
+
+        The BaseRenderer that all renderers inherit from includes a special ".join" method
+        with the same function signature as this one. For many renderers that return a str,
+        calling the .join() method will be sufficient as the implementation for this function.
+        """
+        # Example implementation:
+        # completed = self.join(tree, base_context)
+        # return completed
+        # BaseRenderer intentionally returns just `tree`
+        return tree
+        
+
+    def join(self, tree: list, base_context: Optional[BaseRenderContext] = None) -> str:
         """
         Join a rendered nested-list structure into final text.
 
@@ -291,19 +309,18 @@ class BaseRenderer:
         Falsy items (``None``, ``""``, ``[]``) render nothing (they are
         command/ignored lines), so they never produce a stray blank line.
         """
-        if context is None:
-            context = RenderContext()
-        return "".join(self._join_items(tree, 0, context))
+        return "".join(self._join_items(tree, 0, base_context))
 
-    def _join_items(self, items: list, depth: int, context: RenderContext) -> list[str]:
+    def _join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list[str]:
         lines: list[str] = []
         for item in items:
-            lines.extend(self._join_item(item, depth, context))
+            lines.extend(self._join_item(item, depth, base_context))
         return lines
 
-    def _join_item(self, item, depth: int, context: RenderContext) -> list[str]:
+    def _join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
         if not item:
             return []
+        context = base_context.current
         indent = context.indent * depth
         nl = context.newline
         if isinstance(item, str):
@@ -321,8 +338,14 @@ class BaseRenderer:
         # a list. An all-string list is a rendered line.
         if isinstance(item[-1], list):
             header, body = item[0], item[-1]
+            # A headerless (flat) block -- e.g. a CommentsBlock/CalcsBlock, which
+            # only groups consecutive lines and introduces no intro line -- emits
+            # no header and keeps its body at the current depth rather than
+            # indenting it one level deeper.
+            if not (isinstance(header, str) and header.strip()):
+                return self._join_items(body, depth, base_context)
             lines = [f"{indent}{header}{nl}"]
-            lines.extend(self._join_items(body, depth + 1, context))
+            lines.extend(self._join_items(body, depth + 1, base_context))
             return lines
         return [f"{indent}{context.space.join(item)}{nl}"]
 
@@ -974,6 +997,7 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: Base
         block_text = renderer.render(true_clause, base_context)
         return block_text
 
+
 def render_condition(
     renderer: BaseRenderer,
     condition: deque,
@@ -1007,8 +1031,17 @@ def render_block_body(
     """
     header = renderer.render_header(node, base_context)
     body = [renderer.render(line, base_context) for line in node.lines]
+    if isinstance(body[0], str): # Caused by a comment command
+        body = [body]
     return [header, body]
 
+@BaseRenderer.register('comments_block')
+def render_comments_block(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> str:
+    return render_block_body(renderer, node, base_context)
+
+@BaseRenderer.register('calcs_block')
+def render_calcs_block(renderer: BaseRenderer, node: CalcsBlock, base_context: BaseRenderContext) -> str:
+    return render_block_body(renderer, node, base_context)
 
 @BaseRenderer.register('if_block')
 def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
@@ -1029,6 +1062,13 @@ def render_else_block(renderer: BaseRenderer, node: ElseBlock, base_context: Bas
 def render_function_block(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> list:
     return render_block_body(renderer, node, base_context)
 
+@BaseRenderer.register('header:comments_block')
+def comments_block_header(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> Optional[str]:
+    return ""
+
+@BaseRenderer.register('header:calcs_block')
+def calcs_block_header(renderer: BaseRenderer, node: CalcsBlock, base_context: BaseRenderContext) -> Optional[str]:
+    return ""
 
 @BaseRenderer.register("header:else_block")
 def else_block_header(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> str:

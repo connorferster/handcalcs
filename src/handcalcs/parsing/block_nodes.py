@@ -15,6 +15,21 @@ class ParamsBlock(HcBlockNode):
     type: str = 'params_block'
 
 @dataclass
+class CommentsBlock(HcBlockNode):
+    """CommentsBlock is an abstraction to allow formatting to apply to a group of CommentLines
+    recognizing that the linebreaks in the code are not necessarily important
+    to the rendered result."""
+    lines: deque[CommentLine] = field(default_factory=deque)
+    type: str = 'comments_block'
+
+@dataclass
+class CalcsBlock(HcBlockNode):
+    """CalcsBlock is an abstraction to allow formatting to apply to a group of CalcLines
+    recognizing that groups of calcs look good if they are grouped together."""
+    lines: deque[CalcLine] = field(default_factory=deque)
+    type: str = 'calcs_block'
+
+@dataclass
 class FunctionBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine | Heading | CommentCommand | CommentLine] = field(default_factory=deque)
     namespace: deque[str] = field(default_factory=deque)
@@ -54,20 +69,18 @@ class ElifBlock(HcBlockNode):
     @classmethod
     def from_if_tree(cls, ib: IfBlock):
         def flatten_if_tree(ib: IfBlock) -> deque[IfBlock]:
-            acc = deque([])
-            if len(ib.orelse) == 1: # deque has something in it
-                orelse = ib.orelse[0]
-                orelse_full = ib.orelse
-            else: # Empty deque, no alternative branch for the if provided
-                orelse = None
-                orelse_full = None
-            acc.extend(deque([ib]))
-            if isinstance(orelse, IfBlock):
-                acc.extend(flatten_if_tree(orelse))
-            else:
-                if orelse_full is not None:
-                    acc.extend(deque([ElseBlock(orelse_full)]))
-                return acc
-            return acc  
+            acc = deque([ib])
+            orelse = ib.orelse
+            if len(orelse) == 1 and isinstance(orelse[0], IfBlock):
+                # `elif`: the parser wraps the chained branch in a single nested
+                # IfBlock, which continues the flattened chain.
+                acc.extend(flatten_if_tree(orelse[0]))
+            elif orelse:
+                # Plain `else` (one *or more* statements): the whole orelse body
+                # becomes the ElseBlock's lines. Passing it positionally would
+                # bind it to the inherited `level` field, so name it explicitly.
+                acc.append(ElseBlock(lines=orelse))
+            # An empty `orelse` deque means there was no else/elif branch.
+            return acc
         flattened_tree = flatten_if_tree(ib)
         return cls(lines=flattened_tree)

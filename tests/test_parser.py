@@ -917,6 +917,39 @@ def test_elif_block():
                         ])
                     )
                 ])
+            ),
+            ElseBlock(
+                lines=deque([
+                    CalcLine(
+                        assigns=deque([
+                            Name(
+                                identifier='d'
+                            )
+                        ]),
+                        expression_tree=deque([
+                            Constant(
+                                value=6
+                            )
+                        ])
+                    ),
+                    ExprLine(
+                        expression_tree=deque([
+                            FunctionCall(
+                                namespace=deque([
+                                    '__main__'
+                                ]),
+                                function_name=deque([
+                                    'print'
+                                ]),
+                                args=deque([
+                                    Name(
+                                        identifier='d'
+                                    )
+                                ])
+                            )
+                        ])
+                    )
+                ])
             )
         ])
     )
