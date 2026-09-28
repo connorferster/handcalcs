@@ -76,9 +76,16 @@ class HTMLRenderer(BaseRenderer):
         # column to its own widest cell; the ``=`` column carries no padding so
         # it shrinks to the sign itself, and the breathing room around it lives
         # on the id/value columns instead (``--hc-eq-gap``).
+        # ``width:auto`` + ``align-self:center`` stop the table from stretching to
+        # the full flex-container width (the default ``align-items:stretch`` would
+        # otherwise blow the columns out and make the ``=`` look over-padded); the
+        # table shrinks to its content and sits centered. ``hc-multiline`` overrides
+        # the alignment to left (see below).
         ".handcalcs :where(table.hc-params){"
         "margin-block:0;border-collapse:collapse;table-layout:auto;"
+        "width:auto;align-self:center;"
         "font-variant-numeric:tabular-nums;}"
+        ".handcalcs :where(table.hc-multiline){align-self:start;}"
         ".handcalcs :where(table.hc-params td){"
         "padding:0;border:0;vertical-align:baseline;}"
         ".handcalcs :where(.hc-param-id){"
@@ -160,32 +167,43 @@ class HTMLRenderer(BaseRenderer):
             return []
         return [f'<div class="hc-line">{line}</div>']
 
-    def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
-        # Emit a real table instead of the plain-text grid: every cell is an
-        # ``["id", "=", "value"]`` triple (or ``None`` padding) that becomes three
-        # ``<td>``s -- identifier / ``=`` / value -- so each assignment aligns on
-        # its ``=``. Adjacent groups are separated by an empty spacer ``<td>``.
-        # Cell components are already rendered HTML (e.g. ``c<sub>x</sub>``), so
-        # they are interpolated as-is, not escaped.
-        def cell_tds(cell) -> str:
-            if isinstance(cell, (list, tuple, deque)):
-                parts = [str(part) for part in cell]
-            elif cell is None:
-                parts = []
-            else:
-                parts = [str(cell)]
-            ident, eq, val = (parts + ["", "", ""])[:3]
-            return (
-                f'<td class="hc-param-id">{ident}</td>'
-                f'<td class="hc-param-eq">{eq}</td>'
-                f'<td class="hc-param-val">{val}</td>'
-            )
+    def _cell_tds(self, cell) -> str:
+        # Turn an ``["id", "=", "value"]`` triple (or ``None`` padding) into three
+        # ``<td>``s -- identifier / ``=`` / value -- so the assignment aligns on its
+        # ``=``. Cell components are already rendered HTML (e.g. ``c<sub>x</sub>``),
+        # so they are interpolated as-is, not escaped. Shared by the params grid and
+        # the multi-line calc grid.
+        if isinstance(cell, (list, tuple, deque)):
+            parts = [str(part) for part in cell]
+        elif cell is None:
+            parts = []
+        else:
+            parts = [str(cell)]
+        ident, eq, val = (parts + ["", "", ""])[:3]
+        return (
+            f'<td class="hc-param-id">{ident}</td>'
+            f'<td class="hc-param-eq">{eq}</td>'
+            f'<td class="hc-param-val">{val}</td>'
+        )
 
+    def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
+        # Emit a real table instead of the plain-text grid: every cell becomes an
+        # id / ``=`` / value triple of ``<td>``s. Adjacent groups in a row are
+        # separated by an empty spacer ``<td>``. The table stays centered (the
+        # ``hc-params`` rule) and sizes to its content.
         gap = '<td class="hc-param-gap"></td>'
         body = "".join(
-            f'<tr>{gap.join(cell_tds(cell) for cell in row)}</tr>' for row in rows
+            f'<tr>{gap.join(self._cell_tds(cell) for cell in row)}</tr>' for row in rows
         )
         return f'<table class="hc-params">{body}</table>'
+
+    def format_calc_grid(self, rows: list, base_context: BaseRenderContext) -> str:
+        # A multi-line ("long") calc: each row is a single ``[id, eq, value]`` triple
+        # → one ``<tr>`` of three ``<td>``s, reusing the params id/eq/val column
+        # alignment so every row lines up on its ``=``. The extra ``hc-multiline``
+        # class left-aligns the whole table (the params grid stays centered).
+        body = "".join(f'<tr>{self._cell_tds(row)}</tr>' for row in rows)
+        return f'<table class="hc-params hc-multiline">{body}</table>'
 
 
 HTMLR = HTMLRenderer

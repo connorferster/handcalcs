@@ -496,6 +496,27 @@ class BaseRenderer:
             lines.append(gap.join(padded).rstrip())
         return nl.join(lines)
 
+    def format_calc_grid(self, rows: list, base_context: BaseRenderContext) -> str:
+        """
+        Format a multi-line ("long") calc. ``rows`` are ``[id, eq, value]`` triples:
+        the first carries the assignment target, the rest an empty id so every row
+        aligns on ``eq``.
+
+        The base implementation is plain-text oriented: the id column is padded to a
+        common width so the ``=`` signs line up, and rows are joined by the context
+        newline. Renderers that emit tabular markup (HTML table, LaTeX aligned)
+        override this.
+        """
+        context = base_context.current
+        _ = context.space
+        nl = context.newline
+        id_width = max((len(str(ident)) for ident, _eq, _val in rows), default=0)
+        lines = []
+        for ident, eq, val in rows:
+            padded_id = str(ident).ljust(id_width)
+            lines.append(f"{padded_id}{_}{eq}{_}{val}".rstrip())
+        return nl.join(lines)
+
 
 ## Register BaseRenderer basic node implementations
 
@@ -880,6 +901,23 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         base_context.line_context.current_mode = "num"
         result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
         columns.append(f",{_}".join(result_nodes))
+
+    # Multi-line ("long") mode: break the one-liner into a grid of rows that all
+    # align on the equality sign -- ``target = symbolic`` on the first row, then
+    # ``= numeric`` and ``= result`` on their own rows (empty id cell). Only calcs
+    # with an expression to substitute qualify (a param line, or a line reduced to
+    # a single column, stays a one-liner). The trailing comment rides the last
+    # (result) row, which is typically the shortest.
+    multiline = getattr(context, 'multiline', False)
+    if multiline and not param_line and len(columns) > 2:
+        eq = context.equality
+        target, *value_cols = columns
+        rows = [[target, eq, value_cols[0]]]
+        rows += [["", eq, col] for col in value_cols[1:]]
+        if comment_render:
+            rows[-1][2] = f"{rows[-1][2]}{_}{comment_render}"
+        base_context.line_context = RenderContext.sparse()
+        return renderer.format_calc_grid(rows, base_context)
 
     components: deque = deque([])
     for idx, column in enumerate(columns):

@@ -31,7 +31,12 @@ J = 133e3 # Polar moment of area, in mm^3
 C_w = 200e9 # Warping constant
 
 #hc: -b
-M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y * C_w) # A long equation!
+#hc: -m
+M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y * C_w) # A long equation
+
+#hc: -b
+M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y * C_w) # A long equation
+
 
 ### Steel section class checks
 # The purpose of this demo is to show nested if/elif/else statements
