@@ -277,7 +277,7 @@ class BaseRenderer:
         )
         return parts
 
-    def complete(self, tree: list, base_context: Optional[BaseRenderContext] = None) -> Any:
+    def complete(self, tree: list, base_context: BaseRenderContext) -> Any:
         """
         A function called at the completion of every render. This function is intended
         to be over-ridden by individual renderers in order to "complete" the rendering.
@@ -289,9 +289,10 @@ class BaseRenderer:
         # Example implementation:
         # completed = self.join(tree, base_context)
         # return completed
-        # BaseRenderer intentionally returns just `tree`
+        # BaseRenderer intentionally returns just `tree`; text renderers
+        # (PlainTextRenderer, HTMLRenderer) override this to join into a str.
         return tree
-        
+
 
     def join(self, tree: list, base_context: Optional[BaseRenderContext] = None) -> str:
         """
@@ -308,7 +309,12 @@ class BaseRenderer:
 
         Falsy items (``None``, ``""``, ``[]``) render nothing (they are
         command/ignored lines), so they never produce a stray blank line.
+
+        ``base_context`` is optional: callers that just want text from a tree
+        (tests, ``demo()`` post-processing) can omit it and get a default context.
         """
+        if base_context is None:
+            base_context = self.create_context()
         return "".join(self._join_items(tree, 0, base_context))
 
     def _join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list[str]:
@@ -347,7 +353,14 @@ class BaseRenderer:
             lines = [f"{indent}{header}{nl}"]
             lines.extend(self._join_items(body, depth + 1, base_context))
             return lines
-        return [f"{indent}{context.space.join(item)}{nl}"]
+        joined = context.space.join(item)
+        # An all-string line whose columns are all empty carries no content --
+        # e.g. an ignored (`# hc: -i`) line renders to '' and is wrapped as
+        # [''] by the block body. Emitting it would add a stray blank line, so
+        # it renders nothing (like the falsy items filtered at the top).
+        if not joined:
+            return []
+        return [f"{indent}{joined}{nl}"]
 
     def render_node(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
