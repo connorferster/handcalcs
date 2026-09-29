@@ -1,10 +1,10 @@
 import pathlib
 import warnings
 from typing import Optional
-from .parsing.sequence import HcSequence
-from .renderers import BaseRenderer, get_renderer
-from .renderers import demo
-from . import config
+from ..parsing.sequence import HcSequence
+from ..renderers import BaseRenderer, get_renderer
+from ..renderers import demo
+from .. import config
 
 
 
@@ -72,6 +72,8 @@ class HandCalcs:
         base_context = self.renderer.create_context(**self._context_settings)
         rendered_tree = self.renderer.render(demo_ast, base_context)
         completed_render = self.renderer.complete(rendered_tree, base_context)
+        # demo() returns the completed render (renderer.complete()), matching
+        # calculate(); for the PlainTextRenderer that is the joined text.
         return completed_render
 
 

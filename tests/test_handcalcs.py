@@ -56,7 +56,7 @@ def circle_area(diam: float) -> float:
 radius = 5
 area = circle_area(2 * radius)
     """
-    out = HandCalcs()(source)
+    out = HandCalcs(PlainTextRenderer())(source)
 
     assert out == (
         "[Python import]: from math import sqrt, pi\n"

@@ -13,23 +13,17 @@ from handcalcs import HandCalcs, PlainTextRenderer
 
 
 @pytest.fixture(scope="module")
-def demo_tree():
-    # demo() returns the rendered tree (a nested list of components), not joined
-    # text, so a caller can post-process it before joining.
+def demo_output():
+    # demo() runs the render through renderer.complete(), so for the
+    # PlainTextRenderer it returns the finished joined text used by the
+    # substring assertions below.
     return HandCalcs(PlainTextRenderer()).demo()
 
 
-@pytest.fixture(scope="module")
-def demo_output():
-    # The joined-text form of the demo tree, used for the substring assertions
-    # below.
-    hc = HandCalcs(PlainTextRenderer())
-    return hc.renderer.join(hc.demo())
-
-
-def test_demo_returns_render_tree(demo_tree):
-    # demo() returns the rendered tree (a list), which the caller joins.
-    assert isinstance(demo_tree, list) and demo_tree
+def test_demo_returns_completed_render(demo_output):
+    # demo() returns the completed render (renderer.complete()); for the
+    # PlainTextRenderer that is the joined text, a non-empty str.
+    assert isinstance(demo_output, str) and demo_output
 
 
 def test_demo_renders_without_error(demo_output):
@@ -75,7 +69,7 @@ def test_demo_heading_levels_exclude_comment_marker(demo_output):
 @pytest.mark.parametrize(
     "line",
     [
-        "x_values = [1, 2, 3, 4, 5]\n",
+        "vals_x = [1, 2, 3, 4, 5]\n",
         "a_dictionary = {cat: 1, hat: 2, bat: 3.1416}\n",
         "a_tuple = (string, 1, 42, 3+4j)\n",
     ],

@@ -49,12 +49,11 @@ from handcalcs.parsing.block_nodes import (
 class PlainTextRenderer(BaseRenderer):
     name = 'plain_text'
 
-    # def create_context(
-    #     self, 
-    #     **kwargs
-    #     ):
-    #     context = PlainTextRenderContext(**kwargs | {'mode': 'full'})
-    #     return context
+
+    def complete(self, tree: list, base_context: BaseRenderContext) -> str:
+        body = self.join(tree, base_context)
+        return body
+
 
 PTR = PlainTextRenderer
 BRC = BaseRenderContext
