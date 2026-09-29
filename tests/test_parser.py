@@ -53,6 +53,12 @@ from handcalcs.parsing.operator_nodes import (
     GtEOp,
     LtOp,
     LtEOp,
+    IsOp,
+    IsNotOp,
+    InOp,
+    NotInOp,
+    AndOp,
+    OrOp,
     HcUnaryOp,
 )
 import math
@@ -1860,6 +1866,111 @@ def test_unary_operator_parsing():
             ]),
         )
     ])
+
+
+def test_boolean_operator_parsing():
+    # ``and`` / ``or`` parse into AndOp / OrOp nodes holding an n-ary ``values``
+    # deque (not a left/right pair).
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+
+    assert parser("r = a and b") == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='r')]),
+            expression_tree=deque([
+                AndOp(values=deque([Name(identifier='a'), Name(identifier='b')]))
+            ]),
+        )
+    ])
+
+    assert parser("r = a or b or c") == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='r')]),
+            expression_tree=deque([
+                OrOp(values=deque([
+                    Name(identifier='a'),
+                    Name(identifier='b'),
+                    Name(identifier='c'),
+                ]))
+            ]),
+        )
+    ])
+
+
+def test_nested_boolean_operator_parsing():
+    # ``a and (b or c)`` nests an OrOp inside an AndOp's values.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    assert parser("r = a and (b or c)") == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='r')]),
+            expression_tree=deque([
+                AndOp(values=deque([
+                    Name(identifier='a'),
+                    OrOp(values=deque([
+                        Name(identifier='b'),
+                        Name(identifier='c'),
+                    ])),
+                ]))
+            ]),
+        )
+    ])
+
+
+def test_not_operator_parsing():
+    # ``not`` is a unary operator (ast.UnaryOp), parsed into an HcUnaryOp whose
+    # symbol carries a trailing space so it reads as ``not a``.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    result = parser("r = not a")
+    assert result == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='r')]),
+            expression_tree=deque([
+                HcUnaryOp(operand=Name(identifier='a'), symbol="not ")
+            ]),
+        )
+    ])
+
+
+@pytest.mark.parametrize(
+    "source,op_cls",
+    [
+        ("r = a is b", IsOp),
+        ("r = a is not b", IsNotOp),
+        ("r = a in b", InOp),
+        ("r = a not in b", NotInOp),
+    ],
+    ids=["is", "is_not", "in", "not_in"],
+)
+def test_identity_membership_operator_parsing(source, op_cls):
+    # ``is`` / ``is not`` / ``in`` / ``not in`` are comparison ops: they land in
+    # a Compare deque as bare operator *classes* between the two operands.
+    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    assert parser(source) == deque([
+        CalcLine(
+            assigns=deque([Name(identifier='r')]),
+            expression_tree=deque([
+                Compare(comparison=deque([
+                    Name(identifier='a'),
+                    op_cls,
+                    Name(identifier='b'),
+                ]))
+            ]),
+        )
+    ])
+
+
+def test_boolean_operator_in_if_test():
+    # A boolean operator used as an if-condition parses into the IfBlock's
+    # ``test`` as an AndOp (not a Compare).
+    parser = AST_Parser(ChainMap({}, {"a": 4, "b": 5}), global_exclusions=['collections', 'deque'])
+    result = parser("if a > 1 and b < 10:\n    d = 1\n")
+    assert len(result) == 1
+    if_block = result[0]
+    assert isinstance(if_block, IfBlock)
+    assert if_block.test == AndOp(values=deque([
+        Compare(comparison=deque([Name(identifier='a', value=4), GtOp, Constant(value=1)])),
+        Compare(comparison=deque([Name(identifier='b', value=5), LtOp, Constant(value=10)])),
+    ]))
+    assert if_block.is_true is True
 
 
 def test_set_literal_parsing():

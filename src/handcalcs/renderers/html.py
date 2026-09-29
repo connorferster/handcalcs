@@ -255,8 +255,8 @@ def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: Ba
 def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
     context = base_context.current
     _ = context.space
-    sym_expr = render_condition(renderer, node.test.comparison, base_context, 'sym')
-    num_expr = render_condition(renderer, node.test.comparison, base_context, 'num')
+    sym_expr = render_condition(renderer, node.test, base_context, 'sym')
+    num_expr = render_condition(renderer, node.test, base_context, 'num')
     # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
     return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
 

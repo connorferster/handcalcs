@@ -64,6 +64,12 @@ from .operator_nodes import (
     LtEOp,
     EqOp,
     NeqOp,
+    IsOp,
+    IsNotOp,
+    InOp,
+    NotInOp,
+    AndOp,
+    OrOp,
     HcUnaryOp
 )
 # from handcalcs.parsing.commands import command_parser
@@ -98,6 +104,15 @@ COMPARE_OPS = {
     "Gt": GtOp,
     "LtE": LtEOp,
     "Lt": LtOp,
+    "Is": IsOp,
+    "IsNot": IsNotOp,
+    "In": InOp,
+    "NotIn": NotInOp,
+}
+
+BOOL_OPS = {
+    "And": AndOp,
+    "Or": OrOp,
 }
 
 
@@ -374,7 +389,16 @@ class AST_Parser:
                 acc.append(pair[0])
                 acc.append(pair[1])
             val = Compare(comparison=acc)
-            
+
+        elif isinstance(node, ast.BoolOp):
+            # Boolean operations (``a and b``, ``x or y or z``). A BoolOp is
+            # n-ary: one operator applied to a list of ``values``. ``not`` is not
+            # a BoolOp -- it is an ast.UnaryOp handled above via UNARY_OPS.
+            op_name = type(node.op).__name__
+            op_class = BOOL_OPS[op_name]
+            values = deque([self.ast_parse(value) for value in node.values])
+            val = op_class(values=values)
+
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             self.resolve_import_and_load(node)
             acc = deque([])

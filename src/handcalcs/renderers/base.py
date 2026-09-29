@@ -33,7 +33,14 @@ from handcalcs.parsing.operator_nodes import (
     LtOp,
     LtEOp,
     NeqOp,
+    IsOp,
+    IsNotOp,
+    InOp,
+    NotInOp,
     HcCompOp,
+    AndOp,
+    OrOp,
+    HcBoolOp,
     HcUnaryOp,
 )
 from handcalcs.parsing.inline_nodes import (
@@ -79,6 +86,14 @@ RULE_CATEGORIES = ("pre", "sym", "num", "post")
 # looser than exponentiation, hence the 2.5 slot between MultOp (2) and PowOp (3).
 UNARY_PRECEDENCE = 2.5
 OP_PRECEDENCE = {
+    # Boolean operators bind looser than everything else, with ``or`` looser than
+    # ``and`` (Python's precedence). An operand of a bool op is parenthesized only
+    # when it binds *looser* than the op itself, so an ``or`` nested inside an
+    # ``and`` is parenthesized (``a and (b or c)``) while an ``and`` inside an
+    # ``or`` is not (``a and b or c``). Comparisons are absent from this table and
+    # so are treated as infinitely tight -- never parenthesized inside a bool op.
+    OrOp: -2,
+    AndOp: -1,
     AddOp: 1,
     SubOp: 1,
     MultOp: 2,
@@ -733,6 +748,30 @@ def render_eq_op(renderer: BR, node: EqOp, base_context: BaseRenderContext) -> s
 def render_neq_op(renderer: BR, node: NeqOp, base_context: BaseRenderContext) -> str:
     return f"{node.symbol}"
 
+@BaseRenderer.register('is_op')
+def render_is_op(renderer: BR, node: IsOp, base_context: BaseRenderContext) -> str:
+    return f"{node.symbol}"
+
+@BaseRenderer.register('is_not_op')
+def render_is_not_op(renderer: BR, node: IsNotOp, base_context: BaseRenderContext) -> str:
+    return f"{node.symbol}"
+
+@BaseRenderer.register('in_op')
+def render_in_op(renderer: BR, node: InOp, base_context: BaseRenderContext) -> str:
+    return f"{node.symbol}"
+
+@BaseRenderer.register('not_in_op')
+def render_not_in_op(renderer: BR, node: NotInOp, base_context: BaseRenderContext) -> str:
+    return f"{node.symbol}"
+
+@BaseRenderer.register('and_op')
+def render_and_op(renderer: BR, node: AndOp, base_context: BaseRenderContext) -> str:
+    return infix_boolop(node, renderer, base_context)
+
+@BaseRenderer.register('or_op')
+def render_or_op(renderer: BR, node: OrOp, base_context: BaseRenderContext) -> str:
+    return infix_boolop(node, renderer, base_context)
+
 @BaseRenderer.register('compare')
 def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext) -> str:
     acc = [renderer.render(elem, base_context) for elem in node.comparison]
@@ -1051,18 +1090,27 @@ def render_elifblock(renderer: BaseRenderer, node: ElifBlock, base_context: Base
 
 def render_condition(
     renderer: BaseRenderer,
-    condition: deque,
+    condition,
     base_context: BaseRenderContext,
     mode: str,
 ) -> str:
     """
-    Render a comparison/condition (a deque of nodes) in the given mode
-    ('sym' or 'num') and return the joined string. Shared by the if/elif
-    header handlers.
+    Render an if/elif condition in the given mode ('sym' or 'num') and return the
+    joined string. Shared by the if/elif header handlers.
+
+    ``condition`` may be the whole test node or a bare deque of comparison
+    components. A ``Compare`` is unwrapped to its ``comparison`` deque (whose
+    elements are joined tightly, matching the relational-operator symbols); any
+    other test node (e.g. a boolean ``and``/``or`` op, or a lone ``Name``) is
+    rendered directly.
     """
     base_context.line_context.current_mode = mode
-    acc = [renderer.render(elem, base_context) for elem in condition]
-    return "".join(acc)
+    if isinstance(condition, Compare):
+        condition = condition.comparison
+    if isinstance(condition, (deque, list)):
+        acc = [renderer.render(elem, base_context) for elem in condition]
+        return "".join(acc)
+    return renderer.render(condition, base_context)
 
 
 def render_block_body(
@@ -1145,8 +1193,8 @@ def function_block_header(renderer: BaseRenderer, node: FunctionBlock, base_cont
 def if_block_header(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
     context = base_context.current
     _ = context.space
-    sym_expr = render_condition(renderer, node.test.comparison, base_context, 'sym')
-    num_expr = render_condition(renderer, node.test.comparison, base_context, 'num')
+    sym_expr = render_condition(renderer, node.test, base_context, 'sym')
+    num_expr = render_condition(renderer, node.test, base_context, 'num')
     return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
 
 
@@ -1221,6 +1269,36 @@ def toggle_param_line(renderer: BaseRenderer, node: CalcLine, base_context: BRC)
         base_context.line_context.param_line = node.pars_nesting
     return node
 
+
+
+def infix_boolop(
+    node: HcBoolOp,
+    renderer: BaseRenderer,
+    base_context: BRC = None,
+) -> str:
+    """
+    Render an n-ary boolean operator (``and``/``or``) by joining its operands
+    with the operator symbol, surrounded by the context space (``a and b``).
+
+    An operand that binds looser than this operator is parenthesized -- in
+    practice an ``or`` nested inside an ``and`` (``a and (b or c)``). Comparisons
+    and arithmetic bind tighter, so they are never wrapped. Precedence and
+    parenthesization mirror ``infix_binop``.
+    """
+    context = base_context.current
+    _ = context.space
+    lpar = context.lpar
+    rpar = context.rpar
+    this_pre = OP_PRECEDENCE.get(type(node), float('-inf'))
+    parts = []
+    for value in node.values:
+        rendered = renderer.render_node(value, base_context)
+        vpre = OP_PRECEDENCE.get(type(value), float('inf'))
+        if vpre < this_pre:
+            rendered = f"{lpar}{rendered}{rpar}"
+        parts.append(rendered)
+    joined = f"{_}{node.symbol}{_}".join(parts)
+    return f"{node.pre}{joined}{node.post}"
 
 
 def infix_binop(
