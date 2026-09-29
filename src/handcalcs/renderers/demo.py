@@ -82,6 +82,33 @@ for val_x in vals_x:
         acc.append(value_computed)
 acc
 
+### Logical, identity and membership operators
+# This section demonstrates the `and`, `or`, `not`, `is`, and `in` operators.
+# The `and`/`or` operators render with their operands spaced, while a nested
+# `or` inside an `and` is parenthesized to preserve precedence.
+temp = 75 # Measured temperature, deg C
+temp_min = 40 # Minimum operating temperature, deg C
+temp_max = 120 # Maximum operating temperature, deg C
+materials = ["steel", "concrete", "timber"]
+material = "steel"
+override = None
+
+in_range = temp_min < temp and temp < temp_max # Within the operating range
+is_extreme = temp < temp_min or temp > temp_max # Outside the operating range
+not_frozen = not (temp < 0) # Above freezing
+material_ok = material in materials # Material is recognised
+material_missing = material not in materials
+no_override = override is None # No manual override was set
+has_override = override is not None
+combined = in_range and (is_extreme or not_frozen) # Precedence: `or` is parenthesized
+
+if temp_min < temp < temp_max and material in materials:
+    section_check = 1
+elif temp > temp_max or material not in materials:
+    section_check = 2
+else:
+    section_check = 3
+
 a_dictionary = {"cat": 1, "hat": 2, "bat": 3.14159}
 a_tuple = ("string", 1.0, 42, (3 + 4j))
 """

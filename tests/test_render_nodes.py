@@ -29,6 +29,12 @@ from handcalcs.parsing.operator_nodes import (
     LtEOp,
     EqOp,
     NeqOp,
+    IsOp,
+    IsNotOp,
+    InOp,
+    NotInOp,
+    AndOp,
+    OrOp,
     HcUnaryOp,
 )
 from handcalcs.parsing.inline_nodes import (
@@ -561,6 +567,25 @@ def test_if_block_multiple_lines(render):
     ]
 
 
+def test_if_block_header_with_boolean_test(render):
+    # An if-condition that is a boolean op (not a Compare) renders through the
+    # same "Since (...) -> (...) is True:" header.
+    node = IfBlock(
+        lines=deque([
+            CalcLine(assigns=deque([Name("d", 1)]), expression_tree=deque([Constant(1)])),
+        ]),
+        test=AndOp(values=deque([
+            Compare(deque([Name("a", 3), GtOp, Constant(1)])),
+            Compare(deque([Name("b", 4), LtOp, Constant(9)])),
+        ])),
+        is_true=True,
+    )
+    assert render(node, param_line=False) == [
+        "Since (a>1 and b<9) -> (3>1 and 4<9) is True:",
+        [["d", "=", "1"]],
+    ]
+
+
 def test_elif_block_selects_true_clause(render):
     winner = IfBlock(
         lines=deque([CalcLine(assigns=deque([Name("d", 5)]), expression_tree=deque([Constant(5)]))]),
@@ -676,3 +701,86 @@ def test_heading_rendering_reproduces_level(render, level, expected):
 def test_compare_rendering(render):
     node = Compare(deque([Name("a", 3), GtOp, Constant(2)]))
     assert render(node, current_mode="sym") == "a>2"
+
+
+# ---------------------------------------------------------------------------
+# Identity / membership operators (is, is not, in, not in)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "node,expected",
+    [
+        (IsOp(), " is "),
+        (IsNotOp(), " is not "),
+        (InOp(), " in "),
+        (NotInOp(), " not in "),
+    ],
+    ids=["is", "is_not", "in", "not_in"],
+)
+def test_identity_membership_operator_symbols(render, node, expected):
+    # Being word operators, their symbols carry their own surrounding spaces so
+    # a Compare (joined with no separator) reads as ``a is b``.
+    assert render(node, current_mode="sym") == expected
+
+
+@pytest.mark.parametrize(
+    "op_cls,expected",
+    [
+        (IsOp, "a is b"),
+        (IsNotOp, "a is not b"),
+        (InOp, "a in b"),
+        (NotInOp, "a not in b"),
+    ],
+    ids=["is", "is_not", "in", "not_in"],
+)
+def test_identity_membership_compare_rendering(render, op_cls, expected):
+    node = Compare(deque([Name("a", 3), op_cls, Name("b", 4)]))
+    assert render(node, current_mode="sym") == expected
+
+
+# ---------------------------------------------------------------------------
+# Boolean operators (and, or)
+# ---------------------------------------------------------------------------
+
+def test_and_op_rendering(render):
+    node = AndOp(values=deque([Name("a", 1), Name("b", 2)]))
+    assert render(node, current_mode="sym") == "a and b"
+
+
+def test_or_op_rendering(render):
+    node = OrOp(values=deque([Name("a", 1), Name("b", 2)]))
+    assert render(node, current_mode="sym") == "a or b"
+
+
+def test_bool_op_is_n_ary(render):
+    node = OrOp(values=deque([Name("a", 1), Name("b", 2), Name("c", 3)]))
+    assert render(node, current_mode="sym") == "a or b or c"
+
+
+def test_or_nested_in_and_is_parenthesized(render):
+    # ``or`` binds looser than ``and``, so an ``or`` operand inside an ``and`` is
+    # parenthesized: a and (b or c).
+    node = AndOp(values=deque([
+        Name("a", 1),
+        OrOp(values=deque([Name("b", 2), Name("c", 3)])),
+    ]))
+    assert render(node, current_mode="sym") == "a and (b or c)"
+
+
+def test_and_nested_in_or_is_not_parenthesized(render):
+    # ``and`` binds tighter than ``or``, so it needs no parentheses inside an
+    # ``or``: a or b and c.
+    node = OrOp(values=deque([
+        Name("a", 1),
+        AndOp(values=deque([Name("b", 2), Name("c", 3)])),
+    ]))
+    assert render(node, current_mode="sym") == "a or b and c"
+
+
+def test_comparison_operand_of_bool_op_is_not_parenthesized(render):
+    # Comparisons bind tighter than boolean ops, so they are never wrapped.
+    node = AndOp(values=deque([
+        Compare(deque([Name("a", 3), GtOp, Constant(1)])),
+        Compare(deque([Name("b", 4), LtOp, Constant(9)])),
+    ]))
+    assert render(node, current_mode="sym") == "a>1 and b<9"

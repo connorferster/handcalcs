@@ -121,7 +121,66 @@ class LtOp(HcCompOp):
     type: str = 'lt_op'
 
 
-@dataclass 
+@dataclass
 class LtEOp(HcCompOp):
     symbol: str = "<="
     type: str = 'lte_op'
+
+
+# Identity and membership operators (``is``, ``is not``, ``in``, ``not in``).
+# Like the other comparison ops these live inside a ``Compare`` deque, which the
+# renderer joins with no separator -- so, being word operators, their symbols
+# carry their own surrounding spaces (``a is b``, not ``aisb``), unlike the
+# symbolic relational ops above which render tight (``a<b``).
+
+@dataclass
+class IsOp(HcCompOp):
+    symbol: str = " is "
+    type: str = 'is_op'
+
+
+@dataclass
+class IsNotOp(HcCompOp):
+    symbol: str = " is not "
+    type: str = 'is_not_op'
+
+
+@dataclass
+class InOp(HcCompOp):
+    symbol: str = " in "
+    type: str = 'in_op'
+
+
+@dataclass
+class NotInOp(HcCompOp):
+    symbol: str = " not in "
+    type: str = 'not_in_op'
+
+
+# Boolean Operators (``and``, ``or``)
+#
+# A boolean operator is n-ary in Python (``a and b and c`` is one ``BoolOp`` with
+# three ``values``), so unlike ``HcBinOp`` it holds a single ``values`` deque
+# rather than a left/right pair.
+
+@dataclass
+class HcBoolOp(HcNode):
+    pass
+
+
+@dataclass
+class AndOp(HcBoolOp):
+    values: deque
+    symbol: str = "and"
+    pre: str = ""
+    post: str = ""
+    type: str = 'and_op'
+
+
+@dataclass
+class OrOp(HcBoolOp):
+    values: deque
+    symbol: str = "or"
+    pre: str = ""
+    post: str = ""
+    type: str = 'or_op'
