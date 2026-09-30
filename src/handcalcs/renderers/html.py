@@ -49,8 +49,6 @@ from handcalcs.parsing.block_nodes import (
     ForBlock
 )
 
-
-
 class HTMLRenderer(BaseRenderer):
     name = 'html'
 
@@ -440,6 +438,25 @@ def swap_py_operators(renderer: HTMLR, node: HcBinOp, base_context: BRC) -> HcBi
         return node
     else:
         return node
+
+# TODO: Register >, <, >=, <= operators to use symbols instead of angle brackets (or escape them
+@HTMLR.register("gt_op:pre")
+@HTMLR.register("lt_op:pre")
+@HTMLR.register("gte_op:pre")
+@HTMLR.register("lte_op:pre")
+def swap_angle_ops(renderer: HTMLR, node: HcCompOp, base_context: BRC) -> HcCompOp:
+    """
+    Modifies the symbol in the <, <=, >, >= operators to be HTML safe
+    """
+    if node.symbol == "<":
+        node.symbol = "&lt;"
+    elif node.symbol == "<=":
+        node.symbol = "&le;"
+    elif node.symbol == ">":
+        node.symbol = "&gt;"
+    elif node.symbol == ">=":
+        node.symbol = "&ge;"
+    return node
 
 
 @HTMLR.register("function_call:pre")
