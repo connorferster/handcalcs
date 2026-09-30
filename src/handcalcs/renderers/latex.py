@@ -46,8 +46,8 @@ from handcalcs.parsing.block_nodes import (
 
 
 
-class PlainTextRenderer(BaseRenderer):
-    name = 'plain_text'
+class LatexRenderer(BaseRenderer):
+    name = 'latex'
 
     # def create_context(
     #     self, 
@@ -56,14 +56,14 @@ class PlainTextRenderer(BaseRenderer):
     #     context = PlainTextRenderContext(**kwargs | {'mode': 'full'})
     #     return context
 
-PTR = PlainTextRenderer
+LR = LatexRenderer
 BRC = BaseRenderContext
 
 
 ## SWAP RULES
 
-@PlainTextRenderer.register("name:sym")
-def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
+@LatexRenderer.register("name:sym")
+def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
     """
     Swaps out any greek substrings or unicode symbols in a Name's identifier.
 
@@ -142,13 +142,13 @@ def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     return node
     
     
-@PlainTextRenderer.register("mult_op:pre")
-@PlainTextRenderer.register("pow_op:pre")
-@PlainTextRenderer.register("div_op:pre")
-@PlainTextRenderer.register("floor_op:pre")
-@PlainTextRenderer.register("add_op:pre")
-@PlainTextRenderer.register("sub_op:pre")
-def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinOp:
+@LatexRenderer.register("mult_op:pre")
+@LatexRenderer.register("pow_op:pre")
+@LatexRenderer.register("div_op:pre")
+@LatexRenderer.register("floor_op:pre")
+@LatexRenderer.register("add_op:pre")
+@LatexRenderer.register("sub_op:pre")
+def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp:
     """
     Rewrite a binary operator's display symbol/pre/post to the plain-text form.
 
@@ -211,8 +211,8 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
         return node
 
 
-@PlainTextRenderer.register("function_call:pre")
-def swap_sqrt_symbol(renderer: PTR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+@LatexRenderer.register("function_call:pre")
+def swap_sqrt_symbol(renderer: LR, node: FunctionCall, base_context: BRC) -> FunctionCall:
     """
     Swap a ``sqrt(...)`` call's function name for the '√' symbol.
 
