@@ -93,7 +93,7 @@ class HTMLRenderer(BaseRenderer):
         "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
-        "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
+        # "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
     )
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> str:

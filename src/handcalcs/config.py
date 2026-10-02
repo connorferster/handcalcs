@@ -4,7 +4,7 @@ Global, user-editable configuration for handcalcs.
 A designer can permanently change a small number of handcalcs defaults so that a
 bare ``HandCalcs()`` behaves the way they prefer. The configuration is a JSON file
 stored in the per-user config location for the operating system (resolved by
-``platformdirs``), e.g. ``~/.config/handcalcs/config.json`` on Linux.
+``platformdirs``), e.g. ``~/.config/handcalcs/hc_config.json`` on Linux.
 
 Two base options are recognised:
 
@@ -63,7 +63,7 @@ def config_path() -> pathlib.Path:
     if override:
         return pathlib.Path(override)
     config_dir = platformdirs.user_config_dir("handcalcs", appauthor=False)
-    return pathlib.Path(config_dir) / "config.json"
+    return pathlib.Path(config_dir) / "hc_config.json"
 
 
 def _load_config() -> dict[str, Any]:

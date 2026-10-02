@@ -11,9 +11,7 @@ classifiers = ["License :: OSI Approved :: Apache Software License"]
 version = "2.0.0rc1"
 description = "Rendering Python code as math you wrote by hand."
 dependencies = [
-    "more_itertools",
     "innerscope >= 0.7.0",
-    "pyparsing",
     "pfst>=0.3.2",
     "platformdirs>=3.0.0",
 ]
@@ -50,4 +48,5 @@ dev = [
     "forallpeople>=2.7.1",
     "black>=25.1.0",
     "rich>=14.2.0",
+    "ipykernel>=7.3.0",
 ]
