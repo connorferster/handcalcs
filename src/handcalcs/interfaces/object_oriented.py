@@ -56,7 +56,7 @@ class HandCalcs:
         if supplied_globals is None:
             passed_globals = self.__evaluate(source)
         self.hc_ast = self.__parse(source, passed_globals)
-        base_context = self.renderer.create_context(**self._context_settings)
+        base_context = self.renderer.create_context(**(self._context_settings | {"global_ns": passed_globals}))
         rendered_tree = self.renderer.render(self.hc_ast, base_context)
         completed_render = self.renderer.complete(rendered_tree, base_context)
         return completed_render

@@ -218,11 +218,11 @@ def render_heading(renderer: HTMLR, node: Heading, base_context: BaseRenderConte
     # and the container's ``gap`` supplies the spacing.
     return f"<h{node.heading_level}>{node.content}</h{node.heading_level}>"
 
-@HTMLRenderer.register('comment_line')
-def render_comment_line(renderer: HTMLR, node: CommentLine, base_context: BaseRenderContext) -> str:
-    # A standalone comment renders as a plain-text line (a single string in the
-    # master list). The trailing newline is inserted by the join step, not here.
-    return f"{node.content}"
+# @HTMLRenderer.register('comment_line')
+# def render_comment_line(renderer: HTMLR, node: CommentLine, base_context: BaseRenderContext) -> str:
+#     # A standalone comment renders as a plain-text line (a single string in the
+#     # master list). The trailing newline is inserted by the join step, not here.
+#     return f"{node.content}"
 
 
 @HTMLRenderer.register('comments_block')

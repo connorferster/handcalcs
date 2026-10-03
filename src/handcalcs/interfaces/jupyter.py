@@ -82,7 +82,6 @@ def render(line, cell):
             "Try one of ('latex', 'html', 'plain_text')."
         )
     display_class = _DISPLAY[renderer_name]
-
     hc = HandCalcs(renderer=config_renderer())
     # if line_args["sympy"]:
     #     cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
