@@ -2,8 +2,11 @@ from __future__ import annotations
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
+from jinja2 import Template, Environment, DebugUndefined
 from handcalcs.parsing.nodes import HcNode
 from handcalcs.parsing.sequence import HcSequence
+
+jinja_env = Environment(undefined=DebugUndefined)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
@@ -165,7 +168,7 @@ class RenderContext:
         self.indent = indent
         self.equality = equality
         self.mode = mode
-        self.format = format_code
+        self.format_code = format_code
         self.param_line = param_line
         self.lpar = lpar
         self.rpar = rpar
@@ -560,7 +563,7 @@ def render_novalue(renderer: BaseRenderer, node: Constant, base_context: BaseRen
 @BaseRenderer.register('constant')
 def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> Any:
     context = base_context.current
-    fc = context.format
+    fc = context.format_code
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError): # Format code not implemented / not a scalar
@@ -597,11 +600,27 @@ def render_list(renderer: BaseRenderer, node: Tuple, base_context: BaseRenderCon
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
     return f"({f',{_}'.join(rendered_elems)})"
 
+
+@BaseRenderer.register('inline_comment:pre')
+@BaseRenderer.register('comment_line:pre')
+@BaseRenderer.register('heading:pre')
+def interpolate_jinja_strings(
+    renderer: BaseRenderer, 
+    node: Union[InlineComment, CommentLine, Heading],
+    base_context: BaseRenderContext
+    ) -> str:
+    context = base_context.current
+    if hasattr(context, 'global_ns'):
+        template = jinja_env.from_string(node.content)
+        jinja_rendered = template.render(context.global_ns)
+        node.content = jinja_rendered
+    return node
+
+
 @BaseRenderer.register('inline_comment')
 def render_inline_comment(renderer: BaseRenderer, node: InlineComment, base_context: BaseRenderContext) -> str:
-    # A component atom: the separating space before it is supplied by the join
-    # step (which joins a line's components with a single space).
-    return f"({node.content})"
+    context = base_context.current
+    return f"{context.lpar}{node.content}{context.rpar}"
 
 @BaseRenderer.register('name')
 def render_name(renderer: BaseRenderer, node: Name, base_context: BaseRenderContext) -> str:
@@ -858,8 +877,6 @@ def render_comment_command(renderer: BR, node: CommentCommand, base_context: Bas
 
 @BaseRenderer.register('comment_line')
 def render_comment_line(renderer: BR, node: CommentLine, base_context: BaseRenderContext) -> str:
-    # A standalone comment renders as a plain-text line (a single string in the
-    # master list). The trailing newline is inserted by the join step, not here.
     return node.content
 
 @BaseRenderer.register('heading')
@@ -867,7 +884,6 @@ def render_heading(renderer: BR, node: Heading, base_context: BaseRenderContext)
     # A heading renders as a single markdown string in the master list, its
     # markdown level reproduced from the node's ``heading_level``.
     return f"{'#' * node.heading_level} {node.content}"
-
 
 @BaseRenderer.register('inline_command')
 def render_inline_command(renderer: BR, node: InlineCommand, base_context: BaseRenderContext) -> str:
