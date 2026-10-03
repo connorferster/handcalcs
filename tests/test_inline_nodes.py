@@ -70,7 +70,7 @@ def test_from_raw_comment_kwarg_style():
 def test_from_raw_comment_flag_style_falls_back_to_argparse():
     result = InlineCommand.from_raw_comment("hc: -f 5E")
     assert isinstance(result, InlineCommand)
-    assert result.commands["format"] == "5E"
+    assert result.commands["format_code"] == "5E"
     # argparse defaults are present alongside the parsed flag.
     assert result.commands["multiline"] is False
     assert result.commands["ignore"] is False

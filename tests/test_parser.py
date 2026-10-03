@@ -1724,7 +1724,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 content='a plain note'
             ),
             CommentCommand(
-                commands={'multiline': False, 'format':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
+                commands={'multiline': False, 'format_code':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
             ),
             CalcLine(
                 assigns=deque([
@@ -1780,7 +1780,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 ]),
                 comment=InlineCommand(
                     content='hc: -f 5E',
-                    commands={'multiline': False, 'format': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
+                    commands={'multiline': False, 'format_code': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
                 )
             )
         ])

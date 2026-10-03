@@ -90,7 +90,7 @@ def test_comment_command_kwarg_style():
 
 def test_comment_command_flag_style():
     cc = CommentCommand.from_raw_comment("# hc: -f 2g")
-    assert cc.commands["format"] == "2g"
+    assert cc.commands["format_code"] == "2g"
     assert cc.commands["multiline"] is False
 
 

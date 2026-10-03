@@ -174,7 +174,7 @@ def test_current_overlays_line_over_global():
     # Line context wins for shared keys...
     assert base.current.mode == "sym"
     # ...and global-only keys remain visible.
-    assert base.current.format == ".5g"
+    assert base.current.format_code == ".5g"
 
 
 def test_render_context_union_merges_fields():
@@ -182,7 +182,7 @@ def test_render_context_union_merges_fields():
     b = RenderContext(mode="sym", format_code=".2f")
     merged = a | b
     assert merged.mode == "sym"
-    assert merged.format == ".2f"
+    assert merged.format_code == ".2f"
     # space must remain the string default, not become a dict.
     assert merged.space == " "
 
