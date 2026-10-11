@@ -155,7 +155,7 @@ class RenderContext:
         space: str = ' ', 
         newline: str = '\n', 
         indent: str = "    ",
-        equality: str = "=",
+        assign: str = "=",
         mode: str = 'full',
         format_code: str = ".5g",
         param_line: bool = False,
@@ -166,7 +166,7 @@ class RenderContext:
         self.space = space
         self.newline = newline
         self.indent = indent
-        self.equality = equality
+        self.assign = assign
         self.mode = mode
         self.format_code = format_code
         self.param_line = param_line
@@ -463,7 +463,7 @@ class BaseRenderer:
                     f"Cannot register a method for {node_classifier}.\n"
                     "Node classifiers must be either in the form of "
                     "'{node_type}:{category}' where {category} is one of: "
-                    f"{', '.join(RULE_CATEGORIES)}, or 'header:{{node_type}}'\n-or-\n"
+                    f"{f',{context.space}'.join(RULE_CATEGORIES)}, or 'header:{{node_type}}'\n-or-\n"
                     "the node classifier must be the name of a recognized HcNode (in snake_case)."
                 )
         else:
@@ -848,7 +848,7 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
     finally:
         base_context.line_context.current_mode = prev_mode
     brackets = {
-        'list': ('[', ']'),
+        'list': ('[',']'),
         'set': ('{', '}'),
         'dict': ('{', '}'),
         'generator': ('(', ')'),
@@ -978,7 +978,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     # (result) row, which is typically the shortest.
     multiline = getattr(context, 'multiline', False)
     if multiline and not param_line and len(columns) > 2:
-        eq = context.equality
+        eq = context.assign
         target, *value_cols = columns
         rows = [[target, eq, value_cols[0]]]
         rows += [["", eq, col] for col in value_cols[1:]]
@@ -990,7 +990,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     components: deque = deque([])
     for idx, column in enumerate(columns):
         if idx > 0:
-            components.append(context.equality)
+            components.append(context.assign)
         components.append(column)
     if comment_render:
         components.append(comment_render)
@@ -1073,7 +1073,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
     components = deque([])
     for idx, column in enumerate(columns):
         if idx > 0:
-            components.append(context.equality)
+            components.append(context.assign)
         components.append(column)
 
     if node.comment is not None:

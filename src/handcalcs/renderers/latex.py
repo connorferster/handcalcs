@@ -59,6 +59,10 @@ class LatexRenderer(BaseRenderer):
 LR = LatexRenderer
 BRC = BaseRenderContext
 
+BRC.global_context.space = '\\ '
+BRC.global_context.newline = '\\\n'
+BRC.global_context.indent = '\hspace*{1em}'
+
 
 ## SWAP RULES
 
@@ -148,6 +152,7 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
 @LatexRenderer.register("floor_op:pre")
 @LatexRenderer.register("add_op:pre")
 @LatexRenderer.register("sub_op:pre")
+@LatexRenderer.register("mod_op:pre")
 def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp:
     """
     Rewrite a binary operator's display symbol/pre/post to the plain-text form.
@@ -182,6 +187,8 @@ def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp
     elif node.type == 'add_op':
         node.symbol = '+'
         return node
+    elif node.type == 'mod_op':
+        node.symbol = '\\bmod'
     elif node.type == 'sub_op':
         node.symbol = '-'
         return node
@@ -203,6 +210,23 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
+    latex_math_funcs = {
+        "sin": "\\sin",
+        "cos": "\\cos",
+        "tan": "\\tan",
+        "sqrt": "\\sqrt",
+        "exp": "\\exp",
+        "sinh": "\\sinh",
+        "tanh": "\\tanh",
+        "cosh": "\\cosh",
+        "asin": "\\arcsin",
+        "acos": "\\arccos",
+        "atan": "\\arctan",
+        "atan2": "\\arctan",
+        "asinh": "\\arcsinh",
+        "acosh": "\\arccosh",
+        "atanh": "\\arctanh",
+    }
     node.pre = '\\left('
     node.post = '\\right)'
     if node.function_name.identifier == 'sqrt':
@@ -220,9 +244,16 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.value = ''
         node.pre = '\\lceil'
         node.post = '\\rceil'
+    elif node.function_name.identifier in latex_math_funcs:
+        func_identifier = node.function_name.identifier
+        latex_func_name = latex_math_funcs.get(func_identifier)
+        node.function.identifier = latex_func_name
+        node.function.value = latex_func_name
     else:
         new_func_name = node.function_name.identifier
-        wrapped_func_name = f"\\operatorname{{new_func_name}}"
+        wrapped_func_name = f"\\operatorname{{{new_func_name}}} "
+        node.function.identifier = wrapped_func_name
+        node.function.value = wrapped_func_name
     return node
 
 
