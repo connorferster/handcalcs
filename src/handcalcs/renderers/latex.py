@@ -71,63 +71,63 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
     symbolic mode (numeric mode renders the Name's value instead).
     """
     GREEK_LOWER = {
-        "alpha": "α",
-        "beta": "β",
-        "gamma": "γ",
-        "delta": "δ",
-        "epsilon": "ε",
-        "varepsilon": "ϵ",
-        "zeta": "ζ",
-        "theta": "θ",
-        "vartheta": "ϑ",
-        "iota": "ι",
-        "kappa": "κ",
-        "mu": "μ",
-        "nu": "ν",
-        "xi": "ξ",
-        "omicron": "ο",
-        "pi": "π",
-        "varpi": "ϖ",
-        "rho": "ρ",
-        "varrho": "ϱ",
-        "sigma": "σ",
-        "varsigma": "ς",
-        "tau": "τ",
-        "upsilon": "υ",
-        "phi": "φ",
-        "varphi": "ϕ",
-        "chi": "χ",
-        "omega": "ω",
-        "eta": "η",
-        "psi": "ψ",
-        "lamb": "λ",
+        "alpha": "\\alpha",
+        "beta": "\\beta",
+        "gamma": "\\gamma",
+        "delta": "\\delta",
+        "epsilon": "\\epsilon",
+        "varepsilon": "\\varepsilon",
+        "zeta": "\\zeta",
+        "theta": "\\theta",
+        "vartheta": "\\vartheta",
+        "iota": "\\iota",
+        "kappa": "\\kappa",
+        "mu": "\\mu",
+        "nu": "\\nu",
+        "xi": "\\xi",
+        "omicron": "\\omicron",
+        "pi": "\\pi",
+        "varpi": "\\varpi",
+        "rho": "\\rho",
+        "varrho": "\\varrho",
+        "sigma": "\\sigma",
+        "varsigma": "\\varsigma",
+        "tau": "\\tau",
+        "upsilon": "\\upsion",
+        "phi": "\\phi",
+        "varphi": "\\varphi",
+        "chi": "\\chi",
+        "omega": "\\omega",
+        "eta": "\\eta",
+        "psi": "\\psi",
+        "lamb": "\\lambda",
     }
 
     GREEK_UPPER = {
-        "Alpha": "Α",
-        "Beta": "Β",
-        "Gamma": "Γ",
-        "Delta": "Δ",
-        "Epsilon": "Ε",
-        "Zeta": "Ζ",
-        "Theta": "Θ",
-        "Iota": "Ι",
-        "Kappa": "Κ",
-        "Mu": "Μ",
-        "Nu": "Ν",
-        "Xi": "Ξ",
-        "Omicron": "Ο",
-        "Pi": "Π",
-        "Rho": "Ρ",
-        "Sigma": "Σ",
-        "Tau": "Τ",
-        "Upsilon": "Υ",
-        "Phi": "Φ",
-        "Chi": "Χ",
-        "Omega": "Ω",
-        "Eta": "Η",
-        "Psi": "Ψ",
-        "Lamb": "Λ",
+        "Alpha": "\\Alpha",
+        "Beta": "\\Beta",
+        "Gamma": "\\Gamma",
+        "Delta": "\\Delta",
+        "Epsilon": "\\Epsilon",
+        "Zeta": "\\Zeta",
+        "Theta": "\\Theta",
+        "Iota": "\\Iota",
+        "Kappa": "\\Κappa",
+        "Mu": "\\Mu",
+        "Nu": "\\Nu",
+        "Xi": "\\Xi",
+        "Omicron": "\\Omicron",
+        "Pi": "\\Pi",
+        "Rho": "\\Rho",
+        "Sigma": "\\Sigma",
+        "Tau": "\\Tau",
+        "Upsilon": "\\Upsilon",
+        "Phi": "\\Phi",
+        "Chi": "\\Chi",
+        "Omega": "\\Omega",
+        "Eta": "\\Eta",
+        "Psi": "\\Psi",
+        "Lamb": "\\Lambda",
     }
 
     for name, unicode in (GREEK_LOWER | GREEK_UPPER).items():
@@ -162,7 +162,7 @@ def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp
     if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
         return node
     elif node.type == 'mult_op':
-        node.symbol = '*'
+        node.symbol = '\\cdot'
         node.pre = ''
         node.post = ''
         return node
@@ -170,14 +170,14 @@ def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp
         # Division always renders with its '/' symbol. Any parentheses around an
         # operand come from the infix precedence logic (lpar/rpar), not from
         # pre/post, so pre/post stay empty regardless of operand type.
-        node.symbol = "/"
-        node.pre = ""
-        node.post = ""
+        node.symbol = "}{"
+        node.pre = "\\frac{"
+        node.post = "}"
         return node
     elif node.type == 'floor_op':
-        node.symbol = '//'
-        node.pre = ''
-        node.post = ''
+        node.symbol = '}{'
+        node.pre = '\\lfloor \\frac{'
+        node.post = '} \\rfloor'
         return node
     elif node.type == 'add_op':
         node.symbol = '+'
@@ -186,43 +186,43 @@ def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp
         node.symbol = '-'
         return node
     elif node.type == 'pow_op' and isinstance(node.right, Constant):
-        exp_str = str(node.right.value)
-        node.symbol = ''
-        superscript_integers = {
-            "1": "¹",
-            "2": "²",
-            "3": "³",
-            "4": "⁴",
-            "5": "⁵",
-            "6": "⁶",
-            "7": "⁷",
-            "8": "⁸",
-            "9": "⁹",
-            "0": "⁰",
-            ".": "'"
-        }
-        acc = []
-        for char in exp_str:
-            acc.append(superscript_integers.get(char,char))
-        
-        node.right = Constant(value="".join(acc))
+        node.symbol = '^{'
+        node.post = '}'
         return node
     else:
         return node
 
 
 @LatexRenderer.register("function_call:pre")
-def swap_sqrt_symbol(renderer: LR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> FunctionCall:
     """
-    Swap a ``sqrt(...)`` call's function name for the '√' symbol.
+    Swap function names for special function symbols in Latex. e.g. swap a ``sqrt(...)`` call's 
+    function name for the '\\sqrt{}' symbol.
 
     Registered as a 'pre' rule on function_call: the function name is shown in
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
+    node.pre = '\\left('
+    node.post = '\\right)'
     if node.function_name.identifier == 'sqrt':
-        node.function_name.identifier = '√'
-        node.function_name.value = '√'
+        node.function_name.identifier = '\\sqrt'
+        node.function_name.value = '\\sqrt'
+        node.pre = '{'
+        node.post = '}'
+    elif node.function_name.identifier == 'floor':
+        node.function_name.identifier = ''
+        node.function_name.value = ''
+        node.pre = '\\lfloor'
+        node.post = '\\rfloor'
+    elif node.function_name.identifier == 'ceil':
+        node.function_name.identifier = ''
+        node.function_name.value = ''
+        node.pre = '\\lceil'
+        node.post = '\\rceil'
+    else:
+        new_func_name = node.function_name.identifier
+        wrapped_func_name = f"\\operatorname{{new_func_name}}"
     return node
 
 

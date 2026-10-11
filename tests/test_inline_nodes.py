@@ -42,14 +42,14 @@ def test_comprehension_and_chain_defaults():
     comp = Comprehension(
         assigns=deque([Name("elem")]),
         iterator=deque([Name("a")]),
-        _is_async=False,
+        is_async=False,
     )
     assert comp.type == "comprehension"
-    assert comp._is_async is False
+    assert comp.is_async is False
 
     chain = ComprehensionChain(_type="list")
     assert chain.type == "comprehension_chain"
-    assert chain._type == "list"
+    assert chain.comp_type == "list"
     assert chain.comprehensions == deque()
 
 

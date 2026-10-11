@@ -637,7 +637,7 @@ def test_list_comprehension_renders(render):
             Comprehension(
                 assigns=deque([Name("i")]),
                 iterator=deque([_range_call()]),
-                _is_async=False,
+                is_async=False,
             )
         ]),
     )
@@ -653,7 +653,7 @@ def test_dict_comprehension_renders(render):
             Comprehension(
                 assigns=deque([Name("k")]),
                 iterator=deque([_range_call()]),
-                _is_async=False,
+                is_async=False,
             )
         ]),
     )

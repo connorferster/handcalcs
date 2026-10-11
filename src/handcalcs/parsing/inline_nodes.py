@@ -27,6 +27,8 @@ class FunctionCall(HcInlineNode):
     namespace: deque[str] = field(default_factory=deque)
     function_name: deque[Attribute | str] = field(default_factory=deque)
     args: deque[Any] = field(default_factory=deque)
+    pre: str = ''
+    post: str = ''
     type: str = "function_call"
 
 
@@ -61,15 +63,17 @@ class InlineCommand(HcInlineNode):
 
 @dataclass
 class Comprehension(HcInlineNode):
+    comp_type: str
     assigns: deque[str | Tuple]
     iterator: deque[str | FunctionCall | List | Tuple | Dictionary | Set]
-    _is_async: bool
+    is_async: bool
+    pre: str
+    post: str
     type: str = "comprehension"
 
 
 @dataclass
 class ComprehensionChain(HcInlineNode):
-    _type: str = ""
     assign: deque[str | FunctionCall | List | Tuple | Dictionary | Set] = field(default_factory=deque)
     key: deque[str] = field(default_factory=deque)
     value: deque[str] = field(default_factory=deque)

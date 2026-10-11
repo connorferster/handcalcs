@@ -219,6 +219,8 @@ def swap_sqrt_symbol(renderer: PTR, node: FunctionCall, base_context: BRC) -> Fu
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
+    node.pre = '('
+    node.post = ')'
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '√'
         node.function_name.value = '√'

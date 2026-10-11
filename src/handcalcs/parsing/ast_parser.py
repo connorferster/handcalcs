@@ -552,7 +552,7 @@ class AST_Parser:
 
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
             comprehension_block = ComprehensionChain(
-                _type=node.__class__.__name__.replace("Comp", "").lower(),
+                comp_type=node.__class__.__name__.replace("Comp", "").lower(),
             )
 
             assigns = deque([])
@@ -572,7 +572,7 @@ class AST_Parser:
                 comp_block = Comprehension(
                     assigns=generator["assigns"],
                     iterator=generator["iterator"],
-                    _is_async=generator["is_async"],
+                    is_async=generator["is_async"],
                 )
                 comp_blocks.append(comp_block)
             comprehension_block.comprehensions = comp_blocks

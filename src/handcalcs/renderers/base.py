@@ -806,9 +806,9 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     if namespace == '__main__':
         namespace = ''
     if namespace:
-        rendered = f"{namespace}.{function_name}({arg_str})"
+        rendered = f"{namespace}.{function_name}{node.pre}{arg_str}{node.post}"
     else:
-        rendered = f"{function_name}({arg_str})"
+        rendered = f"{function_name}{node.pre}{arg_str}{node.post})"
     return rendered
 
 
@@ -837,7 +837,7 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
     context = base_context.current
     _ = context.space
     try:
-        if node._type == 'dict':
+        if node.comp_type == 'dict':
             key = "".join(renderer.render(part, base_context) for part in node.key)
             value = "".join(renderer.render(part, base_context) for part in node.value)
             head = f"{key}: {value}"
@@ -853,7 +853,7 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
         'dict': ('{', '}'),
         'generator': ('(', ')'),
     }
-    opener, closer = brackets.get(node._type, ('[', ']'))
+    opener, closer = brackets.get(node.comp_type, ('[', ']'))
     return f"{opener}{inner}{closer}"
 
 
