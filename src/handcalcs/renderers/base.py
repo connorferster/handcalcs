@@ -463,7 +463,7 @@ class BaseRenderer:
                     f"Cannot register a method for {node_classifier}.\n"
                     "Node classifiers must be either in the form of "
                     "'{node_type}:{category}' where {category} is one of: "
-                    f"{f',{context.space}'.join(RULE_CATEGORIES)}, or 'header:{{node_type}}'\n-or-\n"
+                    f"{', '.join(RULE_CATEGORIES)}, or 'header:{{node_type}}'\n-or-\n"
                     "the node classifier must be the name of a recognized HcNode (in snake_case)."
                 )
         else:
@@ -796,6 +796,23 @@ def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext)
     acc = [renderer.render(elem, base_context) for elem in node.comparison]
     return f"".join(acc)
 
+@BaseRenderer.register('function_call:pre')
+def set_function_call_parens(renderer: BR, node: FunctionCall, base_context: BaseRenderContext) -> FunctionCall:
+    """
+    Default a function call's argument delimiters to the context's lpar/rpar.
+
+    Only fills in a delimiter that is still empty, so a renderer's own
+    'function_call:pre' rule (which runs after this one) remains free to set
+    something else (e.g. LaTeX's ``\\sqrt{...}``).
+    """
+    context = base_context.current
+    if not node.pre:
+        node.pre = context.lpar
+    if not node.post:
+        node.post = context.rpar
+    return node
+
+
 @BaseRenderer.register('function_call')
 def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRenderContext) -> str:
     context = base_context.current
@@ -808,7 +825,7 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     if namespace:
         rendered = f"{namespace}.{function_name}{node.pre}{arg_str}{node.post}"
     else:
-        rendered = f"{function_name}{node.pre}{arg_str}{node.post})"
+        rendered = f"{function_name}{node.pre}{arg_str}{node.post}"
     return rendered
 
 
@@ -819,7 +836,7 @@ def render_comprehension(renderer: BR, node: Comprehension, base_context: BaseRe
     """
     targets = ", ".join(renderer.render(target, base_context) for target in node.assigns)
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
-    prefix = "async for" if node._is_async else "for"
+    prefix = "async for" if node.is_async else "for"
     return f"{prefix} {targets} in {iterator}"
 
 

@@ -47,7 +47,7 @@ def test_comprehension_and_chain_defaults():
     assert comp.type == "comprehension"
     assert comp.is_async is False
 
-    chain = ComprehensionChain(_type="list")
+    chain = ComprehensionChain(comp_type="list")
     assert chain.type == "comprehension_chain"
     assert chain.comp_type == "list"
     assert chain.comprehensions == deque()

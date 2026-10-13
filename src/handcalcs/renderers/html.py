@@ -439,7 +439,7 @@ def swap_py_operators(renderer: HTMLR, node: HcBinOp, base_context: BRC) -> HcBi
     else:
         return node
 
-# TODO: Register >, <, >=, <= operators to use symbols instead of angle brackets (or escape them
+
 @HTMLR.register("gt_op:pre")
 @HTMLR.register("lt_op:pre")
 @HTMLR.register("gte_op:pre")

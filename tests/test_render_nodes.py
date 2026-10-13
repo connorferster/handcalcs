@@ -631,7 +631,7 @@ def _range_call():
 
 def test_list_comprehension_renders(render):
     node = ComprehensionChain(
-        _type="list",
+        comp_type="list",
         assign=deque([MultOp(left=Name("i"), right=Constant(2))]),
         comprehensions=deque([
             Comprehension(
@@ -646,7 +646,7 @@ def test_list_comprehension_renders(render):
 
 def test_dict_comprehension_renders(render):
     node = ComprehensionChain(
-        _type="dict",
+        comp_type="dict",
         key=deque([Name("k")]),
         value=deque([MultOp(left=Name("k"), right=Constant(2))]),
         comprehensions=deque([

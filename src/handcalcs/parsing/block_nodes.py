@@ -8,6 +8,8 @@ from .line_nodes import CalcLine, ExprLine, Heading, CommentCommand, CommentLine
 @dataclass
 class HcBlockNode(HcNode):
     level: int = 0
+    pre: str = ""
+    post: str = ""
 
 @dataclass
 class ParamsBlock(HcBlockNode):

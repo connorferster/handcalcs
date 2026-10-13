@@ -631,7 +631,7 @@ values = [elem + b for elem in a]
             ]),
             expression_tree=deque([
                 ComprehensionChain(
-                    _type='list',
+                    comp_type='list',
                     assign=deque([
                         AddOp(
                             left=Name(
