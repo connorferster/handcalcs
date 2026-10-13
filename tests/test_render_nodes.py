@@ -68,6 +68,12 @@ def test_constant_int(render):
     assert render(Constant(4)) == "4"
 
 
+@pytest.mark.parametrize("value", [True, False])
+def test_constant_bool_ignores_numeric_format_code(render, value):
+    # bool is an int subclass: '.5g' would otherwise render True as '1'.
+    assert render(Constant(value), format_code=".5g") == str(value)
+
+
 def test_constant_non_numeric_falls_back_to_str(render):
     # A format code that does not apply to the value raises ValueError inside
     # the handler and falls back to plain str().

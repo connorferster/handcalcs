@@ -563,6 +563,9 @@ def render_novalue(renderer: BaseRenderer, node: Constant, base_context: BaseRen
 def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> Any:
     context = base_context.current
     fc = context.format_code
+    # bool is an int subclass, so a numeric format code would render True as 1.
+    if isinstance(node.value, bool):
+        return f"{node.value}"
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError): # Format code not implemented / not a scalar

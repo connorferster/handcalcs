@@ -60,6 +60,7 @@ def test_comparison_symbols_are_latex_commands_with_separator():
         "v = a >= b\n"
     )
     assert lines["t"][2] == "a\\ne b"
+    assert lines["t"][-1] == "True"
     assert lines["u"][2] == "a\\le b"
     assert lines["v"][2] == "a\\ge b"
 
