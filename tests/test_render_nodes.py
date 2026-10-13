@@ -543,7 +543,7 @@ def test_if_block_renders_header_and_lines(render):
     param = CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)]))
     node = IfBlock(
         lines=deque([param]),
-        test=Compare(deque([Constant(2), LtEOp, Name("a", 3), LtOp, Constant(5)])),
+        test=Compare(deque([Constant(2), LtEOp(), Name("a", 3), LtOp(), Constant(5)])),
         is_true=True,
     )
     assert render(node, param_line=False) == [
@@ -558,7 +558,7 @@ def test_if_block_multiple_lines(render):
             CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)])),
             CalcLine(assigns=deque([Name("b", 3)]), expression_tree=deque([Constant(3)])),
         ]),
-        test=Compare(deque([Name("a", 3), GtOp, Constant(2)])),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(2)])),
         is_true=True,
     )
     assert render(node, param_line=False) == [
@@ -575,8 +575,8 @@ def test_if_block_header_with_boolean_test(render):
             CalcLine(assigns=deque([Name("d", 1)]), expression_tree=deque([Constant(1)])),
         ]),
         test=AndOp(values=deque([
-            Compare(deque([Name("a", 3), GtOp, Constant(1)])),
-            Compare(deque([Name("b", 4), LtOp, Constant(9)])),
+            Compare(deque([Name("a", 3), GtOp(), Constant(1)])),
+            Compare(deque([Name("b", 4), LtOp(), Constant(9)])),
         ])),
         is_true=True,
     )
@@ -589,12 +589,12 @@ def test_if_block_header_with_boolean_test(render):
 def test_elif_block_selects_true_clause(render):
     winner = IfBlock(
         lines=deque([CalcLine(assigns=deque([Name("d", 5)]), expression_tree=deque([Constant(5)]))]),
-        test=Compare(deque([Name("a", 3), GtOp, Constant(2)])),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(2)])),
         is_true=True,
     )
     loser = IfBlock(
         lines=deque([CalcLine(assigns=deque([Name("d", 6)]), expression_tree=deque([Constant(6)]))]),
-        test=Compare(deque([Name("a", 3), GtOp, Constant(9)])),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(9)])),
         is_true=False,
     )
     node = ElifBlock(lines=deque([loser, winner]))
@@ -608,7 +608,7 @@ def test_elif_block_selects_true_clause(render):
 def test_elif_block_no_true_clause_message(render):
     loser = IfBlock(
         lines=deque([CalcLine(assigns=deque([Name("d", 6)]), expression_tree=deque([Constant(6)]))]),
-        test=Compare(deque([Name("a", 3), GtOp, Constant(9)])),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(9)])),
         is_true=False,
     )
     node = ElifBlock(lines=deque([loser]))
@@ -699,7 +699,7 @@ def test_heading_rendering_reproduces_level(render, level, expected):
 
 
 def test_compare_rendering(render):
-    node = Compare(deque([Name("a", 3), GtOp, Constant(2)]))
+    node = Compare(deque([Name("a", 3), GtOp(), Constant(2)]))
     assert render(node, current_mode="sym") == "a>2"
 
 
@@ -780,7 +780,7 @@ def test_and_nested_in_or_is_not_parenthesized(render):
 def test_comparison_operand_of_bool_op_is_not_parenthesized(render):
     # Comparisons bind tighter than boolean ops, so they are never wrapped.
     node = AndOp(values=deque([
-        Compare(deque([Name("a", 3), GtOp, Constant(1)])),
-        Compare(deque([Name("b", 4), LtOp, Constant(9)])),
+        Compare(deque([Name("a", 3), GtOp(), Constant(1)])),
+        Compare(deque([Name("b", 4), LtOp(), Constant(9)])),
     ]))
     assert render(node, current_mode="sym") == "a>1 and b<9"

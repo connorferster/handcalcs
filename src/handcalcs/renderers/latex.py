@@ -213,13 +213,16 @@ def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp
 def swap_angle_ops(renderer: LR, node: HcCompOp, base_context: BRC) -> HcCompOp:
     """
     Swaps the <=, >= and != operator symbols for their LaTeX commands.
+
+    Compare joins its parts with no separator, so each command carries a
+    trailing space: without it '\\ne' followed by 'r' would read as '\\ner'.
     """
     if node.symbol == "<=":
-        node.symbol = "\\le"
+        node.symbol = "\\le "
     elif node.symbol == ">=":
-        node.symbol = "\\ge"
+        node.symbol = "\\ge "
     elif node.symbol == "!=":
-        node.symbol = "\\ne"
+        node.symbol = "\\ne "
     return node
 
 
@@ -300,6 +303,13 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         return node
     node.pre = '\\left('
     node.post = '\\right)'
+    # sqrt, floor and ceil render as bare symbols, where a 'math.' prefix
+    # reads as noise (e.g. 'math.\\lfloor x\\rfloor'), so drop the namespace.
+    if (
+        identifier in ('sqrt', 'floor', 'ceil')
+        and getattr(node.namespace, 'identifier', None) == 'math'
+    ):
+        node.namespace = deque()
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '\\sqrt'
         node.function_name.value = '\\sqrt'
@@ -308,12 +318,12 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
     elif node.function_name.identifier == 'floor':
         node.function_name.identifier = ''
         node.function_name.value = ''
-        node.pre = '\\lfloor'
+        node.pre = '\\lfloor '
         node.post = '\\rfloor'
     elif node.function_name.identifier == 'ceil':
         node.function_name.identifier = ''
         node.function_name.value = ''
-        node.pre = '\\lceil'
+        node.pre = '\\lceil '
         node.post = '\\rceil'
     elif node.function_name.identifier in latex_math_funcs:
         func_identifier = node.function_name.identifier

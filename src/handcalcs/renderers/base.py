@@ -393,8 +393,7 @@ class BaseRenderer:
         # ``type`` discriminant, so it is wrapped in the matching HcNode and
         # rendered through the existing handlers, picking up the format code
         # (scalars and collection elements alike). Anything already carrying a
-        # ``type`` (a node instance, or an operator class stored on a Compare)
-        # passes through unchanged.
+        # ``type`` (any node instance) passes through unchanged.
         if not hasattr(node, 'type'):
             node = _reify(node)
         node_rules = self._rule_handlers.get(node.type, {})
@@ -819,8 +818,9 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     function_name = renderer.render(node.function_name, base_context)
     # Check for the '__main__' namespace before rendering it: a renderer's
     # 'name:sym' rules (e.g. subscript swaps) would otherwise mangle the
-    # identifier and the suppression would never match.
-    if getattr(node.namespace, 'identifier', None) == '__main__':
+    # identifier and the suppression would never match. An empty namespace
+    # (e.g. one a renderer rule has cleared) also renders nothing.
+    if not node.namespace or getattr(node.namespace, 'identifier', None) == '__main__':
         namespace = ''
     else:
         namespace = renderer.render(node.namespace, base_context)

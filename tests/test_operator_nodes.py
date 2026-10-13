@@ -107,11 +107,14 @@ def test_compop_base_is_hcnode_subclass():
     assert issubclass(EqOp, HcCompOp)
 
 
-def test_comparison_operator_type_readable_on_class():
-    # The parser stores bare operator *classes* (not instances) in a Compare
-    # deque; the render handlers rely on `type`/`symbol` being class-readable.
-    assert GtOp.type == "gt_op"
-    assert GtOp.symbol == ">"
+def test_comparison_operator_symbol_is_per_instance():
+    # Renderer rules rewrite an operator's symbol in place (e.g. '<=' -> '\\le'),
+    # so the parser stores operator *instances* in a Compare deque. Mutating one
+    # instance must not leak into the class default seen by other renders.
+    node = LtEOp()
+    node.symbol = "\\le"
+    assert LtEOp.symbol == "<="
+    assert LtEOp().symbol == "<="
 
 
 @pytest.mark.parametrize(

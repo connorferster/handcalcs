@@ -99,7 +99,7 @@ UNARY_OPS = {
 
 COMPARE_OPS = {
     "Eq": EqOp,
-    "Ne": NeqOp,
+    "NotEq": NeqOp,
     "GtE": GtEOp,
     "Gt": GtOp,
     "LtE": LtEOp,
@@ -381,7 +381,7 @@ class AST_Parser:
             left = self.ast_parse(node.left)
             op_names = [type(op).__name__ for op in node.ops]
             comparator_names = [self.ast_parse(n) for n in node.comparators]
-            ops = [COMPARE_OPS.get(op_name, op_name) for op_name in op_names]
+            ops = [COMPARE_OPS[op_name]() for op_name in op_names]
             matched = list(zip(ops, comparator_names))
             acc = deque([])
             acc.append(left)
