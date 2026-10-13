@@ -56,7 +56,7 @@ class LatexRenderer(BaseRenderer):
             global_context=RenderContext(
                 space='\\ ',
                 newline='\\\n',
-                indent='\hspace*{1em}',
+                indent='\\hspace*{1em}',
                 lpar="\\left(",
                 rpar="\\right)",
                 **kwargs
@@ -102,7 +102,7 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
         "sigma": "\\sigma",
         "varsigma": "\\varsigma",
         "tau": "\\tau",
-        "upsilon": "\\upsion",
+        "upsilon": "\\upsilon",
         "phi": "\\phi",
         "varphi": "\\varphi",
         "chi": "\\chi",
@@ -121,7 +121,7 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
         "Zeta": "\\Zeta",
         "Theta": "\\Theta",
         "Iota": "\\Iota",
-        "Kappa": "\\Κappa",
+        "Kappa": "\\Kappa",
         "Mu": "\\Mu",
         "Nu": "\\Nu",
         "Xi": "\\Xi",
@@ -209,9 +209,10 @@ def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp
 @LR.register("lt_op:pre")
 @LR.register("gte_op:pre")
 @LR.register("lte_op:pre")
+@LR.register("neq_op:pre")
 def swap_angle_ops(renderer: LR, node: HcCompOp, base_context: BRC) -> HcCompOp:
     """
-    Modifies the symbol in the <, <=, >, >= operators to be HTML safe
+    Swaps the <=, >= and != operator symbols for their LaTeX commands.
     """
     if node.symbol == "<=":
         node.symbol = "\\le"
@@ -244,7 +245,7 @@ def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
     for elem in name_elems:
         if test_for_long_var_strs(elem, base_context):
             new_elem = f"\\mathrm{{{elem}}}"
-            new_elems.append(elem)
+            new_elems.append(new_elem)
         else:
             new_elems.append(elem)
     identifier = "_".join(new_elems)
@@ -291,6 +292,12 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         "acosh": "\\arccosh",
         "atanh": "\\arctanh",
     }
+    # This rule runs on both the symbolic and numeric passes over the same node.
+    # A name that has already been swapped (a LaTeX command, or emptied for
+    # floor/ceil) must be left alone so the second pass does not re-wrap it.
+    identifier = node.function_name.identifier
+    if identifier == '' or identifier.startswith('\\'):
+        return node
     node.pre = '\\left('
     node.post = '\\right)'
     if node.function_name.identifier == 'sqrt':
@@ -311,13 +318,13 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
     elif node.function_name.identifier in latex_math_funcs:
         func_identifier = node.function_name.identifier
         latex_func_name = latex_math_funcs.get(func_identifier)
-        node.function.identifier = latex_func_name
-        node.function.value = latex_func_name
+        node.function_name.identifier = latex_func_name
+        node.function_name.value = latex_func_name
     else:
         new_func_name = node.function_name.identifier
         wrapped_func_name = f"\\operatorname{{{new_func_name}}} "
-        node.function.identifier = wrapped_func_name
-        node.function.value = wrapped_func_name
+        node.function_name.identifier = wrapped_func_name
+        node.function_name.value = wrapped_func_name
     return node
 
 
@@ -334,12 +341,12 @@ def test_for_long_var_strs(elem: str, base_context: BRC) -> bool:
          elem = "x" -> False
          elem = "xy" -> True
     """
-    if "\\" in elem or "{" in elem or "}" in elem:
+    if not elem or "\\" in elem or "{" in elem or "}" in elem:
         return False
     components = elem.replace("'", "").split("_")
     if len(components) != 1:
         top_level, *_remainders = components
-        if not config_options["underscore_subscripts"]:
+        if not getattr(base_context.current, "underscore_subscripts", True):
             if len(top_level) + len(_remainders) == 1:
                 return False
             else:

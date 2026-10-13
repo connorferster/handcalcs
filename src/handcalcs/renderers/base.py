@@ -817,11 +817,15 @@ def set_function_call_parens(renderer: BR, node: FunctionCall, base_context: Bas
 def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRenderContext) -> str:
     context = base_context.current
     function_name = renderer.render(node.function_name, base_context)
-    namespace = renderer.render(node.namespace, base_context)
+    # Check for the '__main__' namespace before rendering it: a renderer's
+    # 'name:sym' rules (e.g. subscript swaps) would otherwise mangle the
+    # identifier and the suppression would never match.
+    if getattr(node.namespace, 'identifier', None) == '__main__':
+        namespace = ''
+    else:
+        namespace = renderer.render(node.namespace, base_context)
     args = [renderer.render(arg, base_context) for arg in node.args]
     arg_str = f",{context.space}".join(args)
-    if namespace == '__main__':
-        namespace = ''
     if namespace:
         rendered = f"{namespace}.{function_name}{node.pre}{arg_str}{node.post}"
     else:
