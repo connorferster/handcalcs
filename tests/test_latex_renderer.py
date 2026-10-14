@@ -104,7 +104,8 @@ def test_demo_compiles_with_pdflatex(demo_output, tmp_path):
 
 def test_calcs_block_is_one_aligned_group_without_trailing_row_break():
     assert render("a = 1\nb = 2\n") == (
-        "\\[\n\\begin{aligned}\na &= 1 \\\\\nb &= 2\n\\end{aligned}\n\\]\n"
+        "\\medskip\n\\noindent$\\displaystyle\n\\begin{aligned}[t]\n"
+        "a &= 1 \\\\\nb &= 2\n\\end{aligned}$\n\n\\medskip\n"
     )
 
 
@@ -174,7 +175,7 @@ def test_division_and_floor_division_are_fractions():  # 11
 
 def test_comparisons():  # 20, 21
     out = rows("a = 2\nb = 3\nt = a == b\nu = a <= b\n")
-    assert out[2] == "t &= a = b = 2 = 3 = \\mathrm{False}"
+    assert out[2] == "t &= a == b = 2 == 3 = \\mathrm{False}"
     assert out[3] == "u &= a \\le b = 2 \\le 3 = \\mathrm{True}"
 
 

@@ -171,7 +171,7 @@ class LatexRenderer(BaseRenderer):
 
     Prose (headings, comment paragraphs, imports, block headers) is emitted as
     text-mode paragraphs. Each run of calc lines (a CalcsBlock) becomes one
-    display-math ``aligned`` group, aligned on the first ``=`` of every row. The
+    flush-left display-style ``aligned`` group, aligned on the first ``=`` of every row. The
     body of a nested block (if/for/def) is indented with a ``list`` environment.
 
     The class attributes below are the structural tokens; override them in a
@@ -179,12 +179,13 @@ class LatexRenderer(BaseRenderer):
     """
     name = 'latex'
 
-    MATH_OPEN = "\\[\n\\begin{aligned}"
-    MATH_CLOSE = "\\end{aligned}\n\\]"
-    # Inside a nested block a centred display would hide the indentation, so
-    # the group is set flush-left at the block's indent as a displaystyle box.
-    NESTED_MATH_OPEN = "\\noindent$\\displaystyle\n\\begin{aligned}[t]"
-    NESTED_MATH_CLOSE = "\\end{aligned}$"
+    # Math groups are set flush-left as displaystyle boxes (not centred
+    # displays), so they line up with the prose and show a nested block's indent.
+    MATH_OPEN = "\\noindent$\\displaystyle\n\\begin{aligned}[t]"
+    MATH_CLOSE = "\\end{aligned}$"
+    # Vertical space before and after each math group (a box has none of the
+    # display skip a centred display gets).
+    MATH_SKIP = "\\medskip"
     PARAGRAPH = "\\noindent "
     ROW_SEP = " \\\\\n"
     LINE_BREAK = "\\medskip"
@@ -261,7 +262,7 @@ class LatexRenderer(BaseRenderer):
         already a complete structural command (a heading or a math group).
         """
         if text.startswith(("\\section", "\\subsection", "\\subsubsection",
-                            "\\paragraph", "\\[", self.PARAGRAPH)):
+                            "\\paragraph", self.MATH_SKIP, self.PARAGRAPH)):
             return text
         return f"{self.PARAGRAPH}{text}"
 
@@ -273,10 +274,15 @@ class LatexRenderer(BaseRenderer):
         math_rows = [row for row in math_rows if row]
         if not math_rows:
             return []
-        opener, closer = self.MATH_OPEN, self.MATH_CLOSE
-        if depth > 0:
-            opener, closer = self.NESTED_MATH_OPEN, self.NESTED_MATH_CLOSE
-        return [f"{opener}\n{self.ROW_SEP.join(math_rows)}\n{closer}\n\n"]
+        return [f"{self.math_group(math_rows)}\n\n"]
+
+    def math_group(self, rows: list[str]) -> str:
+        """
+        Wrap pre-joined ``aligned`` rows in MATH_OPEN/MATH_CLOSE, with MATH_SKIP
+        paragraphs before and after.
+        """
+        body = self.ROW_SEP.join(rows)
+        return f"{self.MATH_SKIP}\n{self.MATH_OPEN}\n{body}\n{self.MATH_CLOSE}\n\n{self.MATH_SKIP}"
 
     def join_math_row(self, row, base_context: BRC) -> str:
         """
@@ -318,7 +324,7 @@ class LatexRenderer(BaseRenderer):
                 ident, eq, val = (list(map(str, cell)) + ["", "", ""])[:3]
                 cells.append(f"{ident} &{eq}{_}{val}")
             lines.append(f"{_}&\\qquad{_}".join(cells))
-        return f"{self.MATH_OPEN}\n{self.ROW_SEP.join(lines)}\n{self.MATH_CLOSE}"
+        return self.math_group(lines)
 
     def format_calc_grid(self, rows: list, base_context: BRC) -> str:
         """
@@ -476,7 +482,7 @@ OPERATOR_SYMBOLS = {
     'gt_op': ' > ',
     'lte_op': ' \\le ',
     'gte_op': ' \\ge ',
-    'eq_op': ' = ',
+    'eq_op': ' == ',
     'neq_op': ' \\ne ',
     'in_op': ' \\in ',
     'not_in_op': ' \\notin ',

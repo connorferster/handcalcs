@@ -131,7 +131,7 @@ but looks wrong. **m** = polish.
 | 17 | M | String constants are raw (`steel`, `[steel, concrete, timber]`). | `constant` | Add a LaTeX `constant` handler. For `str`, emit `\textrm{“steel”}` or `\texttt{'steel'}`, escaped. |
 | 18 | M | Scientific notation: `2e+05`, `-1.04231e+01`, `4.3134e+08`. | `constant` | In the same handler, rewrite `…e±XX` as `… \times 10^{XX}`, stripping the `+` sign and leading zeros. |
 | 19 | M | `True`, `False` and `None` are italic letters. | `constant` | Emit `\mathrm{True}` and so on. |
-| 20 | M | `==` is shown as `==`. | `swap_angle_ops` | Change it to `=`. |
+| 20 | M | `==` is shown as `==`. | `swap_angle_ops` | ~~Change it to `=`.~~ **User decision: keep `==`, as in Python.** |
 | 21 | m | Comparison symbols get a doubled space (`\  < \ `). | `swap_angle_ops` | Once `space` is `' '`, emit only the bare `<`, `\le`, … |
 | 22 | m | `test_for_long_var_strs(name_elems[0], BRC)` passes the *class*, not `base_context`. It works by accident. | `latex.py:263` | Pass `base_context`. |
 | 23 | m | Long subscripts are italic: `a_{dictionary}`, `x_{rate}`. | `swap_subscripts` | Wrap multi-character subscript components in `\mathrm{}`, as v1 did. |
@@ -245,10 +245,17 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   and long-row overflow.
 - 2026-10-14 (session 3): Reviewed the plan. The branch is clean and pushed, 343 tests pass and the demo compiles with no errors or warnings.
   Ticked the stale `latex_escape` box in Phase 1 (escaping now covers headings, comments, imports, strings and inline comments).
-  Still open: `==` rendering, centred vs flush-left top-level math, and long-row overflow.
+  Still open: long-row overflow.
 - 2026-10-14 (session 3): Fixed `z = math.inf` repeating its value. Base `render_calcline` now drops a value column that
   repeats the one before it, so `z = math.inf` → `z = \infty`, `q = y` → `q = y = 3` and `v = 2 + 3` → `v = 2 + 3 = 5`
   (all renderers). Updated 6 tests that pinned the repeated columns and added `test_repeated_value_columns_collapse`. The demo golden file is unchanged.
   The user ruled the other two base-level items **non-issues**:
   - A `def` block renders nothing because it is not implemented yet (OK for now).
   - A list shows its post-mutation value for structural reasons (out of scope).
+- 2026-10-14 (session 3): User decisions, now implemented:
+  - **`==` renders as `==`**, like Python (`OPERATOR_SYMBOLS['eq_op']`). TeX puts no space between adjacent relations, so it sets compactly.
+  - **All math is flush-left.** `MATH_OPEN`/`MATH_CLOSE` are now the `\noindent$\displaystyle\begin{aligned}[t] … \end{aligned}$`
+    box at every depth (the `NESTED_MATH_*` pair is gone). A box gets none of the display skip a centred `\[` got, so
+    `math_group()` puts a `MATH_SKIP` (`\medskip`) paragraph before and after each group, including the params grid. The demo
+    compiles cleanly and was checked visually. The golden diff contains only wrapper changes.
+  Remaining open item: long-row overflow (the `-m` flag is the workaround).
