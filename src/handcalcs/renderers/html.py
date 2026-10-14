@@ -150,7 +150,7 @@ class HTMLRenderer(BaseRenderer):
         # A block is ``[header, body]`` -- detected by its body being a list.
         if isinstance(item[-1], list):
             header, body = item[0], item[-1]
-            inner = "".join(self._join_items(body, depth + 1, base_context))
+            inner = "".join(self.join_items(body, depth + 1, base_context))
             # A headerless (flat) block only groups consecutive lines and
             # introduces no intro line: emit its body directly, no wrapper.
             if not (isinstance(header, str) and header.strip()):

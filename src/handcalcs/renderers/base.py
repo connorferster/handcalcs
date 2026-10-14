@@ -333,15 +333,15 @@ class BaseRenderer:
         """
         if base_context is None:
             base_context = self.create_context()
-        return "".join(self._join_items(tree, 0, base_context))
+        return "".join(self.join_items(tree, 0, base_context))
 
-    def _join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list[str]:
+    def join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list[str]:
         lines: list[str] = []
         for item in items:
-            lines.extend(self._join_item(item, depth, base_context))
+            lines.extend(self.join_item(item, depth, base_context))
         return lines
 
-    def _join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
+    def join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
         if not item:
             return []
         context = base_context.current
@@ -367,9 +367,9 @@ class BaseRenderer:
             # no header and keeps its body at the current depth rather than
             # indenting it one level deeper.
             if not (isinstance(header, str) and header.strip()):
-                return self._join_items(body, depth, base_context)
+                return self.join_items(body, depth, base_context)
             lines = [f"{indent}{header}{nl}"]
-            lines.extend(self._join_items(body, depth + 1, base_context))
+            lines.extend(self.join_items(body, depth + 1, base_context))
             return lines
         joined = context.space.join(item)
         # An all-string line whose columns are all empty carries no content --
@@ -1157,7 +1157,7 @@ def render_block_body(
     renderer: BaseRenderer,
     node: HcNode,
     base_context: BaseRenderContext,
-) -> list:
+) -> list[str, list]:
     """
     Render a block as ``[header_string, body_list]``: the header line as a
     string (the first element), followed by the block's body lines gathered
