@@ -35,7 +35,7 @@ def test_superscript_power_has_no_stray_spaces(render_plain, source, expected):
     "source,expected",
     [
         ("a=8\nz = a / 4\n", "z = a / 4 = 8 / 4 = 2"),
-        ("z = 4 / 2\n", "z = 4 / 2 = 4 / 2 = 2"),
+        ("z = 4 / 2\n", "z = 4 / 2 = 2"),
         ("a=8\nb=3\nc=2\nz = a / (b + c)\n", "z = a / (b + c) = 8 / (3 + 2) = 1.6"),
     ],
     ids=["constant-denominator", "both-constant", "parenthesized-denominator"],

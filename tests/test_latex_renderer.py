@@ -157,7 +157,7 @@ def test_power_braces_compound_exponent():  # 2
 
 def test_negative_power_base_is_parenthesised():  # 3
     assert rows("f = (-3) ** 2\n")[0] == (
-        "f &= \\left(-3\\right)^{2} = \\left(-3\\right)^{2} = 9"
+        "f &= \\left(-3\\right)^{2} = 9"
     )
     assert rows("b = -2\nc = b ** 2\n")[1] == "c &= b^{2} = \\left(-2\\right)^{2} = 4"
 
@@ -205,7 +205,7 @@ def test_string_bool_none_and_complex_constants():  # 17, 19, 25
         "s &= \\text{``a\\_b''}",
         "t &= \\mathrm{True}",
         "n &= \\mathrm{None}",
-        "z &= 3 + 4j = 3 + 4j = 3 + 4j",  # parsed as the BinOp 3 + 4j
+        "z &= 3 + 4j",  # parsed as the BinOp 3 + 4j; repeated columns collapse
     ]
     assert rows("z = 4j - 3\n")[0].endswith("= -3 + 4j")
 
@@ -251,7 +251,15 @@ def test_latex_identifier_is_idempotent():
 def test_math_constants_drop_namespace():  # 14
     assert rows("import math\nr = 2\na = math.pi * r\nz = math.inf\n")[1:] == [
         "a &= \\pi \\cdot r = 3.1416 \\cdot 2 = 6.2832",
-        "z &= \\infty = \\infty = \\infty",
+        "z &= \\infty",
+    ]
+
+
+def test_repeated_value_columns_collapse():
+    assert rows("import math\ny = 3\nq = y\nw = math.pi\nv = 2 + 3\n")[1:] == [
+        "q &= y = 3",
+        "w &= \\pi = 3.1416",
+        "v &= 2 + 3 = 5",
     ]
 
 
@@ -264,10 +272,7 @@ def test_math_functions_drop_namespace():
 
 def test_user_function_and_method_names():  # 24, 26
     out = rows("def my_func(t):\n    return t\nw = my_func(2)\nacc = []\nacc.append(w)\n")
-    assert out[0] == (
-        "w &= \\operatorname{my\\_func}\\left(2\\right)"
-        " = \\operatorname{my\\_func}\\left(2\\right) = 2"
-    )
+    assert out[0] == "w &= \\operatorname{my\\_func}\\left(2\\right) = 2"
     assert out[-1] == (
         "\\mathrm{acc}.\\mathrm{append}\\left(w\\right)"
         " &= \\mathrm{acc}.\\mathrm{append}\\left(2\\right)"

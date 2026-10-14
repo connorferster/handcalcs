@@ -245,5 +245,10 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   and long-row overflow.
 - 2026-10-14 (session 3): Reviewed the plan. The branch is clean and pushed, 343 tests pass and the demo compiles with no errors or warnings.
   Ticked the stale `latex_escape` box in Phase 1 (escaping now covers headings, comments, imports, strings and inline comments).
-  Still open: `==` rendering, centred vs flush-left top-level math, long-row overflow, and the base-level oddities
-  (`z = math.inf` repeats, `def` renders nothing, lists show their post-mutation value).
+  Still open: `==` rendering, centred vs flush-left top-level math, and long-row overflow.
+- 2026-10-14 (session 3): Fixed `z = math.inf` repeating its value. Base `render_calcline` now drops a value column that
+  repeats the one before it, so `z = math.inf` → `z = \infty`, `q = y` → `q = y = 3` and `v = 2 + 3` → `v = 2 + 3 = 5`
+  (all renderers). Updated 6 tests that pinned the repeated columns and added `test_repeated_value_columns_collapse`. The demo golden file is unchanged.
+  The user ruled the other two base-level items **non-issues**:
+  - A `def` block renders nothing because it is not implemented yet (OK for now).
+  - A list shows its post-mutation value for structural reasons (out of scope).

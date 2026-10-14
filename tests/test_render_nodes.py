@@ -492,7 +492,7 @@ def test_calc_line_collection_with_variable_shows_substitution(render):
     # renders the symbolic and numeric-substitution columns.
     rhs = List(deque([Name("a", 1), Name("b", 2)]))
     node = CalcLine(assigns=deque([Name("pts", [1, 2])]), expression_tree=deque([rhs]))
-    assert render(node, param_line=False) == ["pts", "=", "[a, b]", "=", "[1, 2]", "=", "[1, 2]"]
+    assert render(node, param_line=False) == ["pts", "=", "[a, b]", "=", "[1, 2]"]
 
 
 def test_calc_line_ignore_short_circuits(render):

@@ -998,6 +998,17 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
         columns.append(f",{_}".join(result_nodes))
 
+    # Drop a value column that repeats the one before it: a bare reference
+    # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
+    # in more than one column, which would otherwise show as ``= 3 = 3``.
+    has_target = context.mode == 'full' or 'ass' in context.mode
+    head = [columns.popleft()] if has_target and columns else []
+    values: list = []
+    for column in columns:
+        if not values or column != values[-1]:
+            values.append(column)
+    columns = deque(head + values)
+
     # Multi-line ("long") mode: break the one-liner into a grid of rows that all
     # align on the equality sign -- ``target = symbolic`` on the first row, then
     # ``= numeric`` and ``= result`` on their own rows (empty id cell). Only calcs
