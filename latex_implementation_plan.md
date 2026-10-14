@@ -135,9 +135,9 @@ but looks wrong. **m** = polish.
 Commit (and push) after each phase, or after each sub-bullet when it is self-contained.
 Re-run the demo after each one and paste a snippet into the progress log below.
 
-- [ ] **Phase 0: Base-level correctness (benefits all renderers)**
-  - [ ] #3: parenthesise a negative left operand of `PowOp` in `infix_binop`.
-  - [ ] #16: parenthesise a `Compare` or bool-op operand of a unary `not`.
+- [x] **Phase 0: Base-level correctness (benefits all renderers)**
+  - [x] #3: parenthesise a negative left operand of `PowOp` in `infix_binop`.
+  - [x] #16: parenthesise a `Compare` or bool-op operand of a unary `not`.
 - [ ] **Phase 1: Output structure (root cause).** Needs the target decision above.
   - [ ] Set the context `space=' '` and newline `'\n'`. Add LaTeX tokens such as
         `math_newline=' \\\\'` and `math_indent='\\quad '`.
@@ -186,3 +186,4 @@ Re-run the demo after each one and paste a snippet into the progress log below.
 - 2026-10-14 (session 2): Merged `latex_plan.md` into this file and recorded the user's standing
   instructions. Re-ran the demo; the diagnosis above still matches. Still waiting on the A/B decision.
 - 2026-10-14: The user chose **target B (pure LaTeX fragment)**. Starting Phase 0.
+- 2026-10-14: Phase 0 is done (#3 neg pow base, #16 `not (compare)` parens), and plaintext output is verified.

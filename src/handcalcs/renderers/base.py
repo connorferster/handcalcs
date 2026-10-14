@@ -738,6 +738,10 @@ def render_unary_op(renderer: BR, node: HcUnaryOp, base_context: BaseRenderConte
     # -(-10.423) rather than the ambiguous --10.423.
     operand_pre = OP_PRECEDENCE.get(type(node.operand), float('inf'))
     needs_parens = operand_pre < UNARY_PRECEDENCE
+    # Python's `not` binds looser than a comparison, so `not (a < b)` parses with
+    # no parens in the AST. Re-add them: `not a < b` reads as `(not a) < b`.
+    if isinstance(node.operand, (Compare, HcBoolOp)):
+        needs_parens = True
     if node.symbol in ('-', '+') and rendered.lstrip().startswith(('-', '+')):
         needs_parens = True
     if needs_parens:
@@ -1374,7 +1378,11 @@ def infix_binop(
         _ = ""
     render_left = renderer.render_node(left, base_context)
     render_right = renderer.render_node(right, base_context)
-    if lpre < pre:              
+    # A power's base that renders with a leading sign (e.g. b substituted as
+    # -10.423) must be wrapped, otherwise -10.423² reads as -(10.423²).
+    if lpre < pre or (
+        node_type is PowOp and render_left.lstrip().startswith(('-', '+'))
+    ):
         left_portion = f"{lpar}{render_left}{rpar}"
     else:
         left_portion = render_left
