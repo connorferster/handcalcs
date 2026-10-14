@@ -150,3 +150,4 @@ cython_debug/
 joblist.md
 src/handcalcs/renderers/example_output.py
 latex_demo_build/
+latex_demo.pdf
