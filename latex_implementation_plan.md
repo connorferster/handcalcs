@@ -46,7 +46,13 @@ uv run python -c "from handcalcs import HandCalcs; from handcalcs.renderers impo
 - `CalcsBlock.body_pre` and `body_post` are inserted into the body list by
   `render_block_body`.
 
-## Decision needed (blocks Phase 1): what document is the output?
+## DECIDED (2026-10-14): target **B, a pure LaTeX fragment**
+
+The user chose B: `\section*{}` headings, plain-paragraph prose and
+`\[\begin{aligned} ... \end{aligned}\]` math groups with `&=` alignment. The output should
+compile with pdflatex (amsmath). The original options are kept below for context.
+
+### Original question: what document is the output?
 
 The demo mixes prose (headings, comment paragraphs, imports, if/for headers) with math.
 Choose one of these targets:
@@ -179,3 +185,4 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   Waiting on the target-format decision (A vs B).
 - 2026-10-14 (session 2): Merged `latex_plan.md` into this file and recorded the user's standing
   instructions. Re-ran the demo; the diagnosis above still matches. Still waiting on the A/B decision.
+- 2026-10-14: The user chose **target B (pure LaTeX fragment)**. Starting Phase 0.
