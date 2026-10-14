@@ -12,6 +12,8 @@ from handcalcs.parsing.nodes import (
     Attribute,
     NoValue,
     Constant,
+    List,
+    Tuple,
     Set,
     Dictionary,
 )
@@ -191,6 +193,13 @@ class LatexRenderer(BaseRenderer):
     LINE_BREAK = "\\medskip"
     BLOCK_OPEN = "\\begin{list}{}{\\setlength{\\leftmargin}{1.5em}}\\item[]"
     BLOCK_CLOSE = "\\end{list}"
+    # Collections longer than MAX_ITEMS show only their first and last
+    # EDGE_ITEMS items (see ``join_items``).
+    MAX_ITEMS = 10
+    # An inline comment renders as COMMENT_OPEN + text + COMMENT_CLOSE.
+    COMMENT_OPEN = "\\quad\\text{("
+    COMMENT_CLOSE = ")}"
+    EDGE_ITEMS = 3
     HEADINGS = ("section*", "subsection*", "subsubsection*", "paragraph*")
 
     def create_context(
@@ -291,6 +300,10 @@ class LatexRenderer(BaseRenderer):
         (a pre-formatted multiline grid, or a one-shot line break) passes
         through unchanged; a line break is dropped since rows are already
         separated.
+
+        The inline comment of a calc line that shows substitution columns
+        (more than ``target = value``) moves to its own row, at the alignment
+        point, so it does not lengthen an already long row.
         """
         context = base_context.current
         if isinstance(row, str):
@@ -298,10 +311,14 @@ class LatexRenderer(BaseRenderer):
         parts = list(row)
         if parts and parts[0] == "":
             return ""
+        comment_row = ""
+        if (parts and parts[-1].startswith(self.COMMENT_OPEN)
+                and parts.count(context.assign) > 1):
+            comment_row = f"{self.ROW_SEP}&{parts.pop()}"
         if context.assign in parts:
             idx = parts.index(context.assign)
             parts[idx] = f"&{parts[idx]}"
-        return context.space.join(parts).strip()
+        return context.space.join(parts).strip() + comment_row
 
     def format_param_grid(self, rows: list, base_context: BRC) -> str:
         """
@@ -376,9 +393,11 @@ def render_import(renderer: LR, node: Import, base_context: BRC) -> str:
 def if_block_header(renderer: LR, node: IfBlock, base_context: BRC) -> str:
     sym_expr = render_condition(renderer, node.test, base_context, 'sym')
     num_expr = render_condition(renderer, node.test, base_context, 'num')
+    # Fixed-size \\bigl( \\bigr) rather than \\left( \\right): TeX cannot break
+    # a line inside a \\left...\\right group, and a long condition must wrap.
     return (
-        f"Since $\\left({sym_expr}\\right) \\rightarrow "
-        f"\\left({num_expr}\\right)$ is True:"
+        f"Since $\\bigl({sym_expr}\\bigr) \\rightarrow "
+        f"\\bigl({num_expr}\\bigr)$ is True:"
     )
 
 
@@ -619,10 +638,34 @@ def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
     return latex_escape(f"{value}")
 
 
+def join_items(renderer: LR, items: list[str]) -> str:
+    """
+    Comma-join a collection's rendered items. An ``aligned`` row cannot
+    break, so a collection with more than MAX_ITEMS items is elided to its
+    first and last EDGE_ITEMS items around ``\\ldots``.
+    """
+    edge = renderer.EDGE_ITEMS
+    if len(items) > renderer.MAX_ITEMS:
+        items = [*items[:edge], "\\ldots", *items[-edge:]]
+    return ", ".join(items)
+
+
+@LR.register('list')
+def render_list(renderer: LR, node: List, base_context: BRC) -> str:
+    elems = [renderer.render(elem, base_context) for elem in node.elems]
+    return f"[{join_items(renderer, elems)}]"
+
+
+@LR.register('tuple')
+def render_tuple(renderer: LR, node: Tuple, base_context: BRC) -> str:
+    elems = [renderer.render(elem, base_context) for elem in node.elems]
+    return f"({join_items(renderer, elems)})"
+
+
 @LR.register('set')
 def render_set(renderer: LR, node: Set, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"\\{{{', '.join(elems)}\\}}"
+    return f"\\{{{join_items(renderer, elems)}\\}}"
 
 
 @LR.register('dictionary')
@@ -630,12 +673,12 @@ def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
     keys = [renderer.render(elem, base_context) for elem in node.keys]
     values = [renderer.render(elem, base_context) for elem in node.values]
     items = [f"{key}\\colon {value}" for key, value in zip(keys, values)]
-    return f"\\{{{', '.join(items)}\\}}"
+    return f"\\{{{join_items(renderer, items)}\\}}"
 
 
 @LR.register('inline_comment')
 def render_inline_comment(renderer: LR, node: InlineComment, base_context: BRC) -> str:
-    return f"\\quad\\text{{({latex_prose(node.content)})}}"
+    return f"{renderer.COMMENT_OPEN}{latex_prose(node.content)}{renderer.COMMENT_CLOSE}"
 
 
 MATH_CONSTANTS = {

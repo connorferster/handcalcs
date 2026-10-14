@@ -82,6 +82,9 @@ def find_pdflatex() -> str | None:
     return str(tinytex) if tinytex.exists() else None
 
 
+KNOWN_OVERFULL = 5
+
+
 @pytest.mark.skipif(find_pdflatex() is None, reason="pdflatex is not installed")
 def test_demo_compiles_with_pdflatex(demo_output, tmp_path):
     tex = tmp_path / "demo.tex"
@@ -98,6 +101,12 @@ def test_demo_compiles_with_pdflatex(demo_output, tmp_path):
         if line.startswith("!") or "Warning" in line
     ]
     assert result.returncode == 0 and not problems, "\n".join(problems)
+    # Overflow budget. The demo still has KNOWN_OVERFULL boxes wider than the
+    # text: the x_1/x_2 group, both M_u forms (one deliberately one-line), the
+    # nested value_computed row and the material_ok/missing logic rows.
+    # Fewer is progress (lower the budget); more is a regression.
+    overfull = re.findall(r"^Overfull \\hbox.*$", (tmp_path / "demo.log").read_text(), re.M)
+    assert len(overfull) <= KNOWN_OVERFULL, "\n".join(overfull)
 
 
 # --- Output structure ---------------------------------------------------------
@@ -141,7 +150,8 @@ def test_text_lines_are_escaped_paragraphs():  # 6, 27
 
 def test_if_header_math_is_delimited():  # 7
     out = render("a = 2\nif a > 1:\n    b = 1\n")
-    assert "Since $\\left(a > 1\\right) \\rightarrow \\left(2 > 1\\right)$ is True:" in out
+    # \\bigl/\\bigr (not \\left/\\right) so a long condition can wrap.
+    assert "Since $\\bigl(a > 1\\bigr) \\rightarrow \\bigl(2 > 1\\bigr)$ is True:" in out
 
 
 # --- Operators ----------------------------------------------------------------
@@ -261,6 +271,23 @@ def test_repeated_value_columns_collapse():
         "q &= y = 3",
         "w &= \\pi = 3.1416",
         "v &= 2 + 3 = 5",
+    ]
+
+
+def test_long_collections_are_elided():
+    assert rows("a = list(range(25))\nb = (1, 2, 3)\n") == [
+        "a &= \\operatorname{list}\\left(\\operatorname{range}\\left(25\\right)\\right)"
+        " = [0, 1, 2, \\ldots, 22, 23, 24]",
+        "b &= (1, 2, 3)",
+    ]
+
+
+def test_calc_comment_moves_to_own_row():
+    out = rows("a = 2 # Param comment\nb = a + 1 # Calc comment\n")
+    assert out == [
+        "a &= 2 \\quad\\text{(Param comment)}",
+        "b &= a + 1 = 2 + 1 = 3",
+        "&\\quad\\text{(Calc comment)}",
     ]
 
 

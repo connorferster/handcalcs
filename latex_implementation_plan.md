@@ -283,3 +283,15 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   kernel only, but it doubles the output and decides per group); renderer-side fixes for each cause (elide long collections,
   comment placement, breakable header delimiters); and auto-`-m` from an estimated width (Python cannot measure TeX widths).
   `breqn` was rejected (fragile, does not work with `aligned`).
+- 2026-10-14 (session 3): **Overflow steps 1 and 2 are done** (the user approved them).
+  - Step 1: `scripts/latex_demo_check.py` now lists every overfull box (pt, tex line, source line). The compile test asserts
+    the overfull count is at most `KNOWN_OVERFULL = 5`; lower it as overflows are fixed. I checked that the guard fails when the budget is set to 4.
+  - Step 2 (renderer-side fixes for each cause):
+    - Collections with more than `MAX_ITEMS = 10` items are elided to their first and last `EDGE_ITEMS = 3` items around `\ldots`
+      (LaTeX `list`/`tuple`/`set`/`dictionary` handlers via `join_items`). This fixes `acc` (370pt).
+    - A calc line with substitution columns puts its inline comment on its own `&\quad\text{(…)}` row (`join_math_row`, `COMMENT_OPEN`).
+      Param lines keep their comment inline. This takes the logic block from 187pt to 38.6pt.
+    - If-headers use `\bigl( \bigr)` instead of `\left( \right)`, so TeX can wrap a long condition. This fixes the `Since` header (198pt).
+  - Remaining overfull (5): the `x_1`/`x_2` group at 12.7pt; `M_u -m` at 95pt (its numeric row alone is too wide); the one-line `M_u` at 366pt (deliberate);
+    nested `value_computed` at 75pt; and the logic block at 38.6pt (the `material_ok`/`material_missing` rows are long without comments).
+    Next candidates: step 3 (opt-in capped scale-to-fit) for the small ones, and auto `-m` or TeX-chosen layout for the rest.
