@@ -168,11 +168,11 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - [x] Escaped braces for dict and set (#4). Optionally use `\left[ \right]` for long
         lists.
   - [x] Inline comments as `\;\textrm{(…)}` (#5).
-- [ ] **Phase 5: Names**
-  - [ ] Fix the invalid greek capitals (#8).
-  - [ ] `attribute:sym` for `math.pi` → `\pi` (#14).
-  - [ ] `\mathrm` long subscripts (#23), and pass `base_context` (#22).
-  - [ ] Clean up namespaces and method calls (#24, #26).
+- [x] **Phase 5: Names**
+  - [x] Fix the invalid greek capitals (#8).
+  - [x] `attribute:sym` for `math.pi` → `\pi` (#14).
+  - [x] `\mathrm` long subscripts (#23), and pass `base_context` (#22).
+  - [x] Clean up namespaces and method calls (#24, #26).
 - [ ] **Phase 6: Integration**
   - [ ] `complete()`: final wrapper for the chosen target.
   - [ ] `interfaces/jupyter.py`: if target A, display the `latex` output with
@@ -209,3 +209,7 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   `set`/`dictionary` use `\{ \}`, and inline comments use `\quad\text{(...)}` with escaping. #24 is fixed by a LaTeX `function_call`
   handler: in the num pass it reuses the identifiers the sym pass already swapped. (Base num-mode rendered the function name and namespace
   by *value*, and `swap_subscripts` mangled `__main__`.) Still to do: long lists overflow the line (aligned can't break).
+- 2026-10-14: Phase 5 is done. Invalid greek capitals now map to `\mathrm{A}` and so on, and `omicron` to `o`. An `attribute:sym` rule maps
+  math/numpy constants (`math.pi` → `\pi`). Multi-letter subscripts are `\mathrm`. `__` → `\ ` and `___` → `\_`. User function names
+  are escaped (`\operatorname{calc\_area}`) and skipped by `swap_subscripts`. The `BRC` arg bug (#22) is fixed.
+  The whole demo compiles with no errors or warnings.

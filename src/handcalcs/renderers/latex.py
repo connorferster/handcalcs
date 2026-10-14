@@ -8,6 +8,7 @@ from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderCont
 from handcalcs.parsing.nodes import (
     HcNode,
     Name,
+    Attribute,
     Constant,
     Set,
     Dictionary,
@@ -367,7 +368,7 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
         "mu": "\\mu",
         "nu": "\\nu",
         "xi": "\\xi",
-        "omicron": "\\omicron",
+        "omicron": "o",
         "pi": "\\pi",
         "varpi": "\\varpi",
         "rho": "\\rho",
@@ -386,28 +387,28 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
     }
 
     GREEK_UPPER = {
-        "Alpha": "\\Alpha",
-        "Beta": "\\Beta",
+        "Alpha": "\\mathrm{A}",
+        "Beta": "\\mathrm{B}",
         "Gamma": "\\Gamma",
         "Delta": "\\Delta",
-        "Epsilon": "\\Epsilon",
-        "Zeta": "\\Zeta",
+        "Epsilon": "\\mathrm{E}",
+        "Zeta": "\\mathrm{Z}",
         "Theta": "\\Theta",
-        "Iota": "\\Iota",
-        "Kappa": "\\Kappa",
-        "Mu": "\\Mu",
-        "Nu": "\\Nu",
+        "Iota": "\\mathrm{I}",
+        "Kappa": "\\mathrm{K}",
+        "Mu": "\\mathrm{M}",
+        "Nu": "\\mathrm{N}",
         "Xi": "\\Xi",
-        "Omicron": "\\Omicron",
+        "Omicron": "\\mathrm{O}",
         "Pi": "\\Pi",
-        "Rho": "\\Rho",
+        "Rho": "\\mathrm{P}",
         "Sigma": "\\Sigma",
-        "Tau": "\\Tau",
+        "Tau": "\\mathrm{T}",
         "Upsilon": "\\Upsilon",
         "Phi": "\\Phi",
-        "Chi": "\\Chi",
+        "Chi": "\\mathrm{X}",
         "Omega": "\\Omega",
-        "Eta": "\\Eta",
+        "Eta": "\\mathrm{H}",
         "Psi": "\\Psi",
         "Lamb": "\\Lambda",
     }
@@ -589,6 +590,28 @@ def render_inline_comment(renderer: LR, node: InlineComment, base_context: BRC) 
     return f"\\quad\\text{{({latex_escape(node.content)})}}"
 
 
+MATH_CONSTANTS = {
+    "pi": "\\pi",
+    "tau": "\\tau",
+    "e": "e",
+    "inf": "\\infty",
+    "nan": "\\mathrm{NaN}",
+}
+
+
+@LR.register("attribute:sym")
+def swap_math_constants(renderer: LR, node: Attribute, base_context: BRC) -> Attribute:
+    """
+    Show a math/numpy constant as its symbol (``math.pi`` -> ``\\pi``),
+    dropping the module namespace. Idempotent: once swapped, the namespace is
+    empty and the rule no longer matches.
+    """
+    if node.namespace in ("math", "cmath", "numpy", "np") and node.identifier in MATH_CONSTANTS:
+        node.namespace = ""
+        node.identifier = MATH_CONSTANTS[node.identifier]
+    return node
+
+
 @LR.register("name:sym")
 def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
     """
@@ -598,7 +621,11 @@ def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
     context = base_context.current
     _ = context.space
     identifier = node.identifier
-    
+    # A function name already wrapped by swap_func_symbols is a complete
+    # \\operatorname{...}; its underscores are literal, not subscripts.
+    if identifier.startswith("\\operatorname"):
+        return node
+
     # Replace all extra underscores with non-identifier characters for later
     identifier = identifier.replace('___', '|')
     identifier = identifier.replace("__", "^")
@@ -607,8 +634,12 @@ def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
 
     # If any of the elements of the identifier qualify as being "long" elements
     # (words that should not be italicized as a typical math symbol)
-    if test_for_long_var_strs(name_elems[0], BRC):
-        name_elems[0] = f"\\mathrm{{{name_elems[0]}}}"
+    # Upright (\\mathrm) for multi-letter words, in the main symbol and in
+    # each subscript: 'x_rate' -> x_{\\mathrm{rate}}, 'x_1' -> x_{1}.
+    name_elems = [
+        f"\\mathrm{{{elem}}}" if test_for_long_var_strs(elem, base_context) else elem
+        for elem in name_elems
+    ]
     identifier = "_".join(name_elems)
 
     # Do the subscript substitution
@@ -617,8 +648,8 @@ def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
     identifier = f"{identifier}{closers}"
 
     # Replace the other subscript options (the double and triple)
-    identifier = identifier.replace("^", _)
-    identifier = identifier.replace("|", "_")
+    identifier = identifier.replace("^", "\\ ")
+    identifier = identifier.replace("|", "\\_")
 
     # Ready to ship!
     node.identifier = identifier
@@ -689,8 +720,8 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.identifier = latex_func_name
         node.function_name.value = latex_func_name
     else:
-        new_func_name = node.function_name.identifier
-        wrapped_func_name = f"\\operatorname{{{new_func_name}}} "
+        new_func_name = node.function_name.identifier.replace("_", "\\_")
+        wrapped_func_name = f"\\operatorname{{{new_func_name}}}"
         node.function_name.identifier = wrapped_func_name
         node.function_name.value = wrapped_func_name
     return node
