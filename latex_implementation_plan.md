@@ -162,12 +162,12 @@ Re-run the demo after each one and paste a snippet into the progress log below.
         those branches from `swap_py_operators`.
   - [x] Comparisons: `==` becomes `=`, plus spacing (#20, #21).
   - [x] Bool, identity and membership ops, and `not` (#15).
-- [ ] **Phase 4: Values**
-  - [ ] Add a LaTeX `constant` handler for strings (#17), scientific notation (#18),
+- [x] **Phase 4: Values**
+  - [x] Add a LaTeX `constant` handler for strings (#17), scientific notation (#18),
         bool/None (#19) and complex numbers (#25).
-  - [ ] Escaped braces for dict and set (#4). Optionally use `\left[ \right]` for long
+  - [x] Escaped braces for dict and set (#4). Optionally use `\left[ \right]` for long
         lists.
-  - [ ] Inline comments as `\;\textrm{(…)}` (#5).
+  - [x] Inline comments as `\;\textrm{(…)}` (#5).
 - [ ] **Phase 5: Names**
   - [ ] Fix the invalid greek capitals (#8).
   - [ ] `attribute:sym` for `math.pi` → `\pi` (#14).
@@ -205,3 +205,7 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   right operand (`7 * (-3)`), which affects all renderers.
   OPEN QUESTION for the user: `==` currently renders as `=`. Inside a calc line this reads ambiguously
   (`t = a = 7 and ...`). Alternatives are `\overset{?}{=}` or `==`.
+- 2026-10-14: Phase 4 is done. The LaTeX `constant` handler covers strings, sci notation (`\times 10^{n}`), bool/None and complex.
+  `set`/`dictionary` use `\{ \}`, and inline comments use `\quad\text{(...)}` with escaping. #24 is fixed by a LaTeX `function_call`
+  handler: in the num pass it reuses the identifiers the sym pass already swapped. (Base num-mode rendered the function name and namespace
+  by *value*, and `swap_subscripts` mangled `__main__`.) Still to do: long lists overflow the line (aligned can't break).
