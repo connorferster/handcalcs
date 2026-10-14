@@ -218,3 +218,10 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   `list` and `\medskip`; this is the trade-off the user accepted with target B. Next: Phase 7 (golden tests replacing
   `tests/test_latex_renderer.py`), pending the user's go-ahead. Open questions for the user are `==` rendering, and whether top-level math should be
   centred (now) or flush-left like nested blocks.
+- 2026-10-14: Phase 5 is done. `swap_greeks`, `swap_subscripts` and `test_for_long_var_strs` are replaced by one pure
+  `latex_identifier()` and a single `name:sym` rule (`swap_identifier`). It nests subscripts and maps greek names (via the module-level
+  `GREEK` table, where invalid capitals become `\mathrm{A}` etc. and `omicron` becomes `o`). Any other multi-character component is set as `\mathrm{}`, including in subscripts.
+  `__` becomes `\ ` and `___` becomes `\_`. It returns early on input that contains `\` or `{`, so it is idempotent. A LaTeX `attribute` handler drops the `math`/`cmath`/`numpy`/`np`
+  namespaces (`math.pi` → `\pi`, `math.inf` → `\infty`). `\operatorname{}` has no trailing space and escapes `_`.
+  Seen in passing (not yet fixed): `z = math.inf` renders as `z = \infty = \infty = \infty`, because an attribute-only line is not
+  collapsed the way a constant is. A `def` block renders nothing in the probe. Check these in Phase 6.

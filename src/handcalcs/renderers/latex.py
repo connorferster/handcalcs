@@ -9,6 +9,7 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Attribute,
+    NoValue,
     Constant,
     Set,
     Dictionary,
@@ -75,6 +76,69 @@ def latex_escape(text: str) -> str:
     emitted in text mode (headings, comment paragraphs, inline comments, ...).
     """
     return "".join(LATEX_SPECIAL_CHARS.get(char, char) for char in text)
+
+
+GREEK_LOWER = {
+    name: f"\\{name}" for name in (
+        "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta",
+        "eta", "theta", "vartheta", "iota", "kappa", "mu", "nu", "xi", "pi",
+        "varpi", "rho", "varrho", "sigma", "varsigma", "tau", "upsilon", "phi",
+        "varphi", "chi", "psi", "omega",
+    )
+} | {"omicron": "o", "lamb": "\\lambda"}
+
+# LaTeX only defines the capitals that differ from a Latin letter; the rest are
+# typeset as the upright Latin letter they look like.
+GREEK_UPPER = {
+    name: f"\\{name}" for name in (
+        "Gamma", "Delta", "Theta", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega",
+    )
+} | {
+    name: f"\\mathrm{{{letter}}}" for name, letter in (
+        ("Alpha", "A"), ("Beta", "B"), ("Epsilon", "E"), ("Zeta", "Z"),
+        ("Eta", "H"), ("Iota", "I"), ("Kappa", "K"), ("Mu", "M"), ("Nu", "N"),
+        ("Omicron", "O"), ("Rho", "P"), ("Tau", "T"), ("Chi", "X"),
+    )
+} | {"Lamb": "\\Lambda"}
+
+GREEK = GREEK_LOWER | GREEK_UPPER
+
+# Namespaces whose attributes are mathematical constants (``math.pi``); the
+# namespace is dropped when the attribute is shown symbolically.
+MATH_NAMESPACES = ("math", "cmath", "numpy", "np", "scipy.constants")
+MATH_CONSTANTS = {"inf": "\\infty", "nan": "\\mathrm{NaN}"}
+
+
+def latex_identifier(identifier: str) -> str:
+    """
+    Typeset a Python identifier as a LaTeX math symbol.
+
+    - Single underscores are nested subscripts: ``x_a_b`` -> ``x_{a_{b}}``.
+    - Double underscores are spaces and triple underscores literal underscores.
+    - A component that names a greek letter becomes that letter
+      (``omega_2`` -> ``\\omega_{2}``).
+    - Any other component longer than one character is a word, set upright
+      (``class_section`` -> ``\\mathrm{class}_{\\mathrm{section}}``).
+
+    An identifier that already contains LaTeX (a backslash or brace, which no
+    Python identifier can) is returned unchanged, so the swap is idempotent.
+    """
+    if not identifier or "\\" in identifier or "{" in identifier:
+        return identifier
+    # Placeholders for the double/triple underscores, which are not subscripts.
+    identifier = identifier.replace("___", "\0").replace("__", "\1")
+    components = []
+    for component in identifier.split("_"):
+        if component in GREEK:
+            components.append(GREEK[component])
+            continue
+        text = component.replace("\0", "\\_").replace("\1", "\\ ")
+        if len(component) > 1 and not component.isdigit():
+            text = f"\\mathrm{{{text}}}"
+        components.append(text)
+    head, *subscripts = components
+    return head + "".join(f"_{{{sub}" for sub in subscripts) + "}" * len(subscripts)
+
 
 
 class LatexRenderer(BaseRenderer):
@@ -346,85 +410,36 @@ def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> C
 ## SWAP RULES
 
 @LR.register("name:sym")
-def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
+def swap_identifier(renderer: LR, node: Name, base_context: BRC) -> Name:
     """
-    Swaps out any greek substrings or unicode symbols in a Name's identifier.
+    Typeset a Name's identifier (see ``latex_identifier``).
 
     Registered as a 'sym' rule on the Name node: the identifier is only shown in
     symbolic mode (numeric mode renders the Name's value instead).
     """
-    GREEK_LOWER = {
-        "alpha": "\\alpha",
-        "beta": "\\beta",
-        "gamma": "\\gamma",
-        "delta": "\\delta",
-        "epsilon": "\\epsilon",
-        "varepsilon": "\\varepsilon",
-        "zeta": "\\zeta",
-        "theta": "\\theta",
-        "vartheta": "\\vartheta",
-        "iota": "\\iota",
-        "kappa": "\\kappa",
-        "mu": "\\mu",
-        "nu": "\\nu",
-        "xi": "\\xi",
-        "omicron": "o",
-        "pi": "\\pi",
-        "varpi": "\\varpi",
-        "rho": "\\rho",
-        "varrho": "\\varrho",
-        "sigma": "\\sigma",
-        "varsigma": "\\varsigma",
-        "tau": "\\tau",
-        "upsilon": "\\upsilon",
-        "phi": "\\phi",
-        "varphi": "\\varphi",
-        "chi": "\\chi",
-        "omega": "\\omega",
-        "eta": "\\eta",
-        "psi": "\\psi",
-        "lamb": "\\lambda",
-    }
-
-    GREEK_UPPER = {
-        "Alpha": "\\mathrm{A}",
-        "Beta": "\\mathrm{B}",
-        "Gamma": "\\Gamma",
-        "Delta": "\\Delta",
-        "Epsilon": "\\mathrm{E}",
-        "Zeta": "\\mathrm{Z}",
-        "Theta": "\\Theta",
-        "Iota": "\\mathrm{I}",
-        "Kappa": "\\mathrm{K}",
-        "Mu": "\\mathrm{M}",
-        "Nu": "\\mathrm{N}",
-        "Xi": "\\Xi",
-        "Omicron": "\\mathrm{O}",
-        "Pi": "\\Pi",
-        "Rho": "\\mathrm{P}",
-        "Sigma": "\\Sigma",
-        "Tau": "\\mathrm{T}",
-        "Upsilon": "\\Upsilon",
-        "Phi": "\\Phi",
-        "Chi": "\\mathrm{X}",
-        "Omega": "\\Omega",
-        "Eta": "\\mathrm{H}",
-        "Psi": "\\Psi",
-        "Lamb": "\\Lambda",
-    }
-
-    for name, unicode in (GREEK_LOWER | GREEK_UPPER).items():
-        id_components = node.identifier.split("_")
-        swapped_components = []
-        for comp in id_components:
-            if comp == name:
-                comp = unicode
-            swapped_components.append(comp)
-        swapped_id = "_".join(swapped_components)
-        node.identifier = swapped_id
+    node.identifier = latex_identifier(node.identifier)
     return node
-    
-    
+
+
+@LR.register('attribute')
+def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
+    """
+    An attribute access. Math-library namespaces are dropped so that constants
+    read as symbols (``math.pi`` -> ``\\pi``); any other namespace is kept and
+    typeset like a Name (``\\mathrm{beam}.\\mathrm{length}``). The numeric
+    column shows the captured value, as for a Name.
+    """
+    context = base_context.current
+    if context.current_mode == 'num' and not isinstance(node.value, NoValue):
+        return renderer.render_node(node.value, base_context)
+    identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(node.identifier)
+    namespace = node.namespace
+    if namespace in ('', '__main__', None) or namespace in MATH_NAMESPACES:
+        return identifier
+    namespace = ".".join(latex_identifier(part) for part in namespace.split("."))
+    return f"{namespace}.{identifier}"
+
+
 OPERATOR_SYMBOLS = {
     'mult_op': '\\cdot',
     'add_op': '+',
@@ -612,51 +627,6 @@ def swap_math_constants(renderer: LR, node: Attribute, base_context: BRC) -> Att
     return node
 
 
-@LR.register("name:sym")
-def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
-    """
-    Interprets single underscores as subscripts, double underscores as spaces,
-    triple underscores as literal underscores
-    """
-    context = base_context.current
-    _ = context.space
-    identifier = node.identifier
-    # A function name already wrapped by swap_func_symbols is a complete
-    # \\operatorname{...}; its underscores are literal, not subscripts.
-    if identifier.startswith("\\operatorname"):
-        return node
-
-    # Replace all extra underscores with non-identifier characters for later
-    identifier = identifier.replace('___', '|')
-    identifier = identifier.replace("__", "^")
-    under_count = identifier.count("_")
-    name_elems = identifier.split("_")
-
-    # If any of the elements of the identifier qualify as being "long" elements
-    # (words that should not be italicized as a typical math symbol)
-    # Upright (\\mathrm) for multi-letter words, in the main symbol and in
-    # each subscript: 'x_rate' -> x_{\\mathrm{rate}}, 'x_1' -> x_{1}.
-    name_elems = [
-        f"\\mathrm{{{elem}}}" if test_for_long_var_strs(elem, base_context) else elem
-        for elem in name_elems
-    ]
-    identifier = "_".join(name_elems)
-
-    # Do the subscript substitution
-    identifier = identifier.replace("_", "_{")
-    closers = "}" * under_count
-    identifier = f"{identifier}{closers}"
-
-    # Replace the other subscript options (the double and triple)
-    identifier = identifier.replace("^", "\\ ")
-    identifier = identifier.replace("|", "\\_")
-
-    # Ready to ship!
-    node.identifier = identifier
-    return node
-
-
-
 @LR.register("function_call:pre")
 def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> FunctionCall:
     """
@@ -725,36 +695,3 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.identifier = wrapped_func_name
         node.function_name.value = wrapped_func_name
     return node
-
-
-def test_for_long_var_strs(elem: str, base_context: BRC) -> bool:
-    """
-    Returns True if 'elem' is a variable string that has more than one character
-    in it's "top-level" name (as opposed to it's subscript).
-    False, otherwise.
-
-    e.g. elem = "Rate_annual" -> True
-         elem = "x_rake_red" -> False
-         elem = "AB_x_y" -> True
-         elem = "category_x" -> True
-         elem = "x" -> False
-         elem = "xy" -> True
-    """
-    if not elem or "\\" in elem or "{" in elem or "}" in elem:
-        return False
-    components = elem.replace("'", "").split("_")
-    if len(components) != 1:
-        top_level, *_remainders = components
-        if not getattr(base_context.current, "underscore_subscripts", True):
-            if len(top_level) + len(_remainders) == 1:
-                return False
-            else:
-                return True
-        else:
-            if len(top_level) > 1:
-                return True
-            else:
-                return False
-    if len(components[0]) == 1:
-        return False
-    return True
