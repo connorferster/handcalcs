@@ -1172,34 +1172,23 @@ def render_block_body(
     body = [renderer.render(line, base_context) for line in node.lines]
     if isinstance(body[0], str): # Caused by a comment command
         body = [body]
+    header = f"{node.header_pre}{header}{node.header_post}"
+    if node.body_pre:
+        body.insert(0, node.body_pre)
+    if node.body_post:
+        body.append(node.body_post)
     return [header, body]
 
+
 @BaseRenderer.register('comments_block')
-def render_comments_block(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
 @BaseRenderer.register('calcs_block')
-def render_calcs_block(renderer: BaseRenderer, node: CalcsBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
 @BaseRenderer.register('if_block')
-def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
-
 @BaseRenderer.register('for_block')
-def render_for_block(renderer: BaseRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
-
 @BaseRenderer.register('else_block')
-def render_else_block(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> list:
-    return render_block_body(renderer, node, base_context)
-
-
 @BaseRenderer.register('function_block')
-def render_function_block(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> list:
+def render_generic_block(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> str:
     return render_block_body(renderer, node, base_context)
+
 
 @BaseRenderer.register('header:comments_block')
 def comments_block_header(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> Optional[str]:

@@ -108,7 +108,7 @@ class HTMLRenderer(BaseRenderer):
         # prefix, so no ``&nbsp;`` indent is injected into the context.
         return BaseRenderContext(RenderContext(**config_kwargs), RenderContext.sparse())
 
-    def _join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
+    def join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
         """
         HTML counterpart of ``BaseRenderer._join_item``: same master-list
         dispatch, but every line becomes a block-level ``<div>`` and nesting

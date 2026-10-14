@@ -41,9 +41,11 @@ from handcalcs.parsing.line_nodes import (
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
-    ElifBlock
+    ElifBlock,
+    CalcsBlock
 )
 
+BRC = BaseRenderContext
 
 class LatexRenderer(BaseRenderer):
     name = 'latex'
@@ -65,8 +67,14 @@ class LatexRenderer(BaseRenderer):
         )
         return context
 
+    def complete(
+        self, tree: list, base_context: BRC
+    ):
+        body = self.join(tree, base_context)
+        return body
+
 LR = LatexRenderer
-BRC = BaseRenderContext
+
 
 
 ## SWAP RULES
@@ -217,12 +225,20 @@ def swap_angle_ops(renderer: LR, node: HcCompOp, base_context: BRC) -> HcCompOp:
     Compare joins its parts with no separator, so each command carries a
     trailing space: without it '\\ne' followed by 'r' would read as '\\ner'.
     """
+    context = base_context.current
+    _ = context.space
     if node.symbol == "<=":
-        node.symbol = "\\le "
+        node.symbol = f"{_} \\le {_}"
     elif node.symbol == ">=":
-        node.symbol = "\\ge "
+        node.symbol = f"{_} \\ge {_}"
     elif node.symbol == "!=":
-        node.symbol = "\\ne "
+        node.symbol = f"{_} \\ne {_}"
+    elif node.symbol == "<":
+        node.symbol = f"{_} < {_}"
+    elif node.symbol == ">":
+        node.symbol = f"{_} > {_}"
+    elif node.symbol == "==":
+        node.symbol = f"{_} == {_}"
     return node
 
 
@@ -244,14 +260,9 @@ def swap_subscripts(renderer: LR, node: Name, base_context: BRC) -> Name:
 
     # If any of the elements of the identifier qualify as being "long" elements
     # (words that should not be italicized as a typical math symbol)
-    new_elems = []
-    for elem in name_elems:
-        if test_for_long_var_strs(elem, base_context):
-            new_elem = f"\\mathrm{{{elem}}}"
-            new_elems.append(new_elem)
-        else:
-            new_elems.append(elem)
-    identifier = "_".join(new_elems)
+    if test_for_long_var_strs(name_elems[0], BRC):
+        name_elems[0] = f"\\mathrm{{{name_elems[0]}}}"
+    identifier = "_".join(name_elems)
 
     # Do the subscript substitution
     identifier = identifier.replace("_", "_{")
@@ -337,6 +348,15 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.value = wrapped_func_name
     return node
 
+
+@LR.register('calcs_block:pre')
+def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> CalcsBlock:
+    """
+    Populates .pre and .post of CalcsBlock nodes for latex rendering
+    """
+    node.body_pre = "\\begin{align}"
+    node.body_post = "\\end{align}"
+    return node
 
 def test_for_long_var_strs(elem: str, base_context: BRC) -> bool:
     """
