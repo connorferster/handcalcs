@@ -156,12 +156,12 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - [x] `header:if_block` and `header:for_block` with math correctly delimited, and
         `\rightarrow` (#7).
   - [x] `format_param_grid` (#12) and `format_calc_grid` (#13).
-- [ ] **Phase 3: Operators**
-  - [ ] Fix modulo (#1).
-  - [ ] Add dedicated `pow_op` (#2) and `div_op`/`floor_op` (#11) handlers. Remove
+- [x] **Phase 3: Operators**
+  - [x] Fix modulo (#1).
+  - [x] Add dedicated `pow_op` (#2) and `div_op`/`floor_op` (#11) handlers. Remove
         those branches from `swap_py_operators`.
-  - [ ] Comparisons: `==` becomes `=`, plus spacing (#20, #21).
-  - [ ] Bool, identity and membership ops, and `not` (#15).
+  - [x] Comparisons: `==` becomes `=`, plus spacing (#20, #21).
+  - [x] Bool, identity and membership ops, and `not` (#15).
 - [ ] **Phase 4: Values**
   - [ ] Add a LaTeX `constant` handler for strings (#17), scientific notation (#18),
         bool/None (#19) and complex numbers (#25).
@@ -199,3 +199,9 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - `latex_escape` exists and is used by the heading, comment_line and import handlers (still TODO: inline comments and strings).
   - Structural tokens are class attributes on `LatexRenderer`, so they are easy to override.
   - Still to do: the `-i`-only CalcsBlock now emits nothing (#9 fixed). #6 is partly done.
+- 2026-10-14: Phase 3 is done. Operator symbols live in the `OPERATOR_SYMBOLS` table, keyed by node type, so the swap is idempotent. There are dedicated
+  `pow_op`/`div_op`/`floor_op` handlers. Word operators render as `\;\mathrm{and}\;`, `\mathrm{not}\;` and so on.
+  Also fixed: the parser key `"Floor"` → `"FloorDiv"` (every `//` crashed the parse), and base `infix_binop` now wraps a signed
+  right operand (`7 * (-3)`), which affects all renderers.
+  OPEN QUESTION for the user: `==` currently renders as `=`. Inside a calc line this reads ambiguously
+  (`t = a = 7 and ...`). Alternatives are `\overset{?}{=}` or `==`.

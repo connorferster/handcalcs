@@ -1388,7 +1388,11 @@ def infix_binop(
         left_portion = render_left
 
     right_portion = render_right
-    if rpre <= pre:
+    # A right operand that renders with a leading sign (a negative value
+    # substituted in the numeric column) is wrapped: 7·(-3), not 7·-3.
+    if render_right.lstrip().startswith(('-', '+')):
+        right_portion = f"{lpar}{render_right}{rpar}"
+    elif rpre <= pre:
         if rpre < pre:
             right_portion = f"{lpar}{render_right}{rpar}"
         elif rpre == pre and not commut:

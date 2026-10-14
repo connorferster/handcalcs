@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError, render_condition
+from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError, render_condition, OP_PRECEDENCE
 
 
 # Node type imports only used for typing
@@ -20,6 +20,7 @@ from handcalcs.parsing.operator_nodes import (
     FloorOp,
     PowOp,
     HcBinOp,
+    HcUnaryOp,
     EqOp,
     GtOp,
     GtEOp,
@@ -395,87 +396,101 @@ def swap_greeks(renderer: LR, node: Name, base_context: BRC) -> HcNode:
     return node
     
     
+OPERATOR_SYMBOLS = {
+    'mult_op': '\\cdot',
+    'add_op': '+',
+    'sub_op': '-',
+    'modulo_op': '\\bmod',
+    'lt_op': ' < ',
+    'gt_op': ' > ',
+    'lte_op': ' \\le ',
+    'gte_op': ' \\ge ',
+    'eq_op': ' = ',
+    'neq_op': ' \\ne ',
+    'in_op': ' \\in ',
+    'not_in_op': ' \\notin ',
+    'is_op': ' \\;\\mathrm{is}\\; ',
+    'is_not_op': ' \\;\\mathrm{is\\ not}\\; ',
+    'and_op': '\\;\\mathrm{and}\\;',
+    'or_op': '\\;\\mathrm{or}\\;',
+}
+
+
 @LR.register("mult_op:pre")
-@LR.register("pow_op:pre")
-@LR.register("div_op:pre")
-@LR.register("floor_op:pre")
 @LR.register("add_op:pre")
 @LR.register("sub_op:pre")
-@LR.register("mod_op:pre")
-def swap_py_operators(renderer: LR, node: HcBinOp, base_context: BRC) -> HcBinOp:
-    """
-    Rewrite a binary operator's display symbol/pre/post to the plain-text form.
-
-    Registered as a 'pre' rule on each arithmetic operator node: the swap is
-    mode-independent (the same symbol is shown in both the symbolic and numeric
-    columns), so it must run before rendering regardless of mode. The mutation
-    is idempotent, so re-running it on the second (numeric) pass is harmless.
-    """
-    context = base_context.current
-    _ = context.space
-    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
-        return node
-    elif node.type == 'mult_op':
-        node.symbol = '\\cdot'
-        node.pre = ''
-        node.post = ''
-        return node
-    elif node.type == 'div_op':
-        # Division always renders with its '/' symbol. Any parentheses around an
-        # operand come from the infix precedence logic (lpar/rpar), not from
-        # pre/post, so pre/post stay empty regardless of operand type.
-        node.symbol = "}{"
-        node.pre = "\\frac{"
-        node.post = "}"
-        return node
-    elif node.type == 'floor_op':
-        node.symbol = '}{'
-        node.pre = '\\lfloor \\frac{'
-        node.post = '} \\rfloor'
-        return node
-    elif node.type == 'add_op':
-        node.symbol = '+'
-        return node
-    elif node.type == 'mod_op':
-        node.symbol = '\\bmod'
-    elif node.type == 'sub_op':
-        node.symbol = '-'
-        return node
-    elif node.type == 'pow_op' and isinstance(node.right, Constant):
-        node.symbol = '^{'
-        node.post = '}'
-        return node
-    else:
-        return node
-
-
-@LR.register("gt_op:pre")
+@LR.register("modulo_op:pre")
 @LR.register("lt_op:pre")
-@LR.register("gte_op:pre")
+@LR.register("gt_op:pre")
 @LR.register("lte_op:pre")
+@LR.register("gte_op:pre")
+@LR.register("eq_op:pre")
 @LR.register("neq_op:pre")
-def swap_angle_ops(renderer: LR, node: HcCompOp, base_context: BRC) -> HcCompOp:
+@LR.register("in_op:pre")
+@LR.register("not_in_op:pre")
+@LR.register("is_op:pre")
+@LR.register("is_not_op:pre")
+@LR.register("and_op:pre")
+@LR.register("or_op:pre")
+def swap_operator_symbols(renderer: LR, node: HcNode, base_context: BRC) -> HcNode:
     """
-    Swaps the <=, >= and != operator symbols for their LaTeX commands.
+    Swap an operator's Python symbol for its LaTeX form.
 
-    Compare joins its parts with no separator, so each command carries a
-    trailing space: without it '\\ne' followed by 'r' would read as '\\ner'.
+    The symbol is looked up by node type (not by its current symbol), so the
+    swap is idempotent across the symbolic and numeric passes. Comparison and
+    membership symbols carry their own spacing because Compare joins its parts
+    with no separator.
+    """
+    node.symbol = OPERATOR_SYMBOLS[node.type]
+    return node
+
+
+@LR.register("unary_op:pre")
+def swap_unary_not(renderer: LR, node: HcUnaryOp, base_context: BRC) -> HcUnaryOp:
+    if node.symbol.strip() == "not":
+        node.symbol = "\\mathrm{not}\\;"
+    return node
+
+
+def _wrap_signed(rendered: str, base_context: BRC) -> str:
+    """Parenthesise an operand that renders with a leading sign."""
+    context = base_context.current
+    if rendered.lstrip().startswith(('-', '+')):
+        return f"{context.lpar}{rendered}{context.rpar}"
+    return rendered
+
+
+@LR.register('pow_op')
+def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
+    """
+    ``{base}^{exponent}``. The exponent is braced, so it never needs parens. The
+    base is parenthesised when it binds no tighter than the power (including a
+    left-nested power, since ``**`` is right-associative) or renders signed.
     """
     context = base_context.current
-    _ = context.space
-    if node.symbol == "<=":
-        node.symbol = f"{_} \\le {_}"
-    elif node.symbol == ">=":
-        node.symbol = f"{_} \\ge {_}"
-    elif node.symbol == "!=":
-        node.symbol = f"{_} \\ne {_}"
-    elif node.symbol == "<":
-        node.symbol = f"{_} < {_}"
-    elif node.symbol == ">":
-        node.symbol = f"{_} > {_}"
-    elif node.symbol == "==":
-        node.symbol = f"{_} == {_}"
-    return node
+    base = renderer.render_node(node.left, base_context)
+    exponent = renderer.render_node(node.right, base_context)
+    base_pre = OP_PRECEDENCE.get(type(node.left), float('inf'))
+    if base_pre <= OP_PRECEDENCE[PowOp]:
+        base = f"{context.lpar}{base}{context.rpar}"
+    else:
+        base = _wrap_signed(base, base_context)
+    return f"{base}^{{{exponent}}}"
+
+
+@LR.register('div_op')
+def render_div_op(renderer: LR, node: DivOp, base_context: BRC) -> str:
+    """``\\frac{num}{den}``: the fraction bar groups both operands, so no parens."""
+    numerator = renderer.render_node(node.left, base_context)
+    denominator = renderer.render_node(node.right, base_context)
+    return f"\\frac{{{numerator}}}{{{denominator}}}"
+
+
+@LR.register('floor_op')
+def render_floor_op(renderer: LR, node: FloorOp, base_context: BRC) -> str:
+    numerator = renderer.render_node(node.left, base_context)
+    denominator = renderer.render_node(node.right, base_context)
+    return f"\\left\\lfloor\\frac{{{numerator}}}{{{denominator}}}\\right\\rfloor"
 
 
 @LR.register("name:sym")

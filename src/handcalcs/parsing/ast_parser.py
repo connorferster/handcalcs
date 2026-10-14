@@ -85,7 +85,7 @@ ARITHMETIC_OPS = {
     "Sub": SubOp,
     "Mult": MultOp,
     "Div": DivOp,
-    "Floor": FloorOp,
+    "FloorDiv": FloorOp,
     "Pow": PowOp,
     "Mod": ModuloOp,
 }
