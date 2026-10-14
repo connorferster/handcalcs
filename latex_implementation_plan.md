@@ -174,10 +174,10 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - [x] `\mathrm` long subscripts (#23), and pass `base_context` (#22).
   - [x] Clean up namespaces and method calls (#24, #26).
 - [ ] **Phase 6: Integration**
-  - [ ] `complete()`: final wrapper for the chosen target.
+  - [x] `complete()`: final wrapper for the chosen target.
   - [ ] `interfaces/jupyter.py`: if target A, display the `latex` output with
         `Markdown`, not `Latex`.
-  - [ ] Verify that the whole demo renders in MathJax (and in `pdflatex` for target B).
+  - [x] Verify that the whole demo renders in MathJax (and in `pdflatex` for target B).
 - [ ] **Phase 7: Tests**
   - [ ] Replace the token tests with golden-output tests: one per demo section, plus
         focused tests for #1-#4, #8 and #18.
@@ -213,3 +213,8 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   math/numpy constants (`math.pi` → `\pi`). Multi-letter subscripts are `\mathrm`. `__` → `\ ` and `___` → `\_`. User function names
   are escaped (`\operatorname{calc\_area}`) and skipped by `swap_subscripts`. The `BRC` arg bug (#22) is fixed.
   The whole demo compiles with no errors or warnings.
+- 2026-10-14: Phase 6 is done for target B. `complete()` returns the bare fragment, and the user supplies the preamble (`amsmath`).
+  NOTE: `interfaces/jupyter.py` still shows `latex` output with `IPython.display.Latex`. MathJax there ignores `\section*`, `\noindent`,
+  `list` and `\medskip`; this is the trade-off the user accepted with target B. Next: Phase 7 (golden tests replacing
+  `tests/test_latex_renderer.py`), pending the user's go-ahead. Open questions for the user are `==` rendering, and whether top-level math should be
+  centred (now) or flush-left like nested blocks.
