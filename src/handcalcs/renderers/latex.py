@@ -1,3 +1,4 @@
+import re
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
@@ -76,6 +77,28 @@ def latex_escape(text: str) -> str:
     emitted in text mode (headings, comment paragraphs, inline comments, ...).
     """
     return "".join(LATEX_SPECIAL_CHARS.get(char, char) for char in text)
+
+
+def latex_prose(text: str) -> str:
+    """
+    Escape a comment written as prose (headings, comment paragraphs, inline
+    comments) and typeset its light markup: a pair of backticks becomes
+    ``\\texttt{}`` and an opening quote becomes a left quote (TeX otherwise sets
+    ``'a'`` as two right quotes). An unpaired backtick is kept literally.
+    """
+    segments = text.split("`")
+    if len(segments) % 2 == 0:
+        segments[-2:] = [f"{segments[-2]}`{segments[-1]}"]
+    typeset = []
+    for idx, segment in enumerate(segments):
+        if idx % 2:
+            typeset.append(f"\\texttt{{{latex_escape(segment)}}}")
+            continue
+        segment = latex_escape(segment).replace("`", "\\textasciigrave{}")
+        segment = re.sub(r'(^|[\s(\[])"', r"\1``", segment)
+        segment = re.sub(r"(^|[\s(\[])'", r"\1`", segment)
+        typeset.append(segment.replace('"', "''"))
+    return "".join(typeset)
 
 
 GREEK_LOWER = {
@@ -312,12 +335,12 @@ LR = LatexRenderer
 @LR.register('heading')
 def render_heading(renderer: LR, node: Heading, base_context: BRC) -> str:
     level = min(node.heading_level, len(renderer.HEADINGS)) - 1
-    return f"\\{renderer.HEADINGS[level]}{{{latex_escape(node.content)}}}"
+    return f"\\{renderer.HEADINGS[level]}{{{latex_prose(node.content)}}}"
 
 
 @LR.register('comment_line')
 def render_comment_line(renderer: LR, node: CommentLine, base_context: BRC) -> str:
-    return latex_escape(node.content)
+    return latex_prose(node.content)
 
 
 @LR.register('import')
@@ -602,7 +625,7 @@ def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
 
 @LR.register('inline_comment')
 def render_inline_comment(renderer: LR, node: InlineComment, base_context: BRC) -> str:
-    return f"\\quad\\text{{({latex_escape(node.content)})}}"
+    return f"\\quad\\text{{({latex_prose(node.content)})}}"
 
 
 MATH_CONSTANTS = {
@@ -662,12 +685,9 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         return node
     node.pre = '\\left('
     node.post = '\\right)'
-    # sqrt, floor and ceil render as bare symbols, where a 'math.' prefix
-    # reads as noise (e.g. 'math.\\lfloor x\\rfloor'), so drop the namespace.
-    if (
-        identifier in ('sqrt', 'floor', 'ceil')
-        and getattr(node.namespace, 'identifier', None) == 'math'
-    ):
+    # A math-library prefix reads as noise on a math function (e.g.
+    # 'math.\\lfloor x\\rfloor'), so drop the namespace, as for attributes.
+    if getattr(node.namespace, 'identifier', None) in MATH_NAMESPACES:
         node.namespace = deque()
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '\\sqrt'
@@ -690,8 +710,11 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.identifier = latex_func_name
         node.function_name.value = latex_func_name
     else:
+        # A method (one that keeps its namespace) is set upright with ordinary
+        # spacing; \\operatorname would add an operator's gap after the '.'.
         new_func_name = node.function_name.identifier.replace("_", "\\_")
-        wrapped_func_name = f"\\operatorname{{{new_func_name}}}"
+        wrapper = "\\mathrm" if node.namespace else "\\operatorname"
+        wrapped_func_name = f"{wrapper}{{{new_func_name}}}"
         node.function_name.identifier = wrapped_func_name
         node.function_name.value = wrapped_func_name
     return node

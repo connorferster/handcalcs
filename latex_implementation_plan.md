@@ -74,6 +74,12 @@ numbers every row and is not valid inside `$$`. v1 handcalcs used `\[\begin{alig
 Make the outer wrappers small, overridable functions (heading, paragraph, math-open,
 math-close) so the other target is cheap to add later.
 
+## DECIDED (2026-10-14): LatexRenderer stays a pure LaTeX renderer
+
+It is fine for the output to look broken in Jupyter (`Latex` display/MathJax cannot render `\section*`, `\noindent` and
+`list`). The user will write a separate **MarkdownRenderer** that combines Markdown prose with LaTeX math for
+Jupyter. Do not add Markdown/MathJax concessions to LatexRenderer.
+
 ## Diagnosis of the current demo output
 
 ### Root cause: one `space` and `newline` for two modes
@@ -173,11 +179,10 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - [x] `attribute:sym` for `math.pi` → `\pi` (#14).
   - [x] `\mathrm` long subscripts (#23), and pass `base_context` (#22).
   - [x] Clean up namespaces and method calls (#24, #26).
-- [ ] **Phase 6: Integration**
-  - [x] `complete()`: final wrapper for the chosen target.
-  - [ ] `interfaces/jupyter.py`: if target A, display the `latex` output with
-        `Markdown`, not `Latex`.
-  - [x] Verify that the whole demo renders in MathJax (and in `pdflatex` for target B).
+- [x] **Phase 6: Integration**
+  - [x] `complete()`: the output is a bare fragment (no preamble). `scripts/latex_demo_check.py` wraps it for compiling.
+  - [x] `interfaces/jupyter.py`: **left as `Latex`** (user decision, below).
+  - [x] Verify that the whole demo compiles in `pdflatex`, and check the PDF visually.
 - [ ] **Phase 7: Tests**
   - [ ] Replace the token tests with golden-output tests: one per demo section, plus
         focused tests for #1-#4, #8 and #18.
@@ -225,3 +230,10 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   namespaces (`math.pi` → `\pi`, `math.inf` → `\infty`). `\operatorname{}` has no trailing space and escapes `_`.
   Seen in passing (not yet fixed): `z = math.inf` renders as `z = \infty = \infty = \infty`, because an attribute-only line is not
   collapsed the way a constant is. A `def` block renders nothing in the probe. Check these in Phase 6.
+- 2026-10-14: Phase 6 is done. The user decided that LatexRenderer stays pure LaTeX, with a MarkdownRenderer to follow for Jupyter. A visual check of the PDF
+  found these fixes: `latex_prose()` (used for headings, comment paragraphs and inline comments) turns paired backticks into `\texttt{}` and opening
+  `'`/`"` into TeX left quotes. Function calls drop any `MATH_NAMESPACES` prefix. Methods that keep their namespace use `\mathrm{append}`, not
+  `\operatorname` (which put an operator gap after the `.`). Known overflow, not fixed: an `aligned` row cannot break, so long rows
+  (the deliberately one-line `M_u`, the 25-element `acc` list and the long logic rows with comments) run past the margin. The `-m` flag is
+  the user's tool for long equations. Base-level behaviours seen in all renderers: `z = math.inf` repeats its value, a `def` block renders
+  nothing, and a list shows its final (post-mutation) value.
