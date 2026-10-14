@@ -10,8 +10,8 @@ the LatexRenderer work (it supersedes the old `latex_plan.md`).
 - Evaluate progress with the demo:
   `uv run python -c "from handcalcs import HandCalcs; from handcalcs.renderers import LatexRenderer; hc = HandCalcs(renderer=LatexRenderer()); import rich; rich.print(hc.demo())"`
   (`print` is better for exact inspection; see the note below.)
-- **Ignore `tests/test_latex_renderer.py`**. An earlier Claude session wrote those as token tests,
-  and they are not authoritative. They fail since `complete()` now joins its output, which is expected.
+- ~~Ignore `tests/test_latex_renderer.py`~~. Phase 7 replaced the old token tests with golden and focused tests,
+  and those **are** maintained (see "How to check progress").
 - Sessions get disconnected, so keep this file up to date and commit and push often.
 
 ## How to check progress
@@ -24,8 +24,9 @@ uv run python -c "from handcalcs import HandCalcs; from handcalcs.renderers impo
   (for example, `[steel, concrete, timber]` disappears) and soft-wraps long lines.
 - The demo source is in `src/handcalcs/renderers/demo.py`.
 - Small ad-hoc probes: `HandCalcs(renderer=LatexRenderer())(source_str)`.
-- The current `tests/` LaTeX tests are quick token tests and are **not** authoritative.
-  Judge progress against the demo. Phase 7 replaces them.
+- `tests/test_latex_renderer.py` compares the demo, section by section, against `tests/golden/latex_demo.tex`. It also has
+  focused tests per issue and a pdflatex compile test (skipped if pdflatex is not installed). After an intended output change:
+  `HANDCALCS_UPDATE_GOLDEN=1 uv run pytest tests/test_latex_renderer.py`, then review `git diff tests/golden`.
 - **Compile check:** `uv run python scripts/latex_demo_check.py [out_dir]` prints the LaTeX,
   wraps it in an `article` + `amsmath` document, compiles it with pdflatex (TinyTeX at
   `~/.TinyTeX/bin/x86_64-linux/pdflatex`) and reports errors and warnings. The output must
@@ -183,8 +184,8 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - [x] `complete()`: the output is a bare fragment (no preamble). `scripts/latex_demo_check.py` wraps it for compiling.
   - [x] `interfaces/jupyter.py`: **left as `Latex`** (user decision, below).
   - [x] Verify that the whole demo compiles in `pdflatex`, and check the PDF visually.
-- [ ] **Phase 7: Tests**
-  - [ ] Replace the token tests with golden-output tests: one per demo section, plus
+- [x] **Phase 7: Tests**
+  - [x] Replace the token tests with golden-output tests: one per demo section, plus
         focused tests for #1-#4, #8 and #18.
 
 ## Progress log
@@ -237,3 +238,8 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   (the deliberately one-line `M_u`, the 25-element `acc` list and the long logic rows with comments) run past the margin. The `-m` flag is
   the user's tool for long equations. Base-level behaviours seen in all renderers: `z = math.inf` repeats its value, a `def` block renders
   nothing, and a list shows its final (post-mutation) value.
+
+- 2026-10-14: Phase 7 is done, and **all phases are complete**. There are new golden, focused and compile tests, and the full suite passes (343). Fixes found while
+  writing them: a params grid now drops trailing padding cells (ragged `aligned` rows), and a bare call (namespace `Name("")`, which is
+  truthy) is no longer mistaken for a method (it stays `\operatorname`). Candidates for follow-up: the base-level oddities noted under Phase 6,
+  and long-row overflow.

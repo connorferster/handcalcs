@@ -306,6 +306,10 @@ class LatexRenderer(BaseRenderer):
         _ = context.space
         lines = []
         for row in rows:
+            # ``aligned`` allows ragged rows, so trailing padding cells are dropped.
+            row = list(row)
+            while row and row[-1] is None:
+                row.pop()
             cells = []
             for cell in row:
                 if cell is None:
@@ -713,7 +717,8 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         # A method (one that keeps its namespace) is set upright with ordinary
         # spacing; \\operatorname would add an operator's gap after the '.'.
         new_func_name = node.function_name.identifier.replace("_", "\\_")
-        wrapper = "\\mathrm" if node.namespace else "\\operatorname"
+        is_method = getattr(node.namespace, 'identifier', '') not in ('', '__main__')
+        wrapper = "\\mathrm" if is_method else "\\operatorname"
         wrapped_func_name = f"{wrapper}{{{new_func_name}}}"
         node.function_name.identifier = wrapped_func_name
         node.function_name.value = wrapped_func_name
