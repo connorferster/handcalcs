@@ -26,8 +26,11 @@ uv run python -c "from handcalcs import HandCalcs; from handcalcs.renderers impo
 - Small ad-hoc probes: `HandCalcs(renderer=LatexRenderer())(source_str)`.
 - The current `tests/` LaTeX tests are quick token tests and are **not** authoritative.
   Judge progress against the demo. Phase 7 replaces them.
-- Paste the output into a MathJax or KaTeX sandbox, or compile it with `pdflatex`, to check
-  that it renders. The output must render, not just look plausible.
+- **Compile check:** `uv run python scripts/latex_demo_check.py [out_dir]` prints the LaTeX,
+  wraps it in an `article` + `amsmath` document, compiles it with pdflatex (TinyTeX at
+  `~/.TinyTeX/bin/x86_64-linux/pdflatex`) and reports errors and warnings. The output must
+  compile, not just look plausible. Claude's Read tool can view the whole PDF. Page-ranged
+  reads need `pdftoppm`, which is not installed.
 
 ## Architecture recap (what the renderer plugs into)
 
@@ -138,21 +141,21 @@ Re-run the demo after each one and paste a snippet into the progress log below.
 - [x] **Phase 0: Base-level correctness (benefits all renderers)**
   - [x] #3: parenthesise a negative left operand of `PowOp` in `infix_binop`.
   - [x] #16: parenthesise a `Compare` or bool-op operand of a unary `not`.
-- [ ] **Phase 1: Output structure (root cause).** Needs the target decision above.
-  - [ ] Set the context `space=' '` and newline `'\n'`. Add LaTeX tokens such as
+- [x] **Phase 1: Output structure (root cause).** Needs the target decision above.
+  - [x] Set the context `space=' '` and newline `'\n'`. Add LaTeX tokens such as
         `math_newline=' \\\\'` and `math_indent='\\quad '`.
-  - [ ] Override `join_item`: separate text items from math groups. Emit math groups as
+  - [x] Override `join_item`: separate text items from math groups. Emit math groups as
         `open` / rows / `close` with no trailing `\\`, and drop empty groups (#9).
-  - [ ] `&=` alignment on the first `=` of each row (#10).
+  - [x] `&=` alignment on the first `=` of each row (#10).
   - [ ] Add `latex_escape` and use it in text-mode handlers for headings, comment
         paragraphs (render a `comments_block` as one paragraph, as HTML does) and
         imports (#6, #27).
-  - [ ] Handle the `# hc: -b` line break: `\\[6pt]` inside math, a blank line in text.
-  - [ ] Nested if/for blocks: indent with `\quad` inside math.
-- [ ] **Phase 2: Block headers and grids**
-  - [ ] `header:if_block` and `header:for_block` with math correctly delimited, and
+  - [x] Handle the `# hc: -b` line break: `\\[6pt]` inside math, a blank line in text.
+  - [x] Nested if/for blocks: indent with `\quad` inside math.
+- [x] **Phase 2: Block headers and grids**
+  - [x] `header:if_block` and `header:for_block` with math correctly delimited, and
         `\rightarrow` (#7).
-  - [ ] `format_param_grid` (#12) and `format_calc_grid` (#13).
+  - [x] `format_param_grid` (#12) and `format_calc_grid` (#13).
 - [ ] **Phase 3: Operators**
   - [ ] Fix modulo (#1).
   - [ ] Add dedicated `pow_op` (#2) and `div_op`/`floor_op` (#11) handlers. Remove
@@ -187,3 +190,12 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   instructions. Re-ran the demo; the diagnosis above still matches. Still waiting on the A/B decision.
 - 2026-10-14: The user chose **target B (pure LaTeX fragment)**. Starting Phase 0.
 - 2026-10-14: Phase 0 is done (#3 neg pow base, #16 `not (compare)` parens), and plaintext output is verified.
+- 2026-10-14: Phases 1 and 2 are done, and the demo compiles with pdflatex. As implemented:
+  - The context uses a plain space and newline. `LatexRenderer.join_item` classifies items. A CalcsBlock
+    body is recognised by its `MATH_OPEN` sentinel (set by `calcs_block:pre` as `body_pre`).
+  - Top-level math groups are `\[\begin{aligned}`. Inside nested blocks they are flush-left
+    `\noindent$\displaystyle\begin{aligned}[t]` boxes, so the indentation shows. Nested bodies are indented
+    with a `list` env (`BLOCK_OPEN`/`BLOCK_CLOSE`). Text paragraphs get `\noindent`. `# hc: -b` becomes `\medskip`.
+  - `latex_escape` exists and is used by the heading, comment_line and import handlers (still TODO: inline comments and strings).
+  - Structural tokens are class attributes on `LatexRenderer`, so they are easy to override.
+  - Still to do: the `-i`-only CalcsBlock now emits nothing (#9 fixed). #6 is partly done.

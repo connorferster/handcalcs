@@ -149,3 +149,4 @@ cython_debug/
 .vscode/
 joblist.md
 src/handcalcs/renderers/example_output.py
+latex_demo_build/

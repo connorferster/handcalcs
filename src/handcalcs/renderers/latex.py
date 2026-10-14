@@ -1,7 +1,7 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError
+from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError, render_condition
 
 
 # Node type imports only used for typing
@@ -36,29 +36,83 @@ from handcalcs.parsing.inline_nodes import (
 from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
-    Import
+    Import,
+    Heading,
+    CommentLine,
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
     ElifBlock,
-    CalcsBlock
+    CalcsBlock,
+    ForBlock,
+    FunctionBlock,
 )
 
 BRC = BaseRenderContext
 
+
+LATEX_SPECIAL_CHARS = {
+    "\\": "\\textbackslash{}",
+    "&": "\\&",
+    "%": "\\%",
+    "$": "\\$",
+    "#": "\\#",
+    "_": "\\_",
+    "{": "\\{",
+    "}": "\\}",
+    "~": "\\textasciitilde{}",
+    "^": "\\textasciicircum{}",
+}
+
+
+def latex_escape(text: str) -> str:
+    """
+    Escape the LaTeX special characters in a plain-text string so it can be
+    emitted in text mode (headings, comment paragraphs, inline comments, ...).
+    """
+    return "".join(LATEX_SPECIAL_CHARS.get(char, char) for char in text)
+
+
 class LatexRenderer(BaseRenderer):
+    """
+    Renders a HandCalcs sequence as a LaTeX fragment (requires amsmath) that can
+    be pasted into the body of a .tex document.
+
+    Prose (headings, comment paragraphs, imports, block headers) is emitted as
+    text-mode paragraphs. Each run of calc lines (a CalcsBlock) becomes one
+    display-math ``aligned`` group, aligned on the first ``=`` of every row. The
+    body of a nested block (if/for/def) is indented with a ``list`` environment.
+
+    The class attributes below are the structural tokens; override them in a
+    subclass to change the document wrappers.
+    """
     name = 'latex'
+
+    MATH_OPEN = "\\[\n\\begin{aligned}"
+    MATH_CLOSE = "\\end{aligned}\n\\]"
+    # Inside a nested block a centred display would hide the indentation, so
+    # the group is set flush-left at the block's indent as a displaystyle box.
+    NESTED_MATH_OPEN = "\\noindent$\\displaystyle\n\\begin{aligned}[t]"
+    NESTED_MATH_CLOSE = "\\end{aligned}$"
+    PARAGRAPH = "\\noindent "
+    ROW_SEP = " \\\\\n"
+    LINE_BREAK = "\\medskip"
+    BLOCK_OPEN = "\\begin{list}{}{\\setlength{\\leftmargin}{1.5em}}\\item[]"
+    BLOCK_CLOSE = "\\end{list}"
+    HEADINGS = ("section*", "subsection*", "subsubsection*", "paragraph*")
 
     def create_context(
         self,
         **kwargs
     ):
+        # Spacing inside math mode is insignificant, so space/newline stay plain
+        # whitespace; all LaTeX structure is added by ``join_item``.
         context = BaseRenderContext(
             global_context=RenderContext(
-                space='\\ ',
-                newline='\\\n',
-                indent='\\hspace*{1em}',
+                space=' ',
+                newline='\n',
+                indent='',
                 lpar="\\left(",
                 rpar="\\right)",
                 **kwargs
@@ -71,10 +125,192 @@ class LatexRenderer(BaseRenderer):
         self, tree: list, base_context: BRC
     ):
         body = self.join(tree, base_context)
-        return body
+        return body.strip() + "\n"
+
+    def join_item(self, item, depth: int, base_context: BRC) -> list[str]:
+        """
+        LaTeX counterpart of ``BaseRenderer.join_item``. Master-list shapes:
+
+        - bare string -> a text paragraph (headings, the params grid, which is
+          already a complete math group); a one-shot line break -> ``\\medskip``;
+        - headerless block whose body is opened by MATH_OPEN (a CalcsBlock) ->
+          one ``aligned`` math group, rows separated by ``\\\\``, no group at
+          all when every row is empty (e.g. all lines ``# hc: -i``);
+        - other headerless block (a CommentsBlock) -> its body at this level;
+        - ``[header, body]`` -> the header paragraph, then the body indented in
+          a ``list`` environment;
+        - all-string list -> a text paragraph whose parts join with a space.
+        """
+        if not item:
+            return []
+        context = base_context.current
+        if isinstance(item, str):
+            if not item.strip():
+                return [f"{self.LINE_BREAK}\n\n"]
+            return [f"{self.paragraph(item)}\n\n"]
+        if isinstance(item[-1], list):
+            header, body = item[0], item[-1]
+            if body and body[0] == self.MATH_OPEN:
+                return self.join_math_group(body[1:-1], depth, base_context)
+            if not (isinstance(header, str) and header.strip()):
+                return self.join_items(body, depth, base_context)
+            return [
+                f"{self.paragraph(header)}\n\n",
+                f"{self.BLOCK_OPEN}\n",
+                *self.join_items(body, depth + 1, base_context),
+                f"{self.BLOCK_CLOSE}\n\n",
+            ]
+        joined = context.space.join(item)
+        if not joined.strip():
+            return []
+        return [f"{self.paragraph(joined)}\n\n"]
+
+    def paragraph(self, text: str) -> str:
+        """
+        Prefix a text paragraph with PARAGRAPH (``\\noindent``) unless it is
+        already a complete structural command (a heading or a math group).
+        """
+        if text.startswith(("\\section", "\\subsection", "\\subsubsection",
+                            "\\paragraph", "\\[", self.PARAGRAPH)):
+            return text
+        return f"{self.PARAGRAPH}{text}"
+
+    def join_math_group(self, rows: list, depth: int, base_context: BRC) -> list[str]:
+        """
+        Join the rows of a CalcsBlock into a single ``aligned`` math group.
+        """
+        math_rows = [self.join_math_row(row, base_context) for row in rows]
+        math_rows = [row for row in math_rows if row]
+        if not math_rows:
+            return []
+        opener, closer = self.MATH_OPEN, self.MATH_CLOSE
+        if depth > 0:
+            opener, closer = self.NESTED_MATH_OPEN, self.NESTED_MATH_CLOSE
+        return [f"{opener}\n{self.ROW_SEP.join(math_rows)}\n{closer}\n\n"]
+
+    def join_math_row(self, row, base_context: BRC) -> str:
+        """
+        Join one calc line's components into an ``aligned`` row, placing the
+        alignment point ``&`` before its first assignment symbol. A string row
+        (a pre-formatted multiline grid, or a one-shot line break) passes
+        through unchanged; a line break is dropped since rows are already
+        separated.
+        """
+        context = base_context.current
+        if isinstance(row, str):
+            return row.strip()
+        parts = list(row)
+        if parts and parts[0] == "":
+            return ""
+        if context.assign in parts:
+            idx = parts.index(context.assign)
+            parts[idx] = f"&{parts[idx]}"
+        return context.space.join(parts).strip()
+
+    def format_param_grid(self, rows: list, base_context: BRC) -> str:
+        """
+        A params grid is its own ``aligned`` group: each ``id = value`` cell is
+        an aligned pair of columns, with a ``\\qquad`` gap between cells.
+        """
+        context = base_context.current
+        _ = context.space
+        lines = []
+        for row in rows:
+            cells = []
+            for cell in row:
+                if cell is None:
+                    cells.append("&")
+                    continue
+                ident, eq, val = (list(map(str, cell)) + ["", "", ""])[:3]
+                cells.append(f"{ident} &{eq}{_}{val}")
+            lines.append(f"{_}&\\qquad{_}".join(cells))
+        return f"{self.MATH_OPEN}\n{self.ROW_SEP.join(lines)}\n{self.MATH_CLOSE}"
+
+    def format_calc_grid(self, rows: list, base_context: BRC) -> str:
+        """
+        A multiline (``# hc: -m``) calc: one ``aligned`` row per ``[id, eq, value]``
+        triple, all aligned on ``eq``. Returned as a single pre-joined string that
+        sits as one row inside its CalcsBlock's math group.
+        """
+        _ = base_context.current.space
+        lines = [f"{ident}{_}&{eq}{_}{val}".strip() for ident, eq, val in rows]
+        return self.ROW_SEP.join(lines)
+
 
 LR = LatexRenderer
 
+
+## TEXT-MODE HANDLERS
+
+@LR.register('heading')
+def render_heading(renderer: LR, node: Heading, base_context: BRC) -> str:
+    level = min(node.heading_level, len(renderer.HEADINGS)) - 1
+    return f"\\{renderer.HEADINGS[level]}{{{latex_escape(node.content)}}}"
+
+
+@LR.register('comment_line')
+def render_comment_line(renderer: LR, node: CommentLine, base_context: BRC) -> str:
+    return latex_escape(node.content)
+
+
+@LR.register('import')
+def render_import(renderer: LR, node: Import, base_context: BRC) -> str:
+    """
+    An import renders as a single typewriter line of the Python source.
+    """
+    names = ", ".join(
+        f"{name.identifier} as {name.value}" if name.value is not None
+        else f"{name.identifier}"
+        for name in node.names
+    )
+    if node.import_from:
+        dots = "." * (node.import_from_level or 0)
+        module = node.import_from_module or ""
+        source = f"from {dots}{module} import {names}"
+    else:
+        source = f"import {names}"
+    return f"\\texttt{{{latex_escape(source)}}}"
+
+
+@LR.register("header:if_block")
+def if_block_header(renderer: LR, node: IfBlock, base_context: BRC) -> str:
+    sym_expr = render_condition(renderer, node.test, base_context, 'sym')
+    num_expr = render_condition(renderer, node.test, base_context, 'num')
+    return (
+        f"Since $\\left({sym_expr}\\right) \\rightarrow "
+        f"\\left({num_expr}\\right)$ is True:"
+    )
+
+
+@LR.register("header:for_block")
+def for_block_header(renderer: LR, node: ForBlock, base_context: BRC) -> str:
+    base_context.line_context.current_mode = 'sym'
+    target = renderer.render(node.assigns[0], base_context)
+    iterable = renderer.render(node.iterator[0], base_context)
+    return f"Iterating over each ${target}$ in ${iterable}$:"
+
+
+@LR.register("header:function_block")
+def function_block_header(renderer: LR, node: FunctionBlock, base_context: BRC) -> str:
+    base_context.line_context.current_mode = 'sym'
+    name = "".join(
+        renderer.render(part, base_context) if hasattr(part, 'type') else str(part)
+        for part in node.function_name
+    )
+    params = ", ".join(str(param) for param in node.params)
+    return f"Evaluating ${name}\\left({params}\\right)$:"
+
+
+@LR.register('calcs_block:pre')
+def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> CalcsBlock:
+    """
+    Marks the body of a CalcsBlock as a math group: ``join_item`` recognises
+    the MATH_OPEN/MATH_CLOSE sentinels and joins the rows between them as one
+    ``aligned`` environment.
+    """
+    node.body_pre = renderer.MATH_OPEN
+    node.body_post = renderer.MATH_CLOSE
+    return node
 
 
 ## SWAP RULES
@@ -348,15 +584,6 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.value = wrapped_func_name
     return node
 
-
-@LR.register('calcs_block:pre')
-def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> CalcsBlock:
-    """
-    Populates .pre and .post of CalcsBlock nodes for latex rendering
-    """
-    node.body_pre = "\\begin{align}"
-    node.body_post = "\\end{align}"
-    return node
 
 def test_for_long_var_strs(elem: str, base_context: BRC) -> bool:
     """
