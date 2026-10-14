@@ -9,7 +9,8 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Constant,
-    
+    Set,
+    Dictionary,
 )
 from handcalcs.parsing.operator_nodes import (
     AddOp,
@@ -302,6 +303,33 @@ def function_block_header(renderer: LR, node: FunctionBlock, base_context: BRC) 
     return f"Evaluating ${name}\\left({params}\\right)$:"
 
 
+@LR.register('function_call')
+def render_function_call(renderer: LR, node: FunctionCall, base_context: BRC) -> str:
+    """
+    A function's name and namespace are symbols, not values, so they render
+    symbolically in both columns (``acc.append(11.31)``, not the
+    namespace's runtime value). The symbolic pass applies the 'name:sym' swaps
+    to the identifiers in place, so the numeric pass reuses those identifiers
+    rather than re-rendering (which would apply the non-idempotent swaps twice).
+    """
+    context = base_context.current
+    symbolic = getattr(context, 'current_mode', 'sym') == 'sym'
+    namespace_node = node.namespace
+    if not namespace_node or getattr(namespace_node, 'identifier', None) == '__main__':
+        namespace = ''
+    elif symbolic:
+        namespace = renderer.render(namespace_node, base_context)
+    else:
+        namespace = getattr(namespace_node, 'identifier', '')
+    if symbolic:
+        function_name = renderer.render(node.function_name, base_context)
+    else:
+        function_name = node.function_name.identifier
+    args = ", ".join(renderer.render(arg, base_context) for arg in node.args)
+    prefix = f"{namespace}." if namespace else ""
+    return f"{prefix}{function_name}{node.pre}{args}{node.post}"
+
+
 @LR.register('calcs_block:pre')
 def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> CalcsBlock:
     """
@@ -491,6 +519,74 @@ def render_floor_op(renderer: LR, node: FloorOp, base_context: BRC) -> str:
     numerator = renderer.render_node(node.left, base_context)
     denominator = renderer.render_node(node.right, base_context)
     return f"\\left\\lfloor\\frac{{{numerator}}}{{{denominator}}}\\right\\rfloor"
+
+
+## VALUES
+
+def format_latex_number(value, format_code: str) -> str:
+    """
+    Format a real number with ``format_code`` and typeset any exponent as
+    ``\times 10^{n}`` (e.g. ``2e+05`` -> ``2 \times 10^{5}``).
+    """
+    try:
+        formatted = f"{value:{format_code}}"
+    except (ValueError, TypeError):
+        formatted = f"{value}"
+    if formatted in ("inf", "+inf"):
+        return "\\infty"
+    if formatted == "-inf":
+        return "-\\infty"
+    if formatted == "nan":
+        return "\\mathrm{NaN}"
+    mantissa, sep, exponent = formatted.lower().partition("e")
+    if not sep:
+        return formatted
+    try:
+        power = int(exponent)
+    except ValueError:
+        return formatted
+    if mantissa in ("1", "1.0"):
+        return f"10^{{{power}}}"
+    return f"{mantissa} \\times 10^{{{power}}}"
+
+
+@LR.register('constant')
+def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
+    value = node.value
+    fc = base_context.current.format_code
+    if isinstance(value, bool) or value is None:
+        return f"\\mathrm{{{value}}}"
+    if isinstance(value, str):
+        return f"\\text{{``{latex_escape(value)}''}}"
+    if isinstance(value, complex):
+        real = format_latex_number(value.real, fc)
+        imag = format_latex_number(abs(value.imag), fc)
+        sign = "-" if value.imag < 0 else "+"
+        if value.real == 0:
+            return f"{'-' if value.imag < 0 else ''}{imag}j"
+        return f"{real} {sign} {imag}j"
+    if isinstance(value, (int, float)):
+        return format_latex_number(value, fc)
+    return latex_escape(f"{value}")
+
+
+@LR.register('set')
+def render_set(renderer: LR, node: Set, base_context: BRC) -> str:
+    elems = [renderer.render(elem, base_context) for elem in node.elems]
+    return f"\\{{{', '.join(elems)}\\}}"
+
+
+@LR.register('dictionary')
+def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
+    keys = [renderer.render(elem, base_context) for elem in node.keys]
+    values = [renderer.render(elem, base_context) for elem in node.values]
+    items = [f"{key}\\colon {value}" for key, value in zip(keys, values)]
+    return f"\\{{{', '.join(items)}\\}}"
+
+
+@LR.register('inline_comment')
+def render_inline_comment(renderer: LR, node: InlineComment, base_context: BRC) -> str:
+    return f"\\quad\\text{{({latex_escape(node.content)})}}"
 
 
 @LR.register("name:sym")
