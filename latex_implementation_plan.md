@@ -259,3 +259,27 @@ Re-run the demo after each one and paste a snippet into the progress log below.
     `math_group()` puts a `MATH_SKIP` (`\medskip`) paragraph before and after each group, including the params grid. The demo
     compiles cleanly and was checked visually. The golden diff contains only wrapper changes.
   Remaining open item: long-row overflow (the `-m` flag is the workaround).
+- 2026-10-14 (session 3): **Overflow exploration** (no code changes). Measured with the default `article` text width of 345pt.
+  The demo has 7 overfull boxes. `scripts/latex_demo_check.py` reports none of them, because it only greps `!` and `Warning`.
+  | Group | Too wide by | Scale to fit |
+  |---|---|---|
+  | `x_1`/`x_2` group | 12.7pt | 0.96 |
+  | `M_u` (`-m` group) | 95pt | 0.78 |
+  | `M_u` one-liner | 463pt | 0.43 |
+  | nested `value_computed` | 75pt | 0.78 |
+  | `acc` (25-element list) | 370pt | 0.48 |
+  | logic block (13 rows; long rows + comments) | 187pt | 0.65 |
+  | `Since … is True:` header (text, not math) | 198pt | n/a |
+  Evaluated the user's candidate, the scale-to-fit approach from https://stackoverflow.com/a/55750239 (measure the box and
+  `\resizebox{\linewidth}{!}` it if too wide). The prototype (`\hcfit` macro around each math group, graphicx) compiles and removes every math
+  overflow. Its problems:
+  (1) it scales the *whole* `aligned` group, so one long row shrinks all its neighbours (all 13 logic rows go to 0.65);
+  (2) it is unbounded, so `M_u` and `acc` at about 0.45 are unreadable;
+  (3) it needs `graphicx` and a macro in the preamble;
+  (4) it cannot help text-mode overflow (the `Since` header);
+  (5) the answer's own author warns against font scaling.
+  Verdict: only usable as a *capped* safety net (scale only when 0.85 or more would fit) for small overshoots.
+  Other options considered: TeX picks the layout (emit the one-line and `-m` forms and choose with `\sbox` and `\ifdim\wd`; exact, no scaling,
+  kernel only, but it doubles the output and decides per group); renderer-side fixes for each cause (elide long collections,
+  comment placement, breakable header delimiters); and auto-`-m` from an estimated width (Python cannot measure TeX widths).
+  `breqn` was rejected (fragile, does not work with `aligned`).
