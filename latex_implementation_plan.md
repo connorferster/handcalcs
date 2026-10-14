@@ -154,7 +154,7 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - [x] Override `join_item`: separate text items from math groups. Emit math groups as
         `open` / rows / `close` with no trailing `\\`, and drop empty groups (#9).
   - [x] `&=` alignment on the first `=` of each row (#10).
-  - [ ] Add `latex_escape` and use it in text-mode handlers for headings, comment
+  - [x] Add `latex_escape` and use it in text-mode handlers for headings, comment
         paragraphs (render a `comments_block` as one paragraph, as HTML does) and
         imports (#6, #27).
   - [x] Handle the `# hc: -b` line break: `\\[6pt]` inside math, a blank line in text.
@@ -243,3 +243,7 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   writing them: a params grid now drops trailing padding cells (ragged `aligned` rows), and a bare call (namespace `Name("")`, which is
   truthy) is no longer mistaken for a method (it stays `\operatorname`). Candidates for follow-up: the base-level oddities noted under Phase 6,
   and long-row overflow.
+- 2026-10-14 (session 3): Reviewed the plan. The branch is clean and pushed, 343 tests pass and the demo compiles with no errors or warnings.
+  Ticked the stale `latex_escape` box in Phase 1 (escaping now covers headings, comments, imports, strings and inline comments).
+  Still open: `==` rendering, centred vs flush-left top-level math, long-row overflow, and the base-level oddities
+  (`z = math.inf` repeats, `def` renders nothing, lists show their post-mutation value).
