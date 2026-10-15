@@ -120,16 +120,16 @@ and VS Code** using the check notebook.
       `uv run pytest tests/test_latex_renderer.py`.
 
 ### Phase 1: Structural layer (`join_item`, `math_group`, `complete`)
-- [ ] Class tokens: `MATH_OPEN = "$$\\begin{aligned}"`, `MATH_CLOSE = "\\end{aligned}$$"`,
+- [x] Class tokens: `MATH_OPEN = "$$\\begin{aligned}"`, `MATH_CLOSE = "\\end{aligned}$$"`,
       `ROW_SEP = " \\\\ "`, `MATH_SKIP = ""`, `PARAGRAPH = ""`, `LINE_BREAK = "&nbsp;"`,
       `BLOCK_PREFIX = "> "`. `BLOCK_OPEN` and `BLOCK_CLOSE` are unused.
-- [ ] Override `math_group(rows)` to return `f"{MATH_OPEN} {ROW_SEP.join(rows)} {MATH_CLOSE}"`,
+- [x] Override `math_group(rows)` to return `f"{MATH_OPEN} {ROW_SEP.join(rows)} {MATH_CLOSE}"`,
       a single line with no skips. This also fixes the params grid, which goes through
       `math_group`.
-- [ ] Override `format_calc_grid`. Its rows are joined with `ROW_SEP`, so they are already
+- [x] Override `format_calc_grid`. Its rows are joined with `ROW_SEP`, so they are already
       single-line. Confirm that `# hc: -m` output has no newline.
-- [ ] Override `paragraph(text)` to return `text` unchanged.
-- [ ] Override `join_item`:
+- [x] Override `paragraph(text)` to return `text` unchanged.
+- [x] Override `join_item`:
   - bare string: paragraph + `\n\n`. A whitespace-only string (a one-shot line break)
     becomes a `LINE_BREAK` (`&nbsp;`) spacer paragraph, mirroring `\medskip`. Inside a
     blockquote it is prefixed like any other line (`> &nbsp;`). The user decided this
@@ -139,16 +139,16 @@ and VS Code** using the check notebook.
   - headerless block: body at the same depth (inherited behaviour);
   - `[header, body]`: header paragraph, then `self.quote(self.join_items(body, depth + 1))`;
   - all-string list: paragraph.
-- [ ] `quote(chunks)`: join the chunks, strip trailing blank lines, prefix every line (`>`
+- [x] `quote(chunks)`: join the chunks, strip trailing blank lines, prefix every line (`>`
       on empty lines), and end with `\n\n`. This handles the lazy-continuation rules above.
-- [ ] Confirm that `join_math_row` puts `&` before the first assign symbol. The inline
+- [x] Confirm that `join_math_row` puts `&` before the first assign symbol. The inline
       comment row it splits off uses `ROW_SEP`, so it stays on one line.
-- [ ] `complete()`: inherited (`strip() + "\n"`). Collapse runs of 3+ newlines if any
+- [x] `complete()`: inherited (`strip() + "\n"`). Collapse runs of 3+ newlines if any
       appear.
-- [ ] Probe: nested if/elif/else and nested for loops in the demo render as `>` and `> >`
+- [x] Probe: nested if/elif/else and nested for loops in the demo render as `>` and `> >`
       with no lazy-continuation leakage. Use `markdown-it-py` to parse the output and
       assert the blockquote nesting depth of each math line.
-- [ ] Build the Phase 5 check notebook early (just `nbformat` + one Markdown cell) so the
+- [x] Build the Phase 5 check notebook early (just `nbformat` + one Markdown cell) so the
       user can eyeball JupyterLab and VS Code rendering of the one-line `$$` in blockquotes.
 
 ### Phase 2: Text escaping (prose vs. text-in-math)
@@ -266,3 +266,17 @@ and VS Code** using the check notebook.
   the heading, comment_line and import handlers). `latex.py` gained an `import_source(node)`
   helper shared by both import handlers (no LaTeX output change). Demo output is
   byte-identical to the draft's, and all 349 tests pass. Next: Phase 1.
+- 2026-10-15: Phase 1 done. One-line `$$` groups, `>` blockquote bodies (`quote()`), `&nbsp;`
+  spacers, `paragraph`/`math_group` overrides. Verified with markdown-it (depth 2 → 1 → 0,
+  no lazy continuation). Added `scripts/markdown_demo_check.py` (leak and one-line checks,
+  math depths, writes `markdown_demo_build/markdown_demo.ipynb` for checking by eye;
+  the build directory is gitignored). Findings:
+  - **Shared tree quirk:** consecutive params grids inside a block body reach `join_item` as
+    one all-string "line" (`[grid, '', grid]`). LaTeX gets away with it (both groups land in
+    one paragraph). MarkdownRenderer splits such a line into one paragraph per math group.
+  - Blank lines inside a calc run are dropped by the parser (no spacer), the same as in
+    LaTeX. Not a Markdown issue.
+  - **Pre-existing bug (LaTeX too):** `for i in [1, 2]:` crashes in `for_block_header`
+    (`node.iterator[0]` on a `List` node). Not fixed; raise with the user.
+  - **Still to check by eye:** the user should open the notebook in JupyterLab and VS Code to
+    confirm one-line `$$` inside `> >` renders. Next: Phase 2 (escaping).
