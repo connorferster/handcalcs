@@ -35,7 +35,7 @@ def test_superscript_power_has_no_stray_spaces(render_plain, source, expected):
     "source,expected",
     [
         ("a=8\nz = a / 4\n", "z = a / 4 = 8 / 4 = 2"),
-        ("z = 4 / 2\n", "z = 4 / 2 = 4 / 2 = 2"),
+        ("z = 4 / 2\n", "z = 4 / 2 = 2"),
         ("a=8\nb=3\nc=2\nz = a / (b + c)\n", "z = a / (b + c) = 8 / (3 + 2) = 1.6"),
     ],
     ids=["constant-denominator", "both-constant", "parenthesized-denominator"],
@@ -43,3 +43,14 @@ def test_superscript_power_has_no_stray_spaces(render_plain, source, expected):
 def test_division_keeps_slash(render_plain, source, expected):
     # Division always renders with its '/' symbol, even with constant operands.
     assert render_plain(source) == expected
+
+
+def test_params_block_with_comments_aligns_columns():
+    # ``# hc: -h`` keeps comments; ids right-align and ``=`` lines up per column,
+    # with one space before a comment and a wider gap between cells.
+    src = "# hc: -h\nx = 3 # one\nlonger = 4000\nz = 5 # last\nw = 6\nqq = 77 # c\nr = 1\n"
+    out = HandCalcs(PlainTextRenderer())(src).splitlines()
+    assert out == [
+        "x = 3 (one)    longer = 4000        z = 5 (last)",
+        "w = 6              qq = 77   (c)    r = 1",
+    ]

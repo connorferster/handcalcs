@@ -296,12 +296,12 @@ else:
                     Constant(
                         value=2
                     ),
-                    LtEOp,
+                    LtEOp(),
                     Name(
                         identifier='a',
                         value=4
                     ),
-                    LtOp,
+                    LtOp(),
                     Constant(
                         value=5
                     )
@@ -348,7 +348,7 @@ else:
                                 identifier='a',
                                 value=4
                             ),
-                            GtOp,
+                            GtOp(),
                             Name(
                                 identifier='b',
                                 value=5
@@ -631,7 +631,7 @@ values = [elem + b for elem in a]
             ]),
             expression_tree=deque([
                 ComprehensionChain(
-                    _type='list',
+                    comp_type='list',
                     assign=deque([
                         AddOp(
                             left=Name(
@@ -663,7 +663,7 @@ values = [elem + b for elem in a]
                                     ]
                                 )
                             ]),
-                            _is_async=False
+                            is_async=False
                         )
                     ])
                 )
@@ -1078,7 +1078,7 @@ else:
                                                     identifier='d',
                                                     value=4
                                                 ),
-                                                EqOp,
+                                                EqOp(),
                                                 Constant(
                                                     value=3
                                                 )
@@ -1121,7 +1121,7 @@ else:
                                                             identifier='d',
                                                             value=4
                                                         ),
-                                                        EqOp,
+                                                        EqOp(),
                                                         Constant(
                                                             value=5
                                                         )
@@ -1164,7 +1164,7 @@ else:
                                                                     identifier='d',
                                                                     value=4
                                                                 ),
-                                                                EqOp,
+                                                                EqOp(),
                                                                 Constant(
                                                                     value=4
                                                                 )
@@ -1236,7 +1236,7 @@ else:
                                                     identifier='d',
                                                     value=4
                                                 ),
-                                                EqOp,
+                                                EqOp(),
                                                 Constant(
                                                     value=5
                                                 )
@@ -1279,7 +1279,7 @@ else:
                                                             identifier='d',
                                                             value=4
                                                         ),
-                                                        EqOp,
+                                                        EqOp(),
                                                         Constant(
                                                             value=4
                                                         )
@@ -1348,7 +1348,7 @@ else:
                                                     identifier='d',
                                                     value=4
                                                 ),
-                                                EqOp,
+                                                EqOp(),
                                                 Constant(
                                                     value=4
                                                 )
@@ -1442,12 +1442,12 @@ else:
                                 Constant(
                                     value=2
                                 ),
-                                LtEOp,
+                                LtEOp(),
                                 Name(
                                     identifier='a',
                                     value=4
                                 ),
-                                LtOp,
+                                LtOp(),
                                 Constant(
                                     value=5
                                 )
@@ -1503,7 +1503,7 @@ else:
                                             identifier='a',
                                             value=4
                                         ),
-                                        GtOp,
+                                        GtOp(),
                                         Name(
                                             identifier='b',
                                             value=5
@@ -1601,7 +1601,7 @@ else:
                                     identifier='a',
                                     value=4
                                 ),
-                                GtOp,
+                                GtOp(),
                                 Name(
                                     identifier='b',
                                     value=5
@@ -1724,7 +1724,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 content='a plain note'
             ),
             CommentCommand(
-                commands={'multiline': False, 'format_code':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
+                commands={'multiline': False, 'format_code':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None, 'params_block': False}
             ),
             CalcLine(
                 assigns=deque([
@@ -1780,7 +1780,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 ]),
                 comment=InlineCommand(
                     content='hc: -f 5E',
-                    commands={'multiline': False, 'format_code': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None}
+                    commands={'multiline': False, 'format_code': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None, 'params_block': False}
                 )
             )
         ])
@@ -1933,16 +1933,22 @@ def test_not_operator_parsing():
 @pytest.mark.parametrize(
     "source,op_cls",
     [
+        ("r = a == b", EqOp),
+        ("r = a != b", NeqOp),
+        ("r = a > b", GtOp),
+        ("r = a >= b", GtEOp),
+        ("r = a < b", LtOp),
+        ("r = a <= b", LtEOp),
         ("r = a is b", IsOp),
         ("r = a is not b", IsNotOp),
         ("r = a in b", InOp),
         ("r = a not in b", NotInOp),
     ],
-    ids=["is", "is_not", "in", "not_in"],
+    ids=["eq", "neq", "gt", "gte", "lt", "lte", "is", "is_not", "in", "not_in"],
 )
-def test_identity_membership_operator_parsing(source, op_cls):
-    # ``is`` / ``is not`` / ``in`` / ``not in`` are comparison ops: they land in
-    # a Compare deque as bare operator *classes* between the two operands.
+def test_comparison_operator_parsing(source, op_cls):
+    # Relational, identity and membership ops are all comparison ops: they land
+    # in a Compare deque as operator instances between the two operands.
     parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
     assert parser(source) == deque([
         CalcLine(
@@ -1950,7 +1956,7 @@ def test_identity_membership_operator_parsing(source, op_cls):
             expression_tree=deque([
                 Compare(comparison=deque([
                     Name(identifier='a'),
-                    op_cls,
+                    op_cls(),
                     Name(identifier='b'),
                 ]))
             ]),
@@ -1967,8 +1973,8 @@ def test_boolean_operator_in_if_test():
     if_block = result[0]
     assert isinstance(if_block, IfBlock)
     assert if_block.test == AndOp(values=deque([
-        Compare(comparison=deque([Name(identifier='a', value=4), GtOp, Constant(value=1)])),
-        Compare(comparison=deque([Name(identifier='b', value=5), LtOp, Constant(value=10)])),
+        Compare(comparison=deque([Name(identifier='a', value=4), GtOp(), Constant(value=1)])),
+        Compare(comparison=deque([Name(identifier='b', value=5), LtOp(), Constant(value=10)])),
     ]))
     assert if_block.is_true is True
 

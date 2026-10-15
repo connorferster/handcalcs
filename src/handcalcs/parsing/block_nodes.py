@@ -8,10 +8,17 @@ from .line_nodes import CalcLine, ExprLine, Heading, CommentCommand, CommentLine
 @dataclass
 class HcBlockNode(HcNode):
     level: int = 0
+    header_pre: str = ""
+    header_post: str = ""
+    body_pre: str = ""
+    body_post: str = ""
 
 @dataclass
 class ParamsBlock(HcBlockNode):
     lines: deque[CalcLine] = field(default_factory=deque)
+    # True for a block opened by ``# hc: -h``: each cell keeps its line comment.
+    # A ``;`` block has nowhere to put one, so its comments are dropped.
+    with_comments: bool = False
     type: str = 'params_block'
 
 @dataclass

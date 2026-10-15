@@ -92,6 +92,7 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-param-val){"
         "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
+        ".handcalcs :where(.hc-param-comment){text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
         # "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
     )
@@ -108,7 +109,7 @@ class HTMLRenderer(BaseRenderer):
         # prefix, so no ``&nbsp;`` indent is injected into the context.
         return BaseRenderContext(RenderContext(**config_kwargs), RenderContext.sparse())
 
-    def _join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
+    def join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
         """
         HTML counterpart of ``BaseRenderer._join_item``: same master-list
         dispatch, but every line becomes a block-level ``<div>`` and nesting
@@ -150,7 +151,7 @@ class HTMLRenderer(BaseRenderer):
         # A block is ``[header, body]`` -- detected by its body being a list.
         if isinstance(item[-1], list):
             header, body = item[0], item[-1]
-            inner = "".join(self._join_items(body, depth + 1, base_context))
+            inner = "".join(self.join_items(body, depth + 1, base_context))
             # A headerless (flat) block only groups consecutive lines and
             # introduces no intro line: emit its body directly, no wrapper.
             if not (isinstance(header, str) and header.strip()):
@@ -165,7 +166,7 @@ class HTMLRenderer(BaseRenderer):
             return []
         return [f'<div class="hc-line">{line}</div>']
 
-    def _cell_tds(self, cell) -> str:
+    def _cell_tds(self, cell, with_comment: bool = False) -> str:
         # Turn an ``["id", "=", "value"]`` triple (or ``None`` padding) into three
         # ``<td>``s -- identifier / ``=`` / value -- so the assignment aligns on its
         # ``=``. Cell components are already rendered HTML (e.g. ``c<sub>x</sub>``),
@@ -177,12 +178,16 @@ class HTMLRenderer(BaseRenderer):
             parts = []
         else:
             parts = [str(cell)]
-        ident, eq, val = (parts + ["", "", ""])[:3]
-        return (
+        ident, eq, val, *rest = parts + ["", "", ""]
+        comment = rest[0] if rest else ""
+        tds = (
             f'<td class="hc-param-id">{ident}</td>'
             f'<td class="hc-param-eq">{eq}</td>'
             f'<td class="hc-param-val">{val}</td>'
         )
+        if with_comment:
+            tds += f'<td class="hc-param-comment">{comment}</td>'
+        return tds
 
     def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
         # Emit a real table instead of the plain-text grid: every cell becomes an
@@ -191,7 +196,7 @@ class HTMLRenderer(BaseRenderer):
         # ``hc-params`` rule) and sizes to its content.
         gap = '<td class="hc-param-gap"></td>'
         body = "".join(
-            f'<tr>{gap.join(self._cell_tds(cell) for cell in row)}</tr>' for row in rows
+            f'<tr>{gap.join(self._cell_tds(cell, True) for cell in row)}</tr>' for row in rows
         )
         return f'<table class="hc-params">{body}</table>'
 
@@ -439,7 +444,7 @@ def swap_py_operators(renderer: HTMLR, node: HcBinOp, base_context: BRC) -> HcBi
     else:
         return node
 
-# TODO: Register >, <, >=, <= operators to use symbols instead of angle brackets (or escape them
+
 @HTMLR.register("gt_op:pre")
 @HTMLR.register("lt_op:pre")
 @HTMLR.register("gte_op:pre")
@@ -468,6 +473,8 @@ def swap_sqrt_symbol(renderer: HTMLR, node: FunctionCall, base_context: BRC) -> 
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
+    node.pre = '('
+    node.post = ')'
     if node.function_name.identifier == 'sqrt':
         node.function_name.identifier = '√'
         node.function_name.value = '√'

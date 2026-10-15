@@ -155,7 +155,7 @@ class RenderContext:
         space: str = ' ', 
         newline: str = '\n', 
         indent: str = "    ",
-        equality: str = "=",
+        assign: str = "=",
         mode: str = 'full',
         format_code: str = ".5g",
         param_line: bool = False,
@@ -166,7 +166,7 @@ class RenderContext:
         self.space = space
         self.newline = newline
         self.indent = indent
-        self.equality = equality
+        self.assign = assign
         self.mode = mode
         self.format_code = format_code
         self.param_line = param_line
@@ -333,15 +333,15 @@ class BaseRenderer:
         """
         if base_context is None:
             base_context = self.create_context()
-        return "".join(self._join_items(tree, 0, base_context))
+        return "".join(self.join_items(tree, 0, base_context))
 
-    def _join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list[str]:
+    def join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list[str]:
         lines: list[str] = []
         for item in items:
-            lines.extend(self._join_item(item, depth, base_context))
+            lines.extend(self.join_item(item, depth, base_context))
         return lines
 
-    def _join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
+    def join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
         if not item:
             return []
         context = base_context.current
@@ -367,9 +367,9 @@ class BaseRenderer:
             # no header and keeps its body at the current depth rather than
             # indenting it one level deeper.
             if not (isinstance(header, str) and header.strip()):
-                return self._join_items(body, depth, base_context)
+                return self.join_items(body, depth, base_context)
             lines = [f"{indent}{header}{nl}"]
-            lines.extend(self._join_items(body, depth + 1, base_context))
+            lines.extend(self.join_items(body, depth + 1, base_context))
             return lines
         joined = context.space.join(item)
         # An all-string line whose columns are all empty carries no content --
@@ -393,8 +393,7 @@ class BaseRenderer:
         # ``type`` discriminant, so it is wrapped in the matching HcNode and
         # rendered through the existing handlers, picking up the format code
         # (scalars and collection elements alike). Anything already carrying a
-        # ``type`` (a node instance, or an operator class stored on a Compare)
-        # passes through unchanged.
+        # ``type`` (any node instance) passes through unchanged.
         if not hasattr(node, 'type'):
             node = _reify(node)
         node_rules = self._rule_handlers.get(node.type, {})
@@ -507,24 +506,33 @@ class BaseRenderer:
         _ = context.space
         nl = context.newline
 
-        def cell_text(cell) -> str:
+        def parts(cell) -> list[str]:
+            # [id, eq, value, comment]; a missing component is an empty string.
             if cell is None:
-                return ""
+                return ["", "", "", ""]
             if isinstance(cell, (list, tuple, deque)):
-                return _.join(str(part) for part in cell)
-            return str(cell)
+                return ([str(part) for part in cell] + ["", "", "", ""])[:4]
+            return [str(cell), "", "", ""]
 
-        text_rows = [[cell_text(cell) for cell in row] for row in rows]
-        ncols = max((len(row) for row in text_rows), default=0)
+        grid = [[parts(cell) for cell in row] for row in rows]
+        ncols = max((len(row) for row in grid), default=0)
+        # One width per (cell column, component) so identifiers right-align and the
+        # ``=`` signs line up down each column, as in the LaTeX ``aligned`` grid.
         widths = [
-            max((len(row[i]) for row in text_rows if i < len(row)), default=0)
-            for i in range(ncols)
+            [max((len(row[c][k]) for row in grid if c < len(row)), default=0) for k in range(4)]
+            for c in range(ncols)
         ]
-        gap = _ * 4
+        gap = _ * 4  # between cells; wider than the single space before a comment
         lines = []
-        for row in text_rows:
-            padded = [row[i].ljust(widths[i]) for i in range(len(row))]
-            lines.append(gap.join(padded).rstrip())
+        for row in grid:
+            texts = []
+            for c, (ident, eq, val, comment) in enumerate(row):
+                w = widths[c]
+                text = f"{ident.rjust(w[0])}{_}{eq}{_}{val.ljust(w[2])}"
+                if w[3]:
+                    text += f"{_}{comment.ljust(w[3])}"
+                texts.append(text)
+            lines.append(gap.join(texts).rstrip())
         return nl.join(lines)
 
     def format_calc_grid(self, rows: list, base_context: BaseRenderContext) -> str:
@@ -564,6 +572,9 @@ def render_novalue(renderer: BaseRenderer, node: Constant, base_context: BaseRen
 def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext) -> Any:
     context = base_context.current
     fc = context.format_code
+    # bool is an int subclass, so a numeric format code would render True as 1.
+    if isinstance(node.value, bool):
+        return f"{node.value}"
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError): # Format code not implemented / not a scalar
@@ -736,6 +747,10 @@ def render_unary_op(renderer: BR, node: HcUnaryOp, base_context: BaseRenderConte
     # -(-10.423) rather than the ambiguous --10.423.
     operand_pre = OP_PRECEDENCE.get(type(node.operand), float('inf'))
     needs_parens = operand_pre < UNARY_PRECEDENCE
+    # Python's `not` binds looser than a comparison, so `not (a < b)` parses with
+    # no parens in the AST. Re-add them: `not a < b` reads as `(not a) < b`.
+    if isinstance(node.operand, (Compare, HcBoolOp)):
+        needs_parens = True
     if node.symbol in ('-', '+') and rendered.lstrip().startswith(('-', '+')):
         needs_parens = True
     if needs_parens:
@@ -796,19 +811,41 @@ def render_compare(renderer: BR, node: Compare, base_context: BaseRenderContext)
     acc = [renderer.render(elem, base_context) for elem in node.comparison]
     return f"".join(acc)
 
+@BaseRenderer.register('function_call:pre')
+def set_function_call_parens(renderer: BR, node: FunctionCall, base_context: BaseRenderContext) -> FunctionCall:
+    """
+    Default a function call's argument delimiters to the context's lpar/rpar.
+
+    Only fills in a delimiter that is still empty, so a renderer's own
+    'function_call:pre' rule (which runs after this one) remains free to set
+    something else (e.g. LaTeX's ``\\sqrt{...}``).
+    """
+    context = base_context.current
+    if not node.pre:
+        node.pre = context.lpar
+    if not node.post:
+        node.post = context.rpar
+    return node
+
+
 @BaseRenderer.register('function_call')
 def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRenderContext) -> str:
     context = base_context.current
     function_name = renderer.render(node.function_name, base_context)
-    namespace = renderer.render(node.namespace, base_context)
+    # Check for the '__main__' namespace before rendering it: a renderer's
+    # 'name:sym' rules (e.g. subscript swaps) would otherwise mangle the
+    # identifier and the suppression would never match. An empty namespace
+    # (e.g. one a renderer rule has cleared) also renders nothing.
+    if not node.namespace or getattr(node.namespace, 'identifier', None) == '__main__':
+        namespace = ''
+    else:
+        namespace = renderer.render(node.namespace, base_context)
     args = [renderer.render(arg, base_context) for arg in node.args]
     arg_str = f",{context.space}".join(args)
-    if namespace == '__main__':
-        namespace = ''
     if namespace:
-        rendered = f"{namespace}.{function_name}({arg_str})"
+        rendered = f"{namespace}.{function_name}{node.pre}{arg_str}{node.post}"
     else:
-        rendered = f"{function_name}({arg_str})"
+        rendered = f"{function_name}{node.pre}{arg_str}{node.post}"
     return rendered
 
 
@@ -819,7 +856,7 @@ def render_comprehension(renderer: BR, node: Comprehension, base_context: BaseRe
     """
     targets = ", ".join(renderer.render(target, base_context) for target in node.assigns)
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
-    prefix = "async for" if node._is_async else "for"
+    prefix = "async for" if node.is_async else "for"
     return f"{prefix} {targets} in {iterator}"
 
 
@@ -837,7 +874,7 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
     context = base_context.current
     _ = context.space
     try:
-        if node._type == 'dict':
+        if node.comp_type == 'dict':
             key = "".join(renderer.render(part, base_context) for part in node.key)
             value = "".join(renderer.render(part, base_context) for part in node.value)
             head = f"{key}: {value}"
@@ -848,12 +885,12 @@ def render_comprehension_chain(renderer: BR, node: ComprehensionChain, base_cont
     finally:
         base_context.line_context.current_mode = prev_mode
     brackets = {
-        'list': ('[', ']'),
+        'list': ('[',']'),
         'set': ('{', '}'),
         'dict': ('{', '}'),
         'generator': ('(', ')'),
     }
-    opener, closer = brackets.get(node._type, ('[', ']'))
+    opener, closer = brackets.get(node.comp_type, ('[', ']'))
     return f"{opener}{inner}{closer}"
 
 
@@ -868,7 +905,7 @@ def render_comment_command(renderer: BR, node: CommentCommand, base_context: Bas
     # unset flags (e.g. an unset -f) and must not clobber the current context.
     line_break = node.commands.get('line_break', False)
     for key, value in node.commands.items():
-        if key == 'line_break' or value is None:
+        if key in ('line_break', 'params_block') or value is None:
             continue
         setattr(base_context.global_context, key, value)
     if line_break:
@@ -970,6 +1007,17 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
         columns.append(f",{_}".join(result_nodes))
 
+    # Drop a value column that repeats the one before it: a bare reference
+    # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
+    # in more than one column, which would otherwise show as ``= 3 = 3``.
+    has_target = context.mode == 'full' or 'ass' in context.mode
+    head = [columns.popleft()] if has_target and columns else []
+    values: list = []
+    for column in columns:
+        if not values or column != values[-1]:
+            values.append(column)
+    columns = deque(head + values)
+
     # Multi-line ("long") mode: break the one-liner into a grid of rows that all
     # align on the equality sign -- ``target = symbolic`` on the first row, then
     # ``= numeric`` and ``= result`` on their own rows (empty id cell). Only calcs
@@ -978,7 +1026,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     # (result) row, which is typically the shortest.
     multiline = getattr(context, 'multiline', False)
     if multiline and not param_line and len(columns) > 2:
-        eq = context.equality
+        eq = context.assign
         target, *value_cols = columns
         rows = [[target, eq, value_cols[0]]]
         rows += [["", eq, col] for col in value_cols[1:]]
@@ -990,7 +1038,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     components: deque = deque([])
     for idx, column in enumerate(columns):
         if idx > 0:
-            components.append(context.equality)
+            components.append(context.assign)
         components.append(column)
     if comment_render:
         components.append(comment_render)
@@ -1018,9 +1066,10 @@ def render_params_block(renderer: BaseRenderer, node: ParamsBlock, base_context:
     for line in node.lines:
         base_context.line_context.param_line = True
         rendered = renderer.render(line, base_context)
-        # Keep only the id / equality / value components; drop a trailing comment.
+        # Keep the id / equality / value components, plus the line comment for a
+        # ``# hc: -h`` block; a ``;`` block has no place for a comment, so it drops.
         if isinstance(rendered, list):
-            rendered = rendered[:3]
+            rendered = rendered[:4 if node.with_comments else 3]
         cells.append(rendered)
     rows = [cells[k:k + cols] for k in range(0, len(cells), cols)]
     if rows:
@@ -1073,7 +1122,7 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
     components = deque([])
     for idx, column in enumerate(columns):
         if idx > 0:
-            components.append(context.equality)
+            components.append(context.assign)
         components.append(column)
 
     if node.comment is not None:
@@ -1133,7 +1182,7 @@ def render_block_body(
     renderer: BaseRenderer,
     node: HcNode,
     base_context: BaseRenderContext,
-) -> list:
+) -> list[str, list]:
     """
     Render a block as ``[header_string, body_list]``: the header line as a
     string (the first element), followed by the block's body lines gathered
@@ -1148,34 +1197,23 @@ def render_block_body(
     body = [renderer.render(line, base_context) for line in node.lines]
     if isinstance(body[0], str): # Caused by a comment command
         body = [body]
+    header = f"{node.header_pre}{header}{node.header_post}"
+    if node.body_pre:
+        body.insert(0, node.body_pre)
+    if node.body_post:
+        body.append(node.body_post)
     return [header, body]
 
+
 @BaseRenderer.register('comments_block')
-def render_comments_block(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
 @BaseRenderer.register('calcs_block')
-def render_calcs_block(renderer: BaseRenderer, node: CalcsBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
 @BaseRenderer.register('if_block')
-def render_if_block(renderer: BaseRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
-
 @BaseRenderer.register('for_block')
-def render_for_block(renderer: BaseRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
-    return render_block_body(renderer, node, base_context)
-
-
 @BaseRenderer.register('else_block')
-def render_else_block(renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext) -> list:
-    return render_block_body(renderer, node, base_context)
-
-
 @BaseRenderer.register('function_block')
-def render_function_block(renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext) -> list:
+def render_generic_block(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> str:
     return render_block_body(renderer, node, base_context)
+
 
 @BaseRenderer.register('header:comments_block')
 def comments_block_header(renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext) -> Optional[str]:
@@ -1361,13 +1399,21 @@ def infix_binop(
         _ = ""
     render_left = renderer.render_node(left, base_context)
     render_right = renderer.render_node(right, base_context)
-    if lpre < pre:              
+    # A power's base that renders with a leading sign (e.g. b substituted as
+    # -10.423) must be wrapped, otherwise -10.423² reads as -(10.423²).
+    if lpre < pre or (
+        node_type is PowOp and render_left.lstrip().startswith(('-', '+'))
+    ):
         left_portion = f"{lpar}{render_left}{rpar}"
     else:
         left_portion = render_left
 
     right_portion = render_right
-    if rpre <= pre:
+    # A right operand that renders with a leading sign (a negative value
+    # substituted in the numeric column) is wrapped: 7·(-3), not 7·-3.
+    if render_right.lstrip().startswith(('-', '+')):
+        right_portion = f"{lpar}{render_right}{rpar}"
+    elif rpre <= pre:
         if rpre < pre:
             right_portion = f"{lpar}{render_right}{rpar}"
         elif rpre == pre and not commut:

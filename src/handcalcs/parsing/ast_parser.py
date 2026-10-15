@@ -85,7 +85,7 @@ ARITHMETIC_OPS = {
     "Sub": SubOp,
     "Mult": MultOp,
     "Div": DivOp,
-    "Floor": FloorOp,
+    "FloorDiv": FloorOp,
     "Pow": PowOp,
     "Mod": ModuloOp,
 }
@@ -99,7 +99,7 @@ UNARY_OPS = {
 
 COMPARE_OPS = {
     "Eq": EqOp,
-    "Ne": NeqOp,
+    "NotEq": NeqOp,
     "GtE": GtEOp,
     "Gt": GtOp,
     "LtE": LtEOp,
@@ -219,6 +219,9 @@ class AST_Parser:
         standalone comment rows still waiting to be interleaved into a body.
         """
         self.line_comments = {}
+        self._blank_rows = {
+            row for row, text in enumerate(source.splitlines(), start=1) if not text.strip()
+        }
         code_rows = []
         trivia = (
             tokenize.COMMENT,
@@ -273,6 +276,11 @@ class AST_Parser:
         pending = getattr(self, "_pending_comment_rows", deque())
         return bool(pending) and pending[0] < before
 
+    def _blank_between(self, prev: ast.AST, nxt: ast.AST) -> bool:
+        """True if a blank source line separates statement ``prev`` from ``nxt``."""
+        end = getattr(prev, "end_lineno", prev.lineno)
+        return any(row in self._blank_rows for row in range(end + 1, nxt.lineno))
+
     def _parse_body(self, body: list) -> deque:
         """
         Parses a list of statements, interleaving any standalone comment lines
@@ -302,7 +310,27 @@ class AST_Parser:
         while i < n:
             stmt = body[i]
             if hasattr(stmt, "lineno"):
-                out.extend(self._flush_comment_lines(stmt.lineno))
+                flushed = self._flush_comment_lines(stmt.lineno)
+                out.extend(flushed)
+                # A ``# hc: -h`` command directly above opens a params block of
+                # the consecutive single assignments that follow it.
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and flushed
+                    and isinstance(flushed[-1], CommentCommand)
+                    and flushed[-1].commands.get("params_block")
+                ):
+                    run = deque()
+                    while i < n and isinstance(body[i], ast.Assign):
+                        if run and (
+                            self._has_pending_comment_before(body[i].lineno)
+                            or self._blank_between(body[i - 1], body[i])
+                        ):
+                            break
+                        run.append(self.ast_parse(body[i]))
+                        i += 1
+                    out.append(ParamsBlock(lines=run, with_comments=True))
+                    continue
             if is_params_stmt(stmt):
                 run = deque()
                 while i < n and is_params_stmt(body[i]):
@@ -381,7 +409,7 @@ class AST_Parser:
             left = self.ast_parse(node.left)
             op_names = [type(op).__name__ for op in node.ops]
             comparator_names = [self.ast_parse(n) for n in node.comparators]
-            ops = [COMPARE_OPS.get(op_name, op_name) for op_name in op_names]
+            ops = [COMPARE_OPS[op_name]() for op_name in op_names]
             matched = list(zip(ops, comparator_names))
             acc = deque([])
             acc.append(left)
@@ -552,7 +580,7 @@ class AST_Parser:
 
         elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
             comprehension_block = ComprehensionChain(
-                _type=node.__class__.__name__.replace("Comp", "").lower(),
+                comp_type=node.__class__.__name__.replace("Comp", "").lower(),
             )
 
             assigns = deque([])
@@ -572,7 +600,7 @@ class AST_Parser:
                 comp_block = Comprehension(
                     assigns=generator["assigns"],
                     iterator=generator["iterator"],
-                    _is_async=generator["is_async"],
+                    is_async=generator["is_async"],
                 )
                 comp_blocks.append(comp_block)
             comprehension_block.comprehensions = comp_blocks

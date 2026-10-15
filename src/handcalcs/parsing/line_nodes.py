@@ -10,6 +10,8 @@ from .comment_parser import is_comment_command, is_markdown_heading, parse_kwarg
 @dataclass
 class HcLineNode(HcNode):
     level: int = 0
+    pre: str = ""
+    post: str = ""
 
 @dataclass
 class CalcLine(HcLineNode):

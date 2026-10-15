@@ -91,3 +91,9 @@ def test_html_params_table_is_content_sized_and_centered():
     # '=' look over-padded): it is content-sized and centered.
     out = _render_html("f = 1; g = 2; h = 4\n", {"f": 1, "g": 2, "h": 4})
     assert "width:auto;align-self:center;" in out
+
+
+def test_html_params_block_with_comments_adds_comment_cells():
+    out = _render_html("# hc: -h\nx = 3 # one\ny = 4\n", {"x": 3, "y": 4})
+    assert '<td class="hc-param-comment">(one)</td>' in out
+    assert ".hc-param-comment" in out
