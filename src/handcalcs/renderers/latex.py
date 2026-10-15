@@ -201,9 +201,9 @@ MATH_FUNCS = {
     "acos": "\\arccos",
     "atan": "\\arctan",
     "atan2": "\\arctan",
-    "asinh": "\\arcsinh",
-    "acosh": "\\arccosh",
-    "atanh": "\\arctanh",
+    "asinh": "\\operatorname{arcsinh}",
+    "acosh": "\\operatorname{arccosh}",
+    "atanh": "\\operatorname{arctanh}",
 }
 
 

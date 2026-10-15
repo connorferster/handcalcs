@@ -304,6 +304,14 @@ def test_math_functions_drop_namespace():
     assert out[3].startswith("c &= \\sin\\left(x\\right) = \\sin\\left(2.5\\right)")
 
 
+def test_inverse_hyperbolic_functions_are_operatornames():
+    # amsmath has no \arcsinh/\arccosh/\arctanh (nor do MathJax or KaTeX).
+    out = rows("import math\nx = 2.5\na = math.asinh(x)\nb = math.acosh(x)\nc = math.atanh(0.5)\n")
+    assert out[1].startswith("a &= \\operatorname{arcsinh}\\left(x\\right)")
+    assert out[2].startswith("b &= \\operatorname{arccosh}\\left(x\\right)")
+    assert out[3].startswith("c &= \\operatorname{arctanh}\\left(0.5\\right)")
+
+
 def test_user_function_and_method_names():  # 24, 26
     out = rows("def my_func(t):\n    return t\nw = my_func(2)\nacc = []\nacc.append(w)\n")
     assert out[0] == "w &= \\operatorname{my\\_func}\\left(2\\right) = 2"
