@@ -322,8 +322,12 @@ class LatexRenderer(BaseRenderer):
 
     def format_param_grid(self, rows: list, base_context: BRC) -> str:
         """
-        A params grid is its own ``aligned`` group: each ``id = value`` cell is
-        an aligned pair of columns, with a ``\\qquad`` gap between cells.
+        A params grid is its own ``aligned`` group, laid out like the v1 params
+        cell: each ``id = value [comment]`` cell is an ``r l`` column pair and
+        cells are joined by a bare ``&``. As in v1, a thin ``\\;`` after each value
+        is the gap between cells. A comment sits one ``\\;`` after its value (its
+        leading ``\\quad`` is dropped) and a ``\\qquad`` follows it, so the gap to
+        the next assignment is wider than the gap inside a cell.
         """
         context = base_context.current
         _ = context.space
@@ -334,13 +338,18 @@ class LatexRenderer(BaseRenderer):
             while row and row[-1] is None:
                 row.pop()
             cells = []
-            for cell in row:
+            for k, cell in enumerate(row):
                 if cell is None:
                     cells.append("&")
                     continue
-                ident, eq, val = (list(map(str, cell)) + ["", "", ""])[:3]
-                cells.append(f"{ident} &{eq}{_}{val}")
-            lines.append(f"{_}&\\qquad{_}".join(cells))
+                ident, eq, val, *comment = list(map(str, cell)) + ["", "", ""]
+                text = f"{ident} &{eq}{_}{val}{_}\\;"
+                if comment and comment[0]:
+                    text += f"{_}{comment[0].removeprefix(chr(92) + 'quad')}"
+                    if k < len(row) - 1:
+                        text += f"{_}\\qquad"
+                cells.append(text)
+            lines.append(f"{_}&".join(cells))
         return self.math_group(lines)
 
     def format_calc_grid(self, rows: list, base_context: BRC) -> str:

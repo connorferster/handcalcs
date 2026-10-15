@@ -128,10 +128,16 @@ def test_alignment_on_first_assign_only():  # 10
 
 def test_params_grid_is_aligned_and_ragged():  # 12
     assert rows("a = 1; b = 2\nc = 3; d = 4; e = 5; f = 6; g = 7\n") == [
-        "a &= 1 &\\qquad b &= 2 &\\qquad c &= 3",
-        "d &= 4 &\\qquad e &= 5 &\\qquad f &= 6",
-        "g &= 7",
+        "a &= 1 \\; &b &= 2 \\; &c &= 3 \\;",
+        "d &= 4 \\; &e &= 5 \\; &f &= 6 \\;",
+        "g &= 7 \\;",
     ]
+
+
+def test_params_block_command_keeps_comments_until_blank_line():
+    out = rows("# hc: -h\nx = 3 # one\ny = 4 # two\n\nq = 7\n")
+    assert out[0] == "x &= 3 \\; \\text{(one)} \\qquad &y &= 4 \\; \\text{(two)}"
+    assert "q &= 7" in out[1:]
 
 
 def test_multiline_calc_aligns_each_row():  # 13

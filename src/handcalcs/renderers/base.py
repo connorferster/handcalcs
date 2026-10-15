@@ -896,7 +896,7 @@ def render_comment_command(renderer: BR, node: CommentCommand, base_context: Bas
     # unset flags (e.g. an unset -f) and must not clobber the current context.
     line_break = node.commands.get('line_break', False)
     for key, value in node.commands.items():
-        if key == 'line_break' or value is None:
+        if key in ('line_break', 'params_block') or value is None:
             continue
         setattr(base_context.global_context, key, value)
     if line_break:
@@ -1057,9 +1057,10 @@ def render_params_block(renderer: BaseRenderer, node: ParamsBlock, base_context:
     for line in node.lines:
         base_context.line_context.param_line = True
         rendered = renderer.render(line, base_context)
-        # Keep only the id / equality / value components; drop a trailing comment.
+        # Keep the id / equality / value components, plus the line comment for a
+        # ``# hc: -h`` block; a ``;`` block has no place for a comment, so it drops.
         if isinstance(rendered, list):
-            rendered = rendered[:3]
+            rendered = rendered[:4 if node.with_comments else 3]
         cells.append(rendered)
     rows = [cells[k:k + cols] for k in range(0, len(cells), cols)]
     if rows:

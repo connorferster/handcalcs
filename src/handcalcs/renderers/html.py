@@ -92,6 +92,7 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-param-val){"
         "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
+        ".handcalcs :where(.hc-param-comment){text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
         # "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
     )
@@ -165,7 +166,7 @@ class HTMLRenderer(BaseRenderer):
             return []
         return [f'<div class="hc-line">{line}</div>']
 
-    def _cell_tds(self, cell) -> str:
+    def _cell_tds(self, cell, with_comment: bool = False) -> str:
         # Turn an ``["id", "=", "value"]`` triple (or ``None`` padding) into three
         # ``<td>``s -- identifier / ``=`` / value -- so the assignment aligns on its
         # ``=``. Cell components are already rendered HTML (e.g. ``c<sub>x</sub>``),
@@ -177,12 +178,16 @@ class HTMLRenderer(BaseRenderer):
             parts = []
         else:
             parts = [str(cell)]
-        ident, eq, val = (parts + ["", "", ""])[:3]
-        return (
+        ident, eq, val, *rest = parts + ["", "", ""]
+        comment = rest[0] if rest else ""
+        tds = (
             f'<td class="hc-param-id">{ident}</td>'
             f'<td class="hc-param-eq">{eq}</td>'
             f'<td class="hc-param-val">{val}</td>'
         )
+        if with_comment:
+            tds += f'<td class="hc-param-comment">{comment}</td>'
+        return tds
 
     def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
         # Emit a real table instead of the plain-text grid: every cell becomes an
@@ -191,7 +196,7 @@ class HTMLRenderer(BaseRenderer):
         # ``hc-params`` rule) and sizes to its content.
         gap = '<td class="hc-param-gap"></td>'
         body = "".join(
-            f'<tr>{gap.join(self._cell_tds(cell) for cell in row)}</tr>' for row in rows
+            f'<tr>{gap.join(self._cell_tds(cell, True) for cell in row)}</tr>' for row in rows
         )
         return f'<table class="hc-params">{body}</table>'
 
