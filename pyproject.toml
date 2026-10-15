@@ -50,4 +50,5 @@ dev = [
     "black>=25.1.0",
     "rich>=14.2.0",
     "ipykernel>=7.3.0",
+    "reportlab>=5.0.1",
 ]
