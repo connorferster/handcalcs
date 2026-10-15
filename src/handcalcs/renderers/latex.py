@@ -325,12 +325,16 @@ class LatexRenderer(BaseRenderer):
         A params grid is its own ``aligned`` group, laid out like the v1 params
         cell: each ``id = value [comment]`` cell is an ``r l`` column pair and
         cells are joined by a bare ``&``. As in v1, a thin ``\\;`` after each value
-        is the gap between cells. A comment sits one ``\\;`` after its value (its
-        leading ``\\quad`` is dropped) and a ``\\qquad`` follows it, so the gap to
-        the next assignment is wider than the gap inside a cell.
+        is the gap between cells. In a grid with comments, a comment sits one ``\\;``
+        after its value (its leading ``\\quad`` is dropped) and every non-last cell
+        is followed by a ``\\qquad``, so the gap to the next assignment is wider
+        than the gap inside a cell, whether or not that cell has a comment.
         """
-        context = base_context.current
-        _ = context.space
+        _ = base_context.current.space
+        has_comments = any(
+            cell is not None and len(cell) > 3 and str(cell[3])
+            for row in rows for cell in row
+        )
         lines = []
         for row in rows:
             # ``aligned`` allows ragged rows, so trailing padding cells are dropped.
@@ -343,9 +347,12 @@ class LatexRenderer(BaseRenderer):
                     cells.append("&")
                     continue
                 ident, eq, val, *comment = list(map(str, cell)) + ["", "", ""]
-                text = f"{ident} &{eq}{_}{val}{_}\\;"
-                if comment and comment[0]:
-                    text += f"{_}{comment[0].removeprefix(chr(92) + 'quad')}"
+                text = f"{ident} &{eq}{_}{val}"
+                if not has_comments:
+                    text += f"{_}\\;"
+                else:
+                    if comment and comment[0]:
+                        text += f"{_}\\;{_}{comment[0].removeprefix(chr(92) + 'quad')}"
                     if k < len(row) - 1:
                         text += f"{_}\\qquad"
                 cells.append(text)

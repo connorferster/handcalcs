@@ -506,24 +506,33 @@ class BaseRenderer:
         _ = context.space
         nl = context.newline
 
-        def cell_text(cell) -> str:
+        def parts(cell) -> list[str]:
+            # [id, eq, value, comment]; a missing component is an empty string.
             if cell is None:
-                return ""
+                return ["", "", "", ""]
             if isinstance(cell, (list, tuple, deque)):
-                return _.join(str(part) for part in cell)
-            return str(cell)
+                return ([str(part) for part in cell] + ["", "", "", ""])[:4]
+            return [str(cell), "", "", ""]
 
-        text_rows = [[cell_text(cell) for cell in row] for row in rows]
-        ncols = max((len(row) for row in text_rows), default=0)
+        grid = [[parts(cell) for cell in row] for row in rows]
+        ncols = max((len(row) for row in grid), default=0)
+        # One width per (cell column, component) so identifiers right-align and the
+        # ``=`` signs line up down each column, as in the LaTeX ``aligned`` grid.
         widths = [
-            max((len(row[i]) for row in text_rows if i < len(row)), default=0)
-            for i in range(ncols)
+            [max((len(row[c][k]) for row in grid if c < len(row)), default=0) for k in range(4)]
+            for c in range(ncols)
         ]
-        gap = _ * 4
+        gap = _ * 4  # between cells; wider than the single space before a comment
         lines = []
-        for row in text_rows:
-            padded = [row[i].ljust(widths[i]) for i in range(len(row))]
-            lines.append(gap.join(padded).rstrip())
+        for row in grid:
+            texts = []
+            for c, (ident, eq, val, comment) in enumerate(row):
+                w = widths[c]
+                text = f"{ident.rjust(w[0])}{_}{eq}{_}{val.ljust(w[2])}"
+                if w[3]:
+                    text += f"{_}{comment.ljust(w[3])}"
+                texts.append(text)
+            lines.append(gap.join(texts).rstrip())
         return nl.join(lines)
 
     def format_calc_grid(self, rows: list, base_context: BaseRenderContext) -> str:
