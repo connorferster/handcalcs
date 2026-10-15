@@ -332,3 +332,16 @@ def test_user_function_and_method_names():  # 24, 26
 ])
 def test_latex_prose(text, expected):
     assert latex_prose(text) == expected
+
+
+# --- Blocks -------------------------------------------------------------------
+
+@pytest.mark.parametrize("iterable, expected", [
+    ("xs", "\\mathrm{xs}"),
+    ("range(2)", "\\operatorname{range}\\left(2\\right)"),
+    ("[1, 2]", "[1, 2]"),
+    ("(1, 2)", "(1, 2)"),
+])
+def test_for_header_renders_any_iterable(iterable, expected):
+    out = render(f"xs = [1, 2]\nfor i in {iterable}:\n    b = i\n")
+    assert f"Iterating over each $i$ in ${expected}$:" in out

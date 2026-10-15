@@ -339,3 +339,9 @@ def test_inverse_hyperbolic_functions_are_operatornames():
     out = rows("import math\nx = 2.5\na = math.asinh(x)\nb = math.atanh(0.5)\n")
     assert out[1].startswith("a &= \\operatorname{arcsinh}\\left(x\\right)")
     assert out[2].startswith("b &= \\operatorname{arctanh}\\left(0.5\\right)")
+
+
+def test_for_header_renders_call_and_literal_iterables():
+    out = render("for i in range(2):\n    b = i\nfor j in [1, 2]:\n    c = j\n")
+    assert "Iterating over each $i$ in $\\operatorname{range}\\left(2\\right)$:" in out
+    assert "Iterating over each $j$ in $[1, 2]$:" in out

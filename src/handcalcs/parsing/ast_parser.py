@@ -565,16 +565,10 @@ class AST_Parser:
             # "body": nested list of the for loop's body
             for_block.lines.extend(self._parse_body(node.body))
 
-            # "iter": str showing the name of the iteration variable
-            # Assumes the iterator is a simple variable name (ast.Name)
-            # Note: Iterators can be more complex (like function calls or lists)
-            # We'll simplify to just the source code if it's not a simple Name.
-            if isinstance(node.iter, ast.Name):
-                for_block.iterator = deque([self.ast_parse(node.iter)])
-            else:
-                # If it's a more complex expression, we'll try to convert it
-                # into a string representation for simplicity in this rule.
-                for_block.iterator = self.ast_parse(node.iter)
+            # "iter": the iterable as a one-element deque, whatever its kind
+            # (a Name, a call such as range(3), or a literal collection), so
+            # renderers can always read ``iterator[0]``.
+            for_block.iterator = deque([self.ast_parse(node.iter)])
 
             val = self.current_block = for_block
 

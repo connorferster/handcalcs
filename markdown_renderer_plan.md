@@ -345,3 +345,9 @@ and VS Code** using the check notebook.
   links here. **All phases are done.** Open items for the user: check the notebook by eye
   (JupyterLab, VS Code, Colab), the `^` → `\hat{}` choice (Revisit later), and the
   pre-existing `for_block_header` crash on non-Name iterables.
+- 2026-10-15: Fixed the `for_block_header` crash (user request). The cause was in the parser:
+  `ForBlock.iterator` was a one-element deque for a `Name` iterable but the bare node
+  otherwise (a call, list or tuple), and every renderer reads `iterator[0]`. The parser now
+  always wraps the iterable in a deque. LaTeX and Markdown tests cover `range(2)`, `[1, 2]`
+  and `(1, 2)`. The second `ast.For` branch in `ast_parser.py` (~line 612) is unreachable
+  dead code and was left in place.
