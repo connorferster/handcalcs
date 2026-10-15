@@ -15,8 +15,8 @@ the MarkdownRenderer work. Keep the checklist and progress log below up to date.
 - `LatexRenderer` stays a pure LaTeX fragment renderer (decided 2026-10-14, see
   `latex_implementation_plan.md`). Do **not** add Markdown/MathJax concessions to it. Put
   them in `MarkdownRenderer` overrides. The exception is a genuine bug that affects both
-  renderers (see Phase 3, `\arcsinh`). Raise those with the user instead of silently
-  changing LaTeX output or its golden file.
+  renderers. Raise those with the user instead of silently changing LaTeX output or its
+  golden file. The user approved one such fix (Phase 3, `\arcsinh`).
 
 ## How to check progress
 
@@ -46,7 +46,7 @@ displayed through `IPython.display.Markdown`.
 | Import | `\texttt{...}` | `` `import math` `` |
 | Calc group | `\medskip` + `$\displaystyle\begin{aligned}[t]...$` | `$$\begin{aligned} ... \end{aligned}$$` on **one line** |
 | Row separator | ` \\` + newline | ` \\ ` (same line) |
-| Line break (`\n\n` in source) | `\medskip` | dropped (paragraph blank line) |
+| Line break (`\n\n` in source) | `\medskip` | `&nbsp;` spacer paragraph |
 | Nested block body | `\begin{list}...\end{list}` | every line prefixed with `> ` per level |
 | Block header | `Since $...$ is True:` | unchanged (inline `$...$` math) |
 
@@ -121,7 +121,7 @@ and VS Code** using the check notebook.
 
 ### Phase 1: Structural layer (`join_item`, `math_group`, `complete`)
 - [ ] Class tokens: `MATH_OPEN = "$$\\begin{aligned}"`, `MATH_CLOSE = "\\end{aligned}$$"`,
-      `ROW_SEP = " \\\\ "`, `MATH_SKIP = ""`, `PARAGRAPH = ""`, `LINE_BREAK = ""`,
+      `ROW_SEP = " \\\\ "`, `MATH_SKIP = ""`, `PARAGRAPH = ""`, `LINE_BREAK = "&nbsp;"`,
       `BLOCK_PREFIX = "> "`. `BLOCK_OPEN` and `BLOCK_CLOSE` are unused.
 - [ ] Override `math_group(rows)` to return `f"{MATH_OPEN} {ROW_SEP.join(rows)} {MATH_CLOSE}"`,
       a single line with no skips. This also fixes the params grid, which goes through
@@ -130,8 +130,11 @@ and VS Code** using the check notebook.
       single-line. Confirm that `# hc: -m` output has no newline.
 - [ ] Override `paragraph(text)` to return `text` unchanged.
 - [ ] Override `join_item`:
-  - bare string: paragraph + `\n\n`. A whitespace-only string (a line break) becomes `[]`,
-    or `"\n"` if extra spacing is wanted;
+  - bare string: paragraph + `\n\n`. A whitespace-only string (a one-shot line break)
+    becomes a `LINE_BREAK` (`&nbsp;`) spacer paragraph, mirroring `\medskip`. Inside a
+    blockquote it is prefixed like any other line (`> &nbsp;`). The user decided this
+    on 2026-10-15. Check that consecutive breaks don't pile up into large gaps; collapse
+    adjacent spacers to one if they do;
   - CalcsBlock body: `join_math_group` (inherited, uses the new `math_group`);
   - headerless block: body at the same depth (inherited behaviour);
   - `[header, body]`: header paragraph, then `self.quote(self.join_items(body, depth + 1))`;
@@ -183,9 +186,12 @@ and VS Code** using the check notebook.
       dict. **That is a refactor of latex.py with no output change.** Confirm with the
       golden test.
 - [ ] Function names: `\arcsinh`, `\arccosh` and `\arctanh` are not defined in MathJax,
-      KaTeX or amsmath, so they are also a LaTeX bug. Use `\operatorname{arcsinh}` and so on.
-      Ask the user before changing LatexRenderer. Meanwhile make the math-funcs table a
-      class attribute (same refactor as above) and override it in MarkdownRenderer.
+      KaTeX or amsmath, so they are also a LaTeX bug. **Fix in both renderers (user decided
+      2026-10-15):** in `latex.py` map `asinh`/`acosh`/`atanh` to `\operatorname{arcsinh}` etc.
+      MarkdownRenderer inherits the fix. Regenerate `tests/golden/latex_demo.tex` only if the
+      demo uses them, review the diff, and add a focused LaTeX test. Commit this separately
+      from Markdown work. Also make the math-funcs table a class attribute (same refactor as
+      above) so subclasses can override it.
 - [ ] Audit every macro the LaTeX renderer emits for MathJax 3 (default TeX packages) and
       KaTeX support. These are expected to be fine: `\bigl \bigr \frac \sqrt \left \right
       \lfloor \lceil \cdot \times \bmod \le \ge \ne \in \notin \infty \mathrm
@@ -194,18 +200,24 @@ and VS Code** using the check notebook.
       MathJax 3 and KaTeX. Verify `[t]` is not emitted (MATH_OPEN no longer has it).
 
 ### Phase 4: Jupyter default renderer
-- [ ] `interfaces/jupyter.py`: resolve renderers through `get_renderer(name)` instead of the
-      hard-coded `_RENDERERS` dict. If the configured `default_renderer` is `"base"` (the
-      global default, which is unusable for display), fall back to `"markdown"`. This makes
-      MarkdownRenderer the Jupyter default without changing the global config default used
-      by bare `HandCalcs()`.
+- [ ] **New config option `jupyter_renderer` (user decided 2026-10-15).** In `config.py`:
+      `DEFAULTS["jupyter_renderer"] = "markdown"`, add it to `_BASE_OPTION_TYPES` as `str`,
+      and document it in the module docstring next to `default_renderer`.
+      `default_renderer` keeps governing bare `HandCalcs()` only.
+- [ ] `HandCalcs.__init__` (`object_oriented.py`): exclude `jupyter_renderer` from
+      `_context_settings`, as `default_renderer` already is.
+- [ ] `interfaces/jupyter.py`: `%%render` reads `jupyter_renderer` (not `default_renderer`)
+      and resolves the class with `get_renderer(name)` instead of the hard-coded
+      `_RENDERERS` dict. Raise a clear error for an unknown name.
 - [ ] Choose the display class from the renderer: add `display_type` (or a mapping keyed by
       `renderer.name`) with `"markdown" → Markdown`, `"latex" → Latex`, `"html" → HTML`,
       default `Pretty`.
-- [ ] `%hc_default_renderer`: accept `markdown` and update both error messages (they list
-      `('latex', 'html', 'plain_text')`).
-- [ ] Optional, ask the user: `_repr_markdown_` on the object-oriented result so
-      `HandCalcs(...)` output displays itself in notebooks.
+- [ ] `%hc_default_renderer`: set `jupyter_renderer` (it is the Jupyter magic). Accept any
+      registered renderer name that has a display class, `markdown` included. Update both
+      error messages (they hard-code `('latex', 'html', 'plain_text')`).
+- [ ] Tests in `tests/test_config.py`: the default value, type validation, and that the
+      option does not leak into the render context.
+- [ ] ~~`_repr_markdown_` on the object-oriented result~~: not now (user, 2026-10-15).
 
 ### Phase 5: Tests, golden file and check script
 - [ ] `tests/test_markdown_renderer.py`, modelled on `tests/test_latex_renderer.py`:
@@ -226,24 +238,25 @@ and VS Code** using the check notebook.
       and report errors, the counterpart of the pdflatex compile check. Skip with a message
       otherwise.
 - [ ] Jupyter interface test (if IPython is importable): `%%render` with the default config
-      displays a `Markdown` object.
+      displays a `Markdown` object, and `%hc_default_renderer latex` switches it to `Latex`.
+  - line breaks: a blank source line yields exactly one `&nbsp;` paragraph, including inside
+    a blockquote.
 
 ### Phase 6: Docs and wrap-up
 - [ ] Update the docstrings in `markdown.py` (class docstring describes the target format
       and the blockquote rules).
-- [ ] README / docs: MarkdownRenderer is the Jupyter default; `%hc_default_renderer latex`
-      switches back.
+- [ ] README / docs: MarkdownRenderer is the Jupyter default (`jupyter_renderer` config
+      option); `%hc_default_renderer latex` switches it.
 - [ ] Update `latex_implementation_plan.md` cross-reference and the memory note.
 
-## Open questions for the user
-1. Phase 3: fix `\arcsinh`/`\arccosh`/`\arctanh` in LatexRenderer too (they do not compile
-   with pdflatex either), or only in MarkdownRenderer?
-2. Phase 4: is "fall back to markdown when `default_renderer == 'base'`" the right way to
-   make it the Jupyter default, or should there be a separate `jupyter_renderer` config
-   option?
-3. One-shot line breaks (blank lines in the source): drop them (recommended), or emit a
-   spacer such as `&nbsp;`?
+## Decisions (user, 2026-10-15)
+1. `\arcsinh`/`\arccosh`/`\arctanh`: fix in **both** renderers (Phase 3).
+2. Jupyter default: a **new `jupyter_renderer` config option** (default `"markdown"`);
+   `default_renderer` still governs bare `HandCalcs()` (Phase 4).
+3. One-shot line breaks: an **`&nbsp;` spacer paragraph** (Phase 1).
+4. `_repr_markdown_` on the object-oriented interface: **not now**.
 
 ## Progress log
 - 2026-10-15: Explored the user's draft `markdown.py` (a copy of `latex.py`) and the demo
   output. Wrote this plan.
+- 2026-10-15: Recorded the user's answers to the open questions (see Decisions).
