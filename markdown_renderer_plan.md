@@ -226,7 +226,7 @@ and VS Code** using the check notebook.
 - [x] ~~`_repr_markdown_` on the object-oriented result~~: not now (user, 2026-10-15).
 
 ### Phase 5: Tests, golden file and check script
-- [ ] `tests/test_markdown_renderer.py`, modelled on `tests/test_latex_renderer.py`:
+- [x] `tests/test_markdown_renderer.py`, modelled on `tests/test_latex_renderer.py`:
   - golden demo comparison, section by section, against `tests/golden/markdown_demo.md`
     (`HANDCALCS_UPDATE_GOLDEN=1` to regenerate);
   - no LaTeX text-mode leakage anywhere in the output: `\medskip`, `\noindent`,
@@ -238,7 +238,7 @@ and VS Code** using the check notebook.
     `{ } $ % \ ^`; string constants with quotes;
   - `\lt`/`\gt` used for comparisons; no `\arcsinh`-style undefined macros;
   - LatexRenderer output unchanged (its golden test already guards this).
-- [ ] `scripts/markdown_demo_check.py`: print the demo Markdown and write
+- [x] `scripts/markdown_demo_check.py`: print the demo Markdown and write
       `markdown_demo.ipynb` (one Markdown cell, plus a code cell using `%%render` for a live
       check). If `node` and `mathjax-full` are available, also typeset every math fragment
       and report errors, the counterpart of the pdflatex compile check. Skip with a message
@@ -246,8 +246,8 @@ and VS Code** using the check notebook.
 - [x] Jupyter interface test (if IPython is importable): `%%render` with the default config
       displays a `Markdown` object, and `%hc_default_renderer latex` switches it to `Latex`.
       (Done in Phase 4: `tests/test_jupyter.py`.)
-  - line breaks: a blank source line yields exactly one `&nbsp;` paragraph, including inside
-    a blockquote.
+  - [x] line breaks: a `# hc: -b` line yields exactly one `&nbsp;` paragraph, including inside
+    a blockquote. (A blank source line inside a calc run yields no spacer, as in LaTeX.)
 
 ### Phase 6: Docs and wrap-up
 - [ ] Update the docstrings in `markdown.py` (class docstring describes the target format
@@ -326,3 +326,14 @@ and VS Code** using the check notebook.
     registered name and sets `jupyter_renderer` only.
   - `tests/test_jupyter.py` runs the magics in a real IPython `InteractiveShell` (4 tests).
     `tests/test_config.py` covers the new option. 354 tests pass. Next: Phase 5.
+- 2026-10-15: Phase 5 done. `tests/test_markdown_renderer.py` (69 tests): a golden demo
+  compared section by section (`tests/golden/markdown_demo.md`), leak checks, one-line `$$`,
+  markdown-it nesting depths (the demo and the 2 → 1 → 0 lazy-continuation case), spacers,
+  prose and math-text escaping, `\lt`/`\gt`, and inverse hyperbolic functions. Also
+  `test_math_typesets_with_katex` (the demo plus a stress source), which reuses the check
+  script and is skipped unless `HANDCALCS_KATEX_JS` is set and mini-racer is installed. It
+  passes, and a negative control confirms it catches errors. The check script already
+  existed from Phase 1/3; the MathJax/node variant was not added (KaTeX is the stricter
+  proxy). 421 tests pass. Still open for the user: the by-eye notebook check, and the
+  `for i in range(2)` / `for i in [1, 2]` crash in `for_block_header` (pre-existing,
+  LaTeX too). Next: Phase 6 (docs).
