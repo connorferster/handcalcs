@@ -28,6 +28,7 @@ def isolated_config(tmp_path, monkeypatch):
 
 def test_defaults_present_when_no_file(isolated_config):
     assert config.get_option("default_renderer") == "base"
+    assert config.get_option("jupyter_renderer") == "markdown"
     assert config.get_option("format_code") == ".5g"
     # Nothing is written to disk until save_config() is called.
     assert not isolated_config.exists()
@@ -54,6 +55,8 @@ def test_set_option_type_guard_on_base_option(isolated_config):
         config.set_option("format_code", 5)
     with pytest.raises(ValueError):
         config.set_option("default_renderer", 123)
+    with pytest.raises(ValueError):
+        config.set_option("jupyter_renderer", 123)
 
 
 # --- save / load round trip -------------------------------------------------
@@ -143,5 +146,6 @@ def test_custom_setting_reaches_render_context(isolated_config):
     hc = HandCalcs()
     ctx = hc.renderer.create_context(**hc._context_settings)
     assert ctx.current.my_custom_setting == 99
-    # 'default_renderer' is not threaded onto the context.
+    # The renderer-selection options are not threaded onto the context.
     assert not hasattr(ctx.current, "default_renderer")
+    assert not hasattr(ctx.current, "jupyter_renderer")

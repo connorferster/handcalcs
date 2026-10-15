@@ -37,6 +37,30 @@ Displays:
 
 ![Basic output from render cell magic](../images/render.png)
 
+## Choosing the output format (handcalcs v2)
+
+In handcalcs v2, `import handcalcs` registers the `%%render` cell magic. By default,
+`%%render` uses the `markdown` renderer. It shows the calculation as Markdown with LaTeX
+math, which JupyterLab, Notebook 7, VS Code and Colab typeset with MathJax or KaTeX.
+Each nested `if`/`for` block is indented as a blockquote.
+
+To switch renderers for the rest of the session, use the `%hc_default_renderer` line magic:
+
+```python
+%hc_default_renderer latex
+```
+
+Any registered renderer name works (`markdown`, `latex`, `html`, `plain_text`, or a custom
+renderer that has been defined). This sets the `jupyter_renderer` config option, which
+is used only by `%%render`. A bare `HandCalcs()` still uses `default_renderer`. To keep the
+choice permanently:
+
+```python
+import handcalcs
+handcalcs.set_option("jupyter_renderer", "latex")
+handcalcs.save_config()
+```
+
 ## Using `%%tex`
 
 Instead of rendering the Latex code and displaying it, the `%%tex` cell magic prints the Latex code that can be copy/pasted into another Latex document.

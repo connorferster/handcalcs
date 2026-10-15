@@ -6,9 +6,11 @@ bare ``HandCalcs()`` behaves the way they prefer. The configuration is a JSON fi
 stored in the per-user config location for the operating system (resolved by
 ``platformdirs``), e.g. ``~/.config/handcalcs/hc_config.json`` on Linux.
 
-Two base options are recognised:
+Three base options are recognised:
 
 - ``default_renderer``: the ``name`` of the renderer a bare ``HandCalcs()`` uses.
+- ``jupyter_renderer``: the ``name`` of the renderer the ``%%render`` cell magic
+  uses (set it for the session with ``%hc_default_renderer``).
 - ``format_code``: the default float format code used for all values, unless a
   comment command (e.g. ``# hc: -f .3g``) overrides it for a line/block.
 
@@ -33,19 +35,26 @@ from typing import Any
 import platformdirs
 
 # Built-in defaults. These mirror the implicit v2 defaults: a bare HandCalcs() uses
-# the 'base' renderer and RenderContext's format_code defaults to '.5g'.
+# the 'base' renderer and RenderContext's format_code defaults to '.5g'. In Jupyter,
+# %%render shows Markdown prose with LaTeX math, which the front-end typesets.
 DEFAULTS: dict[str, Any] = {
     "default_renderer": "base",
+    "jupyter_renderer": "markdown",
     "format_code": ".5g",
 }
 
-# The base options whose value type is validated by set_option (both strings).
+# The base options whose value type is validated by set_option (all strings).
 # Any other option name is accepted with any value so that custom renderers can
 # store arbitrary session-dependent settings.
 _BASE_OPTION_TYPES: dict[str, type] = {
     "default_renderer": str,
+    "jupyter_renderer": str,
     "format_code": str,
 }
+
+# The options that choose a renderer (rather than configure rendering); they are
+# not threaded onto the render context.
+RENDERER_OPTIONS = frozenset({"default_renderer", "jupyter_renderer"})
 
 # Environment variable that overrides the config file location (used by tests and
 # power users who want a project-local config).
