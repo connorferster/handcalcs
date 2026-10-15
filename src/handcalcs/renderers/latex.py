@@ -166,6 +166,47 @@ def latex_identifier(identifier: str) -> str:
 
 
 
+# The LaTeX symbol of each operator node type (see ``swap_operator_symbols``).
+OPERATOR_SYMBOLS = {
+    'mult_op': '\\cdot',
+    'add_op': '+',
+    'sub_op': '-',
+    'modulo_op': '\\bmod',
+    'lt_op': ' < ',
+    'gt_op': ' > ',
+    'lte_op': ' \\le ',
+    'gte_op': ' \\ge ',
+    'eq_op': ' == ',
+    'neq_op': ' \\ne ',
+    'in_op': ' \\in ',
+    'not_in_op': ' \\notin ',
+    'is_op': ' \\;\\mathrm{is}\\; ',
+    'is_not_op': ' \\;\\mathrm{is\\ not}\\; ',
+    'and_op': '\\;\\mathrm{and}\\;',
+    'or_op': '\\;\\mathrm{or}\\;',
+}
+
+
+# Python math functions typeset as LaTeX operators (see ``swap_func_symbols``).
+MATH_FUNCS = {
+    "sin": "\\sin",
+    "cos": "\\cos",
+    "tan": "\\tan",
+    "sqrt": "\\sqrt",
+    "exp": "\\exp",
+    "sinh": "\\sinh",
+    "tanh": "\\tanh",
+    "cosh": "\\cosh",
+    "asin": "\\arcsin",
+    "acos": "\\arccos",
+    "atan": "\\arctan",
+    "atan2": "\\arctan",
+    "asinh": "\\arcsinh",
+    "acosh": "\\arccosh",
+    "atanh": "\\arctanh",
+}
+
+
 class LatexRenderer(BaseRenderer):
     """
     Renders a HandCalcs sequence as a LaTeX fragment (requires amsmath) that can
@@ -201,6 +242,9 @@ class LatexRenderer(BaseRenderer):
     COMMENT_CLOSE = ")}"
     EDGE_ITEMS = 3
     HEADINGS = ("section*", "subsection*", "subsubsection*", "paragraph*")
+    # Symbol tables used by the swap rules; override in a subclass to change them.
+    OPERATOR_SYMBOLS = OPERATOR_SYMBOLS
+    MATH_FUNCS = MATH_FUNCS
 
     def create_context(
         self,
@@ -513,24 +557,6 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     return f"{namespace}.{identifier}"
 
 
-OPERATOR_SYMBOLS = {
-    'mult_op': '\\cdot',
-    'add_op': '+',
-    'sub_op': '-',
-    'modulo_op': '\\bmod',
-    'lt_op': ' < ',
-    'gt_op': ' > ',
-    'lte_op': ' \\le ',
-    'gte_op': ' \\ge ',
-    'eq_op': ' == ',
-    'neq_op': ' \\ne ',
-    'in_op': ' \\in ',
-    'not_in_op': ' \\notin ',
-    'is_op': ' \\;\\mathrm{is}\\; ',
-    'is_not_op': ' \\;\\mathrm{is\\ not}\\; ',
-    'and_op': '\\;\\mathrm{and}\\;',
-    'or_op': '\\;\\mathrm{or}\\;',
-}
 
 
 @LR.register("mult_op:pre")
@@ -558,7 +584,7 @@ def swap_operator_symbols(renderer: LR, node: HcNode, base_context: BRC) -> HcNo
     membership symbols carry their own spacing because Compare joins its parts
     with no separator.
     """
-    node.symbol = OPERATOR_SYMBOLS[node.type]
+    node.symbol = renderer.OPERATOR_SYMBOLS[node.type]
     return node
 
 
@@ -734,23 +760,6 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
-    latex_math_funcs = {
-        "sin": "\\sin",
-        "cos": "\\cos",
-        "tan": "\\tan",
-        "sqrt": "\\sqrt",
-        "exp": "\\exp",
-        "sinh": "\\sinh",
-        "tanh": "\\tanh",
-        "cosh": "\\cosh",
-        "asin": "\\arcsin",
-        "acos": "\\arccos",
-        "atan": "\\arctan",
-        "atan2": "\\arctan",
-        "asinh": "\\arcsinh",
-        "acosh": "\\arccosh",
-        "atanh": "\\arctanh",
-    }
     # This rule runs on both the symbolic and numeric passes over the same node.
     # A name that has already been swapped (a LaTeX command, or emptied for
     # floor/ceil) must be left alone so the second pass does not re-wrap it.
@@ -778,9 +787,9 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         node.function_name.value = ''
         node.pre = '\\lceil '
         node.post = '\\rceil'
-    elif node.function_name.identifier in latex_math_funcs:
+    elif node.function_name.identifier in renderer.MATH_FUNCS:
         func_identifier = node.function_name.identifier
-        latex_func_name = latex_math_funcs.get(func_identifier)
+        latex_func_name = renderer.MATH_FUNCS[func_identifier]
         node.function_name.identifier = latex_func_name
         node.function_name.value = latex_func_name
     else:
