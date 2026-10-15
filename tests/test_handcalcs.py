@@ -63,3 +63,21 @@ area = circle_area(2 * radius)
         "radius = 5\n"
         "area = circle_area(2 * radius) = circle_area(2 * 5) = 78.54\n"
     )
+
+
+import pytest
+from handcalcs.renderers import get_renderer
+
+
+@pytest.mark.parametrize("renderer", ["base", "plain_text", "html", "latex", "markdown"])
+def test_non_numeric_values_ignore_format_code(renderer):
+    # date.__format__ passes the spec to strftime, so applying the default
+    # '.5g' format code would render the code itself instead of the date.
+    source = (
+        "import datetime\nd = datetime.date(2020, 1, 2) # hc: -f .3f\n"
+        "e = datetime.date(2021, 3, 4)\nx = 3.14159265\n"
+    )
+    out = str(HandCalcs(renderer=get_renderer(renderer)())(source))
+    assert "2020-01-02" in out and "2021-03-04" in out
+    assert ".3f" not in out and ".5g" not in out
+    assert "3.1416" in out

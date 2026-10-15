@@ -1,4 +1,5 @@
 from __future__ import annotations
+import datetime
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
@@ -574,6 +575,10 @@ def render_constant(renderer: BaseRenderer, node: Constant, base_context: BaseRe
     fc = context.format_code
     # bool is an int subclass, so a numeric format code would render True as 1.
     if isinstance(node.value, bool):
+        return f"{node.value}"
+    # Dates and times pass a format spec to strftime, so a number format code
+    # such as '.5g' would render literally instead of the value.
+    if isinstance(node.value, (datetime.date, datetime.time)):
         return f"{node.value}"
     try:
         return f"{node.value:{fc}}"
