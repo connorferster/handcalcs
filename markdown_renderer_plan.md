@@ -258,6 +258,14 @@ and VS Code** using the check notebook.
 3. One-shot line breaks: an **`&nbsp;` spacer paragraph** (Phase 1).
 4. `_repr_markdown_` on the object-oriented interface: **not now**.
 
+## Revisit later (user, 2026-10-15)
+- **`^` inside math text:** `math_text` emits `^` as `\hat{}` (e.g. a comment
+  `mm^4` becomes `\text{mm}\hat{}\text{4}`), which draws an accent over nothing. Only
+  this form worked in both MathJax and KaTeX without extensions. Come back once the
+  notebook has been checked by eye: alternatives are `\wedge`, `{}^\wedge`, `\char"5E`
+  (KaTeX only), or reading `^n` in comments as a real superscript (`\text{mm}^{4}`).
+  The table is `MATH_TEXT_SPECIAL` in `renderers/markdown.py`.
+
 ## Progress log
 - 2026-10-15: Explored the user's draft `markdown.py` (a copy of `latex.py`) and the demo
   output. Wrote this plan.
