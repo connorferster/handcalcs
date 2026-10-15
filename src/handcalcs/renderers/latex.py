@@ -391,6 +391,11 @@ def render_import(renderer: LR, node: Import, base_context: BRC) -> str:
     """
     An import renders as a single typewriter line of the Python source.
     """
+    return f"\\texttt{{{latex_escape(import_source(node))}}}"
+
+
+def import_source(node: Import) -> str:
+    """The Python source of an import statement, rebuilt from its node."""
     names = ", ".join(
         f"{name.identifier} as {name.value}" if name.value is not None
         else f"{name.identifier}"
@@ -402,7 +407,7 @@ def render_import(renderer: LR, node: Import, base_context: BRC) -> str:
         source = f"from {dots}{module} import {names}"
     else:
         source = f"import {names}"
-    return f"\\texttt{{{latex_escape(source)}}}"
+    return source
 
 
 @LR.register("header:if_block")

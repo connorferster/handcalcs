@@ -110,13 +110,13 @@ and VS Code** using the check notebook.
 ## Plan
 
 ### Phase 0: Slim the draft to a true subclass
-- [ ] Commit the user's wiring changes (`__init__.py`, `jupyter.py`) together with the plan.
-- [ ] Rewrite `renderers/markdown.py` to import from `latex.py` (`LatexRenderer`,
+- [x] Commit the user's wiring changes (`__init__.py`, `jupyter.py`) together with the plan.
+- [x] Rewrite `renderers/markdown.py` to import from `latex.py` (`LatexRenderer`,
       `latex_escape`, `latex_identifier`, `OPERATOR_SYMBOLS`, ...). Keep only:
       the class with overridden tokens and methods, the heading, comment_line, import and
       inline_comment handlers, and any Phase 2–3 overrides. Drop all copied rules and
       handlers that are identical to LaTeX.
-- [ ] Check that the demo still renders. Check that LaTeX output is unchanged:
+- [x] Check that the demo still renders. Check that LaTeX output is unchanged:
       `uv run pytest tests/test_latex_renderer.py`.
 
 ### Phase 1: Structural layer (`join_item`, `math_group`, `complete`)
@@ -212,7 +212,8 @@ and VS Code** using the check notebook.
 - [ ] Choose the display class from the renderer: add `display_type` (or a mapping keyed by
       `renderer.name`) with `"markdown" → Markdown`, `"latex" → Latex`, `"html" → HTML`,
       default `Pretty`.
-- [ ] `%hc_default_renderer`: set `jupyter_renderer` (it is the Jupyter magic). Accept any
+- [ ] `%hc_default_renderer`: set `jupyter_renderer` **only** (user confirmed 2026-10-15; it no
+      longer touches `default_renderer`). Accept any
       registered renderer name that has a display class, `markdown` included. Update both
       error messages (they hard-code `('latex', 'html', 'plain_text')`).
 - [ ] Tests in `tests/test_config.py`: the default value, type validation, and that the
@@ -252,7 +253,8 @@ and VS Code** using the check notebook.
 ## Decisions (user, 2026-10-15)
 1. `\arcsinh`/`\arccosh`/`\arctanh`: fix in **both** renderers (Phase 3).
 2. Jupyter default: a **new `jupyter_renderer` config option** (default `"markdown"`);
-   `default_renderer` still governs bare `HandCalcs()` (Phase 4).
+   `default_renderer` still governs bare `HandCalcs()` (Phase 4). `%hc_default_renderer`
+   sets `jupyter_renderer` only.
 3. One-shot line breaks: an **`&nbsp;` spacer paragraph** (Phase 1).
 4. `_repr_markdown_` on the object-oriented interface: **not now**.
 
@@ -260,3 +262,7 @@ and VS Code** using the check notebook.
 - 2026-10-15: Explored the user's draft `markdown.py` (a copy of `latex.py`) and the demo
   output. Wrote this plan.
 - 2026-10-15: Recorded the user's answers to the open questions (see Decisions).
+- 2026-10-15: Phase 0 done. `markdown.py` is now a ~50-line subclass (tokens, `paragraph`, and
+  the heading, comment_line and import handlers). `latex.py` gained an `import_source(node)`
+  helper shared by both import handlers (no LaTeX output change). Demo output is
+  byte-identical to the draft's, and all 349 tests pass. Next: Phase 1.
