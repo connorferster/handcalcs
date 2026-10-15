@@ -1,7 +1,11 @@
+import re
+
 from handcalcs.renderers.base import BaseRenderContext
 from handcalcs.renderers.latex import LatexRenderer, import_source
 
 # Node type imports only used for typing
+from handcalcs.parsing.nodes import Constant
+from handcalcs.parsing.inline_nodes import InlineComment
 from handcalcs.parsing.line_nodes import (
     Import,
     Heading,
@@ -9,6 +13,97 @@ from handcalcs.parsing.line_nodes import (
 )
 
 BRC = BaseRenderContext
+
+
+# Markdown punctuation that can change meaning anywhere in a line. CommonMark
+# allows a backslash before any ASCII punctuation, so over-escaping is harmless.
+# '$' is included because Jupyter front-ends read a bare '$' in prose as math.
+MARKDOWN_SPECIAL = set("\\*_[]<>#|~$&")
+# Line starts that open a list, thematic break or setext underline.
+MARKDOWN_LINE_START = re.compile(r"^(\d+)([.)])|^([-+=])")
+
+
+def markdown_escape(text: str) -> str:
+    """Backslash-escape the Markdown specials in a plain-text string."""
+    return "".join(f"\\{char}" if char in MARKDOWN_SPECIAL else char for char in text)
+
+
+def markdown_prose(text: str) -> str:
+    """
+    Escape a comment written as prose (headings, comment paragraphs) for
+    Markdown. A pair of backticks is a code span already, so it passes through
+    untouched; an unpaired backtick is escaped. A leading list marker, rule or
+    setext underline character is escaped so a comment cannot become one.
+    """
+    segments = text.split("`")
+    unpaired = ""
+    if len(segments) % 2 == 0:
+        unpaired = f"\\`{markdown_escape(segments.pop())}"
+    escaped = [
+        segment if idx % 2 else markdown_escape(segment)
+        for idx, segment in enumerate(segments)
+    ]
+    prose = "`".join(escaped) + unpaired
+    return MARKDOWN_LINE_START.sub(
+        lambda m: f"{m[1]}\\{m[2]}" if m[1] else f"\\{m[3]}", prose, count=1
+    )
+
+
+# Characters that cannot appear raw inside ``\text{}`` in both MathJax 3 and
+# KaTeX (KaTeX reads '%' as a comment, '&' as a column break, and rejects '^',
+# '_' and '#' in text mode; MathJax has no text-mode \textasciicircum etc.).
+# Each is emitted in math mode between ``\text{}`` runs instead. '<' and '>'
+# are included so the raw Markdown never holds something that looks like an
+# HTML tag.
+MATH_TEXT_SPECIAL = {
+    "\\": "\\backslash ",
+    "{": "\\{",
+    "}": "\\}",
+    "$": "\\$",
+    "%": "\\%",
+    "&": "\\&",
+    "#": "\\#",
+    "_": "\\_",
+    "^": "\\hat{}",
+    "~": "\\tilde{}",
+    "<": "\\lt ",
+    ">": "\\gt ",
+}
+
+
+def math_text(text: str, wrapper: str = "\\text") -> str:
+    """
+    Typeset plain text inside math: runs of ordinary characters become
+    ``\\text{...}`` (or ``wrapper``) groups and each special character its
+    math-mode symbol, e.g. ``mm^4`` -> ``\\text{mm}\\hat{}\\text{4}``.
+    """
+    pieces, run = [], []
+    for char in text:
+        if char in MATH_TEXT_SPECIAL:
+            if run:
+                pieces.append(f"{wrapper}{{{''.join(run)}}}")
+                run = []
+            pieces.append(MATH_TEXT_SPECIAL[char])
+        else:
+            run.append(char)
+    if run:
+        pieces.append(f"{wrapper}{{{''.join(run)}}}")
+    return "".join(pieces).rstrip()
+
+
+def math_prose(text: str) -> str:
+    """
+    ``math_text`` for a comment written as prose: a pair of backticks becomes
+    ``\\texttt{}`` (its content still escaped); an unpaired backtick is kept.
+    """
+    segments = text.split("`")
+    if len(segments) % 2 == 0:
+        segments[-2:] = [f"{segments[-2]}`{segments[-1]}"]
+    return "".join(
+        math_text(segment, "\\texttt" if idx % 2 else "\\text")
+        for idx, segment in enumerate(segments)
+        if segment
+    )
 
 
 class MarkdownRenderer(LatexRenderer):
@@ -89,15 +184,39 @@ MR = MarkdownRenderer
 
 @MR.register('heading')
 def render_heading(renderer: MR, node: Heading, base_context: BRC) -> str:
-    return f"{'#' * node.heading_level} {node.content}"
+    level = min(node.heading_level, 6)
+    return f"{'#' * level} {markdown_prose(node.content)}"
 
 
 @MR.register('comment_line')
 def render_comment_line(renderer: MR, node: CommentLine, base_context: BRC) -> str:
-    return node.content
+    return markdown_prose(node.content)
 
 
 @MR.register('import')
 def render_import(renderer: MR, node: Import, base_context: BRC) -> str:
     """An import renders as a single code span of the Python source."""
     return f"`{import_source(node)}`"
+
+
+## MATH-MODE TEXT
+
+@MR.register('inline_comment')
+def render_inline_comment(renderer: MR, node: InlineComment, base_context: BRC) -> str:
+    """
+    ``\\quad`` + the parenthesised comment as math text. It still starts with
+    COMMENT_OPEN, which ``join_math_row`` and ``format_param_grid`` look for.
+    """
+    return f"\\quad{math_prose(f'({node.content})')}"
+
+
+@MR.register('constant')
+def render_constant(renderer: MR, node: Constant, base_context: BRC) -> str:
+    """
+    A string is shown in straight double quotes as math text (MathJax does not
+    turn TeX's ``\\`\\``...``''`` into curly quotes); other constants render
+    as in LaTeX.
+    """
+    if isinstance(node.value, str):
+        return math_text(f'"{node.value}"')
+    return LatexRenderer.node_handlers['constant'](renderer, node, base_context)

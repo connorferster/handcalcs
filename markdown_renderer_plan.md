@@ -152,15 +152,15 @@ and VS Code** using the check notebook.
       user can eyeball JupyterLab and VS Code rendering of the one-line `$$` in blockquotes.
 
 ### Phase 2: Text escaping (prose vs. text-in-math)
-- [ ] `markdown_prose(text)` for headings, comment lines and comment paragraphs. Backtick
+- [x] `markdown_prose(text)` for headings, comment lines and comment paragraphs. Backtick
       pairs pass through as code spans (Markdown-native, so no `\texttt`). Outside code
       spans, backslash-escape the Markdown specials that change meaning mid-line:
       `\ * _ [ ] < > # | ~`, plus `$` (escaped `\$`, or prose with a dollar sign becomes
       math in Jupyter). Leave `.`, `-`, `+`, `!` and `(`/`)` alone; they only matter at
       line start. A leading `#`/`-`/`+`/`1.` is escaped only at the start of a paragraph.
       Quotes are left as typed (no TeX `` `` ''`` conversion).
-- [ ] Heading: `"#" * min(level, 6) + " " + markdown_prose(content)`. Strip a trailing `#`.
-- [ ] `math_text(text)` for content placed inside `\text{...}` in math (inline comments and
+- [x] Heading: `"#" * min(level, 6) + " " + markdown_prose(content)`. Strip a trailing `#`.
+- [x] `math_text(text)` for content placed inside `\text{...}` in math (inline comments and
       string constants). MathJax 3 and KaTeX treat `\text` content literally except
       `\ { } $` (and `%` in KaTeX). Escape `{`→`\{`, `}`→`\}`, `$`→`\$`, `%`→`\%`, and
       `\`→`\backslash` (wrapped as `$\backslash$` inside text, or split the `\text`). Do
@@ -168,11 +168,11 @@ and VS Code** using the check notebook.
       `&` and `#` are fine literally in MathJax `\text` (verify `&` and `#` in KaTeX). Backtick
       pairs inside comments: drop the backticks or use `\texttt{}` (KaTeX and MathJax both
       support `\texttt` in math).
-- [ ] Inline comment handler: `COMMENT_OPEN + math_text(content) + COMMENT_CLOSE`.
-- [ ] String constant: override the `constant` handler. Strings become
+- [x] Inline comment handler: `COMMENT_OPEN + math_text(content) + COMMENT_CLOSE`.
+- [x] String constant: override the `constant` handler. Strings become
       `\text{"value"}` (straight quotes, `math_text`-escaped). Delegate other types to
       the LaTeX handler (`LR.node_handlers['constant']`).
-- [ ] Block headers (`Since $...$ is True:`, `Iterating over each $x$ in $X$:`,
+- [x] Block headers (`Since $...$ is True:`, `Iterating over each $x$ in $X$:`,
       `Evaluating $f(x)$:`) are already Markdown + inline math. Check the long
       `if` condition still renders (inline `$` may not wrap in narrow cells, which is
       acceptable).
@@ -280,3 +280,12 @@ and VS Code** using the check notebook.
     (`node.iterator[0]` on a `List` node). Not fixed; raise with the user.
   - **Still to check by eye:** the user should open the notebook in JupyterLab and VS Code to
     confirm one-line `$$` inside `> >` renders. Next: Phase 2 (escaping).
+- 2026-10-15: Phase 2 done. `markdown_prose` handles headings and comment lines (Markdown
+  escapes, code spans kept, unpaired backtick escaped, leading `-`/`+`/`=`/`1.` escaped).
+  `math_text`/`math_prose` handle inline comments and string constants. Specials are never
+  put raw inside `\text{}`: they are emitted as math-mode symbols between `\text{}` runs
+  (`\%`, `\&`, `\$`, `\#`, `\_`, `\{`, `\}`, `\backslash`, `\hat{}`, `\tilde{}`,
+  `\lt`, `\gt`), because KaTeX treats `%` as a comment and `&` as a column break.
+  Backtick pairs in comments become `\texttt{}`. String constants are `\text{"steel"}`.
+  **Check by eye:** `mm^4` renders as `\text{mm}\hat{}\text{4}` (an accent over nothing).
+  Swap it if it looks poor in Jupyter.
