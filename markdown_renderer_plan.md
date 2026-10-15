@@ -351,3 +351,5 @@ and VS Code** using the check notebook.
   always wraps the iterable in a deque. LaTeX and Markdown tests cover `range(2)`, `[1, 2]`
   and `(1, 2)`. The second `ast.For` branch in `ast_parser.py` (~line 612) is unreachable
   dead code and was left in place.
+- 2026-10-15: Removed the unreachable second `ast.For` branch from `ast_parser.py` (user
+  request), along with the `Dict`/`Any` imports that only it used.

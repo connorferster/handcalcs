@@ -10,7 +10,7 @@ import pathlib
 from dataclasses import dataclass, field
 import inspect
 import tokenize
-from typing import List, Dict, Union, Any, Optional, Callable
+from typing import List, Union, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap, Counter
 from .nodes import (
@@ -609,36 +609,6 @@ class AST_Parser:
                 "is_async": bool(node.is_async),
             }
             val = comp
-
-        elif isinstance(node, ast.For):
-            for_block = ForBlock()
-            # A dictionary is created within the list
-            for_dict: Dict[str, Any] = {}
-
-            # "target": str of the assigned target
-            # Assumes the target is a simple variable name (ast.Name)
-            if isinstance(node.target, ast.Name):
-                for_block.assigns.append(node.target.id)
-            else:
-                print(f"ForBlock, alternate target: {node.target=}")
-
-            # "body": nested list of the for loop's body
-            for_block.lines.extend(
-                deque([self.ast_parse(item) for item in node.body])
-            )
-
-            # "iter": str showing the name of the iteration variable
-            # Assumes the iterator is a simple variable name (ast.Name)
-            # Note: Iterators can be more complex (like function calls or lists)
-            # We'll simplify to just the source code if it's not a simple Name.
-            if isinstance(node.iter, ast.Name):
-                for_block.iterator = deque([node.iter.id])
-            else:
-                # If it's a more complex expression, we'll try to convert it
-                # into a string representation for simplicity in this rule.
-                for_block.iterator = self.ast_parse(node.iter)
-
-            val = self.current_block = for_block
 
         # elif isinstance(node, ast.Comment):
         #     if new_line:
