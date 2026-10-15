@@ -295,3 +295,18 @@ Re-run the demo after each one and paste a snippet into the progress log below.
   - Remaining overfull (5): the `x_1`/`x_2` group at 12.7pt; `M_u -m` at 95pt (its numeric row alone is too wide); the one-line `M_u` at 366pt (deliberate);
     nested `value_computed` at 75pt; and the logic block at 38.6pt (the `material_ok`/`material_missing` rows are long without comments).
     Next candidates: step 3 (opt-in capped scale-to-fit) for the small ones, and auto `-m` or TeX-chosen layout for the rest.
+- 2026-10-15 (session 4): **Params grid made v1-like; `# hc: -h` params block with comments** (commit `8328423`).
+  - Compared with v1 (`superceded/handcalcs.py`, `format_parameters_cell`): same `r l r l` aligned columns and `&` cell joins. v1 had no
+    explicit gap; its visible gap was the `\;` it appended after every value. `format_param_grid` now emits
+    `f &= 1 \; &g &= 2 \; &h &= 4 \;` (the `\qquad` is gone).
+  - A `;` params line has nowhere to put a comment, so those are still dropped. New comment-capable form: **`# hc: -h`**
+    (`--params-block`/`--params`) directly above an assignment groups the consecutive single assignments after it into a
+    `ParamsBlock(with_comments=True)`, ending at a blank line, a standalone comment, or a non-assignment statement
+    (`_parse_body`, `_blank_between`; blank rows are recorded in `_classify_comments`). `command_parser` now has `add_help=False`
+    so `-h` is free. `render_comment_command` does not store `params_block` in the global context.
+  - Cells carry a 4th component, the comment. LaTeX puts it one `\;` after the value (its leading `\quad` is dropped) followed by
+    `\qquad` before the next cell (not after the last), so the gap to the next assignment is wider. HTML adds a
+    `<td class="hc-param-comment">` per cell; plain text already joined all components with a 4-space gap between cells.
+  - The demo's `# hc: params_cols=3` was a typo (silently ignored); it is now `# hc: -h`. Golden file, `test_params_grid_is_aligned_and_ragged`,
+    a new `-h` test and the `test_parser.py` command dicts were updated. 347 tests pass; the demo PDF compiles.
+  - Open: with comments a 3-column grid is wide (use `param_cols=2`); the `-h` command should be documented user-side.
