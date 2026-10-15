@@ -37,6 +37,7 @@ from handcalcs.parsing.inline_nodes import (
     Compare,
     InlineComment,
     InlineCommand,
+    Keyword,
 )
 
 from handcalcs.parsing.operator_nodes import (
@@ -2030,3 +2031,15 @@ def test_lone_assignments_are_not_grouped():
     result = parser("a = 1\nb = 2\nc = 3\n")
     assert len(result) == 3
     assert all(isinstance(node, CalcLine) for node in result)
+
+
+def test_function_call_keyword_arguments(basic_parser):
+    # Keyword arguments follow the positional ones as Keyword nodes; a
+    # ``**mapping`` unpacking is a Keyword with no name.
+    call = basic_parser("f(1, b=2, **kw)")[0].expression_tree[0]
+    assert isinstance(call, FunctionCall)
+    assert list(call.args) == [
+        Constant(value=1),
+        Keyword(arg='b', value=Constant(value=2)),
+        Keyword(arg=None, value=Name(identifier='kw')),
+    ]

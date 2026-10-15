@@ -50,6 +50,7 @@ from handcalcs.parsing.operator_nodes import (
 from handcalcs.parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
+    Keyword,
     Compare,
     InlineCommand,
     Comprehension,
@@ -852,6 +853,15 @@ def render_function_call(renderer: BR, node: FunctionCall, base_context: BaseRen
     else:
         rendered = f"{function_name}{node.pre}{arg_str}{node.post}"
     return rendered
+
+
+@BaseRenderer.register('keyword')
+def render_keyword(renderer: BR, node: Keyword, base_context: BaseRenderContext) -> str:
+    """A keyword argument, ``arg=value``, or ``**value`` for a mapping unpacking."""
+    value = renderer.render(node.value, base_context)
+    if node.arg is None:
+        return f"**{value}"
+    return f"{node.arg}={value}"
 
 
 @BaseRenderer.register('comprehension')

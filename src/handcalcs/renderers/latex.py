@@ -38,6 +38,7 @@ from handcalcs.parsing.operator_nodes import (
 from handcalcs.parsing.inline_nodes import (
     InlineComment,
     FunctionCall,
+    Keyword,
     Compare
 )
 from handcalcs.parsing.line_nodes import (
@@ -510,6 +511,19 @@ def render_function_call(renderer: LR, node: FunctionCall, base_context: BRC) ->
     args = ", ".join(renderer.render(arg, base_context) for arg in node.args)
     prefix = f"{namespace}." if namespace else ""
     return f"{prefix}{function_name}{node.pre}{args}{node.post}"
+
+
+@LR.register('keyword')
+def render_keyword(renderer: LR, node: Keyword, base_context: BRC) -> str:
+    """
+    A keyword argument. The keyword is a symbol in both columns, typeset like
+    an identifier (``days=3`` -> ``\\mathrm{days} = 3``); a ``**mapping``
+    unpacking renders as ``\\ast\\ast`` before the mapping.
+    """
+    value = renderer.render(node.value, base_context)
+    if node.arg is None:
+        return f"\\ast\\ast {value}"
+    return f"{latex_identifier(node.arg)} = {value}"
 
 
 @LR.register('calcs_block:pre')
