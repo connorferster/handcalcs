@@ -28,7 +28,12 @@ uv run python -c "from handcalcs import HandCalcs; from handcalcs.renderers impo
 - Ad-hoc probes: `HandCalcs(renderer=MarkdownRenderer())(source_str)`.
 - When Phase 5 is done: `uv run pytest tests/test_markdown_renderer.py` (golden file
   `tests/golden/markdown_demo.md`, regenerate with `HANDCALCS_UPDATE_GOLDEN=1`).
-- Real rendering check: `scripts/markdown_demo_check.py` (Phase 5) writes
+- KaTeX check (the counterpart of the pdflatex compile check): download
+  `https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js` into the scratchpad, then
+  `HANDCALCS_KATEX_JS=<path>/katex.min.js uv run --with mini-racer python scripts/markdown_demo_check.py`.
+  It typesets every `$$`/`$` fragment in KaTeX strict mode with errors fatal. KaTeX is
+  stricter than MathJax, so it is a good proxy for both.
+- Real rendering check: `scripts/markdown_demo_check.py` writes
   `markdown_demo.ipynb` with the demo as one Markdown cell. Open it in JupyterLab,
   VS Code and Colab. Neither `node` nor `jupyter` is installed in this sandbox, so the visual
   check is manual for the user. `markdown-it-py` and `nbformat` are available.
@@ -178,25 +183,25 @@ and VS Code** using the check notebook.
       acceptable).
 
 ### Phase 3: MathJax / KaTeX compatibility of the math itself
-- [ ] `<` / `>` comparisons: an unprotected `a <b` can be read as an HTML tag by the
+- [x] `<` / `>` comparisons: an unprotected `a <b` can be read as an HTML tag by the
       sanitizer or Markdown parser. In MarkdownRenderer use `\lt` / `\gt` (MathJax and KaTeX
       both support them). Override with a `lt_op:pre` / `gt_op:pre` rule that reads a
       class-level operator table. Better: change the LaTeX `swap_operator_symbols` to look up
       `renderer.OPERATOR_SYMBOLS` (a class attribute) so the subclass only overrides the
       dict. **That is a refactor of latex.py with no output change.** Confirm with the
       golden test.
-- [ ] Function names: `\arcsinh`, `\arccosh` and `\arctanh` are not defined in MathJax,
+- [x] Function names: `\arcsinh`, `\arccosh` and `\arctanh` are not defined in MathJax,
       KaTeX or amsmath, so they are also a LaTeX bug. **Fix in both renderers (user decided
       2026-10-15):** in `latex.py` map `asinh`/`acosh`/`atanh` to `\operatorname{arcsinh}` etc.
       MarkdownRenderer inherits the fix. Regenerate `tests/golden/latex_demo.tex` only if the
       demo uses them, review the diff, and add a focused LaTeX test. Commit this separately
       from Markdown work. Also make the math-funcs table a class attribute (same refactor as
       above) so subclasses can override it.
-- [ ] Audit every macro the LaTeX renderer emits for MathJax 3 (default TeX packages) and
+- [x] Audit every macro the LaTeX renderer emits for MathJax 3 (default TeX packages) and
       KaTeX support. These are expected to be fine: `\bigl \bigr \frac \sqrt \left \right
       \lfloor \lceil \cdot \times \bmod \le \ge \ne \in \notin \infty \mathrm
       \operatorname \text \quad \qquad \; \ldots \colon \rightarrow`. Fix any that fail.
-- [ ] The `aligned` environment with multiple `rl` column pairs (params grid) works in
+- [x] The `aligned` environment with multiple `rl` column pairs (params grid) works in
       MathJax 3 and KaTeX. Verify `[t]` is not emitted (MATH_OPEN no longer has it).
 
 ### Phase 4: Jupyter default renderer
@@ -297,3 +302,15 @@ and VS Code** using the check notebook.
   Backtick pairs in comments become `\texttt{}`. String constants are `\text{"steel"}`.
   **Check by eye:** `mm^4` renders as `\text{mm}\hat{}\text{4}` (an accent over nothing).
   Swap it if it looks poor in Jupyter.
+- 2026-10-15: Phase 3 done.
+  - `latex.py`: `OPERATOR_SYMBOLS` and `MATH_FUNCS` are class attributes (no output
+    change). asinh/acosh/atanh now use `\operatorname{arc...}` in both renderers, with a new
+    LaTeX test; the golden file is unchanged.
+  - MarkdownRenderer overrides `OPERATOR_SYMBOLS` with `\lt`/`\gt`.
+  - `scripts/markdown_demo_check.py` gained an optional KaTeX validation (mini-racer + a
+    local katex.min.js). Negative controls (`\arcsinh`, a raw `%`, a raw `^` in `\text`) are
+    caught. The demo (21 fragments) and a stress source covering floor/ceil, `\bmod`,
+    comparisons, `\infty`, sets, complex numbers, inverse hyperbolic functions, strings and
+    comments full of special characters all pass with 0 errors.
+  - Macro audit: every macro emitted is supported by MathJax 3 and KaTeX; no `[t]` is
+    emitted. Next: Phase 4 (`jupyter_renderer` option).

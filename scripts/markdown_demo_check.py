@@ -5,7 +5,11 @@ VS Code, Colab). Prints the Markdown, then any problems found:
 
 - LaTeX text-mode commands leaking into the Markdown;
 - a ``$$`` math group that is not on a single line;
-- each math paragraph's blockquote depth, as parsed by markdown-it.
+- each math paragraph's blockquote depth, as parsed by markdown-it;
+- optionally, every math fragment typeset with KaTeX (strict mode, errors fatal):
+  set HANDCALCS_KATEX_JS to a local katex.min.js and run with mini-racer, e.g.
+  ``HANDCALCS_KATEX_JS=katex.min.js uv run --with mini-racer python scripts/markdown_demo_check.py``.
+  KaTeX is stricter than MathJax, so a clean KaTeX run is a good proxy for both.
 
 The notebook (``markdown_demo.ipynb``) holds the demo as one Markdown cell, then a
 ``%%render`` cell of a small nested example for a live check. It is written to the
@@ -13,7 +17,10 @@ output directory (default: ./markdown_demo_build).
 
     uv run python scripts/markdown_demo_check.py [out_dir]
 """
+import json
+import os
 import pathlib
+import re
 import sys
 
 import nbformat
@@ -57,6 +64,45 @@ def math_depths(markdown: str) -> list[tuple[int, str]]:
     return depths
 
 
+DISPLAY_MATH = re.compile(r"\$\$(.+?)\$\$")
+INLINE_MATH = re.compile(r"(?<!\\)\$(.+?)(?<!\\)\$")
+
+
+def math_fragments(markdown: str) -> list[tuple[str, bool]]:
+    """``(tex, display_mode)`` for every ``$$...$$`` and ``$...$`` in the Markdown."""
+    fragments = [(tex, True) for tex in DISPLAY_MATH.findall(markdown)]
+    remaining = DISPLAY_MATH.sub("", markdown)
+    return fragments + [(tex, False) for tex in INLINE_MATH.findall(remaining)]
+
+
+def katex_errors(markdown: str) -> list[str] | None:
+    """
+    Typeset every math fragment with KaTeX and return the errors, or None when
+    KaTeX is not set up (no HANDCALCS_KATEX_JS or no mini-racer).
+    """
+    katex_js = os.environ.get("HANDCALCS_KATEX_JS")
+    try:
+        from py_mini_racer import MiniRacer
+    except ImportError:
+        return None
+    if not katex_js:
+        return None
+    ctx = MiniRacer()
+    ctx.eval(pathlib.Path(katex_js).read_text())
+    ctx.eval("""
+        function check(tex, display) {
+            try { katex.renderToString(tex, {displayMode: display, throwOnError: true, strict: "error"}); return ""; }
+            catch (e) { return String(e.message); }
+        }
+    """)
+    errors = []
+    for tex, display in math_fragments(markdown):
+        message = ctx.eval(f"check({json.dumps(tex)}, {json.dumps(display)})")
+        if message:
+            errors.append(f"KaTeX: {message} in: {tex[:80]}")
+    return errors
+
+
 def main(out_dir: pathlib.Path) -> int:
     markdown = HandCalcs(renderer=MarkdownRenderer()).demo()
     print(markdown)
@@ -64,6 +110,12 @@ def main(out_dir: pathlib.Path) -> int:
     for depth, content in math_depths(markdown):
         print(f"depth {depth}: {content}")
     found = problems(markdown)
+    errors = katex_errors(markdown)
+    if errors is None:
+        print("KaTeX check skipped (set HANDCALCS_KATEX_JS and run with mini-racer).")
+    else:
+        print(f"KaTeX checked {len(math_fragments(markdown))} math fragments.")
+        found += errors
     for problem in found:
         print(f"PROBLEM: {problem}")
 

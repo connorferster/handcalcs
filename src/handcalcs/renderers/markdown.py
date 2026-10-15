@@ -1,7 +1,7 @@
 import re
 
 from handcalcs.renderers.base import BaseRenderContext
-from handcalcs.renderers.latex import LatexRenderer, import_source
+from handcalcs.renderers.latex import LatexRenderer, OPERATOR_SYMBOLS, import_source
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import Constant
@@ -129,6 +129,9 @@ class MarkdownRenderer(LatexRenderer):
     LINE_BREAK = "&nbsp;"
     # The body of a nested block (if/for/def) is quoted once per level.
     BLOCK_PREFIX = ">"
+    # A raw '<' before a letter in the Markdown source can be taken for an HTML
+    # tag by a front-end that does not protect math, so comparisons use \lt/\gt.
+    OPERATOR_SYMBOLS = OPERATOR_SYMBOLS | {'lt_op': ' \\lt ', 'gt_op': ' \\gt '}
 
     def join_item(self, item, depth: int, base_context: BRC) -> list[str]:
         """
