@@ -81,6 +81,12 @@ It is fine for the output to look broken in Jupyter (`Latex` display/MathJax can
 `list`). The user will write a separate **MarkdownRenderer** that combines Markdown prose with LaTeX math for
 Jupyter. Do not add Markdown/MathJax concessions to LatexRenderer.
 
+Update 2026-10-15: MarkdownRenderer is implemented (`renderers/markdown.py`, plan and log in
+`markdown_renderer_plan.md`) and is the `%%render` default through the `jupyter_renderer` option.
+It shares LatexRenderer's math. `OPERATOR_SYMBOLS` and `MATH_FUNCS` are class attributes so the
+subclass can override them. A change to LaTeX math output also changes Markdown output, so run
+both golden tests.
+
 ## Diagnosis of the current demo output
 
 ### Root cause: one `space` and `newline` for two modes

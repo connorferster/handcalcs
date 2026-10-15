@@ -250,11 +250,11 @@ and VS Code** using the check notebook.
     a blockquote. (A blank source line inside a calc run yields no spacer, as in LaTeX.)
 
 ### Phase 6: Docs and wrap-up
-- [ ] Update the docstrings in `markdown.py` (class docstring describes the target format
+- [x] Update the docstrings in `markdown.py` (class docstring describes the target format
       and the blockquote rules).
-- [ ] README / docs: MarkdownRenderer is the Jupyter default (`jupyter_renderer` config
+- [x] README / docs: MarkdownRenderer is the Jupyter default (`jupyter_renderer` config
       option); `%hc_default_renderer latex` switches it.
-- [ ] Update `latex_implementation_plan.md` cross-reference and the memory note.
+- [x] Update `latex_implementation_plan.md` cross-reference and the memory note.
 
 ## Decisions (user, 2026-10-15)
 1. `\arcsinh`/`\arccosh`/`\arctanh`: fix in **both** renderers (Phase 3).
@@ -337,3 +337,11 @@ and VS Code** using the check notebook.
   proxy). 421 tests pass. Still open for the user: the by-eye notebook check, and the
   `for i in range(2)` / `for i in [1, 2]` crash in `for_block_header` (pre-existing,
   LaTeX too). Next: Phase 6 (docs).
+- 2026-10-15: Phase 6 done. The class docstring describes the format and the blockquote rules.
+  `docs/cell_magic.md` has a new "Choosing the output format (handcalcs v2)" section
+  (markdown default, `%hc_default_renderer`, `jupyter_renderer` + `save_config`). README.md
+  and the rest of docs/ still describe v1 (`import handcalcs.render`, `%%tex`,
+  `%decimal_separator`, override tags); rewriting them is out of scope. The latex plan
+  links here. **All phases are done.** Open items for the user: check the notebook by eye
+  (JupyterLab, VS Code, Colab), the `^` → `\hat{}` choice (Revisit later), and the
+  pre-existing `for_block_header` crash on non-Name iterables.

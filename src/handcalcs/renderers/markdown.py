@@ -111,9 +111,26 @@ class MarkdownRenderer(LatexRenderer):
     Renders a HandCalcs sequence as Markdown prose with LaTeX math, for Jupyter-type
     front-ends that typeset ``$...$`` / ``$$...$$`` with MathJax or KaTeX.
 
-    Everything inside math is inherited from LatexRenderer; this class only
-    replaces the text-mode structure (headings, paragraphs, imports) and the
-    structural tokens below. See ``markdown_renderer_plan.md``.
+    It is the default renderer of the ``%%render`` cell magic (the
+    ``jupyter_renderer`` config option); its output is shown with
+    ``IPython.display.Markdown``.
+
+    Math is inherited from LatexRenderer, with a few changes for MathJax and
+    KaTeX: comparisons use ``\\lt``/``\\gt``, and text inside math (inline
+    comments, strings) goes through ``math_text``. The text-mode structure is
+    replaced:
+
+    - headings are ``#`` headings, comment lines are plain paragraphs and
+      imports are code spans, all Markdown-escaped (``markdown_prose``);
+    - each calc group is one ``$$\\begin{aligned} ... \\end{aligned}$$`` on a
+      single physical line, with ``\\\\`` between the rows;
+    - a ``# hc: -b`` line break is an ``&nbsp;`` spacer paragraph;
+    - the body of an if/for/def block is a blockquote, with one ``>`` per
+      nesting level. Blank lines inside a body are quoted too, and every quote
+      ends with an unquoted blank line, so Markdown's lazy continuation never
+      pulls the following text into a deeper quote (see ``quote``).
+
+    See ``markdown_renderer_plan.md`` for the reasoning behind each rule.
     """
     name = 'markdown'
 
