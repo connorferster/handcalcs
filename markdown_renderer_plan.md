@@ -205,25 +205,25 @@ and VS Code** using the check notebook.
       MathJax 3 and KaTeX. Verify `[t]` is not emitted (MATH_OPEN no longer has it).
 
 ### Phase 4: Jupyter default renderer
-- [ ] **New config option `jupyter_renderer` (user decided 2026-10-15).** In `config.py`:
+- [x] **New config option `jupyter_renderer` (user decided 2026-10-15).** In `config.py`:
       `DEFAULTS["jupyter_renderer"] = "markdown"`, add it to `_BASE_OPTION_TYPES` as `str`,
       and document it in the module docstring next to `default_renderer`.
       `default_renderer` keeps governing bare `HandCalcs()` only.
-- [ ] `HandCalcs.__init__` (`object_oriented.py`): exclude `jupyter_renderer` from
+- [x] `HandCalcs.__init__` (`object_oriented.py`): exclude `jupyter_renderer` from
       `_context_settings`, as `default_renderer` already is.
-- [ ] `interfaces/jupyter.py`: `%%render` reads `jupyter_renderer` (not `default_renderer`)
+- [x] `interfaces/jupyter.py`: `%%render` reads `jupyter_renderer` (not `default_renderer`)
       and resolves the class with `get_renderer(name)` instead of the hard-coded
       `_RENDERERS` dict. Raise a clear error for an unknown name.
-- [ ] Choose the display class from the renderer: add `display_type` (or a mapping keyed by
+- [x] Choose the display class from the renderer: add `display_type` (or a mapping keyed by
       `renderer.name`) with `"markdown" → Markdown`, `"latex" → Latex`, `"html" → HTML`,
       default `Pretty`.
-- [ ] `%hc_default_renderer`: set `jupyter_renderer` **only** (user confirmed 2026-10-15; it no
+- [x] `%hc_default_renderer`: set `jupyter_renderer` **only** (user confirmed 2026-10-15; it no
       longer touches `default_renderer`). Accept any
       registered renderer name that has a display class, `markdown` included. Update both
       error messages (they hard-code `('latex', 'html', 'plain_text')`).
-- [ ] Tests in `tests/test_config.py`: the default value, type validation, and that the
+- [x] Tests in `tests/test_config.py`: the default value, type validation, and that the
       option does not leak into the render context.
-- [ ] ~~`_repr_markdown_` on the object-oriented result~~: not now (user, 2026-10-15).
+- [x] ~~`_repr_markdown_` on the object-oriented result~~: not now (user, 2026-10-15).
 
 ### Phase 5: Tests, golden file and check script
 - [ ] `tests/test_markdown_renderer.py`, modelled on `tests/test_latex_renderer.py`:
@@ -243,8 +243,9 @@ and VS Code** using the check notebook.
       check). If `node` and `mathjax-full` are available, also typeset every math fragment
       and report errors, the counterpart of the pdflatex compile check. Skip with a message
       otherwise.
-- [ ] Jupyter interface test (if IPython is importable): `%%render` with the default config
+- [x] Jupyter interface test (if IPython is importable): `%%render` with the default config
       displays a `Markdown` object, and `%hc_default_renderer latex` switches it to `Latex`.
+      (Done in Phase 4: `tests/test_jupyter.py`.)
   - line breaks: a blank source line yields exactly one `&nbsp;` paragraph, including inside
     a blockquote.
 
@@ -314,3 +315,14 @@ and VS Code** using the check notebook.
     comments full of special characters all pass with 0 errors.
   - Macro audit: every macro emitted is supported by MathJax 3 and KaTeX; no `[t]` is
     emitted. Next: Phase 4 (`jupyter_renderer` option).
+- 2026-10-15: Phase 4 done.
+  - `config.py`: `jupyter_renderer` option (default `"markdown"`, type-checked, documented),
+    plus `RENDERER_OPTIONS`, which `HandCalcs` uses to keep both renderer-selection options
+    off the render context.
+  - `interfaces/jupyter.py`: the hard-coded `_RENDERERS` dict is gone. `%%render` resolves
+    `jupyter_renderer` through `get_renderer`. The display class comes from the
+    renderer's nearest built-in ancestor in its class hierarchy (`display_class_for`), so a custom
+    MarkdownRenderer subclass still displays as Markdown. `%hc_default_renderer` accepts any
+    registered name and sets `jupyter_renderer` only.
+  - `tests/test_jupyter.py` runs the magics in a real IPython `InteractiveShell` (4 tests).
+    `tests/test_config.py` covers the new option. 354 tests pass. Next: Phase 5.

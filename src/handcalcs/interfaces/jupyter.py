@@ -2,17 +2,8 @@ import sys
 from string import Formatter
 from .object_oriented import HandCalcs
 from handcalcs import config
-from handcalcs.renderers.latex import LatexRenderer
-from handcalcs.renderers.html import HTMLRenderer
-from handcalcs.renderers.plaintext import PlainTextRenderer
-from handcalcs.renderers.markdown import MarkdownRenderer
-
-_RENDERERS = {
-    "latex": LatexRenderer,
-    "html": HTMLRenderer,
-    "plain_text": PlainTextRenderer,
-    "markdown": MarkdownRenderer
-}
+# Importing the package registers the built-in renderers by name.
+from handcalcs.renderers import BaseRenderer, get_renderer
 
 class HandCalcsJupyterEnvironmentError(Exception):
     pass
@@ -29,11 +20,14 @@ try:
     from IPython.display import Latex, HTML, Markdown, Pretty, display
     from IPython.utils.capture import capture_output
 
+    # The IPython display class for each built-in renderer's output. A custom
+    # renderer uses the display class of its nearest built-in ancestor.
     _DISPLAY = {
+        'markdown': Markdown,
         'latex': Latex,
         'html': HTML,
         'plain_text': Pretty,
-        'markdown': Markdown,
+        'base': Pretty,
     }
 
 except ImportError:
@@ -63,29 +57,47 @@ def hc_format_code(line):
     config.set_option('format_code', line)
 
 
+def display_class_for(renderer_cls: type[BaseRenderer]) -> type:
+    """The display class of the renderer's nearest built-in ancestor (or itself)."""
+    for cls in renderer_cls.__mro__:
+        name = cls.__dict__.get('name')
+        if name in _DISPLAY:
+            return _DISPLAY[name]
+    return Pretty
+
+
+def resolve_jupyter_renderer(name: str) -> type[BaseRenderer]:
+    """The renderer class registered under ``name``, or a ValueError naming the options."""
+    renderer_cls = get_renderer(name)
+    if renderer_cls is None:
+        raise ValueError(
+            f"No renderer named '{name}' is registered. Built-in renderers: "
+            f"{', '.join(repr(name) for name in _DISPLAY if name != 'base')}. A custom "
+            "renderer must be imported (defined) before it can be selected by name."
+        )
+    return renderer_cls
+
+
 @register_line_magic
 def hc_default_renderer(line):
-    if line not in ('latex', 'html', 'plain_text'):
-        raise ValueError(
-            f"The argument must be one of ('latex', 'html', 'plain_text'), not: {line}"
-        )
-    config.set_option('default_renderer', line)
+    """
+    Set the renderer used by ``%%render`` for this session (the ``jupyter_renderer``
+    option; ``handcalcs.save_config()`` makes it permanent). ``default_renderer``,
+    which a bare ``HandCalcs()`` uses, is not changed.
+    """
+    name = line.strip()
+    resolve_jupyter_renderer(name)
+    config.set_option('jupyter_renderer', name)
 
 
 @register_cell_magic
 def render(line, cell):
     # Retrieve var dict from user namespace
     user_ns_prerun = ip.user_ns
-    hc_config = config.get_config()
-    renderer_name = hc_config.get('default_renderer', '')
-    config_renderer = _RENDERERS.get(renderer_name, None)
-    if config_renderer is None:
-        raise ValueError(
-            f"Renderer name of '{renderer_name}' has not been implemented. "
-            "Try one of ('latex', 'html', 'plain_text')."
-        )
-    display_class = _DISPLAY[renderer_name]
-    hc = HandCalcs(renderer=config_renderer())
+    renderer_name = config.get_option('jupyter_renderer', config.DEFAULTS['jupyter_renderer'])
+    renderer_cls = resolve_jupyter_renderer(renderer_name)
+    display_class = display_class_for(renderer_cls)
+    hc = HandCalcs(renderer=renderer_cls())
     # if line_args["sympy"]:
     #     cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
 

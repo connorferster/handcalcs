@@ -15,12 +15,12 @@ class HandCalcs:
             renderer = self.__default_renderer()
         self.renderer = renderer
         # Global config settings (format_code + any custom fields) seed the render
-        # context of every HandCalcs instance, whatever renderer is used. Only
-        # 'default_renderer' is specific to bare instantiation and is excluded here.
+        # context of every HandCalcs instance, whatever renderer is used. The
+        # renderer-selection options are not render settings and are excluded here.
         self._context_settings = {
             key: value
             for key, value in config.get_config().items()
-            if key != "default_renderer"
+            if key not in config.RENDERER_OPTIONS
         }
         self.hc_ast = None
 
