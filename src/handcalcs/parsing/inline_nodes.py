@@ -33,6 +33,18 @@ class FunctionCall(HcInlineNode):
 
 
 @dataclass
+class Keyword(HcInlineNode):
+    """
+    A keyword argument of a function call, ``arg=value``. ``arg`` is None for
+    a ``**mapping`` unpacking. Stored in ``FunctionCall.args`` after the
+    positional arguments, in source order.
+    """
+    arg: str | None
+    value: Any
+    type: str = "keyword"
+
+
+@dataclass
 class Compare(HcNode):
     comparison: deque[Constant | FunctionCall | Name | HcCompOp]
     type: str = 'compare'

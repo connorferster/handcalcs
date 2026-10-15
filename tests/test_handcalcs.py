@@ -81,3 +81,19 @@ def test_non_numeric_values_ignore_format_code(renderer):
     assert "2020-01-02" in out and "2021-03-04" in out
     assert ".3f" not in out and ".5g" not in out
     assert "3.1416" in out
+
+
+KWARGS_SOURCE = (
+    "import datetime\nn = 3\nt = datetime.timedelta(days=n, hours=2)\n"
+    "def f(a, b=1, **kw):\n    return a + b\nopts = {'b': 2}\nr = f(1, **opts)\n"
+)
+
+
+@pytest.mark.parametrize("renderer", ["plain_text", "html"])
+def test_function_call_keyword_arguments_are_rendered(renderer):
+    out = str(HandCalcs(renderer=get_renderer(renderer)())(KWARGS_SOURCE))
+    assert (
+        "t = datetime.timedelta(days=n, hours=2)"
+        " = datetime.timedelta(days=3, hours=2) = 3 days, 2:00:00"
+    ) in out
+    assert "r = f(1, **opts) = f(1, **{b: 2}) = 3" in out

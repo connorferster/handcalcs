@@ -43,7 +43,8 @@ from .inline_nodes import (
     Comprehension,
     InlineComment,
     InlineCommand,
-    Compare
+    Compare,
+    Keyword,
 )
 from .null_values import (
     HcNotImplemented,
@@ -503,8 +504,13 @@ class AST_Parser:
             #     val = function_block
             # else:
 
-            # Create the inner nested list for arguments
+            # Create the inner nested list for arguments: the positional
+            # arguments, then the keyword arguments (as Keyword nodes)
             args_list = deque([self.ast_parse(arg) for arg in node.args])
+            args_list.extend(
+                Keyword(arg=keyword.arg, value=self.ast_parse(keyword.value))
+                for keyword in node.keywords
+            )
 
             # Create the main nested list for the function call
             function_call.namespace = Name(identifier=module_name, value=module_name)

@@ -345,3 +345,12 @@ def test_latex_prose(text, expected):
 def test_for_header_renders_any_iterable(iterable, expected):
     out = render(f"xs = [1, 2]\nfor i in {iterable}:\n    b = i\n")
     assert f"Iterating over each $i$ in ${expected}$:" in out
+
+
+def test_function_call_keyword_arguments():
+    out = rows("n = 3\nq = round(2.567, ndigits=n)\ndef f(a, **kw):\n    return a\nopts = {'b': 2}\nr = f(1, **opts)\n")
+    assert out[1] == (
+        "q &= \\operatorname{round}\\left(2.567, \\mathrm{ndigits} = n\\right)"
+        " = \\operatorname{round}\\left(2.567, \\mathrm{ndigits} = 3\\right) = 2.567"
+    )
+    assert out[-1].startswith("r &= \\operatorname{f}\\left(1, \\ast\\ast \\mathrm{opts}\\right)")
