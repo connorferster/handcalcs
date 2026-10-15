@@ -5,11 +5,13 @@ from handcalcs import config
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.plaintext import PlainTextRenderer
+from handcalcs.renderers.markdown import MarkdownRenderer
 
 _RENDERERS = {
     "latex": LatexRenderer,
     "html": HTMLRenderer,
     "plain_text": PlainTextRenderer,
+    "markdown": MarkdownRenderer
 }
 
 class HandCalcsJupyterEnvironmentError(Exception):
@@ -30,7 +32,8 @@ try:
     _DISPLAY = {
         'latex': Latex,
         'html': HTML,
-        'plain_text': Pretty
+        'plain_text': Pretty,
+        'markdown': Markdown,
     }
 
 except ImportError:
