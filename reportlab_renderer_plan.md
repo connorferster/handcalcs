@@ -291,14 +291,25 @@ fallback.
 
 Native ReportLab styling only. No images, all vector. One palette dataclass (overridable):
 
-| Token | Default | Used for |
-|---|---|---|
-| `ink` | `#1B2A2F` | body text |
-| `muted` | `#647679` | inline comments, imports, "no condition satisfied" notes |
-| `accent` | `#0B5F66` ("petrol" teal) | headings, result values, rules |
-| `accent_soft` | `#E3F0EF` | callout and param-grid backgrounds |
-| `guide` | cycling `#86BDB8`, `#D6B583`, `#A7AFC6` | nested-block depth guides |
-| `rule` | `#C2D4D3` | hairlines |
+Everything derives from one dark **theme colour**: `ReportLabRenderer(theme_color="#RRGGBB")` (and
+`build_pdf(..., theme_color=...)` for the footer) calls `Palette.from_theme`, stdlib `colorsys` only. The default
+theme is `DEFAULT_THEME = "#0B5F66"` ("petrol"); `Palette()` equals `Palette.from_theme(DEFAULT_THEME)` (tested).
+Passing both `palette=` and `theme_color=` raises `ValueError`.
+
+| Token | Derivation from theme (hue h, saturation s) | Petrol default | Used for |
+|---|---|---|---|
+| `ink` | HLS(h, 0.14, 0.30·s) | `#1B2B2C` | body text |
+| `muted` | HLS(h, 0.43, 0.12·s) | `#637778` | inline comments, imports, notes |
+| `accent` | the theme colour | `#0B5F66` | headings, result values, rules |
+| `accent_soft` | 10% tint (mixed with white) | `#E7EFF0` | callout and param-grid backgrounds |
+| `highlight` | 8.5% tint | `#EAF1F2` | result highlight |
+| `code_bg` | HLS(h, 0.945, 0.17·s) | `#EFF3F3` | import chips |
+| `rule` | 27% tint | `#BDD4D6` | hairlines |
+| `zebra` | 5% tint | `#F3F7F7` | param-grid stripes |
+| `guides` | HLS(h, .63, .37s), HLS(h+210°, .68, .6s), HLS(h+40°, .72, .27s) | `#85B8BD`, `#D5B386`, `#A8B0C7` | nested-block depth guides |
+
+The coefficients were fitted to the hand-picked petrol set the user approved (within a few RGB steps of it).
+The theme is assumed dark (user's instruction, 2026-10-16); a light theme is not rejected but gives weak text.
 
 Elements:
 
