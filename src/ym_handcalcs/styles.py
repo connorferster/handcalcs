@@ -62,17 +62,16 @@ class Palette:
     rule: str = "#BDD4D6"
     zebra: str = "#F3F7F7"
     # Nested-block indent guides, one colour per level (cycled).
-    guides: tuple[str, ...] = ("#85B8BD", "#D5B386", "#A8B0C7")
+    guides: tuple[str, ...] = ("#85AFB2", "#AAC7C9", "#C9DCDD")
 
     @classmethod
     def from_theme(cls, theme) -> "Palette":
         """
         Derive a palette from one dark theme colour (``'#RRGGBB'`` or a ReportLab
-        ``Color``), which becomes the accent. Backgrounds and hairlines are tints
-        of it (mixed with white); text colours keep its hue at a fixed lightness
-        with most of the saturation removed. The second and third indent guides
-        turn the hue (+210 and +40 degrees) so neighbouring levels stay distinct.
-        Saturation scales with the theme's, so a grey theme gives a grey palette.
+        ``Color``), which becomes the accent. Backgrounds, hairlines and indent
+        guides are tints of it (mixed with white); the guides get lighter with
+        each nesting level. Text colours keep its hue at a fixed lightness with
+        most of the saturation removed, so a grey theme gives a grey palette.
         """
         rgb = _rgb(theme)
         hue, _, sat = colorsys.rgb_to_hls(*rgb)
@@ -85,11 +84,7 @@ class Palette:
             code_bg=_hls(hue, 0.945, sat * 0.17),
             rule=_tint(rgb, 0.27),
             zebra=_tint(rgb, 0.05),
-            guides=(
-                _hls(hue, 0.63, sat * 0.37),
-                _hls(hue + 210 / 360, 0.68, sat * 0.60),
-                _hls(hue + 40 / 360, 0.72, sat * 0.27),
-            ),
+            guides=(_tint(rgb, 0.50), _tint(rgb, 0.35), _tint(rgb, 0.22)),
         )
 
     def color(self, token: str) -> colors.Color:
