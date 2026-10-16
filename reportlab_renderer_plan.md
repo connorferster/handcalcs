@@ -292,7 +292,7 @@ Elements:
   blocks.
 - [x] **Phase 3: Blocks.** Callout headers for if/elif/else/for/function blocks,
   `DepthGuides` flowable, `keepWithNext`, the "No conditions were satisfied" note.
-- [ ] **Phase 4: Grids.** `_Grid` marker, params `Table` (both `;` and `# hc: -h` forms),
+- [x] **Phase 4: Grids.** `_Grid` marker, params `Table` (both `;` and `# hc: -h` forms),
   multi-line calc `Table`.
 - [ ] **Phase 5: Overflow.** `_CalcLine` marker and `CalcLine` flowable with the layout
   ladder (steps 1–8 above), depth-tagged break markers in the operator handlers, shortening
@@ -376,3 +376,12 @@ Ad-hoc probe:
   only: nested results come back wrapped in `_Placed` so they are never wrapped twice. Headers are callouts with a `▸`
   marker and accent keywords (`Since … → … is True:`, `Otherwise:`, `Iterating over each … in …:`), and
   `keepWithNext` keeps a header with its first body line.
+- 2026-10-16: **Phase 4 done.** `ParamGrid` and `CalcGrid` build their `Table` in `wrap()` (so they know the frame
+  width). `ParamGrid` is centred, aligned on `=`, rounded `accent_soft` background, zebra rows above 2 rows, and steps
+  down from `param_cols` to 1 until it fits. That Phase 5 item is done early: the demo's `-h` grid drops to 2
+  columns at 252 pt. `CalcGrid` (`-m`) has an accent bar; the value column takes the remaining width and wraps;
+  the result row is highlighted. Inline comments are styled once in `render_inline_comment`, so calc lines, `-m`
+  grids and params grids match. The grid splits the result from the comment on `comment_open`. Gotchas:
+  `VALIGN BASELINE` is invalid for flowable cells (TOP is used); `Flowable.__init__` sets `hAlign` on the instance.
+  Seen at 252 pt, for Phase 5: wrapping breaks at any space, sub/superscripts collide across wrapped lines
+  (`autoLeading="max"` does not cover sub descent), and wrapped callout headers need a hanging indent.

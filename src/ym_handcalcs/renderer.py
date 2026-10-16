@@ -22,7 +22,7 @@ from reportlab.platypus import Flowable, HRFlowable, Paragraph, Spacer
 from handcalcs.renderers.base import BaseRenderContext, RenderContext, render_condition
 from handcalcs.renderers.html import HTMLRenderer
 
-from .flowables import Chip, DepthGuides
+from .flowables import CalcGrid, Chip, DepthGuides, ParamGrid
 from .fonts import Fonts, missing_fonts, register_families
 from .markers import CalcComponents, Grid, Tagged
 from .styles import Metrics, Palette, build_stylesheet
@@ -163,7 +163,7 @@ class ReportLabRenderer(HTMLRenderer):
             columns[-1] = self.result_markup(columns[-1])
         text = " = ".join(columns)
         if calc.comment:
-            text += f"\u2003{self.comment_markup(calc.comment)}"
+            text += f"\u2003{calc.comment}"
         return text
 
     def result_markup(self, text: str) -> str:
@@ -172,7 +172,7 @@ class ReportLabRenderer(HTMLRenderer):
 
     def comment_markup(self, text: str) -> str:
         text = code_spans(text, self.fonts.mono.italic)
-        return f'<font color="{self.palette.muted}"><i>{text}</i></font>'
+        return f"{self.comment_open}{text}</i></font>"
 
     def calc_flowable(self, calc: CalcComponents, depth: int) -> Flowable:
         return Paragraph(self.calc_markup(calc), self.style("hcCalc"))
@@ -212,9 +212,43 @@ class ReportLabRenderer(HTMLRenderer):
         rule.keepWithNext = 1
         return [heading, rule]
 
+    def cell_styles(self) -> dict:
+        return {
+            "right": self.style("hcCellRight"),
+            "center": self.style("hcCellCenter"),
+            "left": self.style("hcCellLeft"),
+            "value": self.style("hcCellLeft"),
+            "comment": self.style("hcCellComment"),
+        }
+
     def grid_flowable(self, grid: Grid, depth: int) -> Flowable:
-        lines = [" ".join(str(part) for part in row if part) for row in grid.rows]
-        return Paragraph("<br/>".join(lines), self.style("hcBody"))
+        m = self.metrics
+        if grid.kind == "params":
+            cells = [cell for row in grid.rows for cell in row]
+            cols = max((len(row) for row in grid.rows), default=1)
+            return ParamGrid(
+                cells, cols, self.cell_styles(), self.style("hcParams"),
+                gap=m.base_size * 1.6, pad=m.base_size * 0.3,
+                zebra=self.palette.color("zebra"),
+                space_before=m.gap * 2, space_after=m.gap,
+            )
+        rows = [[str(ident), str(eq), str(val)] for ident, eq, val in grid.rows]
+        if len(rows) >= 3:
+            # The last row holds the result, optionally followed by the comment.
+            value, sep, comment = rows[-1][2].rpartition(f" {self.comment_open}")
+            if sep:
+                rows[-1][2] = f"{self.result_markup(value)} {self.comment_open}{comment}"
+            else:
+                rows[-1][2] = self.result_markup(rows[-1][2])
+        return CalcGrid(
+            rows, self.cell_styles(), self.style("hcCalcGrid"), pad=m.base_size * 0.3,
+            space_before=m.gap * 1.5, space_after=m.gap,
+        )
+
+    @property
+    def comment_open(self) -> str:
+        """Opening markup of every rendered inline comment (see ``render_inline_comment``)."""
+        return f'<font color="{self.palette.muted}"><i>'
 
     # -- Grid hooks called by the base handlers -----------------------------
 
@@ -293,8 +327,10 @@ def escape_string_constant(renderer: RLR, rendered, node: Constant, base_context
 
 @RLR.register("inline_comment")
 def render_inline_comment(renderer: RLR, node: InlineComment, base_context: BRC) -> str:
+    # Comments are styled here (muted italic), so they read the same in calc
+    # lines, multi-line grids and params grids.
     context = base_context.current
-    return f"{context.lpar}{escape(node.content)}{context.rpar}"
+    return renderer.comment_markup(f"{context.lpar}{escape(node.content)}{context.rpar}")
 
 
 @RLR.register("elif_block:post")

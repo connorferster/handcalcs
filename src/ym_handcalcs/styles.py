@@ -182,7 +182,7 @@ def build_stylesheet(
     ))
 
     params = TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "BASELINE"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), base_size * 0.3),
         ("RIGHTPADDING", (0, 0), (-1, -1), base_size * 0.3),
         ("TOPPADDING", (0, 0), (-1, -1), 1.5),
