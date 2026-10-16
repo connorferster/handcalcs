@@ -311,15 +311,17 @@ class CalcLine(Flowable):
        then ``stack`` / ``stack:breakN``: the same with the target on a row of
        its own (for a target too wide to share its row);
     5. ``grid:elided``: long collections shortened around an ellipsis;
-    6. ``grid:no-num``: the numeric substitution row dropped (opt-in);
-    7. ``shrink``: the above at ``min_scale`` font size;
-    8. ``overflow``: the last attempt, wider than the frame.
+    6. ``shrink``: the above at ``min_scale`` font size;
+    7. ``overflow``: the last attempt, wider than the frame.
+
+    The numeric substitution row is never dropped here; that is the author's
+    call, per line, with ``# hc: mode="no_num"``.
 
     ``layout`` records the choice (for the overflow report and tests).
     """
 
     def __init__(self, columns: list[str], comment, *, forced_grid: bool, styles: dict,
-                 result_markup, table_style, pad: float, drop_numeric: bool = False,
+                 result_markup, table_style, pad: float,
                  min_scale: float = 0.85):
         super().__init__()
         self.columns = list(columns)
@@ -329,7 +331,6 @@ class CalcLine(Flowable):
         self.result_markup = result_markup
         self.table_style = table_style
         self.pad = pad
-        self.drop_numeric = drop_numeric
         self.min_scale = min_scale
         self.has_result = len(self.columns) >= 3
         line_style = styles["line"]
@@ -422,8 +423,6 @@ class CalcLine(Flowable):
         elided = [elide_collections(col) for col in self.columns]
         if elided != self.columns:
             column_sets.append((":elided", elided))
-        if self.drop_numeric and len(self.columns) >= 4:
-            column_sets.append((":no-num", [c for k, c in enumerate(elided) if k != 2]))
         for suffix, columns in column_sets:
             top = max((max_rank(col) for col in columns), default=0)
             for stacked in (False, True):

@@ -8,9 +8,10 @@ date.
 
 The two pending decisions were answered:
 
-1. **Per-line numeric/symbolic drop:** done as new values for the existing `mode` context option (no new
-   argparse flag): `no_num`/`drop_numeric` and `no_sym`/`drop_symbolic`, which can be combined
-   (`mode="no_num no_sym"`). Used as `# hc: mode="no_num"` inline (that line only) or standalone (persists).
+1. **Per-line numeric/symbolic drop:** done as new values for the existing `mode` context option:
+   `no_num`/`drop_numeric` and `no_sym`/`drop_symbolic`, which can be combined (`mode="no_num no_sym"`). Written
+   as `# hc: mode="no_num"` or the flag form `# hc: --mode no_num` (no short letter: `-m` is `--multiline`).
+   Inline it applies to that line only; standalone it persists.
    `mode_columns()` in `handcalcs/renderers/base.py` handles them, and every renderer gets them for free.
    The aliases are checked before the old substring matching because they contain `num`/`sym` themselves.
 2. **ymprint block converter:** the user will build it later. Focus stays on "getting the guts right".
@@ -28,15 +29,14 @@ test suite passes (478 tests after session 2).
   boxes with coloured indent guides for nested blocks; parameter grids centred, aligned on `=`, on a rounded
   background.
 - **Overflow:** each calc line picks its layout at wrap time (one line → comment underneath → grid aligned on `=` →
-  wrap at top-level, then deeper, operators → target on its own row → shorten long collections → drop the numeric
-  step (opt-in) → shrink to at most 85% → overflow). Demo: 18 of 42 lines need more than one line at 252 pt, 7 of
+  wrap at top-level, then deeper, operators → target on its own row → shorten long collections → shrink to at most 85% → overflow). Demo: 18 of 42 lines need more than one line at 252 pt, 7 of
   42 at 504 pt, none shrink or overflow. Parameter grids drop from 3 columns to 2 to 1 until they fit.
 - **Changes from the plan:** break points come from scanning the rendered output (`breaking.py`), not from markers
   in the operator handlers; a "target on its own row" layout was added; mono bold-italic falls back to bold
   (ymprint has no DejaVuSansMono-BoldOblique); matplotlib was briefly added for fonts, then removed.
 - **Things to know:** `doc.build(story)` empties the list (`build_pdf` passes a copy; ymprint should too). Dev PDFs
-  show italics upright because the system DejaVu has no italic files. Dropping the numeric step is the renderer
-  argument `drop_numeric_when_narrow=True` (renderer-wide, only when narrow) or `# hc: mode="no_num"` (per line, always).
+  show italics upright because the system DejaVu has no italic files. Dropping the numeric step is per line only,
+  with `# hc: mode="no_num"`; the user ruled out a renderer argument (`drop_numeric_when_narrow` was removed).
 - **Preview:** `uv run --with pymupdf python scripts/reportlab_demo_check.py --width 252 --png`.
 
 ## Standing instructions from the user (2026-10-15)
@@ -222,11 +222,10 @@ Implementation notes:
     (same marker scheme; headers are plain `Paragraph`s, so no ladder is needed).
   - Nested blocks need no extra handling. `DepthGuides` passes the reduced `availWidth` on
     to the wrapped `CalcLine`, so deeper lines re-layout automatically.
-- **Dropping the numeric row (step 6)** is enabled with a renderer argument,
-  `ReportLabRenderer(drop_numeric_when_narrow=False)`, defaulting to off. A per-line
-  `# hc:` flag would need a new option in `handcalcs/parsing/commands.py` (the argparse
-  command parser has no free-form `key=value`). That is a change to handcalcs itself, so it
-  is **pending the user's approval** and not part of this branch yet.
+- **Dropping the numeric row (step 6)**: *superseded 2026-10-16.* The renderer argument
+  `drop_numeric_when_narrow` and the ladder step were removed at the user's request ("this should
+  not be something that can be set upon instantiation"). The layout ladder never drops content;
+  the author drops the numeric row per line with `# hc: mode="no_num"` / `--mode no_num`.
 
 ### Escaping
 

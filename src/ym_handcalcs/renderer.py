@@ -67,12 +67,8 @@ class ReportLabRenderer(HTMLRenderer):
         palette: Palette = Palette(),
         fonts: Fonts = Fonts(),
         base_size: float = 9.5,
-        drop_numeric_when_narrow: bool = False,
     ) -> None:
         super().__init__()
-        # Opt-in: a calc line that cannot fit even when wrapped may drop its
-        # numeric-substitution row before the font is shrunk.
-        self.drop_numeric_when_narrow = drop_numeric_when_narrow
         missing = missing_fonts(fonts)
         if missing:
             raise ValueError(
@@ -195,7 +191,7 @@ class ReportLabRenderer(HTMLRenderer):
         return CalcLine(
             columns, comment, forced_grid=forced_grid, styles=styles,
             result_markup=self.result_markup, table_style=self.style("hcCalcGrid"),
-            pad=self.metrics.base_size * 0.3, drop_numeric=self.drop_numeric_when_narrow,
+            pad=self.metrics.base_size * 0.3,
         )
 
     def header_flowable(self, header: str, depth: int) -> Flowable:

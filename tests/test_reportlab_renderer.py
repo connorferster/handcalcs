@@ -297,15 +297,23 @@ def test_long_line_wraps_at_top_level_operators():
     assert line.layout == "grid:break1"
 
 
-def test_drop_numeric_is_opt_in():
-    # The numeric column is one unbreakable token wider than the value column.
+def test_layout_never_drops_the_numeric_row():
+    # The numeric column is one unbreakable token wider than the value column;
+    # the line shrinks or overflows rather than losing it. Dropping it is a
+    # per-line author choice (`# hc: mode="no_num"`), not a renderer setting.
     columns = ["x", "a · b", "123456789012345678901234", "1.2e+35"]
-    default = calc_line(columns)
-    default.wrap(130, 1000)
-    assert not default.layout.endswith("no-num")
-    dropped = calc_line(columns, drop_numeric_when_narrow=True)
-    dropped.wrap(130, 1000)
-    assert "no-num" in dropped.layout
+    line = calc_line(columns)
+    line.wrap(130, 1000)
+    assert "no-num" not in line.layout
+    assert len(line.columns) == 4
+    with pytest.raises(TypeError):
+        ReportLabRenderer(drop_numeric_when_narrow=True)
+
+
+def test_mode_no_num_drops_the_numeric_row():
+    story = render("a = 2\nb = 3\nc = a + b  # hc: mode='no_num'\n")["story"]
+    calc_lines = [f for _, f in leaves(story) if isinstance(f, CalcLine)]
+    assert len(calc_lines[-1].columns) == 3
 
 
 def test_unfittable_line_shrinks_then_overflows():
