@@ -16,7 +16,10 @@ The two pending decisions were answered:
    The aliases are checked before the old substring matching because they contain `num`/`sym` themselves.
 2. **ymprint block converter:** the user will build it later. Focus stays on "getting the guts right".
 
-### Experiment: every calc line in an aligned table (branch `features/reportlab_aligned_calcs`)
+### Aligned calc tables: every calc line in a table aligned on `=` (merged)
+
+Built on `features/reportlab_aligned_calcs` and fast-forwarded into `features/reportlab_renderer` on 2026-10-16
+(commits `5f64c97`, `fc460f4`, `d33cbe7`). The side branch has been deleted. Full suite: 493 passed, 2 skipped.
 
 User request (2026-10-16): "switch all calc lines to using tables to align around the = signs ... my motivation is
 primarily readability". Keep the accent rule on the left of the table.
@@ -477,6 +480,9 @@ Ad-hoc probe:
   - escaping, break ranking, elision, and every rung of the ladder (including `drop_numeric_when_narrow`);
   - params grid step-down and the short-grid no-split rule.
   The full suite passes: 465 passed, 2 skipped.
+- 2026-10-16: **Aligned calc tables merged** from `features/reportlab_aligned_calcs` (fast-forward; see Status).
+  Runs of calc lines share one table aligned on `=`, the accent rule appears only beside multi-row lines, and
+  splits keep `=` aligned across page breaks. Not done: widow/orphan control.
 
 ## Open items (after Phase 7)
 
