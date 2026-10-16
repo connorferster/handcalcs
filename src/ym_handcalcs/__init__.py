@@ -11,3 +11,4 @@ ym_handcalcs: a ymprint block module that renders handcalcs to ReportLab.
 from .fonts import Fonts, FontFamily, ensure_dejavu_registered
 from .styles import Palette, build_stylesheet
 from .renderer import ReportLabRenderer
+from .pdf import build_pdf

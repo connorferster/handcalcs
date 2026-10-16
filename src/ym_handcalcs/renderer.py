@@ -17,7 +17,7 @@ from typing import Optional
 from xml.sax.saxutils import escape
 
 from reportlab.lib.styles import StyleSheet1
-from reportlab.platypus import Flowable, HRFlowable, Paragraph, Spacer
+from reportlab.platypus import Flowable, HRFlowable, KeepTogether, Paragraph, Spacer
 
 from handcalcs.renderers.base import BaseRenderContext, RenderContext, render_condition
 from handcalcs.renderers.html import HTMLRenderer
@@ -128,7 +128,7 @@ class ReportLabRenderer(HTMLRenderer):
         if isinstance(item[-1], list):
             header, body = item[0], item[-1]
             if not (isinstance(header, str) and header.strip()):
-                return [_Placed(f) for f in self.join_items(body, depth, base_context)]
+                return self.group(self.join_items(body, depth, base_context))
             return [
                 self.header_flowable(header, depth),
                 *(_Placed(f) for f in self.join_items(body, depth + 1, base_context)),
@@ -138,6 +138,14 @@ class ReportLabRenderer(HTMLRenderer):
             return [self.line_flowable(line, depth)] if line.strip() else []
         # A mixed list (e.g. a grid wrapped by ``render_block_body``): join each part.
         return [_Placed(f) for f in self.join_items(item, depth, base_context)]
+
+    # A headerless group (a run of calc lines) this short is kept on one page.
+    keep_together_max = 6
+
+    def group(self, placed: list[Flowable]) -> list:
+        if 2 <= len(placed) <= self.keep_together_max:
+            return [_Placed(KeepTogether(placed))]
+        return [_Placed(f) for f in placed]
 
     def at_depth(self, flowable: Flowable, depth: int) -> Flowable:
         """Indent a leaf flowable to ``depth`` and draw its indent guides."""
@@ -378,3 +386,18 @@ def for_block_header(renderer: RLR, node: ForBlock, base_context: BRC) -> str:
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     return f"{keyword(renderer, 'Iterating over each')} {target} {keyword(renderer, 'in')} {iterable}:"
+
+
+## COMPARISONS
+
+@RLR.register("gt_op:post")
+@RLR.register("lt_op:post")
+@RLR.register("gte_op:post")
+@RLR.register("lte_op:post")
+@RLR.register("eq_op:post")
+@RLR.register("neq_op:post")
+def space_comparison(renderer: RLR, rendered, node, base_context: BRC) -> str:
+    # Space comparison operators like the arithmetic ones (``a < b``, not
+    # ``a<b``); ``!=`` becomes ``≠``. ``breaking`` treats them as relations.
+    symbol = "\u2260" if rendered == "!=" else rendered
+    return f" {symbol} "

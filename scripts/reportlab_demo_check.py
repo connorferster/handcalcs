@@ -17,11 +17,10 @@ still overflow are flagged.
 import argparse
 import pathlib
 
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate
+from reportlab.platypus import KeepTogether
 
 from handcalcs import HandCalcs
-from ym_handcalcs import ReportLabRenderer, ensure_dejavu_registered
+from ym_handcalcs import ReportLabRenderer, build_pdf, ensure_dejavu_registered
 from ym_handcalcs.flowables import CalcLine, DepthGuides
 from ym_handcalcs.renderer import plain_text
 
@@ -31,7 +30,9 @@ def calc_lines(story) -> list[CalcLine]:
     for flowable in story:
         while isinstance(flowable, DepthGuides):
             flowable = flowable.content
-        if isinstance(flowable, CalcLine):
+        if isinstance(flowable, KeepTogether):
+            found.extend(calc_lines(flowable._content))
+        elif isinstance(flowable, CalcLine):
             found.append(flowable)
     return found
 
@@ -51,17 +52,11 @@ def layout_report(story) -> list[str]:
 def build(width: float, out_dir: pathlib.Path) -> pathlib.Path:
     ensure_dejavu_registered()
     result = HandCalcs(renderer=ReportLabRenderer()).demo()
-    page_width, _ = letter
-    margin = (page_width - width) / 2
     out_dir.mkdir(parents=True, exist_ok=True)
     pdf = out_dir / f"reportlab_demo_{int(width)}.pdf"
-    doc = SimpleDocTemplate(
-        str(pdf), pagesize=letter, leftMargin=margin, rightMargin=margin,
-        topMargin=54, bottomMargin=54, title="HandCalcs ReportLab demo",
-    )
     story = result["story"]
     count = len(story)
-    doc.build(list(story))  # build() consumes the list it is given
+    build_pdf(result, pdf, title="HandCalcs ReportLab demo", frame_width=width)
     print(f"{pdf}: {count} flowables, frame width {width:g} pt")
     report = layout_report(story)
     total = len(calc_lines(story))

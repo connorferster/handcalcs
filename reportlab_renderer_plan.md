@@ -299,7 +299,7 @@ Elements:
   collections only on overflow, `drop_numeric_when_narrow`, params-grid column step-down,
   wrapping of block headers, and the overflow/layout report in the demo script. Check by eye
   at 252 pt and 504 pt (the demo script takes `--width`).
-- [ ] **Phase 6: Polish.** `KeepTogether` grouping, the optional
+- [x] **Phase 6: Polish.** `KeepTogether` grouping, the optional
   `build_pdf(result, path, title=...)` helper (page footer with page numbers, outline
   bookmarks from heading anchors via `afterFlowable`). The helper is for the demo and
   downstream convenience. The renderer itself only returns the dict.
@@ -402,3 +402,10 @@ Ad-hoc probe:
   sub/superscripts no longer collide. `drop_numeric_when_narrow` is a renderer argument.
   Demo layout report: 252 pt has 42 calc lines, 18 not on one line, 0 shrink/overflow. 504 pt has 7 not on one
   line, 0 shrink/overflow.
+- 2026-10-16: **Phase 6 done.**
+  - A headerless group of 2–6 lines is wrapped in `KeepTogether` (`keep_together_max`).
+  - `pdf.py` adds `HandcalcsDocTemplate` and `build_pdf(result, path, title=, frame_width=)`: bookmarks from
+    `hc_outline` (levels clamped so the outline never skips a level), a footer with the title and page number, and a
+    centred narrower frame for previews. The demo script uses it.
+  - ReportLab-only: comparison operators are spaced (`a < b`), `!=` renders as `≠`, and `breaking` treats them as
+    relations.

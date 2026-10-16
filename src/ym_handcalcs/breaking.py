@@ -13,8 +13,9 @@ The rank is ``bracket_depth * CLASSES + operator_class``, so every break
 outside brackets beats every break inside them, and within one bracket level
 looser-binding operators win:
 
-- class 0: relations and boolean words (``=``, ``→``, ``and``, ``or``, ``in``,
-  ``is``, ``not``) and the spaces between plain words (block headers);
+- class 0: relations, comparisons and boolean words (``=``, ``→``, ``<``,
+  ``≤``, ``and``, ``or``, ``in``, ``is``, ``not``) and the spaces between plain
+  words (block headers);
 - class 1: ``+``, ``-`` and the space after a comma (collections, arguments);
 - class 2: ``·``, ``/``, ``//``, ``%``.
 
