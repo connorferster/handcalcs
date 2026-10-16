@@ -348,7 +348,7 @@ Elements:
   `scripts/reportlab_demo_check.py`: builds `reportlab_demo.pdf` from `hc.demo()` with
   `SimpleDocTemplate`, and with `--png` rasterizes pages via
   `uv run --with pymupdf` so Claude can eyeball them (no poppler/ghostscript in the sandbox).
-  Add `reportlab_demo.pdf` and `reportlab_demo_build/` to `.gitignore`.
+  Add `reportlab_demo.pdf` and `reportlab_demo/` to `.gitignore`.
 - [x] **Phase 2: Lines.** Headings, comment prose with escaping, imports, calc lines (hanging
   indent, result highlight, inline comments), expression lines, line-break spacers, flat
   blocks.

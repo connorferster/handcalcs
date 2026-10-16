@@ -9,7 +9,7 @@ rasterized to PNG (needs pymupdf: ``uv run --with pymupdf ...``).
 
     uv run python scripts/reportlab_demo_check.py [--width 252] [--png] [out_dir]
 
-Output goes to ./reportlab_demo_build by default. After the build, a layout
+Output goes to ./reportlab_demo by default. After the build, a layout
 report lists every calc line that did not fit on one line, with the layout it
 chose (see ``ym_handcalcs.flowables.CalcLine``). Lines that had to shrink or
 still overflow are flagged.
@@ -79,7 +79,7 @@ def rasterize(pdf: pathlib.Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
-    parser.add_argument("out_dir", nargs="?", default="reportlab_demo_build")
+    parser.add_argument("out_dir", nargs="?", default="reportlab_demo")
     parser.add_argument("--width", type=float, default=252)
     parser.add_argument("--png", action="store_true")
     args = parser.parse_args()

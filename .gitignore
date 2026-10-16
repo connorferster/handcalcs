@@ -152,4 +152,4 @@ src/handcalcs/renderers/example_output.py
 latex_demo_build/
 latex_demo.pdf
 markdown_demo_build/
-reportlab_demo_build/
+reportlab_demo/
