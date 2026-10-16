@@ -29,6 +29,16 @@ primarily readability". Keep the accent rule on the left of the table.
   use `stack`. Space between lines = `hcCalc.spaceBefore` added to the line's first-row top padding.
 - Page breaks: runs of 2–6 lines stay in a `KeepTogether`; longer runs split between lines, never inside one.
 - Cost: cell padding takes ~18 pt per row, so a few lines move one rung down the ladder (layout golden: 7 changes).
+- Left rule: only beside multi-row lines (`-m`, or grid/stack fallbacks); `CalcBlock.rule_single_lines = True`
+  rules the whole run. Lines are separated by explicit spacer rows (height `gap`, zero padding), so the rule is
+  the style's `LINEBEFORE` applied per line and never runs through a gap. (A first version drew the rule by hand
+  from `Table._rowpositions`; replaced because it relied on a private attribute and lost the bar on row splits.)
+- Split rules: the row bookkeeping only picks the cut; both parts are rebuilt from the `CalcLine`s. A line's height
+  includes the gap row above it. Both parts keep the parent's target column width (`fixed_id_width`), so `=` stays
+  aligned across a page break. A tall (> `keep_rows`) first line of a multi-line run is split off on its own so it
+  can split by rows (before, `split` returned `[]` forever → LayoutError). ReportLab carries `LINEBEFORE` onto both
+  halves of a row-split table (tested).
+- Not done: no widow/orphan control; a run can leave a single line at the bottom of a page.
 
 ### Summary of the work so far
 

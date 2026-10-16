@@ -501,38 +501,47 @@ class CalcBlock(Flowable):
     """
     A run of consecutive calc lines at one depth, drawn as one table aligned on
     the first ``=``: every line shares the target column, so the ``=`` signs
-    of the whole run line up, and the accent rule on the left runs the length
-    of the block. Each line still picks its own layout (see ``CalcLine``).
+    of the whole run line up. Each line still picks its own layout (see
+    ``CalcLine``).
+
+    Lines are separated by an empty spacer row of height ``gap``, so a line's
+    rows are exactly its own: the accent rule (the table style's
+    ``LINEBEFORE``) is applied per line and never runs through the gaps.
+    With ``rule_single_lines`` off (the default), only lines laid out over
+    more than one ``=`` row get it: ``# hc: -m`` lines and long lines that fell
+    back to a grid. With it on, the style's rule runs down the whole block.
 
     The target column is as wide as the widest target, ignoring targets wider
     than ``max_target`` of the frame; those lines stack their target on a row
-    of its own. A block splits across pages between lines, never inside one
-    (a single line taller than the page splits by rows).
+    of its own. A block splits across pages between lines, never inside one;
+    both parts keep the original target column width, so the ``=`` signs stay
+    aligned across the break. A line taller than ``CalcLine.keep_rows`` that
+    cannot start on the page splits by rows.
     """
 
     max_target = 0.4
-    # Draw the accent rule beside every line (True), or only beside lines laid
-    # out over more than one ``=`` row: ``# hc: -m`` lines and long lines that
-    # fell back to a grid (False).
     rule_single_lines = False
 
-    def __init__(self, lines: list[CalcLine], gap: float | None = None):
+    def __init__(self, lines: list[CalcLine], gap: float | None = None,
+                 fixed_id_width: float | None = None):
         super().__init__()
         self.lines = list(lines)
         first, last = self.lines[0], self.lines[-1]
         self.table_style = first.table_style
         self.pad = first.pad
-        # Extra space above each line after the first, standing in for the
-        # paragraph spacing the lines had as separate flowables.
+        # The spacer between lines, standing in for the paragraph spacing the
+        # lines had as separate flowables.
         self.gap = first.spaceBefore if gap is None else gap
+        self.fixed_id_width = fixed_id_width
         self.spaceBefore = first.spaceBefore
         self.spaceAfter = last.spaceAfter
         self._table = None
-        self._line_rows: list[int] = []
-        self._ruled: list[tuple[int, int, float]] = []
-        self._rule = None
+        # ``(first_row, end_row)`` of each line's own rows (gap rows excluded).
+        self.spans: list[tuple[int, int]] = []
 
     def id_width(self, avail_width: float) -> float:
+        if self.fixed_id_width is not None:
+            return self.fixed_id_width
         cap = avail_width * self.max_target
         widths = [w for w in (line.target_width() for line in self.lines) if w <= cap]
         return max(widths, default=2 * self.pad + 0.5)
@@ -540,30 +549,32 @@ class CalcBlock(Flowable):
     def build_table(self, avail_width: float) -> Table:
         id_width = self.id_width(avail_width)
         eq_width = max(line.eq_width() for line in self.lines)
+        style = list(self.table_style.getCommands())
+        rules = [c for c in style if c[0] == "LINEBEFORE"]
+        commands = style if self.rule_single_lines else [c for c in style if c[0] != "LINEBEFORE"]
         cells: list = []
-        commands = list(self.table_style.getCommands())
-        self._line_rows = []
-        self._ruled = []
-        if not self.rule_single_lines:
-            # The rule is drawn per line in ``draw`` instead.
-            rules = [c for c in commands if c[0] == "LINEBEFORE"]
-            self._rule = rules[0][3:5] if rules else None
-            commands = [c for c in commands if c[0] != "LINEBEFORE"]
+        heights: list = []
+        self.spans = []
         for idx, line in enumerate(self.lines):
-            layout, line_cells, line_commands = line.choose(avail_width, id_width)
-            offset = len(cells)
-            if not self.rule_single_lines and _is_multirow(line, layout):
-                self._ruled.append((offset, offset + len(line_cells), self.gap if idx else 0.0))
-            for cmd, (c0, r0), (c1, r1), *rest in line_commands:
-                commands.append((cmd, (c0, r0 + offset), (c1, r1 + offset), *rest))
             if idx and self.gap:
-                top = self.table_style.getCommands()
-                base_top = next((c[3] for c in top if c[0] == "TOPPADDING"), 0)
-                commands.append(("TOPPADDING", (0, offset), (-1, offset), base_top + self.gap))
+                gap_row = len(cells)
+                cells.append(["", "", ""])
+                heights.append(self.gap)
+                commands.append(("TOPPADDING", (0, gap_row), (-1, gap_row), 0))
+                commands.append(("BOTTOMPADDING", (0, gap_row), (-1, gap_row), 0))
+            layout, line_cells, line_commands = line.choose(avail_width, id_width)
+            first = len(cells)
+            for cmd, (c0, r0), (c1, r1), *rest in line_commands:
+                commands.append((cmd, (c0, r0 + first), (c1, r1 + first), *rest))
             cells.extend(line_cells)
-            self._line_rows.append(len(line_cells))
+            heights.extend([None] * len(line_cells))
+            self.spans.append((first, len(cells)))
+            if not self.rule_single_lines and _is_multirow(line, layout):
+                for cmd, _, _, *rest in rules:
+                    commands.append((cmd, (0, first), (0, len(cells) - 1), *rest))
         val_width = max(avail_width - id_width - eq_width, 4 * self.pad)
-        return Table(cells, colWidths=[id_width, eq_width, val_width], style=commands, hAlign="LEFT")
+        return Table(cells, colWidths=[id_width, eq_width, val_width], rowHeights=heights,
+                     style=commands, hAlign="LEFT")
 
     def wrap(self, avail_width, avail_height):
         self._table = self.build_table(avail_width)
@@ -571,42 +582,38 @@ class CalcBlock(Flowable):
         return self.width, self.height
 
     def split(self, avail_width, avail_height):
+        id_width = self.id_width(avail_width)
         table = self.build_table(avail_width)
         table.wrap(avail_width, avail_height)
         heights = table._rowHeights
-        used, row, fitting = 0.0, 0, 0
-        for count in self._line_rows:
-            line_height = sum(heights[row:row + count])
+        used, fitting, previous_end = 0.0, 0, 0
+        for first, end in self.spans:
+            # A line's height includes the gap row above it (``previous_end``
+            # is where the previous line's rows stopped).
+            line_height = sum(heights[previous_end:end])
             if used + line_height > avail_height + 0.01:
                 break
             used += line_height
-            row += count
+            previous_end = end
             fitting += 1
         # ``split`` is only called when the block does not fit, so at least the
         # last line must move on (the frame's spacing is not counted above).
         fitting = min(fitting, len(self.lines) - 1)
         if fitting == 0:
-            if len(self.lines) == 1 and self._line_rows[0] > CalcLine.keep_rows:
+            first, end = self.spans[0]
+            if end - first <= CalcLine.keep_rows:
+                return []
+            if len(self.lines) == 1:
                 return table.split(avail_width, avail_height)
-            return []
-        head = CalcBlock(self.lines[:fitting], gap=self.gap)
-        tail = CalcBlock(self.lines[fitting:], gap=self.gap)
+            # A tall first line goes on its own, so it can split by rows.
+            fitting = 1
+        head = CalcBlock(self.lines[:fitting], gap=self.gap, fixed_id_width=id_width)
+        tail = CalcBlock(self.lines[fitting:], gap=self.gap, fixed_id_width=id_width)
         head.spaceAfter = 0
         return [head, tail]
 
     def draw(self):
         self._table.drawOn(self.canv, 0, 0)
-        if not self._ruled or self._rule is None:
-            return
-        width, color = self._rule
-        tops = self._table._rowpositions
-        canvas = self.canv
-        canvas.saveState()
-        canvas.setStrokeColor(color)
-        canvas.setLineWidth(width)
-        for first, end, gap in self._ruled:
-            canvas.line(0, tops[first] - gap, 0, tops[end])
-        canvas.restoreState()
 
 
 def _is_multirow(line: CalcLine, layout: str) -> bool:

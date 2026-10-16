@@ -413,11 +413,88 @@ def test_split_never_returns_the_whole_block():
     assert parts and len(parts[0].lines) < 12
 
 
+def rule_rows(table) -> list[tuple[int, int]]:
+    return [(r0, r1) for cmd, (_, r0), (_, r1), *_ in table._linecmds if cmd == "LINEBEFORE"]
+
+
 def test_rule_marks_only_multirow_lines():
     source = "a = 1\nb = 2\nc = a + b  # hc: -m\nd = a * b\n"
     (block,) = blocks(render(source)["story"])
-    block.wrap(400, 1000)
-    rows = [len(line.choose(400, block.id_width(400))[1]) for line in block.lines]
-    starts = [sum(rows[:i]) for i in range(len(rows))]
-    assert [first for first, _, _ in block._ruled] == [starts[2]]
-    assert not any(c[0] == "LINEBEFORE" for c in block._table._linecmds)
+    table = block.build_table(400)
+    first, end = block.spans[2]
+    assert rule_rows(table) == [(first, end - 1)]
+
+
+def test_rules_never_cover_gap_rows():
+    source = "x1 = 1 + 2  # hc: -m\nx2 = 3 + 4  # hc: -m\ny = 5\n"
+    (block,) = blocks(render(source)["story"])
+    table = block.build_table(400)
+    line_rows = {row for first, end in block.spans for row in range(first, end)}
+    gap_rows = set(range(len(table._cellvalues))) - line_rows
+    assert gap_rows, "lines are separated by spacer rows"
+    ruled = rule_rows(table)
+    assert len(ruled) == 2
+    assert all(row not in gap_rows for r0, r1 in ruled for row in range(r0, r1 + 1))
+
+
+def test_stacked_target_span_follows_the_gap_row():
+    source = "a = 1\n" + "b" * 30 + " = a + 1\n"
+    (block,) = blocks(render(source)["story"])
+    table = block.build_table(252)
+    first, _ = block.spans[1]
+    spans = [(r0, r1) for cmd, (_, r0), (_, r1), *_ in table._spanCmds if cmd == "SPAN"]
+    assert spans == [(first, first)] and first > block.spans[0][1]
+
+
+def twelve_lines() -> CalcBlock:
+    (block,) = blocks(render("".join(f"v{n} = {n}\n" for n in range(12)))["story"])
+    return block
+
+
+def test_split_breaks_before_a_gap_when_the_next_line_does_not_fit():
+    block = twelve_lines()
+    block.wrap(252, 1000)
+    heights = block._table._rowHeights
+    _, end3 = block.spans[2]
+    first4, end4 = block.spans[3]
+    # Room for three lines plus the gap above the fourth, but not the fourth.
+    avail = sum(heights[:end3]) + sum(heights[end3:first4]) + 1
+    head, tail = block.split(252, avail)
+    assert len(head.lines) == 3 and len(tail.lines) == 9
+
+
+def test_split_parts_start_without_a_gap_and_keep_the_target_column():
+    source = "a = 1\n" + "".join(f"v{n} = {n}\n" for n in range(10)) + "long_target_name = 2\n"
+    (block,) = blocks(render(source)["story"])
+    _, height = block.wrap(252, 1000)
+    head, tail = block.split(252, height / 2)
+    for part in (head, tail):
+        table = part.build_table(252)
+        assert part.spans[0][0] == 0
+        assert table._argW[0] == block.id_width(252)
+    assert head.id_width(252) > max(line.target_width() for line in head.lines)
+
+
+def test_tall_first_line_splits_off_instead_of_raising():
+    # A forced grid with one row per value, first in a multi-line run. With
+    # nothing fitting, the old split returned [] forever (a LayoutError).
+    tall = " + ".join(f"term{n}" for n in range(6))
+    tall_line = calc_line(["x"] + [tall] * 8, forced_grid=True)
+    block = CalcBlock([tall_line, calc_line(["y", "1"])])
+    parts = block.split(252, 30)
+    assert len(parts) == 2 and parts[0].lines == [tall_line]
+    _, tall_height = parts[0].wrap(252, 1000)
+    rows = parts[0].split(252, tall_height / 2)
+    assert len(rows) == 2 and all(isinstance(r, Table) for r in rows)
+
+
+def test_row_split_keeps_the_rule_on_both_halves():
+    tall = " + ".join(f"term{n}" for n in range(6))
+    line = calc_line(["x"] + [tall] * 8, forced_grid=True)
+    block = CalcBlock([line])
+    _, height = block.wrap(252, 1000)
+    halves = block.split(252, height / 2)
+    assert len(halves) == 2
+    for half in halves:
+        half.wrap(252, 1000)
+        assert any(cmd == "LINEBEFORE" for cmd, *_ in half._linecmds)

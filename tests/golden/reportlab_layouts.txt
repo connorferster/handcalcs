@@ -24,7 +24,7 @@ line                     vals<sub>y</sub>
 grid                     value<sub>computed</sub>
 stack                    acc.append(value<sub>computed</sub>)
 grid:break4              acc
-line                     temp
+line+comment             temp
 line+comment             temp<sub>min</sub>
 line+comment             temp<sub>max</sub>
 line                     materials
@@ -37,7 +37,7 @@ grid:break4              material<sub>ok</sub>
 grid:break4              material<sub>missing</sub>
 grid                     no<sub>override</sub>
 grid                     has<sub>override</sub>
-grid                     combined
+grid:break0              combined
 line                     section<sub>check</sub>
 line                     a<sub>dictionary</sub>
 line                     a<sub>tuple</sub>
