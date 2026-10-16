@@ -21,7 +21,7 @@ from reportlab.platypus import KeepTogether
 
 from handcalcs import HandCalcs
 from ym_handcalcs import ReportLabRenderer, build_pdf, ensure_dejavu_registered
-from ym_handcalcs.flowables import CalcLine, DepthGuides
+from ym_handcalcs.flowables import CalcBlock, CalcLine, DepthGuides
 from ym_handcalcs.renderer import plain_text
 
 
@@ -32,6 +32,8 @@ def calc_lines(story) -> list[CalcLine]:
             flowable = flowable.content
         if isinstance(flowable, KeepTogether):
             found.extend(calc_lines(flowable._content))
+        elif isinstance(flowable, CalcBlock):
+            found.extend(flowable.lines)
         elif isinstance(flowable, CalcLine):
             found.append(flowable)
     return found

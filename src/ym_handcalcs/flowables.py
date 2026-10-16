@@ -298,18 +298,22 @@ class BreakingParagraph(Flowable):
 
 class CalcLine(Flowable):
     """
-    One calc line that picks its layout when it learns the frame width.
+    One calc line, laid out as rows of a three-column table aligned on ``=``:
+    ``target | = | value``. A line picks its layout when it learns the frame
+    width; inside a ``CalcBlock`` it shares the target column width with the
+    other lines of its run, so their ``=`` signs line up.
 
     ``columns`` are ``[target, sym, num, result]`` (or fewer) as paragraph
-    markup; ``comment`` is the styled inline comment or None. ``wrap`` tries the
-    layouts in order and keeps the first that fits:
+    markup; ``comment`` is the styled inline comment or None. The layouts are
+    tried in order and the first that fits is kept:
 
-    1. ``line``: one line (skipped when ``forced_grid``, i.e. ``# hc: -m``);
-    2. ``line+comment``: one line, the comment on its own line underneath;
-    3. ``grid``: rows aligned on ``=``, no wrapping inside a row;
+    1. ``line``: one row, ``target = sym = num = result`` (skipped when
+       ``forced_grid``, i.e. ``# hc: -m``);
+    2. ``line+comment``: the same, with the comment on a row underneath;
+    3. ``grid``: one row per value, each starting with ``=``, no wrapping;
     4. ``grid:breakN``: wrap value cells at break points up to rank N;
        then ``stack`` / ``stack:breakN``: the same with the target on a row of
-       its own (for a target too wide to share its row);
+       its own (for a target too wide for the target column);
     5. ``grid:elided``: long collections shortened around an ellipsis;
     6. ``shrink``: the above at ``min_scale`` font size;
     7. ``overflow``: the last attempt, wider than the frame.
@@ -317,7 +321,8 @@ class CalcLine(Flowable):
     The numeric substitution row is never dropped here; that is the author's
     call, per line, with ``# hc: mode="no_num"``.
 
-    ``layout`` records the choice (for the overflow report and tests).
+    ``layout`` records the choice (for the overflow report and tests). On its
+    own (outside a block) the line wraps and draws its rows as a table.
     """
 
     def __init__(self, columns: list[str], comment, *, forced_grid: bool, styles: dict,
@@ -337,7 +342,7 @@ class CalcLine(Flowable):
         self.spaceBefore = line_style.spaceBefore
         self.spaceAfter = line_style.spaceAfter
         self.layout = ""
-        self._flow = None
+        self._table = None
         self._cache: dict = {}
 
     # -- markup ---------------------------------------------------------
@@ -348,132 +353,232 @@ class CalcLine(Flowable):
             values[-1] = self.result_markup(values[-1])
         return values
 
-    def _line_markup(self, columns: list[str], with_comment: bool) -> str:
-        from .breaking import unbreakable
+    # -- column widths ----------------------------------------------------
 
-        values = self._values(columns, unbreakable)
-        text = " = ".join(values)
-        if with_comment and self.comment:
-            text += f" {self.comment}"
-        return text
+    def target_width(self) -> float:
+        """Natural width of the target cell, padding included (0 without a target)."""
+        if len(self.columns) < 2:
+            return 0.0
+        target = self._values(self.columns, lambda m: m)[0]
+        return natural_width(Paragraph(target, self.styles["right"])) + 2 * self.pad + 0.5
+
+    def eq_width(self) -> float:
+        return natural_width(Paragraph("=", self.styles["center"])) + 2 * self.pad + 0.5
 
     # -- layouts ----------------------------------------------------------
 
-    def _line(self, avail_width: float, with_comment: bool, scale: float = 1.0):
-        style = _scaled(self.styles["line"], scale)
-        markup = self._line_markup(self.columns, with_comment)
-        paragraph = Paragraph(markup, style)
-        fits = natural_width(paragraph) <= avail_width
-        if not with_comment and self.comment:
-            comment_style = _scaled(self.styles["line"], scale)
-            paragraph = Paragraph(f"{markup}<br/>{self.comment}", comment_style)
-        return paragraph, fits
-
-    def _grid(self, avail_width: float, columns: list[str], transform, scale: float = 1.0,
-              stacked: bool = False):
+    def _rows(self, avail_width: float, id_width: float, columns: list[str], transform,
+              kind: str, scale: float = 1.0):
         """
-        Rows aligned on ``=``: ``target = v1`` / ``= v2`` / ... With ``stacked``,
-        the target takes a row of its own (for a target too wide to share a row)
-        and every value row starts with ``=``.
+        The cells of one layout and whether it fits. ``kind`` is ``line``,
+        ``line+comment``, ``grid`` or ``stack`` (the target on a row of its
+        own). Returns ``(cells, commands, fits)``; ``commands`` are extra table
+        commands with row numbers relative to this line.
         """
         right = _scaled(self.styles["right"], scale)
         center = _scaled(self.styles["center"], scale)
         value_style = _scaled(self.styles["value"], scale)
         values = self._values(columns, transform)
+        comment_row = kind == "line+comment" and self.comment
         if len(values) == 1:
             rows = [["", "", values[0]]]
-        elif stacked:
+        elif kind in ("line", "line+comment"):
+            rows = [[values[0], "=", " = ".join(values[1:])]]
+        elif kind == "stack":
             rows = [[values[0], "", ""]] + [["", "=", value] for value in values[1:]]
         else:
             rows = [[values[0], "=", values[1]]] + [["", "=", value] for value in values[2:]]
-        if self.comment:
+        if self.comment and not comment_row:
             rows[-1][2] = f"{rows[-1][2]} {self.comment}"
-        cells = [[Paragraph(i, right), Paragraph(e, center), Paragraph(v, value_style)] for i, e, v in rows]
-        commands = list(self.table_style.getCommands())
-        if stacked:
-            cells[0][0] = Paragraph(rows[0][0], value_style)
-            for row in cells[1:]:
-                row[0] = ""
-            cells[0][1] = cells[0][2] = ""
+        cells = [
+            [Paragraph(i, right) if i else "", Paragraph(e, center) if e else "", Paragraph(v, value_style)]
+            for i, e, v in rows
+        ]
+        if comment_row:
+            cells.append(["", "", Paragraph(self.comment, value_style)])
+        commands = []
+        value_rows = cells
+        eq_width = self.eq_width()
+        inner = avail_width - id_width - eq_width - 2 * self.pad
+        if kind == "stack":
+            cells[0] = [Paragraph(rows[0][0], value_style), "", ""]
             commands.append(("SPAN", (0, 0), (-1, 0)))
-            id_width = 2 * self.pad + 0.5
             target_fits = fits_width(cells[0][0], avail_width - 2 * self.pad)
+            value_rows = cells[1:]
+        elif isinstance(cells[0][0], Paragraph):
+            target_fits = natural_width(cells[0][0]) <= id_width - 2 * self.pad + 0.01
         else:
-            id_width = max(natural_width(row[0]) for row in cells) + 2 * self.pad + 0.5
             target_fits = True
-        eq_width = max(natural_width(row[1]) for row in cells if isinstance(row[1], Paragraph)) + 2 * self.pad + 0.5
-        val_natural = max(natural_width(row[2]) for row in cells[1 if stacked else 0:]) + 2 * self.pad + 0.5
-        val_width = min(val_natural, avail_width - id_width - eq_width)
-        inner = val_width - 2 * self.pad
-        fits = target_fits and inner > 0 and all(
-            fits_width(row[2], inner) for row in cells[1 if stacked else 0:]
-        )
-        table = Table(cells, colWidths=[id_width, eq_width, max(val_width, 4 * self.pad)],
-                      style=commands, hAlign="LEFT")
-        return table, fits
+        if comment_row:
+            value_rows = value_rows[:-1]
+        if kind in ("line", "line+comment"):
+            # A one-row layout must fit without wrapping at all.
+            fits = target_fits and inner > 0 and natural_width(value_rows[0][2]) <= inner + 0.01
+        else:
+            fits = target_fits and inner > 0 and all(fits_width(row[2], inner) for row in value_rows)
+        return cells, commands, fits
 
-    def _attempts(self, avail_width: float):
+    def _attempts(self, avail_width: float, id_width: float):
         from .breaking import elide_collections, max_rank, unbreakable, with_breaks
 
         if not self.forced_grid:
-            yield "line", lambda s: self._line(avail_width, True, s)
+            yield "line", lambda s: self._rows(avail_width, id_width, self.columns, unbreakable, "line", s)
             if self.comment:
-                yield "line+comment", lambda s: self._line(avail_width, False, s)
+                yield "line+comment", lambda s: self._rows(
+                    avail_width, id_width, self.columns, unbreakable, "line+comment", s
+                )
         column_sets = [("", self.columns)]
         elided = [elide_collections(col) for col in self.columns]
         if elided != self.columns:
             column_sets.append((":elided", elided))
         for suffix, columns in column_sets:
             top = max((max_rank(col) for col in columns), default=0)
-            for stacked in (False, True):
-                if stacked and len(columns) < 2:
+            for kind in ("grid", "stack"):
+                if kind == "stack" and len(columns) < 2:
                     continue
-                name = f"{'stack' if stacked else 'grid'}{suffix}"
-                yield name, lambda s, c=columns, st=stacked: self._grid(avail_width, c, unbreakable, s, st)
+                name = f"{kind}{suffix}"
+                yield name, lambda s, c=columns, k=kind: self._rows(avail_width, id_width, c, unbreakable, k, s)
                 for rank in range(0, top + 1):
                     yield (
                         f"{name}:break{rank}",
-                        lambda s, c=columns, r=rank, st=stacked: self._grid(
-                            avail_width, c, lambda m: with_breaks(m, r), s, st
+                        lambda s, c=columns, r=rank, k=kind: self._rows(
+                            avail_width, id_width, c, lambda m: with_breaks(m, r), k, s
                         ),
                     )
 
-    def _choose(self, avail_width: float):
-        key = round(avail_width, 2)
+    def choose(self, avail_width: float, id_width: float):
+        """``(layout, cells, commands)`` for this frame width and target column width."""
+        key = (round(avail_width, 2), round(id_width, 2))
         if key in self._cache:
+            self.layout = self._cache[key][0]
             return self._cache[key]
-        attempts = list(self._attempts(avail_width))
+        attempts = list(self._attempts(avail_width, id_width))
         choice = None
         for name, build in attempts:
-            flow, fits = build(1.0)
+            cells, commands, fits = build(1.0)
             if fits:
-                choice = (name, flow)
+                choice = (name, cells, commands)
                 break
         if choice is None:
             for name, build in attempts:
-                flow, fits = build(self.min_scale)
+                cells, commands, fits = build(self.min_scale)
                 if fits:
-                    choice = (f"shrink:{name}", flow)
+                    choice = (f"shrink:{name}", cells, commands)
                     break
         if choice is None:
             name, build = attempts[-1]
-            choice = (f"overflow:{name}", build(self.min_scale)[0])
+            cells, commands, _ = build(self.min_scale)
+            choice = (f"overflow:{name}", cells, commands)
         self._cache[key] = choice
+        self.layout = choice[0]
         return choice
 
+    # -- standalone flowable ------------------------------------------------
+
+    def _build(self, avail_width: float) -> Table:
+        block = CalcBlock([self], gap=0.0)
+        return block.build_table(avail_width)
+
     def wrap(self, avail_width, avail_height):
-        self.layout, self._flow = self._choose(avail_width)
-        self.width, self.height = self._flow.wrap(avail_width, avail_height)
+        self._table = self._build(avail_width)
+        self.width, self.height = self._table.wrap(avail_width, avail_height)
         return self.width, self.height
 
-    # A calc grid with this many rows or fewer is never split across pages.
+    # A calc line with this many rows or fewer is never split across pages.
     keep_rows = 4
 
     def split(self, avail_width, avail_height):
-        _, flow = self._choose(avail_width)
-        if isinstance(flow, Table) and len(flow._cellvalues) <= self.keep_rows:
+        table = self._build(avail_width)
+        if len(table._cellvalues) <= self.keep_rows:
             return []
-        return flow.split(avail_width, avail_height)
+        return table.split(avail_width, avail_height)
 
     def draw(self):
-        self._flow.drawOn(self.canv, 0, 0)
+        self._table.drawOn(self.canv, 0, 0)
+
+
+class CalcBlock(Flowable):
+    """
+    A run of consecutive calc lines at one depth, drawn as one table aligned on
+    the first ``=``: every line shares the target column, so the ``=`` signs
+    of the whole run line up, and the accent rule on the left runs the length
+    of the block. Each line still picks its own layout (see ``CalcLine``).
+
+    The target column is as wide as the widest target, ignoring targets wider
+    than ``max_target`` of the frame; those lines stack their target on a row
+    of its own. A block splits across pages between lines, never inside one
+    (a single line taller than the page splits by rows).
+    """
+
+    max_target = 0.4
+
+    def __init__(self, lines: list[CalcLine], gap: float | None = None):
+        super().__init__()
+        self.lines = list(lines)
+        first, last = self.lines[0], self.lines[-1]
+        self.table_style = first.table_style
+        self.pad = first.pad
+        # Extra space above each line after the first, standing in for the
+        # paragraph spacing the lines had as separate flowables.
+        self.gap = first.spaceBefore if gap is None else gap
+        self.spaceBefore = first.spaceBefore
+        self.spaceAfter = last.spaceAfter
+        self._table = None
+        self._line_rows: list[int] = []
+
+    def id_width(self, avail_width: float) -> float:
+        cap = avail_width * self.max_target
+        widths = [w for w in (line.target_width() for line in self.lines) if w <= cap]
+        return max(widths, default=2 * self.pad + 0.5)
+
+    def build_table(self, avail_width: float) -> Table:
+        id_width = self.id_width(avail_width)
+        eq_width = max(line.eq_width() for line in self.lines)
+        cells: list = []
+        commands = list(self.table_style.getCommands())
+        self._line_rows = []
+        for idx, line in enumerate(self.lines):
+            _, line_cells, line_commands = line.choose(avail_width, id_width)
+            offset = len(cells)
+            for cmd, (c0, r0), (c1, r1), *rest in line_commands:
+                commands.append((cmd, (c0, r0 + offset), (c1, r1 + offset), *rest))
+            if idx and self.gap:
+                top = self.table_style.getCommands()
+                base_top = next((c[3] for c in top if c[0] == "TOPPADDING"), 0)
+                commands.append(("TOPPADDING", (0, offset), (-1, offset), base_top + self.gap))
+            cells.extend(line_cells)
+            self._line_rows.append(len(line_cells))
+        val_width = max(avail_width - id_width - eq_width, 4 * self.pad)
+        return Table(cells, colWidths=[id_width, eq_width, val_width], style=commands, hAlign="LEFT")
+
+    def wrap(self, avail_width, avail_height):
+        self._table = self.build_table(avail_width)
+        self.width, self.height = self._table.wrap(avail_width, avail_height)
+        return self.width, self.height
+
+    def split(self, avail_width, avail_height):
+        table = self.build_table(avail_width)
+        table.wrap(avail_width, avail_height)
+        heights = table._rowHeights
+        used, row, fitting = 0.0, 0, 0
+        for count in self._line_rows:
+            line_height = sum(heights[row:row + count])
+            if used + line_height > avail_height + 0.01:
+                break
+            used += line_height
+            row += count
+            fitting += 1
+        # ``split`` is only called when the block does not fit, so at least the
+        # last line must move on (the frame's spacing is not counted above).
+        fitting = min(fitting, len(self.lines) - 1)
+        if fitting == 0:
+            if len(self.lines) == 1 and self._line_rows[0] > CalcLine.keep_rows:
+                return table.split(avail_width, avail_height)
+            return []
+        head = CalcBlock(self.lines[:fitting], gap=self.gap)
+        tail = CalcBlock(self.lines[fitting:], gap=self.gap)
+        head.spaceAfter = 0
+        return [head, tail]
+
+    def draw(self):
+        self._table.drawOn(self.canv, 0, 0)

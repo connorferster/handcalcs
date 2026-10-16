@@ -16,6 +16,20 @@ The two pending decisions were answered:
    The aliases are checked before the old substring matching because they contain `num`/`sym` themselves.
 2. **ymprint block converter:** the user will build it later. Focus stays on "getting the guts right".
 
+### Experiment: every calc line in an aligned table (branch `features/reportlab_aligned_calcs`)
+
+User request (2026-10-16): "switch all calc lines to using tables to align around the = signs ... my motivation is
+primarily readability". Keep the accent rule on the left of the table.
+
+- `CalcBlock` (flowables.py): `ReportLabRenderer.join_items` merges each run of consecutive calc lines at one depth
+  into one table, `target | = | value`, so the first `=` lines up down the run, with one accent rule for the whole run.
+- `CalcLine` now emits table rows (`choose(avail_width, id_width)`); its ladder is unchanged, but `line` is a single
+  row that must fit unwrapped. A standalone `CalcLine` still wraps/draws itself as a one-line block.
+- Target column = widest target, ignoring targets wider than 40% of the frame (`CalcBlock.max_target`); those lines
+  use `stack`. Space between lines = `hcCalc.spaceBefore` added to the line's first-row top padding.
+- Page breaks: runs of 2–6 lines stay in a `KeepTogether`; longer runs split between lines, never inside one.
+- Cost: cell padding takes ~18 pt per row, so a few lines move one rung down the ladder (layout golden: 7 changes).
+
 ### Summary of the work so far
 
 The ReportLab renderer is built: Phases 0–7 are done on `features/reportlab_renderer` (pushed 2026-10-16). The full

@@ -22,7 +22,7 @@ from reportlab.platypus import Flowable, HRFlowable, KeepTogether, Paragraph, Sp
 from handcalcs.renderers.base import BaseRenderContext, RenderContext, render_condition
 from handcalcs.renderers.html import HTMLRenderer
 
-from .flowables import BreakingParagraph, CalcLine, Chip, DepthGuides, ParamGrid
+from .flowables import BreakingParagraph, CalcBlock, CalcLine, Chip, DepthGuides, ParamGrid
 from .fonts import Fonts, missing_fonts, register_families
 from .markers import CalcComponents, Grid, Tagged
 from .styles import Metrics, Palette, build_stylesheet
@@ -42,6 +42,12 @@ class _Placed:
 
     def __init__(self, flowable: Flowable) -> None:
         self.flowable = flowable
+
+
+def _unwrap(flowable: Flowable) -> Flowable:
+    while isinstance(flowable, DepthGuides):
+        flowable = flowable.content
+    return flowable
 
 
 # Heading bookmark keys must be unique across every render in a document.
@@ -135,11 +141,49 @@ class ReportLabRenderer(HTMLRenderer):
         # A mixed list (e.g. a grid wrapped by ``render_block_body``): join each part.
         return [_Placed(f) for f in self.join_items(item, depth, base_context)]
 
+    def join_items(self, items: list, depth: int, base_context: BaseRenderContext) -> list:
+        return self.merge_calc_runs(super().join_items(items, depth, base_context))
+
+    def merge_calc_runs(self, flowables: list) -> list:
+        """
+        Merge each run of consecutive calc lines at one depth into a
+        ``CalcBlock``, so the run is one table aligned on ``=``.
+        """
+        merged: list = []
+        run: list[CalcLine] = []
+        run_wrapper = None
+
+        def flush():
+            if run:
+                block = CalcBlock(run)
+                if run_wrapper is None:
+                    merged.append(block)
+                else:
+                    merged.append(DepthGuides(block, run_wrapper.depth, run_wrapper.indent, run_wrapper.colors))
+                run.clear()
+
+        for flowable in flowables:
+            wrapper = flowable if isinstance(flowable, DepthGuides) else None
+            line = wrapper.content if wrapper is not None else flowable
+            if isinstance(line, CalcLine):
+                depth = wrapper.depth if wrapper is not None else 0
+                run_depth = run_wrapper.depth if run_wrapper is not None else 0
+                if run and depth != run_depth:
+                    flush()
+                run.append(line)
+                run_wrapper = wrapper
+                continue
+            flush()
+            merged.append(flowable)
+        flush()
+        return merged
+
     # A headerless group (a run of calc lines) this short is kept on one page.
     keep_together_max = 6
 
     def group(self, placed: list[Flowable]) -> list:
-        if 2 <= len(placed) <= self.keep_together_max:
+        lines = sum(len(f.lines) if isinstance(f, CalcBlock) else 1 for f in map(_unwrap, placed))
+        if 2 <= lines <= self.keep_together_max:
             return [_Placed(KeepTogether(placed))]
         return [_Placed(f) for f in placed]
 

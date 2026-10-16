@@ -34,7 +34,7 @@ from reportlab.platypus import (
 from handcalcs import HandCalcs
 from ym_handcalcs import Fonts, FontFamily, ReportLabRenderer, build_pdf, ensure_dejavu_registered
 from ym_handcalcs.breaking import NBSP, elide_collections, ranked_breaks, with_breaks
-from ym_handcalcs.flowables import BreakingParagraph, CalcLine, Chip, DepthGuides, ParamGrid
+from ym_handcalcs.flowables import BreakingParagraph, CalcBlock, CalcLine, Chip, DepthGuides, ParamGrid
 
 GOLDEN_DIR = pathlib.Path(__file__).parent / "golden"
 UPDATE_GOLDEN = os.environ.get("HANDCALCS_UPDATE_GOLDEN") == "1"
@@ -65,6 +65,8 @@ def leaves(story: list, depth: int = 0):
             yield from leaves(flowable._content, depth)
         elif isinstance(flowable, DepthGuides):
             yield from leaves([flowable.content], flowable.depth)
+        elif isinstance(flowable, CalcBlock):
+            yield from leaves(flowable.lines, depth)
         else:
             yield depth, flowable
 
@@ -273,7 +275,7 @@ def test_short_line_stays_on_one_line():
 def test_comment_moves_under_a_line_that_fits_without_it():
     comment = '<font color="#6B7785"><i>(a fairly long explanatory comment)</i></font>'
     line = calc_line(["x", "a + b", "1 + 2", "3"], comment)
-    line.wrap(110, 1000)
+    line.wrap(130, 1000)
     assert line.layout == "line+comment"
 
 
@@ -337,3 +339,75 @@ def test_params_grid_steps_down_columns_to_fit():
     wide = grid.cols_used
     grid.wrap(150, 1000)
     assert wide == 3 and grid.cols_used == 1
+
+
+# --- CalcBlock: runs of calc lines aligned on "=" ----------------------------
+
+def blocks(story: list) -> list[CalcBlock]:
+    found = []
+    for flowable in story:
+        while isinstance(flowable, DepthGuides):
+            flowable = flowable.content
+        if isinstance(flowable, KeepTogether):
+            found.extend(blocks(flowable._content))
+        elif isinstance(flowable, CalcBlock):
+            found.append(flowable)
+    return found
+
+
+def test_consecutive_calc_lines_form_one_block():
+    story = render("a = 1\nlong_name = 2\nc = a + long_name\n")["story"]
+    (block,) = blocks(story)
+    assert len(block.lines) == 3
+
+
+def test_block_lines_share_the_target_column():
+    story = render("a = 1\nlong_name = 2\nc = a + long_name\n")["story"]
+    (block,) = blocks(story)
+    table = block.build_table(300)
+    widest = max(line.target_width() for line in block.lines)
+    assert table._argW[0] == widest
+    assert all(line.layout == "line" for line in block.lines)
+
+
+def test_a_very_wide_target_stacks_instead_of_widening_the_column():
+    source = "a = 1\n" + "b" * 30 + " = a + 1\nc = a + 2\n"
+    (block,) = blocks(render(source)["story"])
+    table = block.build_table(252)
+    assert table._argW[0] < 252 * CalcBlock.max_target
+    assert block.lines[1].layout == "stack"
+
+
+def test_nested_calc_lines_form_their_own_block():
+    source = "x = 1\nif x > 0:\n    y = x + 1\n    z = y + 1\nw = 2\n"
+    story = render(source)["story"]
+    depths = [(depth, len(f.lines)) for depth, f in block_leaves(story)]
+    assert (1, 2) in depths
+
+
+def block_leaves(story: list, depth: int = 0):
+    for flowable in story:
+        if isinstance(flowable, KeepTogether):
+            yield from block_leaves(flowable._content, depth)
+        elif isinstance(flowable, DepthGuides):
+            yield from block_leaves([flowable.content], flowable.depth)
+        elif isinstance(flowable, CalcBlock):
+            yield depth, flowable
+
+
+def test_long_block_splits_between_lines():
+    source = "".join(f"v{n} = {n}\n" for n in range(12))
+    (block,) = blocks(render(source)["story"])
+    _, height = block.wrap(252, 1000)
+    parts = block.split(252, height / 3)
+    assert len(parts) == 2 and all(isinstance(p, CalcBlock) for p in parts)
+    assert sum(len(p.lines) for p in parts) == 12
+    assert 1 <= len(parts[0].lines) < 12
+
+
+def test_split_never_returns_the_whole_block():
+    source = "".join(f"v{n} = {n}\n" for n in range(12))
+    (block,) = blocks(render(source)["story"])
+    _, height = block.wrap(252, 1000)
+    parts = block.split(252, height + 5)
+    assert parts and len(parts[0].lines) < 12

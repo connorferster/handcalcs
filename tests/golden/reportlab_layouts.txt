@@ -9,7 +9,7 @@ line                     L
 line                     E
 line+comment             I<sub>y</sub>
 line                     G
-line                     J
+line+comment             J
 line                     C<sub>w</sub>
 grid:break5              M<sub>u</sub>
 grid:break5              M<sub>u</sub>
@@ -30,10 +30,10 @@ line+comment             temp<sub>max</sub>
 line                     materials
 line                     material
 line                     override
-grid                     in<sub>range</sub>
-grid                     is<sub>extreme</sub>
-line+comment             not<sub>frozen</sub>
-grid                     material<sub>ok</sub>
+grid:break0              in<sub>range</sub>
+grid:break0              is<sub>extreme</sub>
+grid                     not<sub>frozen</sub>
+grid:break4              material<sub>ok</sub>
 grid:break4              material<sub>missing</sub>
 grid                     no<sub>override</sub>
 grid                     has<sub>override</sub>
@@ -46,7 +46,7 @@ line                     a
 line                     b
 line                     c
 grid                     x<sub>1</sub>
-line                     x<sub>2</sub>
+grid                     x<sub>2</sub>
 line                     ω<sub>2</sub>
 line                     L
 line                     E
@@ -76,7 +76,7 @@ line                     override
 line+comment             in<sub>range</sub>
 line+comment             is<sub>extreme</sub>
 line                     not<sub>frozen</sub>
-line                     material<sub>ok</sub>
+line+comment             material<sub>ok</sub>
 line                     material<sub>missing</sub>
 line                     no<sub>override</sub>
 line                     has<sub>override</sub>
