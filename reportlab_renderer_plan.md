@@ -4,15 +4,21 @@ Branch: `features/reportlab_renderer` (cut from `hc2/dev`). This file is the sin
 truth for resuming the ReportLabRenderer work. Keep the checklist and progress log below up to
 date.
 
-## NEXT SESSION: START HERE (user instruction, 2026-10-16)
+## Status (2026-10-16, session 2)
 
-At the start of the next session, **repeat this summary to the user**, then **prompt them for the two decisions
-below with AskUserQuestion** before doing anything else.
+The two pending decisions were answered:
+
+1. **Per-line numeric/symbolic drop:** done as new values for the existing `mode` context option (no new
+   argparse flag): `no_num`/`drop_numeric` and `no_sym`/`drop_symbolic`, which can be combined
+   (`mode="no_num no_sym"`). Used as `# hc: mode="no_num"` inline (that line only) or standalone (persists).
+   `mode_columns()` in `handcalcs/renderers/base.py` handles them, and every renderer gets them for free.
+   The aliases are checked before the old substring matching because they contain `num`/`sym` themselves.
+2. **ymprint block converter:** the user will build it later. Focus stays on "getting the guts right".
 
 ### Summary of the work so far
 
 The ReportLab renderer is built: Phases 0–7 are done on `features/reportlab_renderer` (pushed 2026-10-16). The full
-test suite passes (465 tests, 30 of them new).
+test suite passes (478 tests after session 2).
 
 - **What you get:** `HandCalcs(renderer=ReportLabRenderer())(source)` returns
   `{"stylesheet": StyleSheet1, "story": [flowables]}`. The code is in `src/ym_handcalcs/`, and `handcalcs` itself
@@ -30,15 +36,8 @@ test suite passes (465 tests, 30 of them new).
   (ymprint has no DejaVuSansMono-BoldOblique); matplotlib was briefly added for fonts, then removed.
 - **Things to know:** `doc.build(story)` empties the list (`build_pdf` passes a copy; ymprint should too). Dev PDFs
   show italics upright because the system DejaVu has no italic files. Dropping the numeric step is the renderer
-  argument `drop_numeric_when_narrow=True`.
+  argument `drop_numeric_when_narrow=True` (renderer-wide, only when narrow) or `# hc: mode="no_num"` (per line, always).
 - **Preview:** `uv run --with pymupdf python scripts/reportlab_demo_check.py --width 252 --png`.
-
-### Decisions to ask the user for
-
-1. Add a per-line `# hc:` flag for dropping the numeric step? It needs a small change to handcalcs itself
-   (`handcalcs/parsing/commands.py`).
-2. The ymprint block converter: which block key (e.g. `_handcalcs`), and should the converter live in
-   `ym_handcalcs`?
 
 ## Standing instructions from the user (2026-10-15)
 
@@ -458,11 +457,10 @@ Ad-hoc probe:
 
 ## Open items (after Phase 7)
 
-- **ymprint block converter** (not started): `convert(block_key, block_value, context)` that renders a source string
+- **ymprint block converter** (not started; the user will build it later): `convert(block_key, block_value, context)` that renders a source string
   or `.py` path with `ReportLabRenderer(base_size=<body size × block_scale(context)>)` and returns the story. Needs
   the user's call on the block key (e.g. `_handcalcs`) and on where the module lives.
-- **Per-line `# hc:` flag for dropping the numeric row:** needs a new option in `handcalcs/parsing/commands.py`
-  (handcalcs itself). Waiting for the user's approval.
+- ~~Per-line `# hc:` flag for dropping the numeric row~~: done as `mode="no_num"` / `mode="no_sym"` (see Status).
 - Base-level oddities seen in every renderer (left alone): string values render without quotes (`steel`), and
   `acc.append(x) = acc.append(11.31)`.
 - `HTMLRenderer` does not escape `<`/`&` in comments (latent; ReportLab escapes its own).
