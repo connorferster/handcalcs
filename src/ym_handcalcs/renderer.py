@@ -22,7 +22,7 @@ from reportlab.platypus import Flowable, HRFlowable, Paragraph, Spacer
 from handcalcs.renderers.base import BaseRenderContext, RenderContext, render_condition
 from handcalcs.renderers.html import HTMLRenderer
 
-from .flowables import CalcGrid, Chip, DepthGuides, ParamGrid
+from .flowables import BreakingParagraph, CalcLine, Chip, DepthGuides, ParamGrid
 from .fonts import Fonts, missing_fonts, register_families
 from .markers import CalcComponents, Grid, Tagged
 from .styles import Metrics, Palette, build_stylesheet
@@ -67,8 +67,12 @@ class ReportLabRenderer(HTMLRenderer):
         palette: Palette = Palette(),
         fonts: Fonts = Fonts(),
         base_size: float = 9.5,
+        drop_numeric_when_narrow: bool = False,
     ) -> None:
         super().__init__()
+        # Opt-in: a calc line that cannot fit even when wrapped may drop its
+        # numeric-substitution row before the font is shrunk.
+        self.drop_numeric_when_narrow = drop_numeric_when_narrow
         missing = missing_fonts(fonts)
         if missing:
             raise ValueError(
@@ -175,11 +179,22 @@ class ReportLabRenderer(HTMLRenderer):
         return f"{self.comment_open}{text}</i></font>"
 
     def calc_flowable(self, calc: CalcComponents, depth: int) -> Flowable:
-        return Paragraph(self.calc_markup(calc), self.style("hcCalc"))
+        return self.calc_line(calc.columns, calc.comment, forced_grid=False)
+
+    def calc_line(self, columns: list[str], comment: Optional[str], forced_grid: bool) -> CalcLine:
+        styles = self.cell_styles()
+        styles["line"] = self.style("hcCalc")
+        return CalcLine(
+            columns, comment, forced_grid=forced_grid, styles=styles,
+            result_markup=self.result_markup, table_style=self.style("hcCalcGrid"),
+            pad=self.metrics.base_size * 0.3, drop_numeric=self.drop_numeric_when_narrow,
+        )
 
     def header_flowable(self, header: str, depth: int) -> Flowable:
         marker = f'<font color="{self.palette.accent}">\u25B8</font>\u2002'
-        return Paragraph(marker + header, self.style("hcBlockHeader"))
+        return BreakingParagraph(
+            marker + header, self.style("hcBlockHeader"), background=self.palette.color("accent_soft")
+        )
 
     def tagged_flowables(self, item: Tagged, depth: int) -> list[Flowable]:
         if item.kind == "heading":
@@ -217,7 +232,7 @@ class ReportLabRenderer(HTMLRenderer):
             "right": self.style("hcCellRight"),
             "center": self.style("hcCellCenter"),
             "left": self.style("hcCellLeft"),
-            "value": self.style("hcCellLeft"),
+            "value": self.style("hcCellValue"),
             "comment": self.style("hcCellComment"),
         }
 
@@ -232,18 +247,16 @@ class ReportLabRenderer(HTMLRenderer):
                 zebra=self.palette.color("zebra"),
                 space_before=m.gap * 2, space_after=m.gap,
             )
+        # A ``# hc: -m`` calc: ``[target, '=', sym]``, ``['', '=', num]``, ... The
+        # last value may end with the inline comment.
         rows = [[str(ident), str(eq), str(val)] for ident, eq, val in grid.rows]
-        if len(rows) >= 3:
-            # The last row holds the result, optionally followed by the comment.
-            value, sep, comment = rows[-1][2].rpartition(f" {self.comment_open}")
-            if sep:
-                rows[-1][2] = f"{self.result_markup(value)} {self.comment_open}{comment}"
-            else:
-                rows[-1][2] = self.result_markup(rows[-1][2])
-        return CalcGrid(
-            rows, self.cell_styles(), self.style("hcCalcGrid"), pad=m.base_size * 0.3,
-            space_before=m.gap * 1.5, space_after=m.gap,
-        )
+        columns = [rows[0][0]] + [row[2] for row in rows]
+        value, sep, comment = columns[-1].rpartition(f" {self.comment_open}")
+        comment_markup = None
+        if sep:
+            columns[-1] = value
+            comment_markup = f"{self.comment_open}{comment}"
+        return self.calc_line(columns, comment_markup, forced_grid=True)
 
     @property
     def comment_open(self) -> str:

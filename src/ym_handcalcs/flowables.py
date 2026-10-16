@@ -10,6 +10,21 @@ def natural_width(paragraph: Paragraph) -> float:
     return max(paragraph.getActualLineWidths0() or [0.0])
 
 
+def fits_width(paragraph: Paragraph, width: float) -> bool:
+    """
+    True if ``paragraph`` wrapped at ``width`` has no line wider than the space
+    that line has (the first line is offset by ``firstLineIndent``).
+    """
+    style = paragraph.style
+    paragraph.wrap(width, 1e6)
+    widths = paragraph.getActualLineWidths0() or [0.0]
+    for idx, line_width in enumerate(widths):
+        indent = style.leftIndent + (style.firstLineIndent if idx == 0 else 0)
+        if line_width > width - indent - style.rightIndent + 0.01:
+            return False
+    return True
+
+
 class Chip(Flowable):
     """
     A paragraph on a rounded background that is only as wide as its text (up to
@@ -204,7 +219,7 @@ class ParamGrid(_TableHost):
         commands = list(self.table_style.getCommands())
         if self.zebra is not None and len(rows) > 2:
             commands.append(("ROWBACKGROUNDS", (0, 0), (-1, -1), [None, self.zebra]))
-        return Table(rows, colWidths=widths, style=commands)
+        return Table(rows, colWidths=widths, style=commands, hAlign=self.align)
 
     def build_table(self, avail_width: float) -> Table:
         for cols in range(min(self.cols, max(1, len(self.cells))), 0, -1):
@@ -216,27 +231,250 @@ class ParamGrid(_TableHost):
         raise AssertionError("unreachable")
 
 
-class CalcGrid(_TableHost):
+def _scaled(style, scale: float):
+    if scale == 1:
+        return style
+    return style.clone(
+        f"{style.name}@{scale:g}",
+        fontSize=style.fontSize * scale,
+        leading=style.leading * scale,
+        leftIndent=style.leftIndent * scale,
+        firstLineIndent=style.firstLineIndent * scale,
+    )
+
+
+class BreakingParagraph(Flowable):
     """
-    A multi-line calc: ``target = sym`` / ``= num`` / ``= result`` rows aligned on
-    ``=``. The id and ``=`` columns take their natural width and the value
-    column the rest, wrapping inside it when it is too long.
+    A paragraph that wraps only at its best-ranked break points
+    (``breaking.ranked_breaks``), allowing worse ones only when a piece between
+    breaks is still wider than the frame. Used for block headers, which it can
+    also set on a rounded ``background`` (drawn here rather than with the
+    style's ``backColor`` so a hanging indent stays inside the box).
     """
 
-    def __init__(self, rows: list[list[str]], styles: dict, table_style, pad: float,
-                 space_before: float = 0.0, space_after: float = 0.0):
-        super().__init__(space_before, space_after)
-        self.rows = rows
+    def __init__(self, markup: str, style, background=None, radius: float = 3.0,
+                 pad: tuple[float, float] = (4.0, 2.5)):
+        super().__init__()
+        self.markup = markup
+        self.style = style
+        self.background = background
+        self.radius = radius
+        self.pad_x, self.pad_y = pad if background is not None else (0.0, 0.0)
+        self.spaceBefore = style.spaceBefore
+        self.spaceAfter = style.spaceAfter
+        self.keepWithNext = getattr(style, "keepWithNext", 0)
+        self._paragraph: Paragraph | None = None
+
+    def _choose(self, inner_width: float) -> Paragraph:
+        from .breaking import max_rank, with_breaks
+
+        for rank in range(0, max_rank(self.markup) + 1):
+            paragraph = Paragraph(with_breaks(self.markup, rank), self.style)
+            if fits_width(paragraph, inner_width):
+                return paragraph
+        return Paragraph(self.markup, self.style)
+
+    def wrap(self, avail_width, avail_height):
+        inner = avail_width - 2 * self.pad_x
+        self._paragraph = self._choose(inner)
+        _, height = self._paragraph.wrap(inner, avail_height)
+        self.width, self.height = avail_width, height + 2 * self.pad_y
+        return self.width, self.height
+
+    def split(self, avail_width, avail_height):
+        if self.background is not None:
+            return []  # a callout header is short; keep it whole
+        return self._choose(avail_width).split(avail_width, avail_height)
+
+    def draw(self):
+        if self.background is not None:
+            canvas = self.canv
+            canvas.saveState()
+            canvas.setFillColor(self.background)
+            canvas.roundRect(0, 0, self.width, self.height, self.radius, stroke=0, fill=1)
+            canvas.restoreState()
+        self._paragraph.drawOn(self.canv, self.pad_x, self.pad_y)
+
+
+class CalcLine(Flowable):
+    """
+    One calc line that picks its layout when it learns the frame width.
+
+    ``columns`` are ``[target, sym, num, result]`` (or fewer) as paragraph
+    markup; ``comment`` is the styled inline comment or None. ``wrap`` tries the
+    layouts in order and keeps the first that fits:
+
+    1. ``line``: one line (skipped when ``forced_grid``, i.e. ``# hc: -m``);
+    2. ``line+comment``: one line, the comment on its own line underneath;
+    3. ``grid``: rows aligned on ``=``, no wrapping inside a row;
+    4. ``grid:breakN``: wrap value cells at break points up to rank N;
+       then ``stack`` / ``stack:breakN``: the same with the target on a row of
+       its own (for a target too wide to share its row);
+    5. ``grid:elided``: long collections shortened around an ellipsis;
+    6. ``grid:no-num``: the numeric substitution row dropped (opt-in);
+    7. ``shrink``: the above at ``min_scale`` font size;
+    8. ``overflow``: the last attempt, wider than the frame.
+
+    ``layout`` records the choice (for the overflow report and tests).
+    """
+
+    def __init__(self, columns: list[str], comment, *, forced_grid: bool, styles: dict,
+                 result_markup, table_style, pad: float, drop_numeric: bool = False,
+                 min_scale: float = 0.85):
+        super().__init__()
+        self.columns = list(columns)
+        self.comment = comment or ""
+        self.forced_grid = forced_grid
         self.styles = styles
+        self.result_markup = result_markup
         self.table_style = table_style
         self.pad = pad
+        self.drop_numeric = drop_numeric
+        self.min_scale = min_scale
+        self.has_result = len(self.columns) >= 3
+        line_style = styles["line"]
+        self.spaceBefore = line_style.spaceBefore
+        self.spaceAfter = line_style.spaceAfter
+        self.layout = ""
+        self._flow = None
+        self._cache: dict = {}
 
-    def build_table(self, avail_width: float) -> Table:
-        rows = [
-            [Paragraph(ident, self.styles["right"]), Paragraph(eq, self.styles["center"]),
-             Paragraph(val, self.styles["value"])]
-            for ident, eq, val in self.rows
-        ]
-        widths = _column_widths(rows, self.pad)
-        widths[2] = max(self.pad * 4, min(widths[2], avail_width - widths[0] - widths[1]))
-        return Table(rows, colWidths=widths, style=self.table_style)
+    # -- markup ---------------------------------------------------------
+
+    def _values(self, columns: list[str], transform) -> list[str]:
+        values = [transform(col) for col in columns]
+        if self.has_result and len(values) >= 3:
+            values[-1] = self.result_markup(values[-1])
+        return values
+
+    def _line_markup(self, columns: list[str], with_comment: bool) -> str:
+        from .breaking import unbreakable
+
+        values = self._values(columns, unbreakable)
+        text = " = ".join(values)
+        if with_comment and self.comment:
+            text += f" {self.comment}"
+        return text
+
+    # -- layouts ----------------------------------------------------------
+
+    def _line(self, avail_width: float, with_comment: bool, scale: float = 1.0):
+        style = _scaled(self.styles["line"], scale)
+        markup = self._line_markup(self.columns, with_comment)
+        paragraph = Paragraph(markup, style)
+        fits = natural_width(paragraph) <= avail_width
+        if not with_comment and self.comment:
+            comment_style = _scaled(self.styles["line"], scale)
+            paragraph = Paragraph(f"{markup}<br/>{self.comment}", comment_style)
+        return paragraph, fits
+
+    def _grid(self, avail_width: float, columns: list[str], transform, scale: float = 1.0,
+              stacked: bool = False):
+        """
+        Rows aligned on ``=``: ``target = v1`` / ``= v2`` / ... With ``stacked``,
+        the target takes a row of its own (for a target too wide to share a row)
+        and every value row starts with ``=``.
+        """
+        right = _scaled(self.styles["right"], scale)
+        center = _scaled(self.styles["center"], scale)
+        value_style = _scaled(self.styles["value"], scale)
+        values = self._values(columns, transform)
+        if len(values) == 1:
+            rows = [["", "", values[0]]]
+        elif stacked:
+            rows = [[values[0], "", ""]] + [["", "=", value] for value in values[1:]]
+        else:
+            rows = [[values[0], "=", values[1]]] + [["", "=", value] for value in values[2:]]
+        if self.comment:
+            rows[-1][2] = f"{rows[-1][2]} {self.comment}"
+        cells = [[Paragraph(i, right), Paragraph(e, center), Paragraph(v, value_style)] for i, e, v in rows]
+        commands = list(self.table_style.getCommands())
+        if stacked:
+            cells[0][0] = Paragraph(rows[0][0], value_style)
+            for row in cells[1:]:
+                row[0] = ""
+            cells[0][1] = cells[0][2] = ""
+            commands.append(("SPAN", (0, 0), (-1, 0)))
+            id_width = 2 * self.pad + 0.5
+            target_fits = fits_width(cells[0][0], avail_width - 2 * self.pad)
+        else:
+            id_width = max(natural_width(row[0]) for row in cells) + 2 * self.pad + 0.5
+            target_fits = True
+        eq_width = max(natural_width(row[1]) for row in cells if isinstance(row[1], Paragraph)) + 2 * self.pad + 0.5
+        val_natural = max(natural_width(row[2]) for row in cells[1 if stacked else 0:]) + 2 * self.pad + 0.5
+        val_width = min(val_natural, avail_width - id_width - eq_width)
+        inner = val_width - 2 * self.pad
+        fits = target_fits and inner > 0 and all(
+            fits_width(row[2], inner) for row in cells[1 if stacked else 0:]
+        )
+        table = Table(cells, colWidths=[id_width, eq_width, max(val_width, 4 * self.pad)],
+                      style=commands, hAlign="LEFT")
+        return table, fits
+
+    def _attempts(self, avail_width: float):
+        from .breaking import elide_collections, max_rank, unbreakable, with_breaks
+
+        if not self.forced_grid:
+            yield "line", lambda s: self._line(avail_width, True, s)
+            if self.comment:
+                yield "line+comment", lambda s: self._line(avail_width, False, s)
+        column_sets = [("", self.columns)]
+        elided = [elide_collections(col) for col in self.columns]
+        if elided != self.columns:
+            column_sets.append((":elided", elided))
+        if self.drop_numeric and len(self.columns) >= 4:
+            column_sets.append((":no-num", [c for k, c in enumerate(elided) if k != 2]))
+        for suffix, columns in column_sets:
+            top = max((max_rank(col) for col in columns), default=0)
+            for stacked in (False, True):
+                if stacked and len(columns) < 2:
+                    continue
+                name = f"{'stack' if stacked else 'grid'}{suffix}"
+                yield name, lambda s, c=columns, st=stacked: self._grid(avail_width, c, unbreakable, s, st)
+                for rank in range(0, top + 1):
+                    yield (
+                        f"{name}:break{rank}",
+                        lambda s, c=columns, r=rank, st=stacked: self._grid(
+                            avail_width, c, lambda m: with_breaks(m, r), s, st
+                        ),
+                    )
+
+    def _choose(self, avail_width: float):
+        key = round(avail_width, 2)
+        if key in self._cache:
+            return self._cache[key]
+        attempts = list(self._attempts(avail_width))
+        choice = None
+        for name, build in attempts:
+            flow, fits = build(1.0)
+            if fits:
+                choice = (name, flow)
+                break
+        if choice is None:
+            for name, build in attempts:
+                flow, fits = build(self.min_scale)
+                if fits:
+                    choice = (f"shrink:{name}", flow)
+                    break
+        if choice is None:
+            name, build = attempts[-1]
+            choice = (f"overflow:{name}", build(self.min_scale)[0])
+        self._cache[key] = choice
+        return choice
+
+    def wrap(self, avail_width, avail_height):
+        self.layout, self._flow = self._choose(avail_width)
+        self.width, self.height = self._flow.wrap(avail_width, avail_height)
+        return self.width, self.height
+
+    # A calc grid with this many rows or fewer is never split across pages.
+    keep_rows = 4
+
+    def split(self, avail_width, avail_height):
+        _, flow = self._choose(avail_width)
+        if isinstance(flow, Table) and len(flow._cellvalues) <= self.keep_rows:
+            return []
+        return flow.split(avail_width, avail_height)
+
+    def draw(self):
+        self._flow.drawOn(self.canv, 0, 0)

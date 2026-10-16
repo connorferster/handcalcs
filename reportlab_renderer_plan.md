@@ -294,7 +294,7 @@ Elements:
   `DepthGuides` flowable, `keepWithNext`, the "No conditions were satisfied" note.
 - [x] **Phase 4: Grids.** `_Grid` marker, params `Table` (both `;` and `# hc: -h` forms),
   multi-line calc `Table`.
-- [ ] **Phase 5: Overflow.** `_CalcLine` marker and `CalcLine` flowable with the layout
+- [x] **Phase 5: Overflow.** `_CalcLine` marker and `CalcLine` flowable with the layout
   ladder (steps 1–8 above), depth-tagged break markers in the operator handlers, shortening
   collections only on overflow, `drop_numeric_when_narrow`, params-grid column step-down,
   wrapping of block headers, and the overflow/layout report in the demo script. Check by eye
@@ -385,3 +385,20 @@ Ad-hoc probe:
   `VALIGN BASELINE` is invalid for flowable cells (TOP is used); `Flowable.__init__` sets `hAlign` on the instance.
   Seen at 252 pt, for Phase 5: wrapping breaks at any space, sub/superscripts collide across wrapped lines
   (`autoLeading="max"` does not cover sub descent), and wrapped callout headers need a hanging indent.
+- 2026-10-16: **Phase 5 done.** It differs from the plan in three ways:
+  - **No marker characters in the operator handlers.** `breaking.py` scans the *rendered* markup instead: brackets
+    give the depth, the token after a space gives the operator class (0 relations/`and`/`or`/`→`/words, 1 `+ −` and
+    commas, 2 `· / // %`), and rank = depth·3 + class. A space after an operator is never a break, so continuation
+    lines start with the operator. Tags are skipped. This needs no handler changes.
+  - A **`stack`** layout (target on its own row, then `= …` rows) runs after the `grid` steps, for targets too
+    wide to share a row (`acc.append(value_computed)` at depth 2 in a 252 pt frame).
+  - The fit check wraps each cell and compares every line with its own available width (`fits_width`).
+    `minWidth()` ignored the hanging indent.
+  Gotcha: ReportLab's default `splitLongWords=1` chops a too-long non-breaking run mid-token, so everything seemed
+  to fit. All math styles set `splitLongWords=0`; prose keeps the default.
+  Other pieces: `CalcLine` caches its layout per width, keeps grids of 4 rows or fewer whole (no page split), and
+  tables are `hAlign="LEFT"` (split parts used to be centred). `BreakingParagraph` draws the header callout
+  background itself so the hanging indent stays inside the box. Leading is 1.55 for calc lines and headers, so
+  sub/superscripts no longer collide. `drop_numeric_when_narrow` is a renderer argument.
+  Demo layout report: 252 pt has 42 calc lines, 18 not on one line, 0 shrink/overflow. 504 pt has 7 not on one
+  line, 0 shrink/overflow.

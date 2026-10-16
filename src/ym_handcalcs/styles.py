@@ -134,6 +134,9 @@ def build_stylesheet(
     add(ParagraphStyle(
         "hcCalc",
         parent=body,
+        leading=base_size * 1.55,
+        # Never chop a math token mid-way: CalcLine picks the break points.
+        splitLongWords=0,
         leftIndent=m.hang,
         firstLineIndent=-m.hang,
         # Sub- and superscripts make a line taller instead of overlapping its neighbours.
@@ -151,11 +154,12 @@ def build_stylesheet(
     add(ParagraphStyle(
         "hcBlockHeader",
         parent=body,
-        backColor=palette.color("accent_soft"),
-        borderPadding=(2.5, 4, 3, 4),
-        borderRadius=3,
-        leftIndent=4,
-        rightIndent=4,
+        leading=base_size * 1.55,
+        splitLongWords=0,
+        # Hanging indent: a wrapped header continues under its text, not its
+        # marker. The rounded background is drawn by the header flowable.
+        leftIndent=m.hang,
+        firstLineIndent=-m.hang,
         spaceBefore=m.gap * 2 + 3,
         spaceAfter=3,
         keepWithNext=1,
@@ -168,11 +172,18 @@ def build_stylesheet(
     ))
 
     # Table cells: ids right-aligned, '=' centred, values left-aligned.
-    cell = ParagraphStyle("hcCell", parent=body, spaceBefore=0, spaceAfter=0)
+    cell = ParagraphStyle(
+        "hcCell", parent=body, leading=base_size * 1.5, spaceBefore=0, spaceAfter=0, splitLongWords=0
+    )
     add(cell)
     add(ParagraphStyle("hcCellRight", parent=cell, alignment=TA_RIGHT))
     add(ParagraphStyle("hcCellCenter", parent=cell, alignment=TA_CENTER))
     add(ParagraphStyle("hcCellLeft", parent=cell, alignment=TA_LEFT))
+    # Calc value cells: a wrapped value continues with a small hanging indent.
+    add(ParagraphStyle(
+        "hcCellValue", parent=cell, alignment=TA_LEFT,
+        leftIndent=m.hang * 0.5, firstLineIndent=-m.hang * 0.5,
+    ))
     add(ParagraphStyle(
         "hcCellComment",
         parent=cell,
