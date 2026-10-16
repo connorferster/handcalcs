@@ -411,3 +411,13 @@ def test_split_never_returns_the_whole_block():
     _, height = block.wrap(252, 1000)
     parts = block.split(252, height + 5)
     assert parts and len(parts[0].lines) < 12
+
+
+def test_rule_marks_only_multirow_lines():
+    source = "a = 1\nb = 2\nc = a + b  # hc: -m\nd = a * b\n"
+    (block,) = blocks(render(source)["story"])
+    block.wrap(400, 1000)
+    rows = [len(line.choose(400, block.id_width(400))[1]) for line in block.lines]
+    starts = [sum(rows[:i]) for i in range(len(rows))]
+    assert [first for first, _, _ in block._ruled] == [starts[2]]
+    assert not any(c[0] == "LINEBEFORE" for c in block._table._linecmds)

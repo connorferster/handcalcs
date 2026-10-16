@@ -511,6 +511,10 @@ class CalcBlock(Flowable):
     """
 
     max_target = 0.4
+    # Draw the accent rule beside every line (True), or only beside lines laid
+    # out over more than one ``=`` row: ``# hc: -m`` lines and long lines that
+    # fell back to a grid (False).
+    rule_single_lines = False
 
     def __init__(self, lines: list[CalcLine], gap: float | None = None):
         super().__init__()
@@ -525,6 +529,8 @@ class CalcBlock(Flowable):
         self.spaceAfter = last.spaceAfter
         self._table = None
         self._line_rows: list[int] = []
+        self._ruled: list[tuple[int, int, float]] = []
+        self._rule = None
 
     def id_width(self, avail_width: float) -> float:
         cap = avail_width * self.max_target
@@ -537,9 +543,17 @@ class CalcBlock(Flowable):
         cells: list = []
         commands = list(self.table_style.getCommands())
         self._line_rows = []
+        self._ruled = []
+        if not self.rule_single_lines:
+            # The rule is drawn per line in ``draw`` instead.
+            rules = [c for c in commands if c[0] == "LINEBEFORE"]
+            self._rule = rules[0][3:5] if rules else None
+            commands = [c for c in commands if c[0] != "LINEBEFORE"]
         for idx, line in enumerate(self.lines):
-            _, line_cells, line_commands = line.choose(avail_width, id_width)
+            layout, line_cells, line_commands = line.choose(avail_width, id_width)
             offset = len(cells)
+            if not self.rule_single_lines and _is_multirow(line, layout):
+                self._ruled.append((offset, offset + len(line_cells), self.gap if idx else 0.0))
             for cmd, (c0, r0), (c1, r1), *rest in line_commands:
                 commands.append((cmd, (c0, r0 + offset), (c1, r1 + offset), *rest))
             if idx and self.gap:
@@ -582,3 +596,20 @@ class CalcBlock(Flowable):
 
     def draw(self):
         self._table.drawOn(self.canv, 0, 0)
+        if not self._ruled or self._rule is None:
+            return
+        width, color = self._rule
+        tops = self._table._rowpositions
+        canvas = self.canv
+        canvas.saveState()
+        canvas.setStrokeColor(color)
+        canvas.setLineWidth(width)
+        for first, end, gap in self._ruled:
+            canvas.line(0, tops[first] - gap, 0, tops[end])
+        canvas.restoreState()
+
+
+def _is_multirow(line: CalcLine, layout: str) -> bool:
+    """True for a line laid out over several ``=`` rows (not a one-row line)."""
+    base = layout.split(":", 1)[1] if layout.startswith(("shrink:", "overflow:")) else layout
+    return line.forced_grid or not base.startswith("line")
