@@ -1,0 +1,64 @@
+"""
+Render the HandCalcs demo with ym_handcalcs.ReportLabRenderer into a PDF for
+checking by eye.
+
+The text frame is centred on a US letter page and is ``--width`` points wide
+(default 252 pt, the usable width of a half-width column; 504 pt is a
+half-height block at full page width). With ``--png``, every page is also
+rasterized to PNG (needs pymupdf: ``uv run --with pymupdf ...``).
+
+    uv run python scripts/reportlab_demo_check.py [--width 252] [--png] [out_dir]
+
+Output goes to ./reportlab_demo_build by default.
+"""
+import argparse
+import pathlib
+
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate
+
+from handcalcs import HandCalcs
+from ym_handcalcs import ReportLabRenderer, ensure_dejavu_registered
+
+
+def build(width: float, out_dir: pathlib.Path) -> pathlib.Path:
+    ensure_dejavu_registered()
+    result = HandCalcs(renderer=ReportLabRenderer()).demo()
+    page_width, _ = letter
+    margin = (page_width - width) / 2
+    out_dir.mkdir(parents=True, exist_ok=True)
+    pdf = out_dir / f"reportlab_demo_{int(width)}.pdf"
+    doc = SimpleDocTemplate(
+        str(pdf), pagesize=letter, leftMargin=margin, rightMargin=margin,
+        topMargin=54, bottomMargin=54, title="HandCalcs ReportLab demo",
+    )
+    story = result["story"]
+    count = len(story)
+    doc.build(list(story))  # build() consumes the list it is given
+    print(f"{pdf}: {count} flowables, frame width {width:g} pt")
+    return pdf
+
+
+def rasterize(pdf: pathlib.Path) -> None:
+    import pymupdf
+
+    with pymupdf.open(pdf) as document:
+        for number, page in enumerate(document, 1):
+            png = pdf.with_name(f"{pdf.stem}_p{number}.png")
+            page.get_pixmap(dpi=110).save(png)
+            print(f"  {png}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    parser.add_argument("out_dir", nargs="?", default="reportlab_demo_build")
+    parser.add_argument("--width", type=float, default=252)
+    parser.add_argument("--png", action="store_true")
+    args = parser.parse_args()
+    pdf = build(args.width, pathlib.Path(args.out_dir))
+    if args.png:
+        rasterize(pdf)
+
+
+if __name__ == "__main__":
+    main()

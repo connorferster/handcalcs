@@ -280,7 +280,7 @@ Elements:
   markup accepts `<sub>`, `<sup>`, `&le;`/`&ge;`/`&nbsp;`, `<font backColor>`,
   `<span backColor>`, `<a name>`; `ParagraphStyle(borderRadius=...)`; `ROUNDEDCORNERS`;
   DejaVu glyph coverage.
-- [ ] **Phase 1: Skeleton.** Package layout, `fonts.py`, palette, `build_stylesheet()`,
+- [x] **Phase 1: Skeleton.** Package layout, `fonts.py`, palette, `build_stylesheet()`,
   `ReportLabRenderer.complete()` returning the dict, with `join` producing plain
   `Paragraph`s for everything (no styling yet). Add
   `scripts/reportlab_demo_check.py`: builds `reportlab_demo.pdf` from `hc.demo()` with
@@ -351,3 +351,15 @@ Ad-hoc probe:
 - 2026-10-16: The user added the overflow section. Overflow options were discussed and
   decided (see "Overflow: measurements and decisions"). Added Phase 5 (Overflow); Polish and
   Tests are now Phases 6 and 7.
+- 2026-10-16: **Phase 1 done.** `src/ym_handcalcs/` has `fonts.py` (`Fonts` with the standard DejaVu names,
+  `register_families` leaves existing mappings alone, the dev-only `ensure_dejavu_registered`), `styles.py` (`Palette`,
+  `Metrics`, `build_stylesheet`), `markers.py` (`Tagged`, `CalcComponents`, `Grid`) and `renderer.py`. The demo
+  builds (68 flowables). Findings:
+  - ymprint (at `~/ymprint`) bundles DejaVu, but **DejaVuSansMono has no BoldOblique**, so `Fonts.mono.bold_italic`
+    defaults to `DejaVuSansMono-Bold`. ymprint's `register_fonts` also sets the family mappings itself.
+  - This sandbox's system DejaVu has no italic faces. The dev helper registers the regular face under the missing
+    names, so dev PDFs show italics upright. matplotlib was briefly added for its fonts and then removed, to keep
+    ReportLab as the only new dev dependency.
+  - `doc.build(story)` **consumes** the list. The demo script passes a copy. Note this for ymprint integration.
+  - ymprint block converters have the signature `convert(block_key, block_value, context) -> list[Flowable]` and scale
+    with `blockstyles.block_scale(context)`. The future block converter maps that scale onto `base_size`.
