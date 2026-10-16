@@ -303,7 +303,7 @@ Elements:
   `build_pdf(result, path, title=...)` helper (page footer with page numbers, outline
   bookmarks from heading anchors via `afterFlowable`). The helper is for the demo and
   downstream convenience. The renderer itself only returns the dict.
-- [ ] **Phase 7: Tests.** `tests/test_reportlab_renderer.py` with
+- [x] **Phase 7: Tests.** `tests/test_reportlab_renderer.py` with
   `pytest.importorskip("reportlab")`:
   - contract: dict keys, `StyleSheet1` type, every style the story uses is in the
     stylesheet, the story is a flat list of `Flowable`s;
@@ -323,7 +323,7 @@ Elements:
 uv run python scripts/reportlab_demo_check.py            # writes reportlab_demo.pdf
 uv run python scripts/reportlab_demo_check.py --width 252   # frame width in pt (default: half-width column)
 uv run --with pymupdf python scripts/reportlab_demo_check.py --png   # + page PNGs to inspect
-uv run pytest tests/test_reportlab_renderer.py           # once Phase 7 exists
+uv run pytest tests/test_reportlab_renderer.py           # golden: HANDCALCS_UPDATE_GOLDEN=1
 ```
 
 Ad-hoc probe:
@@ -409,3 +409,25 @@ Ad-hoc probe:
     centred narrower frame for previews. The demo script uses it.
   - ReportLab-only: comparison operators are spaced (`a < b`), `!=` renders as `≠`, and `breaking` treats them as
     relations.
+- 2026-10-16: **Phase 7 done.** `tests/test_reportlab_renderer.py` has 30 tests:
+  - contract and stylesheet coverage, name registration, the missing-font error;
+  - golden files `tests/golden/reportlab_demo.txt` (story dump) and `reportlab_layouts.txt` (layout per calc line at
+    252 and 504 pt), regenerated with `HANDCALCS_UPDATE_GOLDEN=1`;
+  - no shrink/overflow in the demo at either width (`KNOWN_OVERFULL` equivalent: an empty set);
+  - builds at 160, 252 and 504 pt, and `build_pdf` writes bookmarks;
+  - escaping, break ranking, elision, and every rung of the ladder (including `drop_numeric_when_narrow`);
+  - params grid step-down and the short-grid no-split rule.
+  The full suite passes: 465 passed, 2 skipped.
+
+## Open items (after Phase 7)
+
+- **ymprint block converter** (not started): `convert(block_key, block_value, context)` that renders a source string
+  or `.py` path with `ReportLabRenderer(base_size=<body size × block_scale(context)>)` and returns the story. Needs
+  the user's call on the block key (e.g. `_handcalcs`) and on where the module lives.
+- **Per-line `# hc:` flag for dropping the numeric row:** needs a new option in `handcalcs/parsing/commands.py`
+  (handcalcs itself). Waiting for the user's approval.
+- Base-level oddities seen in every renderer (left alone): string values render without quotes (`steel`), and
+  `acc.append(x) = acc.append(11.31)`.
+- `HTMLRenderer` does not escape `<`/`&` in comments (latent; ReportLab escapes its own).
+- Dev PDFs show italics upright, because the system DejaVu has no italic faces. Inside ymprint the real italics are
+  used.

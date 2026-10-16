@@ -1,0 +1,74 @@
+Paragraph[hcH1]: HandCalcs v2.0 Demo
+Rule
+Paragraph[hcComment]: This is a demo of the main rendering features of HandCalcs v2.x. It is intended to showcase the output of a given renderer and make comparisons between renderers. This paragraph demonstrates the rendering of a series of comment lines which can be used for explanation within your Python script.
+Paragraph[hcH2]: The quadratic formula
+Rule
+Chip: from math import atan, sqrt, sin, radians, degrees
+Chip: import math
+Spacer
+Paragraph[hcComment]: The variables 'a' and 'b' below have been formatted with different line-scopes formatting codes. Both originally have nine decimal places.
+Spacer
+CalcLine: a = 5.25
+CalcLine: b = -1.04231e+01
+CalcLine: c = 2
+CalcLine: x<sub>1</sub> = (-b + √(b<sup>2</sup> - 4 · a · c)) / (2 · a) = (-(-10.423) + √((-10.423)<sup>2</sup> - 4 · 5.2539 · 2)) / (2 · 5.2539) = 1.7686
+CalcLine: x<sub>2</sub> = (-b - √(b<sup>2</sup> - 4 · a · c)) / (2 · a) = (-(-10.423) - √((-10.423)<sup>2</sup> - 4 · 5.2539 · 2)) / (2 · 5.2539) = 0.21523
+Paragraph[hcComment]: Params grid type 1
+ParamGrid(cols=3): f = 1; g = 2; h = 4
+Paragraph[hcComment]: Params grid type 2 (Comments allowed)
+ParamGrid(cols=3): x = 3 <font color="#6B7785"><i>(comment 1)</i></font>; y = 4; z = 5 <font color="#6B7785"><i>(last comment)</i></font>
+Paragraph[hcH2]: Lateral torsional buckling
+Rule
+CalcLine: ω<sub>2</sub> = 1 | <font color="#6B7785"><i>(A beam under uniform moment)</i></font>
+CalcLine: L = 6000 | <font color="#6B7785"><i>(Unbraced length of beam, in mm)</i></font>
+CalcLine: E = 2e+05 | <font color="#6B7785"><i>(Elastic modulus, in MPa)</i></font>
+CalcLine: I<sub>y</sub> = 1.6e+08 | <font color="#6B7785"><i>(Second moment of area about weak axis, in mm^4)</i></font>
+CalcLine: G = 77000 | <font color="#6B7785"><i>(Shear modulus, in MPa)</i></font>
+CalcLine: J = 1.33e+05 | <font color="#6B7785"><i>(Polar moment of area, in mm^3)</i></font>
+CalcLine: C<sub>w</sub> = 2e+11 | <font color="#6B7785"><i>(Warping constant)</i></font>
+Spacer
+CalcLine [-m]: M<sub>u</sub> = ω<sub>2</sub> · math.pi / L · √(E · I<sub>y</sub> · G · J + (math.pi · E / L)<sup>2</sup> · I<sub>y</sub> · C<sub>w</sub>) = 1 · 3.1416 / 6000 · √(2e+05 · 1.6e+08 · 77000 · 1.33e+05 + (3.1416 · 2e+05 / 6000)<sup>2</sup> · 1.6e+08 · 2e+11) = 4.3134e+08 | <font color="#6B7785"><i>(A long equation)</i></font>
+Spacer
+CalcLine: M<sub>u</sub> = ω<sub>2</sub> · math.pi / L · √(E · I<sub>y</sub> · G · J + (math.pi · E / L)<sup>2</sup> · I<sub>y</sub> · C<sub>w</sub>) = 1 · 3.1416 / 6000 · √(2e+05 · 1.6e+08 · 77000 · 1.33e+05 + (3.1416 · 2e+05 / 6000)<sup>2</sup> · 1.6e+08 · 2e+11) = 4.3134e+08 | <font color="#6B7785"><i>(A long equation)</i></font>
+Paragraph[hcH2]: Steel section class checks
+Rule
+Paragraph[hcComment]: The purpose of this demo is to show nested if/elif/else statements
+CalcLine: b<sub>w</sub> = 200 | <font color="#6B7785"><i>(mm)</i></font>
+CalcLine: h<sub>w</sub> = 310 | <font color="#6B7785"><i>(mm)</i></font>
+CalcLine: t<sub>f</sub> = 10 | <font color="#6B7785"><i>(mm)</i></font>
+CalcLine: t<sub>w</sub> = 6 | <font color="#6B7785"><i>(mm)</i></font>
+CalcLine: F<sub>y</sub> = 350 | <font color="#6B7785"><i>(MPa)</i></font>
+Header: <font color="#1D4E89">▸</font> <font color="#1D4E89"><b>Since</b></font> (b<sub>w</sub> / (2 · t<sub>f</sub>) &le; 200 / √(F<sub>y</sub>)) → (200 / (2 · 10) &le; 200 / √(350)) <font color="#1D4E89"><b>is True:</b></font>
+  Header: <font color="#1D4E89">▸</font> <font color="#1D4E89"><b>Since</b></font> (h<sub>w</sub> / t<sub>w</sub> &le; 2400 / √(F<sub>y</sub>)) → (310 / 6 &le; 2400 / √(350)) <font color="#1D4E89"><b>is True:</b></font>
+    CalcLine: class<sub>section</sub> = 3
+Paragraph[hcH2]: Iteration using for-loops
+Rule
+CalcLine: vals<sub>x</sub> = [1, 2, 3, 4, 5]
+CalcLine: vals<sub>y</sub> = [5, 4, 3, 2, 1]
+Spacer
+Header: <font color="#1D4E89">▸</font> <font color="#1D4E89"><b>Iterating over each</b></font> val<sub>x</sub> <font color="#1D4E89"><b>in</b></font> vals<sub>x</sub>:
+  Header: <font color="#1D4E89">▸</font> <font color="#1D4E89"><b>Iterating over each</b></font> val<sub>y</sub> <font color="#1D4E89"><b>in</b></font> vals<sub>y</sub>:
+    CalcLine: value<sub>computed</sub> = degrees(atan(val<sub>y</sub> / val<sub>x</sub>)) = degrees(atan(1 / 5)) = 11.31
+    CalcLine: acc.append(value<sub>computed</sub>) = acc.append(11.31)
+CalcLine: acc = [78.69, 75.964, 71.565, 63.435, 45, 68.199, 63.435, 56.31, 45, 26.565, 59.036, 53.13, 45, 33.69, 18.435, 51.34, 45, 36.87, 26.565, 14.036, 45, 38.66, 30.964, 21.801, 11.31]
+Paragraph[hcH2]: Logical, identity and membership operators
+Rule
+Paragraph[hcComment]: This section demonstrates the <font name="DejaVuSansMono">and</font>, <font name="DejaVuSansMono">or</font>, <font name="DejaVuSansMono">not</font>, <font name="DejaVuSansMono">is</font>, and <font name="DejaVuSansMono">in</font> operators. The <font name="DejaVuSansMono">and</font>/<font name="DejaVuSansMono">or</font> operators render with their operands spaced, while a nested <font name="DejaVuSansMono">or</font> inside an <font name="DejaVuSansMono">and</font> is parenthesized to preserve precedence.
+CalcLine: temp = 75 | <font color="#6B7785"><i>(Measured temperature, deg C)</i></font>
+CalcLine: temp<sub>min</sub> = 40 | <font color="#6B7785"><i>(Minimum operating temperature, deg C)</i></font>
+CalcLine: temp<sub>max</sub> = 120 | <font color="#6B7785"><i>(Maximum operating temperature, deg C)</i></font>
+CalcLine: materials = [steel, concrete, timber]
+CalcLine: material = steel
+CalcLine: override = None
+CalcLine: in<sub>range</sub> = temp<sub>min</sub> &lt; temp and temp &lt; temp<sub>max</sub> = 40 &lt; 75 and 75 &lt; 120 = True | <font color="#6B7785"><i>(Within the operating range)</i></font>
+CalcLine: is<sub>extreme</sub> = temp &lt; temp<sub>min</sub> or temp &gt; temp<sub>max</sub> = 75 &lt; 40 or 75 &gt; 120 = False | <font color="#6B7785"><i>(Outside the operating range)</i></font>
+CalcLine: not<sub>frozen</sub> = not (temp &lt; 0) = not (75 &lt; 0) = True | <font color="#6B7785"><i>(Above freezing)</i></font>
+CalcLine: material<sub>ok</sub> = material in materials = steel in [steel, concrete, timber] = True | <font color="#6B7785"><i>(Material is recognised)</i></font>
+CalcLine: material<sub>missing</sub> = material not in materials = steel not in [steel, concrete, timber] = False
+CalcLine: no<sub>override</sub> = override is None = None is None = True | <font color="#6B7785"><i>(No manual override was set)</i></font>
+CalcLine: has<sub>override</sub> = override is not None = None is not None = False
+CalcLine: combined = in<sub>range</sub> and (is<sub>extreme</sub> or not<sub>frozen</sub>) = True and (False or True) = True | <font color="#6B7785"><i>(Precedence: <font name="DejaVuSansMono-Oblique">or</font> is parenthesized)</i></font>
+Header: <font color="#1D4E89">▸</font> <font color="#1D4E89"><b>Since</b></font> (temp<sub>min</sub> &lt; temp &lt; temp<sub>max</sub> and material in materials) → (40 &lt; 75 &lt; 120 and steel in [steel, concrete, timber]) <font color="#1D4E89"><b>is True:</b></font>
+  CalcLine: section<sub>check</sub> = 1
+CalcLine: a<sub>dictionary</sub> = {cat: 1, hat: 2, bat: 3.1416}
+CalcLine: a<sub>tuple</sub> = (string, 1, 42, 3+4j)
