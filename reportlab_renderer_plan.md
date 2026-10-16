@@ -306,7 +306,7 @@ Passing both `palette=` and `theme_color=` raises `ValueError`.
 | `code_bg` | HLS(h, 0.945, 0.17·s) | `#EFF3F3` | import chips |
 | `rule` | 27% tint | `#BDD4D6` | hairlines |
 | `zebra` | 5% tint | `#F3F7F7` | param-grid stripes |
-| `guides` | 50%, 35%, 22% tints (lighter per level, cycled) | `#85AFB2`, `#AAC7C9`, `#C9DCDD` | nested-block depth guides |
+| `guides` | HLS(h, .63, .37s), HLS(h+210°, .68, .6s), HLS(h+40°, .72, .27s) | `#85B8BD`, `#D5B386`, `#A8B0C7` | nested-block depth guides |
 
 The coefficients were fitted to the hand-picked petrol set the user approved (within a few RGB steps of it).
 The theme is assumed dark (user's instruction, 2026-10-16); a light theme is not rejected but gives weak text.
