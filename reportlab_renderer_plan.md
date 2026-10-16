@@ -287,7 +287,7 @@ Elements:
   `SimpleDocTemplate`, and with `--png` rasterizes pages via
   `uv run --with pymupdf` so Claude can eyeball them (no poppler/ghostscript in the sandbox).
   Add `reportlab_demo.pdf` and `reportlab_demo_build/` to `.gitignore`.
-- [ ] **Phase 2: Lines.** Headings, comment prose with escaping, imports, calc lines (hanging
+- [x] **Phase 2: Lines.** Headings, comment prose with escaping, imports, calc lines (hanging
   indent, result highlight, inline comments), expression lines, line-break spacers, flat
   blocks.
 - [ ] **Phase 3: Blocks.** Callout headers for if/elif/else/for/function blocks,
@@ -363,3 +363,11 @@ Ad-hoc probe:
   - `doc.build(story)` **consumes** the list. The demo script passes a copy. Note this for ymprint integration.
   - ymprint block converters have the signature `convert(block_key, block_value, context) -> list[Flowable]` and scale
     with `blockstyles.block_scale(context)`. The future block converter maps that scale onto `base_size`.
+- 2026-10-16: **Phase 2 done.** H1 and H2 get accent and hairline rules. Every heading paragraph carries
+  `hc_outline = (key, text, level)` for bookmarks; keys come from a process-wide counter, so they stay unique when
+  several calc blocks share one document. Prose is serif with `backtick` spans in mono. Imports use a `Chip` flowable
+  (rounded background as wide as the text). Calc lines use a hanging indent and `autoLeading="max"`. The result is bold
+  accent on a highlight (only when the line has a substitution). Comments are muted italic. Escaped: headings, comment
+  lines, inline comments, string constants and docstrings. The "No conditions were satisfied" text becomes a note.
+  Base-level oddities seen (not ReportLab-specific, left alone): comparison operators have no spaces around them
+  (`temp<temp_max`), and `acc.append(value) = acc.append(11.31)`.

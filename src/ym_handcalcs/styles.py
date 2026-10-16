@@ -128,17 +128,16 @@ def build_stylesheet(
         fontSize=base_size * 0.85,
         leading=base_size * 1.25,
         textColor=muted,
-        backColor=palette.color("code_bg"),
-        borderPadding=(1.5, 3, 2, 3),
-        borderRadius=2.5,
-        spaceBefore=m.gap + 2,
-        spaceAfter=2,
+        spaceBefore=m.gap + 1,
+        spaceAfter=1,
     ))
     add(ParagraphStyle(
         "hcCalc",
         parent=body,
         leftIndent=m.hang,
         firstLineIndent=-m.hang,
+        # Sub- and superscripts make a line taller instead of overlapping its neighbours.
+        autoLeading="max",
     ))
     add(ParagraphStyle(
         "hcCalcComment",

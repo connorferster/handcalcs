@@ -11,24 +11,42 @@ depth is known.
 """
 from __future__ import annotations
 
+import itertools
+import re
 from typing import Optional
 from xml.sax.saxutils import escape
 
 from reportlab.lib.styles import StyleSheet1
-from reportlab.platypus import Flowable, Paragraph, Spacer
+from reportlab.platypus import Flowable, HRFlowable, Paragraph, Spacer
 
 from handcalcs.renderers.base import BaseRenderContext, RenderContext
 from handcalcs.renderers.html import HTMLRenderer
 
+from .flowables import Chip
 from .fonts import Fonts, missing_fonts, register_families
 from .markers import CalcComponents, Grid, Tagged
 from .styles import Metrics, Palette, build_stylesheet
 
 # Node type imports only used for typing
-from handcalcs.parsing.line_nodes import CommentLine, Heading, Import
+from handcalcs.parsing.nodes import Constant
+from handcalcs.parsing.inline_nodes import InlineComment
+from handcalcs.parsing.line_nodes import CommentLine, ExprLine, Heading, Import
 from handcalcs.parsing.block_nodes import CommentsBlock
 
 BRC = BaseRenderContext
+
+# Heading bookmark keys must be unique across every render in a document.
+_ANCHORS = itertools.count(1)
+
+
+def plain_text(markup: str) -> str:
+    """Paragraph markup with its tags removed (for bookmark titles)."""
+    return re.sub(r"<[^>]+>", "", markup).replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+
+def code_spans(text: str, font: str) -> str:
+    """Set each pair of `backticks` in prose in the monospaced font."""
+    return re.sub(r"`([^`]+)`", rf'<font name="{font}">\1</font>', text)
 
 
 class ReportLabRenderer(HTMLRenderer):
@@ -108,23 +126,66 @@ class ReportLabRenderer(HTMLRenderer):
         return self.stylesheet[name]
 
     def line_flowable(self, text: str, depth: int) -> Flowable:
-        return Paragraph(text, self.style("hcBody"))
+        return Paragraph(text, self.style("hcCalc"))
+
+    def calc_markup(self, calc: CalcComponents) -> str:
+        """
+        ``target = sym = num = result  (comment)`` as paragraph markup. When the
+        line has a substitution (three or more columns), the result is set bold
+        in the accent colour on a faint highlight. The comment is muted italic.
+        """
+        columns = list(calc.columns)
+        if len(columns) >= 3:
+            columns[-1] = self.result_markup(columns[-1])
+        text = " = ".join(columns)
+        if calc.comment:
+            text += f"\u2003{self.comment_markup(calc.comment)}"
+        return text
+
+    def result_markup(self, text: str) -> str:
+        p = self.palette
+        return f'<font color="{p.accent}" backColor="{p.highlight}"><b>{text}</b></font>'
+
+    def comment_markup(self, text: str) -> str:
+        text = code_spans(text, self.fonts.mono.italic)
+        return f'<font color="{self.palette.muted}"><i>{text}</i></font>'
 
     def calc_flowable(self, calc: CalcComponents, depth: int) -> Flowable:
-        return Paragraph(" ".join(calc), self.style("hcCalc"))
+        return Paragraph(self.calc_markup(calc), self.style("hcCalc"))
 
     def header_flowable(self, header: str, depth: int) -> Flowable:
         return Paragraph(header, self.style("hcBlockHeader"))
 
     def tagged_flowables(self, item: Tagged, depth: int) -> list[Flowable]:
         if item.kind == "heading":
-            level = min(max(item.level, 1), 3)
-            return [Paragraph(str(item), self.style(f"hcH{level}"))]
+            return self.heading_flowables(item)
         if item.kind == "prose":
-            return [Paragraph(str(item), self.style("hcComment"))]
+            return [Paragraph(code_spans(str(item), self.fonts.mono.regular), self.style("hcComment"))]
         if item.kind == "import":
-            return [Paragraph(str(item), self.style("hcImport"))]
+            return [Chip(Paragraph(str(item), self.style("hcImport")), self.palette.color("code_bg"))]
         return [Paragraph(str(item), self.style("hcNote"))]
+
+    def heading_flowables(self, item: Tagged) -> list[Flowable]:
+        """
+        A heading paragraph, followed by an accent rule for levels 1 and 2. The
+        paragraph carries ``hc_outline = (key, text, level)`` so a doc template
+        can add a PDF bookmark for it (``build_pdf`` does).
+        """
+        level = min(max(item.level, 1), 3)
+        heading = Paragraph(str(item), self.style(f"hcH{level}"))
+        heading.hc_outline = (f"hc-h-{next(_ANCHORS)}", plain_text(str(item)), level - 1)
+        if level == 3:
+            return [heading]
+        rule = HRFlowable(
+            width="100%",
+            thickness=1.5 if level == 1 else 0.5,
+            color=self.palette.color("accent" if level == 1 else "rule"),
+            spaceBefore=1,
+            spaceAfter=self.metrics.base_size * 0.45,
+            hAlign="LEFT",
+        )
+        rule.keepWithNext = 1
+        return [heading, rule]
 
     def grid_flowable(self, grid: Grid, depth: int) -> Flowable:
         lines = [" ".join(str(part) for part in row if part) for row in grid.rows]
@@ -181,9 +242,39 @@ def render_import(renderer: RLR, node: Import, base_context: BRC) -> Tagged:
 
 
 @RLR.register("calc_line:post")
-@RLR.register("expr_line:post")
 def mark_calc_components(renderer: RLR, rendered, node, base_context: BRC):
     # Tag a rendered line's component list so ``join_item`` can style its columns.
     if isinstance(rendered, list) and rendered and not isinstance(rendered, CalcComponents):
         return CalcComponents(rendered)
+    return rendered
+
+
+@RLR.register("expr_line:post")
+def mark_expr_components(renderer: RLR, rendered, node: ExprLine, base_context: BRC):
+    tree = node.expression_tree
+    if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
+        # A docstring / bare string statement is prose, not a calc.
+        return Tagged(escape(tree[0].value), "prose") if isinstance(rendered, list) else rendered
+    return mark_calc_components(renderer, rendered, node, base_context)
+
+
+@RLR.register("constant:post")
+def escape_string_constant(renderer: RLR, rendered, node: Constant, base_context: BRC):
+    # String values are user text: escape them for paragraph markup.
+    if isinstance(node.value, str) and isinstance(rendered, str):
+        return escape(rendered)
+    return rendered
+
+
+@RLR.register("inline_comment")
+def render_inline_comment(renderer: RLR, node: InlineComment, base_context: BRC) -> str:
+    context = base_context.current
+    return f"{context.lpar}{escape(node.content)}{context.rpar}"
+
+
+@RLR.register("elif_block:post")
+def mark_no_condition_note(renderer: RLR, rendered, node, base_context: BRC):
+    # "No conditions were satisfied ..." is a note, not a calc line.
+    if isinstance(rendered, str) and rendered:
+        return Tagged(escape(rendered), "note")
     return rendered
