@@ -293,12 +293,12 @@ Native ReportLab styling only. No images, all vector. One palette dataclass (ove
 
 | Token | Default | Used for |
 |---|---|---|
-| `ink` | `#1F2933` | body text |
-| `muted` | `#6B7785` | inline comments, imports, "no condition satisfied" notes |
-| `accent` | `#1D4E89` (deep engineering blue) | headings, result values, rules |
-| `accent_soft` | `#E8EFF8` | callout and param-grid backgrounds |
-| `guide` | cycling `#9DB4D3`, `#B9A6D9`, `#9FCFB8` | nested-block depth guides |
-| `rule` | `#C9D2DC` | hairlines |
+| `ink` | `#1B2A2F` | body text |
+| `muted` | `#647679` | inline comments, imports, "no condition satisfied" notes |
+| `accent` | `#0B5F66` ("petrol" teal) | headings, result values, rules |
+| `accent_soft` | `#E3F0EF` | callout and param-grid backgrounds |
+| `guide` | cycling `#86BDB8`, `#D6B583`, `#A7AFC6` | nested-block depth guides |
+| `rule` | `#C2D4D3` | hairlines |
 
 Elements:
 

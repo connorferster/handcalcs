@@ -19,16 +19,17 @@ from .fonts import Fonts
 
 @dataclass(frozen=True)
 class Palette:
-    ink: str = "#1F2933"
-    muted: str = "#6B7785"
-    accent: str = "#1D4E89"
-    accent_soft: str = "#E8EFF8"
-    highlight: str = "#EEF3FA"
-    code_bg: str = "#F1F3F5"
-    rule: str = "#C9D2DC"
-    zebra: str = "#F5F8FC"
+    # "Petrol": deep teal accent on cool slate greys.
+    ink: str = "#1B2A2F"
+    muted: str = "#647679"
+    accent: str = "#0B5F66"
+    accent_soft: str = "#E3F0EF"
+    highlight: str = "#E8F3F2"
+    code_bg: str = "#EFF3F3"
+    rule: str = "#C2D4D3"
+    zebra: str = "#F2F8F7"
     # Nested-block indent guides, one colour per level (cycled).
-    guides: tuple[str, ...] = ("#9DB4D3", "#B9A6D9", "#9FCFB8")
+    guides: tuple[str, ...] = ("#86BDB8", "#D6B583", "#A7AFC6")
 
     def color(self, token: str) -> colors.Color:
         return colors.HexColor(getattr(self, token))
