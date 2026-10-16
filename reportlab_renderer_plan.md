@@ -323,7 +323,7 @@ Elements:
 uv run python scripts/reportlab_demo_check.py            # writes reportlab_demo.pdf
 uv run python scripts/reportlab_demo_check.py --width 252   # frame width in pt (default: half-width column)
 uv run --with pymupdf python scripts/reportlab_demo_check.py --png   # + page PNGs to inspect
-uv run pytest tests/test_reportlab_renderer.py           # once Phase 6 exists
+uv run pytest tests/test_reportlab_renderer.py           # once Phase 7 exists
 ```
 
 Ad-hoc probe:
