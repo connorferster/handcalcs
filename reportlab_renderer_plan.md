@@ -121,6 +121,77 @@ code that inspects body items (`render_block_body` checks `isinstance(body[0], s
 `join_item` checks `isinstance(item[-1], list)`) keeps working, because `_Tagged` *is* a
 `str` and `_Grid` is neither `str` nor `list`. `join_item` checks for `_Grid` first.
 
+## Edit from user: overflow
+
+Similar with the Latex renderer, there is a possibility of calculation overflow. I have considered using 
+ReportLab tables for layout of the calc_blocks. The ReportLab table has features that allow dynamic shrinking of content.
+Since I am planning on using this renderer to render content in a US letter 1/2 size frame (half of the page on a US letter doc),
+consider solutions for dealing with calculation overflow and line wrapping. This is a tricky problem and I am  open to idea here.
+
+### Overflow: measurements and decisions (2026-10-16)
+
+The demo, measured in DejaVu Sans at 9.5 pt: **21 of 49** lines are wider than a half-width
+column (~252 pt), and 3 of 49 are wider than a half-height block (~504 pt). The worst are the
+one-line `M_u` (~990 pt), `acc` (~860 pt), `x_1`/`x_2` (~495 pt), the logic rows (400–490 pt)
+and the `Since …` headers (~345 pt). At these widths scaling alone is unreadable (`M_u` would
+need 0.25), so wrapping and re-layout come first and shrinking is only a capped last resort.
+
+**Decisions (user, 2026-10-16):**
+
+- The frame **varies**: ymprint may place a block in a half-width column or a half-height
+  block. So layout is decided at `wrap(availWidth, …)` time by a measuring flowable, not by a
+  `frame_width` argument. The same story then fits any frame and still splits across pages.
+- An explicit `# hc: -m` always gets the grid (it may still wrap inside cells). Lines without
+  the flag choose their layout by measured width.
+- Long collections are shortened (first and last `EDGE_ITEMS = 3` around `…`) **only when
+  the full collection, wrapped at commas, would still overflow**. Otherwise every item is
+  shown.
+- Dropping the numeric-substitution step is allowed, but **opt-in only** (see below).
+
+**`CalcLine` flowable and its layout ladder.** The renderer emits a `_CalcLine` marker that
+holds the line's columns (target, sym, num, result), its comment, and its `-m` flag.
+`join_item` turns it into a `CalcLine(Flowable)`. In `wrap()` it tries these layouts in
+order and uses the first whose measured width fits `availWidth`:
+
+1. One line (skipped when `-m` is set).
+2. One line with the inline comment moved to its own muted italic line underneath.
+3. Grid: `target = sym` / `= num` / `= result` in a `Table` aligned on `=`, the value column
+   taking the remaining width. This is "auto `-m`".
+4. Grid with **math-aware wrapping** in the value cells. Every space is non-breaking (U+00A0;
+   the spike confirmed ReportLab never breaks there) except the break points before
+   **top-level** operators (`+`, `−`, `·`, `/`, `and`, `or`, `,` in collections). A
+   continuation line starts with its operator and gets a hanging indent.
+5. As 4, but break points one nesting level deeper are allowed too, repeated until it fits
+   or no deeper level is left. Collections that still overflow are shortened at this step.
+6. Optional lossy step: drop the numeric row (only when enabled).
+7. Shrink the font, capped at a scale of 0.85.
+8. Give up: let it overflow and record it in the overflow report.
+
+Implementation notes:
+- Break points come from ReportLab-only overrides of the binary/bool-op handlers. They put
+  private-use marker characters before an operator, encoding its nesting depth (for example
+  U+E001 for depth 1 and U+E002 for depth 2). At each step `CalcLine` turns the markers up to
+  the allowed depth into spaces and the rest into U+00A0, then wraps and checks
+  `Paragraph.minWidth()` (which reports any piece wider than the frame). No changes to `base.py`.
+- `wrap()` caches the result per `availWidth`. ReportLab calls `wrap` repeatedly, and tables
+  and `KeepTogether` call it with trial widths.
+- Each `CalcLine` records the step it used (`layout_rung`). The demo check prints an
+  overflow/layout report, like the LaTeX overfull-box report. Tests snapshot the chosen step
+  for every demo line at **252 pt and 504 pt**, and assert that no line reaches step 8
+  except a set of known lines.
+- Other overflow sources, fixed in the renderer:
+  - The params grid steps down from `param_cols` (3 → 2 → 1) until it fits. This is
+    measured in the grid flowable's `wrap()`.
+  - `Since … is True:` / `Iterating over …` headers wrap at `→` and at top-level `and`/`or`
+    (same marker scheme; headers are plain `Paragraph`s, so no ladder is needed).
+  - Nested blocks need no extra handling. `DepthGuides` passes the reduced `availWidth` on
+    to the wrapped `CalcLine`, so deeper lines re-layout automatically.
+- **Dropping the numeric row (step 6)** is enabled with a renderer argument,
+  `ReportLabRenderer(drop_numeric_when_narrow=False)`, defaulting to off. A per-line
+  `# hc:` flag would need a new option in `handcalcs/parsing/commands.py` (the argparse
+  command parser has no free-form `key=value`). That is a change to handcalcs itself, so it
+  is **pending the user's approval** and not part of this branch yet.
+
 ### Escaping
 
 ReportLab's paragraph parser rejects stray `&` and some `<` sequences. A bare `a < b`
@@ -223,11 +294,16 @@ Elements:
   `DepthGuides` flowable, `keepWithNext`, the "No conditions were satisfied" note.
 - [ ] **Phase 4: Grids.** `_Grid` marker, params `Table` (both `;` and `# hc: -h` forms),
   multi-line calc `Table`.
-- [ ] **Phase 5: Polish.** `KeepTogether` grouping, the optional
+- [ ] **Phase 5: Overflow.** `_CalcLine` marker and `CalcLine` flowable with the layout
+  ladder (steps 1–8 above), depth-tagged break markers in the operator handlers, shortening
+  collections only on overflow, `drop_numeric_when_narrow`, params-grid column step-down,
+  wrapping of block headers, and the overflow/layout report in the demo script. Check by eye
+  at 252 pt and 504 pt (the demo script takes `--width`).
+- [ ] **Phase 6: Polish.** `KeepTogether` grouping, the optional
   `build_pdf(result, path, title=...)` helper (page footer with page numbers, outline
   bookmarks from heading anchors via `afterFlowable`). The helper is for the demo and
   downstream convenience. The renderer itself only returns the dict.
-- [ ] **Phase 6: Tests.** `tests/test_reportlab_renderer.py` with
+- [ ] **Phase 7: Tests.** `tests/test_reportlab_renderer.py` with
   `pytest.importorskip("reportlab")`:
   - contract: dict keys, `StyleSheet1` type, every style the story uses is in the
     stylesheet, the story is a flat list of `Flowable`s;
@@ -238,11 +314,14 @@ Elements:
     class, style name, depth, text or cell grid), regenerated with
     `HANDCALCS_UPDATE_GOLDEN=1` like the LaTeX and Markdown goldens. Do not golden the PDF
     bytes, which contain timestamps and IDs.
+  - overflow: snapshot the layout step of every demo calc line at 252 pt and 504 pt, and
+    check the known-overflow set (like `KNOWN_OVERFULL` in the LaTeX tests).
 
 ## How to check progress
 
 ```bash
 uv run python scripts/reportlab_demo_check.py            # writes reportlab_demo.pdf
+uv run python scripts/reportlab_demo_check.py --width 252   # frame width in pt (default: half-width column)
 uv run --with pymupdf python scripts/reportlab_demo_check.py --png   # + page PNGs to inspect
 uv run pytest tests/test_reportlab_renderer.py           # once Phase 6 exists
 ```
@@ -258,6 +337,9 @@ Ad-hoc probe:
 3. `build_pdf`: in the package, optional.
 4. Calc-line comments: inline grey italics.
 5. Git: commit locally after each phase. The user pushes.
+6. Overflow (2026-10-16): the frame varies, so layout is measured at wrap time. `-m` forces
+   the grid. Collections are shortened only on overflow. Dropping the numeric row is
+   opt-in. See "Overflow: measurements and decisions".
 
 ## Progress log
 
@@ -266,3 +348,6 @@ Ad-hoc probe:
   (Phase 0). This plan written.
 - 2026-10-15: The user answered the open questions (see above). Plan updated: package
   `ym_handcalcs`, DejaVu assumed under the standard names, commit locally only.
+- 2026-10-16: The user added the overflow section. Overflow options were discussed and
+  decided (see "Overflow: measurements and decisions"). Added Phase 5 (Overflow); Polish and
+  Tests are now Phases 6 and 7.
