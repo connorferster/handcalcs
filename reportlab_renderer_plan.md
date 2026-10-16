@@ -4,6 +4,42 @@ Branch: `features/reportlab_renderer` (cut from `hc2/dev`). This file is the sin
 truth for resuming the ReportLabRenderer work. Keep the checklist and progress log below up to
 date.
 
+## NEXT SESSION: START HERE (user instruction, 2026-10-16)
+
+At the start of the next session, **repeat this summary to the user**, then **prompt them for the two decisions
+below with AskUserQuestion** before doing anything else.
+
+### Summary of the work so far
+
+The ReportLab renderer is built: Phases 0–7 are done on `features/reportlab_renderer` (pushed 2026-10-16). The full
+test suite passes (465 tests, 30 of them new).
+
+- **What you get:** `HandCalcs(renderer=ReportLabRenderer())(source)` returns
+  `{"stylesheet": StyleSheet1, "story": [flowables]}`. The code is in `src/ym_handcalcs/`, and `handcalcs` itself
+  never imports it.
+- **How it looks:** headings in blue with rules underneath; serif comments with `backticks` as code; import chips;
+  results bold blue on a light highlight; inline comments grey italic; `if`/`else`/`for` headers in rounded tinted
+  boxes with coloured indent guides for nested blocks; parameter grids centred, aligned on `=`, on a rounded
+  background.
+- **Overflow:** each calc line picks its layout at wrap time (one line → comment underneath → grid aligned on `=` →
+  wrap at top-level, then deeper, operators → target on its own row → shorten long collections → drop the numeric
+  step (opt-in) → shrink to at most 85% → overflow). Demo: 18 of 42 lines need more than one line at 252 pt, 7 of
+  42 at 504 pt, none shrink or overflow. Parameter grids drop from 3 columns to 2 to 1 until they fit.
+- **Changes from the plan:** break points come from scanning the rendered output (`breaking.py`), not from markers
+  in the operator handlers; a "target on its own row" layout was added; mono bold-italic falls back to bold
+  (ymprint has no DejaVuSansMono-BoldOblique); matplotlib was briefly added for fonts, then removed.
+- **Things to know:** `doc.build(story)` empties the list (`build_pdf` passes a copy; ymprint should too). Dev PDFs
+  show italics upright because the system DejaVu has no italic files. Dropping the numeric step is the renderer
+  argument `drop_numeric_when_narrow=True`.
+- **Preview:** `uv run --with pymupdf python scripts/reportlab_demo_check.py --width 252 --png`.
+
+### Decisions to ask the user for
+
+1. Add a per-line `# hc:` flag for dropping the numeric step? It needs a small change to handcalcs itself
+   (`handcalcs/parsing/commands.py`).
+2. The ymprint block converter: which block key (e.g. `_handcalcs`), and should the converter live in
+   `ym_handcalcs`?
+
 ## Standing instructions from the user (2026-10-15)
 
 > Build a handcalcs renderer for display in ReportLab. It will be based off of the HTML
@@ -20,7 +56,8 @@ date.
   third-party **block module for ymprint**. Ymprint bundles the full DejaVu suite, so assume
   it is available under the standard ReportLab names. `build_pdf` goes in the package as an
   optional helper. Calc-line comments are inline grey italics.
-- Git: **commit locally after each phase, never push** (the user pushes).
+- Git: **commit locally after each phase, never push** (the user pushes). The user asked for a push on 2026-10-16;
+  that does not change the default.
 - Do not change `HTMLRenderer` output to suit ReportLab. Put ReportLab needs in
   `ReportLabRenderer` overrides. If a genuine bug turns up that affects both renderers, raise
   it with the user instead of silently changing HTML output (same rule as the LaTeX and
