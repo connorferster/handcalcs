@@ -25,6 +25,7 @@ import pytest
 
 pytest.importorskip("reportlab")
 
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import StyleSheet1
 from reportlab.platypus import (
@@ -32,7 +33,9 @@ from reportlab.platypus import (
 )
 
 from handcalcs import HandCalcs
-from ym_handcalcs import Fonts, FontFamily, ReportLabRenderer, build_pdf, ensure_dejavu_registered
+from ym_handcalcs import (
+    DEFAULT_THEME, Fonts, FontFamily, Palette, ReportLabRenderer, build_pdf, ensure_dejavu_registered,
+)
 from ym_handcalcs.breaking import NBSP, elide_collections, ranked_breaks, with_breaks
 from ym_handcalcs.flowables import BreakingParagraph, CalcBlock, CalcLine, Chip, DepthGuides, ParamGrid
 
@@ -157,6 +160,61 @@ def test_missing_fonts_raise_a_helpful_error():
     fonts = Fonts(sans=FontFamily("NoSuchFont", "NoSuchFont-B", "NoSuchFont-I", "NoSuchFont-BI"))
     with pytest.raises(ValueError, match="ensure_dejavu_registered"):
         ReportLabRenderer(fonts=fonts)
+
+
+# -- theme colour ---------------------------------------------------------------
+
+def test_default_palette_is_derived_from_the_default_theme():
+    assert Palette() == Palette.from_theme(DEFAULT_THEME)
+
+
+@pytest.mark.parametrize("theme", ["#A2461C", "1d4e89", colors.HexColor("#3A2A5C")])
+def test_theme_palette_tints_the_theme(theme):
+    palette = Palette.from_theme(theme)
+    accent = colors.HexColor(palette.accent)
+
+    def lightness(hex_color):
+        c = colors.HexColor(hex_color)
+        return (max(c.red, c.green, c.blue) + min(c.red, c.green, c.blue)) / 2
+
+    assert palette.accent.startswith("#") and len(palette.accent) == 7
+    # Text is darker than the backgrounds, and backgrounds are near-white tints.
+    assert lightness(palette.ink) < lightness(palette.muted) < lightness(palette.rule)
+    for token in ("accent_soft", "highlight", "code_bg", "zebra"):
+        assert lightness(getattr(palette, token)) > 0.9
+    assert lightness(palette.rule) > lightness(palette.accent)
+    assert len(set(palette.guides)) == 3
+    assert accent.hexval() == colors.HexColor(Palette.from_theme(palette.accent).accent).hexval()
+
+
+def test_grey_theme_gives_grey_palette():
+    palette = Palette.from_theme("#333333")
+    for value in (palette.ink, palette.muted, palette.code_bg, *palette.guides):
+        r, g, b = value[1:3], value[3:5], value[5:7]
+        assert r == g == b, value
+
+
+@pytest.mark.parametrize("bad", ["#12345", "#GG0000", "teal"])
+def test_bad_theme_colour_is_rejected(bad):
+    with pytest.raises(ValueError, match="RRGGBB"):
+        Palette.from_theme(bad)
+
+
+def test_renderer_theme_color_sets_the_palette():
+    renderer = ReportLabRenderer(theme_color="#A2461C")
+    assert renderer.palette == Palette.from_theme("#A2461C")
+    result = render("x = 1\n# Heading\n", theme_color="#A2461C")
+    assert result["stylesheet"]["hcH1"].textColor.hexval() == colors.HexColor("#A2461C").hexval()
+
+
+def test_renderer_rejects_palette_and_theme_color_together():
+    with pytest.raises(ValueError, match="not both"):
+        ReportLabRenderer(palette=Palette(), theme_color="#A2461C")
+
+
+def test_build_pdf_accepts_theme_color(tmp_path):
+    result = demo(theme_color="#A2461C")
+    assert build_pdf(result, tmp_path / "copper.pdf", theme_color="#A2461C").exists()
 
 
 # -- golden -------------------------------------------------------------------

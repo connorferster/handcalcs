@@ -9,6 +9,6 @@ ym_handcalcs: a ymprint block module that renders handcalcs to ReportLab.
     result["story"]       # list of flowables
 """
 from .fonts import Fonts, FontFamily, ensure_dejavu_registered
-from .styles import Palette, build_stylesheet
+from .styles import DEFAULT_THEME, Palette, build_stylesheet
 from .renderer import ReportLabRenderer
 from .pdf import build_pdf

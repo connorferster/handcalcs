@@ -70,11 +70,20 @@ class ReportLabRenderer(HTMLRenderer):
     def __init__(
         self,
         stylesheet: Optional[StyleSheet1] = None,
-        palette: Palette = Palette(),
+        palette: Optional[Palette] = None,
         fonts: Fonts = Fonts(),
         base_size: float = 9.5,
+        theme_color=None,
     ) -> None:
+        """
+        ``theme_color`` (a dark ``'#RRGGBB'``) derives the whole palette with
+        ``Palette.from_theme``; pass ``palette`` instead for full control.
+        """
         super().__init__()
+        if palette is not None and theme_color is not None:
+            raise ValueError("pass either palette or theme_color, not both")
+        if palette is None:
+            palette = Palette() if theme_color is None else Palette.from_theme(theme_color)
         missing = missing_fonts(fonts)
         if missing:
             raise ValueError(

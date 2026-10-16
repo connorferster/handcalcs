@@ -55,15 +55,20 @@ class HandcalcsDocTemplate(BaseDocTemplate):
 
 
 def build_pdf(result: dict, path: str | pathlib.Path, *, title: str = "", pagesize=letter,
-              frame_width: Optional[float] = None, margin: float = 54, palette=None) -> pathlib.Path:
+              frame_width: Optional[float] = None, margin: float = 54, palette=None,
+              theme_color=None) -> pathlib.Path:
     """
     Write ``result["story"]`` to ``path``. ``frame_width`` centres a narrower
     text frame on the page (e.g. 252 pt to preview a half-width column). The
     story list is copied, because ReportLab's ``build`` consumes it.
+    ``palette``/``theme_color`` only colour the footer; match the renderer's.
     """
     from .styles import Palette
 
-    palette = palette or Palette()
+    if palette is not None and theme_color is not None:
+        raise ValueError("pass either palette or theme_color, not both")
+    if palette is None:
+        palette = Palette() if theme_color is None else Palette.from_theme(theme_color)
     path = pathlib.Path(path)
     doc = HandcalcsDocTemplate(
         str(path), pagesize=pagesize, leftMargin=margin, rightMargin=margin,

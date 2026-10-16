@@ -7,6 +7,7 @@ Palette and stylesheet for the ReportLab renderer.
 """
 from __future__ import annotations
 
+import colorsys
 from dataclasses import dataclass, field
 
 from reportlab.lib import colors
@@ -17,19 +18,79 @@ from reportlab.platypus import TableStyle
 from .fonts import Fonts
 
 
+DEFAULT_THEME = "#0B5F66"
+
+
+def _rgb(color) -> tuple[float, float, float]:
+    """A '#RRGGBB' string (the '#' is optional) or a ReportLab Color, as 0-1 floats."""
+    if isinstance(color, colors.Color):
+        return color.red, color.green, color.blue
+    text = str(color).strip().lstrip("#")
+    if len(text) != 6:
+        raise ValueError(f"theme colour must be '#RRGGBB', got {color!r}")
+    try:
+        return tuple(int(text[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    except ValueError:
+        raise ValueError(f"theme colour must be '#RRGGBB', got {color!r}") from None
+
+
+def _hex(rgb) -> str:
+    return "#%02X%02X%02X" % tuple(round(min(max(v, 0.0), 1.0) * 255) for v in rgb)
+
+
+def _tint(rgb, amount: float) -> str:
+    """Mix ``amount`` of the colour into white (0 = white, 1 = the colour)."""
+    return _hex(1 - amount * (1 - v) for v in rgb)
+
+
+def _hls(hue: float, lightness: float, saturation: float) -> str:
+    return _hex(colorsys.hls_to_rgb(hue % 1, lightness, saturation))
+
+
 @dataclass(frozen=True)
 class Palette:
-    # "Petrol": deep teal accent on cool slate greys.
-    ink: str = "#1B2A2F"
-    muted: str = "#647679"
+    """
+    Every colour the renderer uses. The defaults are ``Palette.from_theme(DEFAULT_THEME)``
+    ("petrol"); build a palette from another dark theme colour with ``from_theme``.
+    """
+    ink: str = "#1B2B2C"
+    muted: str = "#637778"
     accent: str = "#0B5F66"
-    accent_soft: str = "#E3F0EF"
-    highlight: str = "#E8F3F2"
+    accent_soft: str = "#E7EFF0"
+    highlight: str = "#EAF1F2"
     code_bg: str = "#EFF3F3"
-    rule: str = "#C2D4D3"
-    zebra: str = "#F2F8F7"
+    rule: str = "#BDD4D6"
+    zebra: str = "#F3F7F7"
     # Nested-block indent guides, one colour per level (cycled).
-    guides: tuple[str, ...] = ("#86BDB8", "#D6B583", "#A7AFC6")
+    guides: tuple[str, ...] = ("#85B8BD", "#D5B386", "#A8B0C7")
+
+    @classmethod
+    def from_theme(cls, theme) -> "Palette":
+        """
+        Derive a palette from one dark theme colour (``'#RRGGBB'`` or a ReportLab
+        ``Color``), which becomes the accent. Backgrounds and hairlines are tints
+        of it (mixed with white); text colours keep its hue at a fixed lightness
+        with most of the saturation removed. The second and third indent guides
+        turn the hue (+210 and +40 degrees) so neighbouring levels stay distinct.
+        Saturation scales with the theme's, so a grey theme gives a grey palette.
+        """
+        rgb = _rgb(theme)
+        hue, _, sat = colorsys.rgb_to_hls(*rgb)
+        return cls(
+            ink=_hls(hue, 0.14, sat * 0.30),
+            muted=_hls(hue, 0.43, sat * 0.12),
+            accent=_hex(rgb),
+            accent_soft=_tint(rgb, 0.10),
+            highlight=_tint(rgb, 0.085),
+            code_bg=_hls(hue, 0.945, sat * 0.17),
+            rule=_tint(rgb, 0.27),
+            zebra=_tint(rgb, 0.05),
+            guides=(
+                _hls(hue, 0.63, sat * 0.37),
+                _hls(hue + 210 / 360, 0.68, sat * 0.60),
+                _hls(hue + 40 / 360, 0.72, sat * 0.27),
+            ),
+        )
 
     def color(self, token: str) -> colors.Color:
         return colors.HexColor(getattr(self, token))
