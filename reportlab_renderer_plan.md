@@ -290,7 +290,7 @@ Elements:
 - [x] **Phase 2: Lines.** Headings, comment prose with escaping, imports, calc lines (hanging
   indent, result highlight, inline comments), expression lines, line-break spacers, flat
   blocks.
-- [ ] **Phase 3: Blocks.** Callout headers for if/elif/else/for/function blocks,
+- [x] **Phase 3: Blocks.** Callout headers for if/elif/else/for/function blocks,
   `DepthGuides` flowable, `keepWithNext`, the "No conditions were satisfied" note.
 - [ ] **Phase 4: Grids.** `_Grid` marker, params `Table` (both `;` and `# hc: -h` forms),
   multi-line calc `Table`.
@@ -371,3 +371,8 @@ Ad-hoc probe:
   lines, inline comments, string constants and docstrings. The "No conditions were satisfied" text becomes a note.
   Base-level oddities seen (not ReportLab-specific, left alone): comparison operators have no spaces around them
   (`temp<temp_max`), and `acc.append(value) = acc.append(11.31)`.
+- 2026-10-16: **Phase 3 done.** `DepthGuides(content, depth, indent, colors)` indents a leaf flowable, draws one guide
+  per enclosing level (through spaceBefore/After so guides join), and delegates `split`. `join_item` wraps leaves
+  only: nested results come back wrapped in `_Placed` so they are never wrapped twice. Headers are callouts with a `▸`
+  marker and accent keywords (`Since … → … is True:`, `Otherwise:`, `Iterating over each … in …:`), and
+  `keepWithNext` keeps a header with its first body line.

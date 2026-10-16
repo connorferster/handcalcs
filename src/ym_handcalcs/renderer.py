@@ -19,10 +19,10 @@ from xml.sax.saxutils import escape
 from reportlab.lib.styles import StyleSheet1
 from reportlab.platypus import Flowable, HRFlowable, Paragraph, Spacer
 
-from handcalcs.renderers.base import BaseRenderContext, RenderContext
+from handcalcs.renderers.base import BaseRenderContext, RenderContext, render_condition
 from handcalcs.renderers.html import HTMLRenderer
 
-from .flowables import Chip
+from .flowables import Chip, DepthGuides
 from .fonts import Fonts, missing_fonts, register_families
 from .markers import CalcComponents, Grid, Tagged
 from .styles import Metrics, Palette, build_stylesheet
@@ -31,9 +31,18 @@ from .styles import Metrics, Palette, build_stylesheet
 from handcalcs.parsing.nodes import Constant
 from handcalcs.parsing.inline_nodes import InlineComment
 from handcalcs.parsing.line_nodes import CommentLine, ExprLine, Heading, Import
-from handcalcs.parsing.block_nodes import CommentsBlock
+from handcalcs.parsing.block_nodes import CommentsBlock, ElseBlock, ForBlock, IfBlock
 
 BRC = BaseRenderContext
+
+class _Placed:
+    """A flowable that a nested ``join_items`` call has already placed at its depth."""
+
+    __slots__ = ("flowable",)
+
+    def __init__(self, flowable: Flowable) -> None:
+        self.flowable = flowable
+
 
 # Heading bookmark keys must be unique across every render in a document.
 _ANCHORS = itertools.count(1)
@@ -92,6 +101,12 @@ class ReportLabRenderer(HTMLRenderer):
         dispatch, but each line becomes a flowable. The story stays flat;
         ``depth`` is carried by the flowables themselves.
         """
+        return [self.at_depth(flowable, depth) for flowable in self.item_flowables(item, depth, base_context)]
+
+    def item_flowables(self, item, depth: int, base_context: BaseRenderContext) -> list[Flowable]:
+        # Leaf items become flowables here (``join_item`` places them at their
+        # depth); blocks recurse through ``join_items``, which places their own
+        # leaves, so the depth wrapper is never applied twice.
         if isinstance(item, Grid):
             return [self.grid_flowable(item, depth)]
         if not item:
@@ -109,16 +124,25 @@ class ReportLabRenderer(HTMLRenderer):
         if isinstance(item[-1], list):
             header, body = item[0], item[-1]
             if not (isinstance(header, str) and header.strip()):
-                return self.join_items(body, depth, base_context)
+                return [_Placed(f) for f in self.join_items(body, depth, base_context)]
             return [
                 self.header_flowable(header, depth),
-                *self.join_items(body, depth + 1, base_context),
+                *(_Placed(f) for f in self.join_items(body, depth + 1, base_context)),
             ]
         if all(isinstance(part, str) for part in item):
             line = base_context.current.space.join(item)
             return [self.line_flowable(line, depth)] if line.strip() else []
         # A mixed list (e.g. a grid wrapped by ``render_block_body``): join each part.
-        return self.join_items(item, depth, base_context)
+        return [_Placed(f) for f in self.join_items(item, depth, base_context)]
+
+    def at_depth(self, flowable: Flowable, depth: int) -> Flowable:
+        """Indent a leaf flowable to ``depth`` and draw its indent guides."""
+        if isinstance(flowable, _Placed):
+            return flowable.flowable
+        if depth <= 0:
+            return flowable
+        guides = [self.palette.guide(level) for level in range(1, depth + 1)]
+        return DepthGuides(flowable, depth, self.metrics.indent, guides)
 
     # -- Flowable builders (overridable) ------------------------------------
 
@@ -154,7 +178,8 @@ class ReportLabRenderer(HTMLRenderer):
         return Paragraph(self.calc_markup(calc), self.style("hcCalc"))
 
     def header_flowable(self, header: str, depth: int) -> Flowable:
-        return Paragraph(header, self.style("hcBlockHeader"))
+        marker = f'<font color="{self.palette.accent}">\u25B8</font>\u2002'
+        return Paragraph(marker + header, self.style("hcBlockHeader"))
 
     def tagged_flowables(self, item: Tagged, depth: int) -> list[Flowable]:
         if item.kind == "heading":
@@ -278,3 +303,29 @@ def mark_no_condition_note(renderer: RLR, rendered, node, base_context: BRC):
     if isinstance(rendered, str) and rendered:
         return Tagged(escape(rendered), "note")
     return rendered
+
+
+## BLOCK HEADERS
+
+def keyword(renderer: RLR, text: str) -> str:
+    return f'<font color="{renderer.palette.accent}"><b>{text}</b></font>'
+
+
+@RLR.register("header:if_block")
+def if_block_header(renderer: RLR, node: IfBlock, base_context: BRC) -> str:
+    sym_expr = render_condition(renderer, node.test, base_context, "sym")
+    num_expr = render_condition(renderer, node.test, base_context, "num")
+    return f"{keyword(renderer, 'Since')} ({sym_expr}) \u2192 ({num_expr}) {keyword(renderer, 'is True:')}"
+
+
+@RLR.register("header:else_block")
+def else_block_header(renderer: RLR, node: ElseBlock, base_context: BRC) -> str:
+    return keyword(renderer, "Otherwise:")
+
+
+@RLR.register("header:for_block")
+def for_block_header(renderer: RLR, node: ForBlock, base_context: BRC) -> str:
+    base_context.line_context.current_mode = "sym"
+    target = renderer.render(node.assigns[0], base_context)
+    iterable = renderer.render(node.iterator[0], base_context)
+    return f"{keyword(renderer, 'Iterating over each')} {target} {keyword(renderer, 'in')} {iterable}:"
