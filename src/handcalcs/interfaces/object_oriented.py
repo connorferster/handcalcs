@@ -64,12 +64,16 @@ class HandCalcs:
 
     def demo(self):
         """
-        Renders the demo with the current renderer
+        Renders the demo with the current renderer.
+
+        A renderer that cannot render the general demo (e.g. the ExcelRenderer,
+        which has no worksheet form for loops or collections) provides its own
+        source as a ``demo_source`` attribute, which is used instead.
         """
-        source = self.__read(demo.source)
+        source = self.__read(getattr(self.renderer, "demo_source", None) or demo.source)
         eval_globals = self.__evaluate(source)
         demo_ast = self.__parse(source, eval_globals)
-        base_context = self.renderer.create_context(**self._context_settings)
+        base_context = self.renderer.create_context(**(self._context_settings | {"global_ns": eval_globals}))
         rendered_tree = self.renderer.render(demo_ast, base_context)
         completed_render = self.renderer.complete(rendered_tree, base_context)
         # demo() returns the completed render (renderer.complete()), matching

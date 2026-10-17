@@ -29,6 +29,7 @@ Because `handcalcs` shows the numeric substitution, the calculations become sign
 * [Installation](https://github.com/connorferster/handcalcs#installing)
 * [Basic Usage](https://github.com/connorferster/handcalcs#basic-usage-1-as-a-jupyter-cell-magic-render)
 * [Enhanced Usage](https://github.com/connorferster/handcalcs#basic-usage-2-as-a-decorator-on-your-functions-handcalc)
+* [Export to a live Excel worksheet](https://github.com/connorferster/handcalcs#export-to-a-live-excel-worksheet)
 * [Features](https://github.com/connorferster/handcalcs#features)
 * [PDF Printing in Jupyter](https://github.com/connorferster/handcalcs#pdf-printing-in-jupyter)
 * [Expected Behaviours](https://github.com/connorferster/handcalcs#expected-behaviours)
@@ -287,6 +288,22 @@ _Note: Re-assigning your symbolic variables to numbers will clobber them as symp
 ![display variable demo](docs/images/forallpeople.png)
 
 **For potential compatibility with other units packages, please see [the wiki.](https://github.com/connorferster/handcalcs/wiki)**
+
+---
+
+## Export to a live Excel worksheet
+
+The `ExcelRenderer` turns a cell into an `.xlsx` worksheet in which every calculation is a real Excel formula. Edit an input in Excel and the sheet recalculates. The symbolic column keeps the handcalcs look (subscripts, superscripts, Greek letters), `if`/`elif`/`else` trees become `IF` formulas, and pint/forallpeople units are supported.
+
+```python
+from handcalcs import HandCalcs
+from handcalcs.renderers.excel import ExcelRenderer
+
+workbook = HandCalcs(renderer=ExcelRenderer(sheet_name="Beam check"))(source)
+workbook.save("beam_check.xlsx")
+```
+
+Install with `pip install "handcalcs[excel]"`. See [the Excel Renderer docs](docs/excel_renderer.md) for the layout, options and what can be converted.
 
 ---
 

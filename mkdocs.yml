@@ -8,5 +8,6 @@ nav:
   - Features: features.md
   - Override tags: overrides.md
   - Using Sympy: sympy.md
+  - Excel Renderer: excel_renderer.md
 
 theme: readthedocs
