@@ -197,6 +197,11 @@ reference/
 - **`%%render` swallows exceptions**: a cell that raises displays nothing and the
   traceback is captured by `cell_capture` (jupyter.py). Documented as a warning.
 
+- **LatexRenderer/MarkdownRenderer `create_context` collide with config**: setting
+  `space`, `newline`, `indent`, `lpar` or `rpar` with `set_option` raises
+  `TypeError: RenderContext() got multiple values for keyword argument` (latex.py
+  `create_context` passes them explicitly *and* in `**kwargs`). Documented as a caveat.
+
 ## Open questions for the user
 
 - Hosting: Read the Docs (add `.readthedocs.yaml`) or GitHub Pages (add a workflow)?
