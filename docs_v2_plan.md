@@ -163,7 +163,7 @@ reference/
 | Phase | State | Notes |
 |---|---|---|
 | 0 Plan | done | this file |
-| 1 Scaffold | todo | |
+| 1 Scaffold | done | builds clean; `hc-example` directive works for md/html/code |
 | 2 Getting started | todo | |
 | 3 Interfaces | todo | |
 | 4 Renderers | todo | |
@@ -172,6 +172,19 @@ reference/
 | 7 Developers | todo | |
 | 8 Reference | todo | |
 | 9 Polish | todo | |
+
+## Source issues found while writing (report to user; not fixed in this branch)
+
+- **`@handcalc` renders nothing.** `HcSequence.from_source` turns a top-level
+  `def` into a single `NoValue`, so the decorator returns `(value, '')` (or `['']` for
+  BaseRenderer). `tests/test_decorator.py` only checks types, so it passes. Docs show
+  decorator examples as static code (no `hc-example`).
+- **`# hc: -w` (`if_winner_only`) is parsed but nothing reads it.** Documented as
+  reserved.
+- **`# hc: -i` line followed by an inline `# hc: -p` line** rendered the `-p` line as
+  three separate lines (`p2` / `=` / `6.00`) in PlainText (seen with a `-b` before it).
+- **forallpeople unit symbols in the numeric column render empty**: `L = 6 * m` shows
+  `6 *  = 6 m`.
 
 ## Open questions for the user
 
