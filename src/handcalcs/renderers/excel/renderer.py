@@ -3,6 +3,7 @@ import pathlib
 from typing import Optional
 
 from handcalcs.renderers.base import BaseRenderer
+from .symbolic import register_symbolic_rules
 from .options import (
     DEFAULT_FORMULA_FORMAT,
     DEFAULT_VALUE_FORMAT,
@@ -52,3 +53,6 @@ class ExcelRenderer(BaseRenderer):
 
     def __repr__(self) -> str:
         return f"ExcelRenderer(sheet_name={self.sheet_name!r})"
+
+
+register_symbolic_rules(ExcelRenderer)

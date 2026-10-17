@@ -9,7 +9,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 - [x] Phase 1 — scaffold, config validation, optional dependency, registry
 - [x] Phase 2 — names and number formats
 - [x] Phase 3 — formula (`xl`) mode
-- [ ] Phase 4 — symbolic mode and rich text
+- [x] Phase 4 — symbolic mode and rich text
 - [ ] Phase 5 — rows and compatibility
 - [ ] Phase 6 — writer
 - [ ] Phase 7 — conditionals
@@ -430,3 +430,12 @@ clear error.
   shadows it. `has_units()` helper raises for unit values until phase 8.
   Tests: `tests/test_excel_formulas.py` (note `c`/`r` are reserved: use other
   letters in fixtures).
+- 2026-10-17: phase 4 done — `rich_text.py` (`parse_markup` → merged `(text, style)`
+  runs, nested sub flattened with `,`; leaves escaped with `escape`, entities
+  unescaped) and `symbolic.py` (non-mutating rules registered on `ExcelRenderer` by
+  `register_symbolic_rules`: names with Greek/accents/star and a single flattened
+  subscript, `·`, `⌊a / b⌋`, `mod`, constant powers as superscripts, other powers
+  `a^(…)`, `√(…)`, module prefix dropped, `math.pi` → π, spaced `≤ ≥ ≠ =`;
+  `symbolic_markup()` renders nodes in `sym` mode). Note: the base
+  `function_call:pre` rule still mutates `pre`/`post` once (idempotent, harmless).
+  Tests: `tests/test_excel_symbolic.py`.
