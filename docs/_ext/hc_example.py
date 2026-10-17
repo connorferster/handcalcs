@@ -156,6 +156,50 @@ class HcExampleDirective(SphinxDirective):
         return [container]
 
 
+class HcRegistryDirective(SphinxDirective):
+    """
+    ``hc-registry``: a table of the handlers, header handlers and rules of a
+    renderer, read from its registration tables at build time. With ``:own:``,
+    only those that differ from its parent class.
+    """
+    has_content = False
+    required_arguments = 1  # the registered renderer name
+    option_spec = {"own": directives.flag}
+
+    def run(self):
+        renderer_cls = get_renderer(self.arguments[0])
+        if renderer_cls is None:
+            raise self.error(f"hc-registry: no renderer registered as {self.arguments[0]!r}")
+        parent = renderer_cls.__mro__[1]
+        own = "own" in self.options
+
+        def link(fn):
+            return f"{{src}}`{fn.__name__} <{fn.__module__}.{fn.__qualname__}>`"
+
+        rows = []
+        for node_type, fn in sorted(renderer_cls.node_handlers.items()):
+            if own and getattr(parent, "node_handlers", {}).get(node_type) is fn:
+                continue
+            rows.append((f"`{node_type}`", "handler", link(fn)))
+        for node_type, fn in sorted(renderer_cls.header_handlers.items()):
+            if own and getattr(parent, "header_handlers", {}).get(node_type) is fn:
+                continue
+            rows.append((f"`header:{node_type}`", "header", link(fn)))
+        for node_type, categories in sorted(renderer_cls.rule_handlers.items()):
+            for category, fns in categories.items():
+                inherited = getattr(parent, "rule_handlers", {}).get(node_type, {}).get(category, [])
+                for fn in fns:
+                    if own and fn in inherited:
+                        continue
+                    rows.append((f"`{node_type}:{category}`", "rule", link(fn)))
+        lines = ["| Classifier | Kind | Function |", "|---|---|---|"]
+        lines += [f"| {a} | {b} | {c} |" for a, b, c in rows]
+        container = nodes.container()
+        self.state.nested_parse(StringList(lines, source="hc-registry"), self.content_offset, container)
+        return container.children
+
+
 def setup(app):
     app.add_directive("hc-example", HcExampleDirective)
+    app.add_directive("hc-registry", HcRegistryDirective)
     return {"version": "1.0", "parallel_read_safe": True, "parallel_write_safe": True}

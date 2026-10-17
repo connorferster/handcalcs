@@ -68,7 +68,7 @@ intersphinx_mapping = {
 
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
-autodoc_default_options = {"members": True, "undoc-members": False}
+autodoc_default_options: dict = {}
 
 
 def linkcode_resolve(domain, info):
