@@ -410,3 +410,10 @@ clear error.
 
 - 2026-10-17: plan drafted from `excel_renderer.md` after reviewing the parser node
   types, `BaseRenderer` pipeline, HTML symbolic rules and the demo.
+- 2026-10-17: phase 1 done — scaffold, `options.py` config validation, `compat.py`
+  error class, `handcalcs[excel]` extra, registry entry `'excel'`.
+- 2026-10-17: phase 2 done — `names.py` (`to_excel_name` mangles cell-reference-like
+  names and `TRUE`/`FALSE` with a trailing `_`; `SymbolTable` versions reassignments
+  `M_u`, `M_u_2`, case-insensitive collision check, `lookup` raises for unassigned
+  names) and `number_formats.py` (`f`/`e`/`%`/`d`, `,` grouping, `+` sign;
+  `g`/none → `general_format`; others warn). Tests: `tests/test_excel_names.py`.
