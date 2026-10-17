@@ -36,7 +36,11 @@ extensions = [
     "sphinx.ext.extlinks",
     "sphinx.ext.linkcode",
     "hc_example",
+    "hc_source",
 ]
+
+hc_repo_url = HC_REPO_URL
+hc_source_ref = HC_SOURCE_REF
 
 source_suffix = {".md": "markdown"}
 exclude_patterns = ["_build", "_old_*", "Thumbs.db", ".DS_Store"]
