@@ -141,3 +141,16 @@ def test_markup_parses_to_runs():
 ])
 def test_power_bases(source, expected):
     assert symbolic(PREFIX + source) == expected
+
+
+def test_format_code_does_not_reach_symbolic_constants():
+    from handcalcs.interfaces.object_oriented import HandCalcs
+    from handcalcs.renderers.excel.rows import CalcRow
+    source = "b = 3\n# hc: -f .3f\ny = (b**2 + 0.5) / 2.0\n"
+    renderer = ExcelRenderer()
+    hc = HandCalcs(renderer=renderer)
+    hc(source)
+    rows = renderer.render(hc.hc_ast, renderer.create_context(global_ns={"b": 3}))
+    row = [r for r in rows if isinstance(r, CalcRow)][0]
+    assert plain_text(row.symbolic) == "(b2 + 0.5) / 2"
+    assert row.number_format == "0.000"

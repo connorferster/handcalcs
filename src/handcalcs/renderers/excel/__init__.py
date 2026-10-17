@@ -7,5 +7,6 @@ registry entry ``'excel'``) is always importable.
 """
 from .compat import ExcelRendererIncompatibleError
 from .renderer import ExcelRenderer
+from .writer import ExcelWorkbook
 
-__all__ = ["ExcelRenderer", "ExcelRendererIncompatibleError"]
+__all__ = ["ExcelRenderer", "ExcelRendererIncompatibleError", "ExcelWorkbook"]

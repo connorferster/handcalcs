@@ -18,7 +18,7 @@ from typing import Any, Iterable
 from handcalcs.parsing.nodes import Attribute, Constant, Name
 from handcalcs.parsing.inline_nodes import FunctionCall
 from handcalcs.parsing.operator_nodes import HcBinOp, HcCompOp, HcUnaryOp, PowOp
-from handcalcs.renderers.base import OP_PRECEDENCE, BaseRenderContext, infix_binop
+from handcalcs.renderers.base import OP_PRECEDENCE, BaseRenderContext, infix_binop, render_constant
 from .rich_text import escape
 
 GREEK = {
@@ -147,6 +147,18 @@ def compare_symbol(renderer, node: HcCompOp, base_context: BaseRenderContext) ->
     return replace(node, symbol=f" {escape(symbol)} ")
 
 
+def symbolic_constant(renderer, node: Constant, base_context: BaseRenderContext) -> Any:
+    """
+    'constant': numbers as written, not through ``format_code``. The number
+    format belongs to the value cell; ``# hc: -f .3f`` must not turn
+    ``b**2`` into b<sup>2.000</sup>.
+    """
+    value = node.value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return format(value, ".12g")
+    return render_constant(renderer, node, base_context)
+
+
 def escape_constant(renderer, rendered: Any, node: Constant, base_context: BaseRenderContext) -> Any:
     """'constant:post': escape string literals so they cannot inject markup."""
     if isinstance(rendered, str) and isinstance(node.value, str):
@@ -178,6 +190,7 @@ def register_symbolic_rules(cls) -> None:
         cls.register(f"{node_type}:pre")(binop_symbol)
     for node_type in ("eq_op", "neq_op", "lt_op", "lte_op", "gt_op", "gte_op"):
         cls.register(f"{node_type}:pre")(compare_symbol)
+    cls.register("constant")(symbolic_constant)
     cls.register("constant:post")(escape_constant)
     cls.register("pow_op")(render_pow)
 

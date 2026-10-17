@@ -26,6 +26,7 @@ from .options import (
 from .rich_text import parse_markup
 from .rows import BlankRow, CalcRow, CommentRow, HeadingRow, ParamRow, Row
 from .symbolic import register_symbolic_rules, symbolic_markup
+from .writer import ExcelWorkbook, build_workbook, write_sheet
 
 
 class ExcelRenderer(BaseRenderer):
@@ -83,8 +84,21 @@ class ExcelRenderer(BaseRenderer):
             rows.extend(self.render(node, base_context))
         return rows
 
-    def complete(self, tree: list[Row], base_context: BaseRenderContext) -> Any:
-        return tree
+    def complete(self, tree: list[Row], base_context: BaseRenderContext) -> ExcelWorkbook:
+        """Lay the rows out as a one-sheet workbook; save it if ``filepath`` is set."""
+        workbook = build_workbook(tree, self.sheet_name, self.value_format, self.formula_format)
+        if self.filepath is not None:
+            workbook.save(self.filepath)
+        return workbook
+
+    def write_sheet(self, workbook, rows: list[Row], sheet_name: Optional[str] = None):
+        """
+        Write ``rows`` (from ``render()``) as a new sheet of an open
+        ``xlsxwriter.Workbook``, for several cells in one workbook. Names are
+        worksheet-scoped, so each sheet may reuse the same variables.
+        """
+        sheet_name = self.sheet_name if sheet_name is None else validate_sheet_name(sheet_name)
+        return write_sheet(workbook, rows, sheet_name, self.value_format, self.formula_format)
 
 
 @dataclass
