@@ -8,6 +8,7 @@ against the values assigned so far, with Python's own operators and the same
 callables the formula pass resolved, so each row caches its own result.
 """
 from __future__ import annotations
+import builtins
 import math
 import operator
 from typing import Any, Optional
@@ -93,6 +94,8 @@ class ValueEvaluator:
                 return self.values[node.identifier]
             if node.identifier in self.global_ns:
                 return self.global_ns[node.identifier]
+            if hasattr(builtins, node.identifier):  # e.g. forallpeople top_level units
+                return getattr(builtins, node.identifier)
             raise EvaluationError(f"'{node.identifier}' has no value")
         if isinstance(node, Attribute):
             module = self.global_ns.get(node.namespace)

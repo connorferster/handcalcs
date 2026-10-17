@@ -44,12 +44,13 @@ from handcalcs.parsing.nodes import Name
 from handcalcs.parsing.null_values import NoValue
 from .compat import ExcelRendererIncompatibleError, incompatible
 from .evaluate import EvaluationError
-from .formulas import FormulaBuilder, has_units
+from .formulas import Formula, FormulaBuilder, scale_formula
 from .names import SymbolTable
 from .number_formats import to_excel_number_format
 from .rich_text import escape, parse_markup
 from .rows import CalcRow, Row
 from .symbolic import symbolic_identifier, symbolic_markup
+from .units import unit_value
 
 NA = "NA()"
 NA_DISPLAY = "#N/A"
@@ -184,7 +185,7 @@ class ConditionalRenderer:
 
     def builder(self, scope: Scope) -> FormulaBuilder:
         base = self.state.builder
-        return FormulaBuilder(scope, base.global_ns, base.functions, base.constants)
+        return FormulaBuilder(scope, base.global_ns, base.functions, base.constants, base.factors)
 
     # --- formulas ---
 
@@ -274,17 +275,11 @@ class ConditionalRenderer:
     def rows(self, conditional: Conditional) -> list[Row]:
         variables = conditional.variables()
         lines = _assignment_lines(conditional)
-        formulas = {}
-        try:
-            for variable in variables:
-                self.new_names[variable] = self.state.symbols.assign(variable)
-            scope = Scope(self.before)
-            for variable in variables:
-                fallback = self.before.get(variable, NA)
-                formulas[variable] = "=" + self.formula(conditional, variable, scope, fallback)
-        except ExcelRendererIncompatibleError as error:
-            raise error.with_target(variable) from None
+        for variable in variables:
+            self.new_names[variable] = self.state.symbols.assign(variable)
 
+        # Values first: a row's unit factor must be known before any formula
+        # that references the row is built.
         evaluator = self.state.evaluator
         try:
             self.run(conditional)
@@ -293,22 +288,43 @@ class ConditionalRenderer:
                 evaluator.assign(v, _captured(lines[v]))
         # A variable the taken path left unassigned, with no earlier value, is
         # #N/A in Excel: no cached value.
-        cached = {v: evaluator.values.get(v) for v in variables}
+        values = {v: evaluator.values.get(v) for v in variables}
+        units = {}
         for v in variables:
-            if has_units(cached[v]):
-                raise incompatible("values with units are not yet supported").with_target(v)
+            try:
+                units[v] = unit_value(values[v])
+            except ExcelRendererIncompatibleError as error:
+                raise error.with_target(v) from None
+            if units[v] is not None and units[v].factor != 1:
+                self.state.factors[self.new_names[v]] = units[v].factor
+
+        formulas = {}
+        scope = Scope(self.before)
+        for variable in variables:
+            try:
+                previous = self.before.get(variable)
+                fallback = self.builder(scope).name(Name(variable)).text if previous else NA
+                text = self.formula(conditional, variable, scope, fallback)
+            except ExcelRendererIncompatibleError as error:
+                raise error.with_target(variable) from None
+            unit = units[variable]
+            if unit is not None:
+                text = scale_formula(Formula(text), unit.factor).text
+            formulas[variable] = "=" + text
 
         context = self.base_context.current
         number_format = to_excel_number_format(context.format_code, self.renderer.general_format)
         rows: list[Row] = []
         for variable in variables:
+            unit = units[variable]
             rows.append(CalcRow(
                 name=self.new_names[variable],
                 symbol=parse_markup(symbolic_identifier(variable)),
                 symbolic=parse_markup(self.piecewise(conditional, variable)),
                 formula=formulas[variable],
-                cached=cached[variable],
+                cached=unit.magnitude if unit is not None else values[variable],
                 number_format=number_format,
+                unit=(unit.unit or None) if unit is not None else None,
                 comment=_first_comment(lines[variable]),
             ))
         return rows

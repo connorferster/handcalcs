@@ -343,6 +343,10 @@ class FormulaBuilder:
                 return Formula(f"{excel_name}*{format_number(factor)}", MULTIPLICATIVE)
             return Formula(excel_name)
         value = self.global_ns.get(identifier, node.value)
+        if isinstance(value, NoValue):
+            # Python's lookup order: globals, then builtins (forallpeople's
+            # ``top_level=True`` puts unit names such as ``mm`` there).
+            value = getattr(builtins, identifier, value)
         constant = self._math_constant(value)
         if constant is not None:
             return constant
