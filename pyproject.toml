@@ -27,7 +27,13 @@ exporters = [
 ]
 
 
-doc = ["sphinx"]
+doc = [
+    "sphinx>=8.1",
+    "shibuya>=2025.1",
+    "myst-parser>=4.0",
+    "sphinx-design>=0.6",
+    "sphinx-copybutton>=0.5",
+]
 excel = [
     "xlsxwriter>=3.2",
 ]

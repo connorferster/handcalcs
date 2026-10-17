@@ -1,3 +1,0 @@
-# Features
-
-These features are built-in to handcalcs...

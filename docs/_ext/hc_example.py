@@ -1,0 +1,156 @@
+"""
+The ``hc-example`` directive: run handcalcs at build time and show the source
+next to the real output, so examples in the docs cannot go stale.
+
+Usage (MyST)::
+
+    ```{hc-example}
+    :renderer: markdown
+    a = 2
+    b = 3
+    c = 2*a + b/3
+    ```
+
+Options:
+
+``:renderer:``
+    The registered name of a built-in renderer (``plain_text``, ``latex``,
+    ``markdown``, ``html``, ``base``). Default ``markdown``.
+``:renderer-file:`` / ``:renderer-class:``
+    A Python file (relative to the docs directory) that defines a custom
+    renderer, and the class to use from it. Takes precedence over ``:renderer:``.
+``:output:``
+    How to show the output: ``code`` (a code block), ``markdown`` (parsed as
+    MyST, so math is typeset), ``html`` (embedded as raw HTML) or ``none``.
+    The default depends on the renderer.
+``:output-language:``
+    The highlight language of a ``code`` output (default from the renderer).
+``:hide-source:``
+    Show only the output.
+``:setup:``
+    Python run before the example but not shown (e.g. ``import math``).
+"""
+
+import os
+import pathlib
+import pprint
+import runpy
+import tempfile
+
+from docutils import nodes
+from docutils.parsers.rst import directives
+from docutils.statemachine import StringList
+from sphinx.util.docutils import SphinxDirective
+
+# Render with the built-in defaults, never with the builder's own saved config.
+os.environ.setdefault(
+    "HANDCALCS_CONFIG", str(pathlib.Path(tempfile.gettempdir()) / "hc-docs-no-config.json")
+)
+
+from handcalcs import HandCalcs  # noqa: E402
+from handcalcs.renderers import get_renderer  # noqa: E402
+
+# Default output display and code language per built-in renderer.
+_DEFAULT_OUTPUT = {
+    "markdown": ("markdown", "markdown"),
+    "html": ("html", "html"),
+    "latex": ("code", "latex"),
+    "plain_text": ("code", "text"),
+    "base": ("code", "python"),
+}
+
+_RENDERER_FILE_CACHE: dict[str, dict] = {}
+
+
+def _heading_to_bold(markdown: str) -> str:
+    """Headings are not allowed inside a directive; show them as bold paragraphs."""
+    lines = []
+    for line in markdown.split("\n"):
+        stripped = line.lstrip("> ")
+        prefix = line[: len(line) - len(stripped)]
+        if stripped.startswith("#"):
+            text = stripped.lstrip("#").strip()
+            line = f"{prefix}**{text}**"
+        lines.append(line)
+    return "\n".join(lines)
+
+
+class HcExampleDirective(SphinxDirective):
+    has_content = True
+    option_spec = {
+        "renderer": directives.unchanged,
+        "renderer-file": directives.unchanged,
+        "renderer-class": directives.unchanged,
+        "output": lambda arg: directives.choice(arg, ("code", "markdown", "html", "none")),
+        "output-language": directives.unchanged,
+        "hide-source": directives.flag,
+        "setup": directives.unchanged,
+        "caption": directives.unchanged,
+    }
+
+    def _renderer(self):
+        renderer_file = self.options.get("renderer-file")
+        if renderer_file:
+            path = pathlib.Path(self.env.srcdir) / renderer_file
+            self.env.note_dependency(str(path))
+            namespace = _RENDERER_FILE_CACHE.get(str(path))
+            if namespace is None:
+                namespace = runpy.run_path(str(path))
+                _RENDERER_FILE_CACHE[str(path)] = namespace
+            class_name = self.options.get("renderer-class")
+            if not class_name:
+                raise self.error("hc-example: ':renderer-file:' needs ':renderer-class:'")
+            return namespace[class_name](), None
+        name = self.options.get("renderer", "markdown")
+        renderer_cls = get_renderer(name)
+        if renderer_cls is None:
+            raise self.error(f"hc-example: no renderer registered as {name!r}")
+        return renderer_cls(), name
+
+    def run(self):
+        source = "\n".join(self.content)
+        setup = self.options.get("setup", "")
+        renderer, name = self._renderer()
+        output_kind, language = _DEFAULT_OUTPUT.get(name, ("code", "text"))
+        output_kind = self.options.get("output", output_kind)
+        language = self.options.get("output-language", language)
+
+        globals_: dict = {}
+        try:
+            exec(compile(setup + "\n" + source, "<hc-example>", "exec"), globals_)
+            rendered = HandCalcs(renderer=renderer)(source, globals_)
+        except Exception as error:  # surface the failure in the build log
+            raise self.error(f"hc-example failed: {type(error).__name__}: {error}")
+        if not isinstance(rendered, str):
+            rendered = pprint.pformat(rendered, width=88)
+
+        container = nodes.container(classes=["hc-example"])
+        lines: list[str] = []
+        if "hide-source" not in self.options:
+            lines += ["```python", *source.split("\n"), "```", ""]
+        if output_kind != "none":
+            label = self.options.get("caption") or f"Output ({type(renderer).__name__})"
+            lines += [f"<div class=\"hc-example-label\">{label}</div>", ""]
+        self.state.nested_parse(StringList(lines, source="hc-example"), self.content_offset, container)
+
+        if output_kind == "none":
+            return [container]
+        output = nodes.container(classes=["hc-example-output", f"hc-output-{output_kind}"])
+        if output_kind == "code":
+            block = nodes.literal_block(rendered, rendered)
+            block["language"] = language
+            output += block
+        elif output_kind == "html":
+            output += nodes.raw("", rendered, format="html")
+        else:
+            text = _heading_to_bold(rendered)
+            self.state.nested_parse(
+                StringList(text.split("\n"), source="hc-example-output"), self.content_offset, output
+            )
+        container += output
+        return [container]
+
+
+def setup(app):
+    app.add_directive("hc-example", HcExampleDirective)
+    return {"version": "1.0", "parallel_read_safe": True, "parallel_write_safe": True}

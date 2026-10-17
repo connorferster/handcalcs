@@ -1,0 +1,22 @@
+/* Live examples rendered by the hc-example directive. */
+.hc-example {
+  margin-block: 1.25rem;
+}
+.hc-example-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--sy-c-light);
+  margin-block: 0.5rem 0.25rem;
+}
+.hc-example-output.hc-output-markdown,
+.hc-example-output.hc-output-html {
+  border: 1px solid var(--sy-c-border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+.hc-example-output .math {
+  overflow-x: auto;
+}
