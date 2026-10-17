@@ -45,14 +45,70 @@ class ExcelRenderer(BaseRenderer):
     Options (all validated here, at instantiation):
 
     - ``sheet_name``: the worksheet name (Excel's naming rules apply).
-    - ``value_format`` / ``formula_format``: dicts with any of ``bold``,
-      ``text_color`` and ``cell_color``, merged over the defaults. The value
-      format styles the value cell of param rows (the inputs); the formula format
-      styles the formula cell of calc rows. Colours are ``"#RRGGBB"``,
-      ``"RRGGBB"`` or an ``(r, g, b)`` tuple.
+    - ``value_format`` / ``formula_format``: how the value column (E) is
+      styled; see "Cell formats" below.
     - ``filepath``: if given, ``complete()`` also saves the workbook there.
     - ``general_format``: the Excel number format used for format codes that
       have no exact Excel equivalent (e.g. the default ``.5g``).
+
+    Cell formats
+    ------------
+    ``value_format`` and ``formula_format`` style the two kinds of cell in the
+    value column, so a reader can tell at a glance which cells to edit:
+
+    - ``value_format`` styles **input** cells: literal assignments such as
+      ``a = 2`` or ``L = 300*mm``. These hold plain numbers and are the cells
+      a user edits.
+    - ``formula_format`` styles **formula** cells: every calculation such as
+      ``x = (-b + sqrt(b**2 - 4*a*c)) / (2*a)``. A calculation forced into the
+      input layout with ``# hc: -p`` still holds a formula, so it also takes
+      ``formula_format``.
+
+    Both are dicts with any of these keys:
+
+    - ``"bold"``: ``True`` or ``False``.
+    - ``"text_color"``: the font colour.
+    - ``"cell_color"``: the cell's fill colour; ``None`` for no fill.
+
+    A colour is ``"#RRGGBB"``, ``"RRGGBB"`` or an ``(r, g, b)`` tuple of ints
+    from 0 to 255. Every key is optional: the keys you give are merged over the
+    defaults, and the keys you leave out keep their default. The defaults are::
+
+        value_format   = {"bold": False, "text_color": "#000000", "cell_color": "#FFF2CC"}
+        formula_format = {"bold": True,  "text_color": "#000000", "cell_color": None}
+
+    That is, inputs sit on a light-yellow fill (the common engineering
+    convention for "edit me") and formulas are bold with no fill. An unknown
+    key, a non-bool ``"bold"`` or a malformed colour raises ``ValueError``
+    when the renderer is created. The merged result is available as the
+    ``value_format`` and ``formula_format`` attributes.
+
+    Examples::
+
+        from handcalcs import HandCalcs
+        from handcalcs.renderers.excel import ExcelRenderer
+
+        # Defaults: yellow inputs, bold formulas.
+        renderer = ExcelRenderer()
+
+        # Blue text for inputs (the financial-modelling convention), keeping
+        # the default yellow fill; formulas stay bold.
+        renderer = ExcelRenderer(value_format={"text_color": "#0000FF"})
+
+        # No fill on inputs; formulas on a light-green fill, not bold.
+        renderer = ExcelRenderer(
+            value_format={"cell_color": None},
+            formula_format={"bold": False, "cell_color": (226, 239, 218)},
+        )
+
+        # Plain sheet: no highlighting at all.
+        renderer = ExcelRenderer(
+            value_format={"cell_color": None},
+            formula_format={"bold": False},
+        )
+
+        workbook = HandCalcs(renderer=renderer)(source)
+        workbook.save("calcs.xlsx")
 
     ``functions`` maps Python callables to ``formulas.ExcelFunction``
     translations; extend a renderer's copy to support more functions.
