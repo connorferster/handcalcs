@@ -5,7 +5,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 ## Status
 
 - [x] Phase 0 — plan written (2026-10-17)
-- [ ] **Awaiting approval of this plan and the decisions in §10**
+- [x] Plan and all §10 recommendations approved by the user (2026-10-17)
 - [ ] Phases 1–8 (see §9)
 
 Resume rule: read this Status section and §10 (decisions) first; each phase ends
@@ -382,7 +382,7 @@ clear error.
 8. **Units** (§7), then docs (`docs/` page, README mention), final golden
    tests, push.
 
-## 10. Decisions needed before execution
+## 10. Decisions (approved 2026-10-17: all recommendations accepted)
 
 | # | Question | Recommendation |
 |---|----------|----------------|
