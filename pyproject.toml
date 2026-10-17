@@ -28,6 +28,9 @@ exporters = [
 
 
 doc = ["sphinx"]
+excel = [
+    "xlsxwriter>=3.2",
+]
 
 [tool.coverage.paths]
 source = ['handcalcs', '*/site-packages']
@@ -50,4 +53,6 @@ dev = [
     "black>=25.1.0",
     "rich>=14.2.0",
     "ipykernel>=7.3.0",
+    "openpyxl>=3.1.5",
+    "xlsxwriter>=3.2",
 ]

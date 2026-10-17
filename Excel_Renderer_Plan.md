@@ -6,7 +6,14 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 
 - [x] Phase 0 — plan written (2026-10-17)
 - [x] Plan and all §10 recommendations approved by the user (2026-10-17)
-- [ ] Phases 1–8 (see §9)
+- [x] Phase 1 — scaffold, config validation, optional dependency, registry
+- [ ] Phase 2 — names and number formats
+- [ ] Phase 3 — formula (`xl`) mode
+- [ ] Phase 4 — symbolic mode and rich text
+- [ ] Phase 5 — rows and compatibility
+- [ ] Phase 6 — writer
+- [ ] Phase 7 — conditionals
+- [ ] Phase 8 — units, docs, push
 
 Resume rule: read this Status section and §10 (decisions) first; each phase ends
 with a commit. Progress notes go in §11 (Progress log).
