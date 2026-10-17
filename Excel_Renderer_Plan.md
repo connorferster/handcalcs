@@ -13,7 +13,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 - [x] Phase 5 — rows and compatibility
 - [x] Phase 6 — writer
 - [x] Phase 7 — conditionals
-- [ ] Phase 8 — units, docs, push
+- [x] Phase 8 — units, docs, push
 
 Resume rule: read this Status section and §10 (decisions) first; each phase ends
 with a commit. Progress notes go in §11 (Progress log).
@@ -488,4 +488,6 @@ clear error.
   Conditionals compute values first so factors exist before formulas reference them.
   Names resolve globals → builtins (forallpeople `top_level=True` writes builtins).
   All unit workbooks recalculate to the Python values. Tests: `tests/test_excel_units.py`.
-  Remaining: docs, README, push.
+- 2026-10-17: docs — `docs/excel_renderer.md` (mkdocs nav "Excel Renderer"), README
+  section "Export to a live Excel worksheet" (README uses CRLF line endings: edit with
+  `newline=''`). All phases complete; branch pushed.
