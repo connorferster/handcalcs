@@ -108,7 +108,7 @@ Markdown renderers:
 - Greek letter names (`alpha`, `beta`, `Gamma`, ...) become Greek letters; a lowercase
   name gives a lowercase letter, a capitalized name an uppercase letter.
 - `_` starts a subscript: `I_y` becomes *I*<sub>y</sub>; each further `_` nests another
-  level.
+  level. (The plain-text renderer keeps the underscore.)
 - `sqrt(...)` becomes a radical; `**` becomes a superscript; `/` becomes a fraction in
   LaTeX and Markdown.
 - Other function calls are shown by name, with their arguments.

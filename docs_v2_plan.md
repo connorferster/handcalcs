@@ -166,7 +166,7 @@ reference/
 | 1 Scaffold | done | builds clean; `hc-example` directive works for md/html/code |
 | 2 Getting started | done | all 10 pages |
 | 3 Interfaces | done | decorator page describes intended behaviour (see issue) |
-| 4 Renderers | todo | |
+| 4 Renderers | done | excel.md adapted from the old page |
 | 5 Customizing | todo | |
 | 6 Building renderers | todo | |
 | 7 Developers | todo | |
