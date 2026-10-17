@@ -17,6 +17,9 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 
 Resume rule: read this Status section and §10 (decisions) first; each phase ends
 with a commit. Progress notes go in §11 (Progress log).
+Before editing on resume, check that no other session is still live: run
+`git status`, `git log -3`, and check file mtimes in `src/handcalcs/renderers/excel/` and
+`tests/` for changes made in the last few minutes. If any, stop and ask the user.
 
 ---
 
