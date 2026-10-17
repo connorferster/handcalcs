@@ -8,7 +8,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 - [x] Plan and all §10 recommendations approved by the user (2026-10-17)
 - [x] Phase 1 — scaffold, config validation, optional dependency, registry
 - [x] Phase 2 — names and number formats
-- [ ] Phase 3 — formula (`xl`) mode
+- [x] Phase 3 — formula (`xl`) mode
 - [ ] Phase 4 — symbolic mode and rich text
 - [ ] Phase 5 — rows and compatibility
 - [ ] Phase 6 — writer
@@ -417,3 +417,16 @@ clear error.
   `M_u`, `M_u_2`, case-insensitive collision check, `lookup` raises for unassigned
   names) and `number_formats.py` (`f`/`e`/`%`/`d`, `,` grouping, `+` sign;
   `g`/none → `general_format`; others warn). Tests: `tests/test_excel_names.py`.
+- 2026-10-17: phase 3 done — `formulas.py`. Deviation from §2.2: the `xl` pass is a
+  standalone `FormulaBuilder` tree walker, not renderer handlers (Excel needs its own
+  precedence table and spelling for nearly every node, and must not mutate nodes;
+  `render_node` only gates rules on `sym`/`num` anyway). Parser facts learned:
+  `FunctionCall.function_name.value` is the *string* name, not the callable, so
+  functions are resolved through `global_ns` (namespace module → attribute; bare
+  name → `global_ns`, then `builtins`, then `math` by name); `Attribute.namespace`
+  is a str; conditional expressions parse to `NoValue` (raise). Also handled: Excel
+  `^` is left-associative (`a**b**c` → `a^(b^c)`), negated right operands wrapped,
+  `math.tau` → `2*PI()`, `from math import pi` by identity, user-assigned `pi`
+  shadows it. `has_units()` helper raises for unit values until phase 8.
+  Tests: `tests/test_excel_formulas.py` (note `c`/`r` are reserved: use other
+  letters in fixtures).

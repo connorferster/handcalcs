@@ -36,7 +36,6 @@ from handcalcs.parsing.operator_nodes import (
     GtEOp,
     GtOp,
     HcBinOp,
-    HcCompOp,
     HcUnaryOp,
     LtEOp,
     LtOp,
@@ -357,17 +356,20 @@ class FormulaBuilder:
         operators = items[1::2]
         if len(operands) != len(operators) + 1:
             raise incompatible("the comparison could not be parsed", node)
-        rendered = []
-        for operand in operands:
-            formula = self.translate(operand)
-            rendered.append(formula.wrapped(formula.precedence <= COMPARISON))
-        parts = []
-        for i, operator in enumerate(operators):
+        excel_ops = []
+        for operator in operators:
             excel_op = COMPARISON_OPERATORS.get(type(operator))
             if excel_op is None:
                 symbol = getattr(operator, "symbol", "?").strip()
                 raise incompatible(f"the '{symbol}' comparison has no Excel equivalent", operator)
-            parts.append(f"{rendered[i]}{excel_op}{rendered[i + 1]}")
+            excel_ops.append(excel_op)
+        rendered = []
+        for operand in operands:
+            formula = self.translate(operand)
+            rendered.append(formula.wrapped(formula.precedence <= COMPARISON))
+        parts = [
+            f"{rendered[i]}{excel_op}{rendered[i + 1]}" for i, excel_op in enumerate(excel_ops)
+        ]
         if len(parts) == 1:
             return Formula(parts[0], COMPARISON)
         return Formula(f"AND({','.join(parts)})")
