@@ -353,7 +353,7 @@ src/handcalcs/renderers/excel/
     number_formats.py   # Python format spec -> Excel number format
     writer.py           # XlsxWriter backend: layout, formats, widths, heights
 tests/test_excel_*.py   # one file per module + an end-to-end demo test
-scripts/excel_demo.py   # renders an Excel-compatible demo to excel_demo_build/ (gitignored)
+scripts/excel_demo.py   # renders the Excel demo to excel_demo/ (gitignored)
 ```
 
 `renderers/__init__.py` imports `ExcelRenderer` lazily, so `xlsxwriter` stays
@@ -491,3 +491,10 @@ clear error.
 - 2026-10-17: docs — `docs/excel_renderer.md` (mkdocs nav "Excel Renderer"), README
   section "Export to a live Excel worksheet" (README uses CRLF line endings: edit with
   `newline=''`). All phases complete; branch pushed.
+- 2026-10-17: Excel demo — `HandCalcs.demo()` now renders `renderer.demo_source` when a
+  renderer defines one (and passes `global_ns`, as `__call__` does);
+  `ExcelRenderer.demo_source` is `excel/demo.py`, rewritten as a W410x60 floor-beam
+  check that exercises every feature (`-h` and `;` inputs, `-p`, `-f` incl. `%`, `-b`,
+  `-i`, two elif trees, versioning, min/max/sqrt/pi, booleans, a text IF result).
+  `scripts/excel_demo.py` uses it and writes `excel_demo/excel_demo.xlsx` (gitignored);
+  its recalculation check compares text results as text.

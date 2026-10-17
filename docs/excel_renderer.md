@@ -175,6 +175,9 @@ while Excel's `ROUND` rounds them away from zero.
   the sheet (`x1_`, `c_`).
 - A reassigned variable gets a versioned name (`M_u`, then `M_u_2`), so earlier
   rows keep their own values.
-- `scripts/excel_demo.py` renders a worked steel-beam example to
-  `excel_demo_build/excel_demo.xlsx`. Run it with `uv run --with formulas` to
-  recalculate every formula independently and compare it with Python.
+- `HandCalcs(renderer=ExcelRenderer()).demo()` renders a worked steel-beam
+  check that uses each feature on this page. The general handcalcs demo has
+  loops and collections, so the ExcelRenderer supplies its own (`demo_source`).
+- `scripts/excel_demo.py` saves that demo to `excel_demo/excel_demo.xlsx`. Run
+  it with `uv run --with formulas` to recalculate every formula independently
+  and compare it with Python.

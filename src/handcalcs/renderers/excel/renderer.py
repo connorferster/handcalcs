@@ -15,6 +15,7 @@ from handcalcs.renderers.base import (
     render_comment_command as base_render_comment_command,
 )
 from .compat import ExcelRendererIncompatibleError, incompatible
+from . import demo as excel_demo
 from .conditionals import render_conditional
 from .evaluate import EvaluationError, ValueEvaluator
 from .formulas import DEFAULT_CONSTANTS, DEFAULT_FUNCTIONS, FormulaBuilder
@@ -57,6 +58,9 @@ class ExcelRenderer(BaseRenderer):
     translations; extend a renderer's copy to support more functions.
     """
     name = 'excel'
+    # HandCalcs.demo() renders this instead of the general demo, which uses
+    # loops and collections that have no worksheet form.
+    demo_source = excel_demo.source
 
     def __init__(
         self,

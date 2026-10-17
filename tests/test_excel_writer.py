@@ -225,12 +225,17 @@ def test_write_sheet_validates_sheet_name():
     workbook.close()
 
 
-def test_demo_renders():
-    from handcalcs.renderers.excel.demo import source
-    result = render(source, sheet_name="Beam check")
+def test_demo_method_uses_the_excel_demo():
+    result = HandCalcs(renderer=ExcelRenderer(sheet_name="Beam check")).demo()
+    assert isinstance(result, ExcelWorkbook)
     sheet = load(result)["Beam check"]
     assert sheet.defined_names["M_r_2"].attr_text.startswith("'Beam check'!$E$")
-    assert result.rows[-1].cached is True
+    names = {row.name: row for row in result.rows if hasattr(row, "name")}
+    assert names["status"].formula == '=IF(passes,"OK","NOT OK")'
+    assert names["status"].cached == "OK"
+    assert names["utilization"].number_format == "0.0%"
+    assert names["M_ratio"].hidden
+    assert names["L_m"].formula == "=L/1000"  # -p: input layout, live formula
 
 
 @pytest.mark.parametrize("source", ["quadratic", "demo"])

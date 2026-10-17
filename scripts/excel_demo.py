@@ -1,13 +1,14 @@
 """
-Render the ExcelRenderer demo to ``excel_demo.xlsx`` for checking by eye in
-Excel or LibreOffice, and print its rows and any problems found:
+Render the ExcelRenderer demo (``HandCalcs(renderer=ExcelRenderer()).demo()``)
+to ``excel_demo.xlsx`` for checking by eye in Excel or LibreOffice, and print
+its rows and any problems found:
 
 - the base handcalcs demo must raise ``ExcelRendererIncompatibleError``;
 - optionally, with the ``formulas`` package installed, every formula cell is
   recalculated and compared with its cached Python value, e.g.
   ``uv run --with formulas python scripts/excel_demo.py``.
 
-The workbook is written to the output directory (default: ./excel_demo_build).
+The workbook is written to the output directory (default: ./excel_demo, gitignored).
 
     uv run python scripts/excel_demo.py [out_dir]
 """
@@ -18,7 +19,6 @@ import sys
 from handcalcs import HandCalcs
 from handcalcs.renderers import demo as base_demo
 from handcalcs.renderers.excel import ExcelRenderer, ExcelRendererIncompatibleError
-from handcalcs.renderers.excel.demo import source
 from handcalcs.renderers.excel.rich_text import plain_text
 from handcalcs.renderers.excel.rows import CalcRow, ParamRow
 
@@ -75,6 +75,8 @@ def recalculation_problems(path: pathlib.Path, rows: list) -> list[str]:
         got = computed.get(f"E{number}")
         if isinstance(row.cached, bool):
             ok = bool(got) is row.cached
+        elif isinstance(row.cached, str):
+            ok = str(got) == row.cached
         else:
             try:
                 ok = math.isclose(float(got), float(row.cached), rel_tol=1e-9)
@@ -86,7 +88,7 @@ def recalculation_problems(path: pathlib.Path, rows: list) -> list[str]:
     return found
 
 
-def main(out_dir: str = "excel_demo_build") -> int:
+def main(out_dir: str = "excel_demo") -> int:
     out = pathlib.Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     problems = []
@@ -97,7 +99,7 @@ def main(out_dir: str = "excel_demo_build") -> int:
         print(f"base demo raises as expected: {error}")
 
     path = out / "excel_demo.xlsx"
-    result = HandCalcs(renderer=ExcelRenderer(sheet_name="Beam check", filepath=path))(source)
+    result = HandCalcs(renderer=ExcelRenderer(sheet_name="Beam check", filepath=path)).demo()
     for number, row in enumerate(result.rows, 1):
         print(f"{number:3d}  {describe(row)}")
     problems += recalculation_problems(path, result.rows)
