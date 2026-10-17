@@ -70,7 +70,7 @@ c = a + b
 In handcalcs 2.0, setting `space`, `newline`, `indent`, `lpar` or `rpar` with
 `set_option` makes the LaTeX and Markdown renderers raise a `TypeError`, because they
 set those fields themselves. Change them in a subclass's `create_context` instead (see
-[overridable methods](../building-renderers/overridable-methods.md#create-context)).
+{ref}`overridable methods <create-context>`).
 ```
 
 ## Your own fields
