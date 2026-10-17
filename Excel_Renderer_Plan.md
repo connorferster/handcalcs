@@ -477,3 +477,15 @@ clear error.
   `value,  if cond` line per case, nested tests joined with "and". Comment lines and
   comment commands inside branches are ignored; inline comments give the row comment.
   Demo gained a web-class tree. Tests: `tests/test_excel_conditionals.py`.
+- 2026-10-17: phase 8 units done — `units.py` (duck-typed pint/forallpeople:
+  `unit_value` → display magnitude, unit text, display→SI factor rounded to 12 sig.
+  digits; forallpeople's display unit is read back from `format(q, ".15g")`;
+  `unit_constant` for bare units; offset units raise). Builder scales sheet references
+  `name*factor` (factors per Excel name in `ExcelState.factors`) and the result by
+  `/factor` (`build_scaled`, `scale_formula`). A unit-bearing RHS with no sheet
+  references is an input ParamRow (`L = 300*mm` → 300, "mm"). Skipped: pint/forallpeople
+  imports, `ureg = pint.UnitRegistry()`, `mm = ureg.mm`, `si.environment(...)`.
+  Conditionals compute values first so factors exist before formulas reference them.
+  Names resolve globals → builtins (forallpeople `top_level=True` writes builtins).
+  All unit workbooks recalculate to the Python values. Tests: `tests/test_excel_units.py`.
+  Remaining: docs, README, push.
