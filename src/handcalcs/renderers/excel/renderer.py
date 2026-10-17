@@ -13,6 +13,7 @@ from handcalcs.renderers.base import (
     render_comment_command as base_render_comment_command,
 )
 from .compat import ExcelRendererIncompatibleError, incompatible
+from .conditionals import render_conditional
 from .evaluate import EvaluationError, ValueEvaluator
 from .formulas import DEFAULT_CONSTANTS, DEFAULT_FUNCTIONS, FormulaBuilder, has_units
 from .names import SymbolTable
@@ -317,7 +318,8 @@ def render_import(renderer: ER, node, base_context: BRC) -> list[Row]:
 
 @ER.register('elif_block')
 def render_elif_block(renderer: ER, node, base_context: BRC) -> list[Row]:
-    raise incompatible("if/elif/else trees are not yet supported", node)
+    """An if/elif/else tree: one IF-formula row per assigned variable."""
+    return render_conditional(renderer, node, excel_state(renderer, base_context), base_context)
 
 
 def _incompatible_block(renderer: ER, node, base_context: BRC) -> list[Row]:

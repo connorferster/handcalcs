@@ -149,7 +149,6 @@ def test_rows_do_not_mutate_the_tree():
     ("a = [1, 2]\n", "'list'"),
     ("a = 1\nb = a if a else 2\n", "does not parse"),
     ("a = len('ab')\n", r"'len\(\)'"),
-    ("a = 1\nif a > 0:\n    b = 1\nelse:\n    b = 2\n", "if/elif/else"),
 ])
 def test_incompatible(source, match):
     with pytest.raises(ExcelRendererIncompatibleError, match=match):
