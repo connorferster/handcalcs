@@ -20,6 +20,7 @@ the renderer works without them installed.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+from types import ModuleType
 from typing import Any, Optional
 
 from .compat import incompatible
@@ -65,11 +66,21 @@ def has_units(value: Any) -> bool:
 
 
 def is_units_setup(value: Any) -> bool:
-    """A value that only sets up units (a registry, a unit, a units module)."""
+    """
+    A value that only sets up units: a pint registry or unit, a units module,
+    or a function/class from one (``si.environment``). Quantities are values.
+    """
     if is_pint_registry(value) or is_pint_unit(value):
         return True
-    module = getattr(value, "__module__", "") or getattr(value, "__name__", "")
-    return isinstance(module, str) and module.split(".")[0] in UNITS_MODULES
+    if has_units(value):
+        return False
+    if isinstance(value, ModuleType):
+        module = value.__name__
+    elif callable(value):
+        module = getattr(value, "__module__", None) or ""
+    else:
+        return False
+    return module.split(".")[0] in UNITS_MODULES
 
 
 def _pint_unit_value(quantity: Any) -> UnitValue:

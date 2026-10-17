@@ -1,8 +1,10 @@
 from __future__ import annotations
 import pathlib
+from collections import deque
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from handcalcs.parsing.inline_nodes import FunctionCall
 from handcalcs.parsing.nodes import Constant, Name
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import HcUnaryOp
@@ -15,7 +17,8 @@ from handcalcs.renderers.base import (
 from .compat import ExcelRendererIncompatibleError, incompatible
 from .conditionals import render_conditional
 from .evaluate import EvaluationError, ValueEvaluator
-from .formulas import DEFAULT_CONSTANTS, DEFAULT_FUNCTIONS, FormulaBuilder, has_units
+from .formulas import DEFAULT_CONSTANTS, DEFAULT_FUNCTIONS, FormulaBuilder
+from .units import UNITS_MODULES, is_units_setup, unit_value
 from .names import SymbolTable
 from .number_formats import to_excel_number_format
 from .options import (
@@ -108,13 +111,15 @@ class ExcelState:
     symbols: SymbolTable
     builder: FormulaBuilder
     evaluator: ValueEvaluator
+    factors: dict  # Excel name -> display-unit-to-SI factor (rows with units)
 
     @classmethod
     def create(cls, renderer: ExcelRenderer, base_context: BaseRenderContext) -> "ExcelState":
         global_ns = getattr(base_context.global_context, "global_ns", None)
         symbols = SymbolTable()
-        builder = FormulaBuilder(symbols, global_ns, renderer.functions, renderer.constants)
-        return cls(symbols, builder, ValueEvaluator(global_ns))
+        factors: dict = {}
+        builder = FormulaBuilder(symbols, global_ns, renderer.functions, renderer.constants, factors)
+        return cls(symbols, builder, ValueEvaluator(global_ns), factors)
 
 
 def excel_state(renderer: ExcelRenderer, base_context: BaseRenderContext) -> ExcelState:
@@ -156,6 +161,21 @@ def _literal_value(expression: list) -> Any:
     return NoValue()
 
 
+def _references_sheet(node: Any, symbols: SymbolTable) -> bool:
+    """True if the expression reads any variable assigned on the sheet."""
+    if isinstance(node, Name):
+        return node.identifier in symbols
+    if isinstance(node, (list, tuple, deque)):
+        return any(_references_sheet(item, symbols) for item in node)
+    if hasattr(node, "__dataclass_fields__"):
+        return any(
+            _references_sheet(getattr(node, f), symbols)
+            for f in node.__dataclass_fields__
+            if f not in ("type", "symbol", "pre", "post", "value")
+        )
+    return False
+
+
 def _cached_value(state: ExcelState, expression: list, target: Name) -> Any:
     """The row's own result: re-evaluated in order, else the captured value."""
     try:
@@ -195,24 +215,37 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 node,
             )
         identifier = target.identifier
+        if is_units_setup(target.value):
+            # ``ureg = pint.UnitRegistry()``, ``mm = ureg.mm``: no row; a unit
+            # name read later becomes its SI constant.
+            return []
         expression = list(node.expression_tree)
         try:
             literal = _literal_value(expression)
             formula = None
+            unit = None
             if isinstance(literal, NoValue):
-                formula = "=" + state.builder.build(expression)
-                cached = _cached_value(state, expression, target)
+                value = _cached_value(state, expression, target)
+                unit = unit_value(value) or unit_value(target.value)
+                if unit is not None and not _references_sheet(expression, state.symbols):
+                    # ``L = 300 * mm``: an input of 300 in the unit column's mm.
+                    cached = unit.magnitude
+                else:
+                    factor = unit.factor if unit is not None else 1
+                    formula = "=" + state.builder.build_scaled(expression, factor)
+                    cached = unit.magnitude if unit is not None else value
             else:
-                cached = literal
-            if has_units(cached) or has_units(target.value):
-                raise incompatible("values with units are not yet supported", node)
+                value = cached = literal
         except ExcelRendererIncompatibleError as error:
             raise error.with_target(identifier) from None
 
         # Assign after building the formula: ``x = x * 2`` refers to the
         # previous version of x.
         name = state.symbols.assign(identifier)
-        state.evaluator.assign(identifier, cached)
+        state.evaluator.assign(identifier, value)
+        if unit is not None and unit.factor != 1:
+            state.factors[name] = unit.factor
+        unit_text = unit.unit if unit is not None and unit.unit else None
         number_format = to_excel_number_format(context.format_code, renderer.general_format)
         symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
         hidden = bool(getattr(context, 'ignore', False))
@@ -224,6 +257,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 value=cached,
                 number_format=number_format,
                 formula=formula,
+                unit=unit_text,
                 comment=comment,
                 hidden=hidden,
             )
@@ -235,6 +269,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 formula=formula,
                 cached=cached,
                 number_format=number_format,
+                unit=unit_text,
                 comment=comment,
                 hidden=hidden,
             )
@@ -293,6 +328,8 @@ def render_expr_line(renderer: ER, node, base_context: BRC) -> list[Row]:
     tree = list(node.expression_tree)
     if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
         return [CommentRow(tree[0].value.strip())]
+    if len(tree) == 1 and isinstance(tree[0], FunctionCall) and _is_units_call(tree[0], excel_state(renderer, base_context)):
+        return []  # e.g. si.environment('structural')
     raise incompatible(
         "an expression statement (e.g. print(...)) has no worksheet equivalent; "
         "only assignments become rows",
@@ -300,17 +337,28 @@ def render_expr_line(renderer: ER, node, base_context: BRC) -> list[Row]:
     )
 
 
+def _is_units_call(node: FunctionCall, state: ExcelState) -> bool:
+    """A call into a units library, e.g. ``si.environment('structural')``."""
+    function, _ = state.builder.resolve_function(node)
+    return function is not None and is_units_setup(function)
+
+
 @ER.register('import')
 def render_import(renderer: ER, node, base_context: BRC) -> list[Row]:
-    """Imports of ``math`` are skipped (its functions map to Excel); others raise."""
+    """
+    Imports of ``math`` (its functions map to Excel) and of the units
+    libraries (pint, forallpeople) are skipped; others raise.
+    """
     if node.import_from:
         modules = [node.import_from_module]
     else:
         modules = [name.identifier for name in node.names]
+    allowed = ("math",) + UNITS_MODULES
     for module in modules:
-        if module != "math":
+        if (module or "").split(".")[0] not in allowed:
             raise incompatible(
-                f"importing '{module}' has no Excel equivalent (only 'math' may be imported)",
+                f"importing '{module}' has no Excel equivalent "
+                "(only 'math', 'pint' and 'forallpeople' may be imported)",
                 node,
             )
     return []
