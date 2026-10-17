@@ -91,14 +91,15 @@ class ExcelRenderer(BaseRenderer):
         # Defaults: yellow inputs, bold formulas.
         renderer = ExcelRenderer()
 
-        # Blue text for inputs (the financial-modelling convention), keeping
-        # the default yellow fill; formulas stay bold.
-        renderer = ExcelRenderer(value_format={"text_color": "#0000FF"})
+        # Blue text, bold text for inputs, keeping the default yellow fill; for
+        renderer = ExcelRenderer(value_format={"text_color": "#0000FF", 'bold': True})
 
         # No fill on inputs; formulas on a light-green fill, not bold.
         renderer = ExcelRenderer(
+            sheet_name='Calculations',
             value_format={"cell_color": None},
             formula_format={"bold": False, "cell_color": (226, 239, 218)},
+            filepath='my_calc_sheet.xlsx'
         )
 
         # Plain sheet: no highlighting at all.
