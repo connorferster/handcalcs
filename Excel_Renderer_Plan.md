@@ -12,7 +12,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 - [x] Phase 4 — symbolic mode and rich text
 - [x] Phase 5 — rows and compatibility
 - [x] Phase 6 — writer
-- [ ] Phase 7 — conditionals
+- [x] Phase 7 — conditionals
 - [ ] Phase 8 — units, docs, push
 
 Resume rule: read this Status section and §10 (decisions) first; each phase ends
@@ -466,3 +466,14 @@ clear error.
   Python (all match). The `formulas` package returns `#REF!` for sheet-scoped names,
   so the check evaluates a copy with names promoted to workbook scope.
   Tests: `tests/test_excel_writer.py` (openpyxl read-back).
+- 2026-10-17: phase 7 done — `conditionals.py`: `build_conditional` normalizes an
+  `ElifBlock` (and nested raw `IfBlock`s: the parser leaves a nested `if/else` inside
+  an elif branch unconverted, with its else in `.orelse`) into branches; one
+  `CalcRow` per variable, first-appearance order, nested `IF`. Expressions are built
+  against a `Scope` (names before the tree + new rows of variables already assigned
+  on the branch path), so in-branch reads match Python's order; tests see the
+  pre-tree names. Fallback = previous version, else `NA()` (cached `None`). Cached
+  values come from running the taken path on the evaluator. Piecewise display, one
+  `value,  if cond` line per case, nested tests joined with "and". Comment lines and
+  comment commands inside branches are ignored; inline comments give the row comment.
+  Demo gained a web-class tree. Tests: `tests/test_excel_conditionals.py`.

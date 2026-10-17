@@ -4,7 +4,8 @@ An Excel-compatible demo cell for the ExcelRenderer.
 The base demo (``handcalcs.renderers.demo``) uses loops, collections and
 imports that have no worksheet equivalent, so it raises
 ``ExcelRendererIncompatibleError``. This source sticks to what the renderer
-supports: math functions, reassignment, logical tests and the comment commands.
+supports: math functions, reassignment, logical tests, an if/elif/else
+tree and the comment commands.
 """
 
 source = '''"""W410x60 beam check (CSA S16), Excel demo"""
@@ -21,6 +22,17 @@ I_y = 12.0e6  # Weak-axis moment of inertia (mm4)
 J = 3.28e5  # St. Venant torsion constant (mm4)
 C_w = 4.67e11  # Warping constant (mm6)
 Z_x = 1.2e6  # Plastic section modulus (mm3)
+h_w = 381  # Web height (mm)
+t_w = 7.7  # Web thickness (mm)
+
+## Web class
+# The class is a live IF formula: edit t_w and it changes.
+if h_w / t_w <= 1100 / sqrt(F_y):
+    web_class = 1
+elif h_w / t_w <= 1700 / sqrt(F_y):
+    web_class = 2
+else:
+    web_class = 4
 
 ## Lateral-torsional buckling
 ### Elastic critical moment
@@ -38,5 +50,5 @@ M_r = min(M_r, phi * M_p)  # Capped at the plastic resistance
 ## Check
 M_f = 260  # Factored moment (kN·m)
 utilization = M_f / M_r
-passes = utilization <= 1 and M_u > 0
+passes = utilization <= 1 and web_class <= 2
 '''
