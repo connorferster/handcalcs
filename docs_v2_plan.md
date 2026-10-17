@@ -165,7 +165,7 @@ reference/
 | 0 Plan | done | this file |
 | 1 Scaffold | done | builds clean; `hc-example` directive works for md/html/code |
 | 2 Getting started | done | all 10 pages |
-| 3 Interfaces | todo | |
+| 3 Interfaces | done | decorator page describes intended behaviour (see issue) |
 | 4 Renderers | todo | |
 | 5 Customizing | todo | |
 | 6 Building renderers | todo | |
@@ -193,6 +193,9 @@ reference/
 - **Inline `# hc: -i` on an `import` line** does not hide it; `-i` on a `;` line renders
   a broken grid cell.
 - **Conditional expressions** (`x = 1 if a else 0`) render as `x =  = 1`.
+
+- **`%%render` swallows exceptions**: a cell that raises displays nothing and the
+  traceback is captured by `cell_capture` (jupyter.py). Documented as a warning.
 
 ## Open questions for the user
 
