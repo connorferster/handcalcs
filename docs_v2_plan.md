@@ -164,7 +164,7 @@ reference/
 |---|---|---|
 | 0 Plan | done | this file |
 | 1 Scaffold | done | builds clean; `hc-example` directive works for md/html/code |
-| 2 Getting started | todo | |
+| 2 Getting started | done | all 10 pages |
 | 3 Interfaces | todo | |
 | 4 Renderers | todo | |
 | 5 Customizing | todo | |
@@ -185,6 +185,14 @@ reference/
   three separate lines (`p2` / `=` / `6.00`) in PlainText (seen with a `-b` before it).
 - **forallpeople unit symbols in the numeric column render empty**: `L = 6 * m` shows
   `6 *  = 6 m`.
+
+- **Consecutive `-m` calcs in PlainText** are joined onto one line
+  (`= 8 d = a * b + b`): the multi-line grid string is space-joined with the next line.
+- **`x = (expr).method()`** crashes the parser (`AttributeError: 'BinOp' object has no
+  attribute 'id'`, ast_parser.py ~456).
+- **Inline `# hc: -i` on an `import` line** does not hide it; `-i` on a `;` line renders
+  a broken grid cell.
+- **Conditional expressions** (`x = 1 if a else 0`) render as `x =  = 1`.
 
 ## Open questions for the user
 
