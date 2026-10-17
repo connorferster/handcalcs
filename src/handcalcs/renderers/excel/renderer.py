@@ -1,15 +1,31 @@
 from __future__ import annotations
 import pathlib
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
-from handcalcs.renderers.base import BaseRenderer
-from .symbolic import register_symbolic_rules
+from handcalcs.parsing.nodes import Constant, Name
+from handcalcs.parsing.null_values import NoValue
+from handcalcs.parsing.operator_nodes import HcUnaryOp
+from handcalcs.renderers.base import (
+    BaseRenderContext,
+    BaseRenderer,
+    RenderContext,
+    render_comment_command as base_render_comment_command,
+)
+from .compat import ExcelRendererIncompatibleError, incompatible
+from .evaluate import EvaluationError, ValueEvaluator
+from .formulas import DEFAULT_CONSTANTS, DEFAULT_FUNCTIONS, FormulaBuilder, has_units
+from .names import SymbolTable
+from .number_formats import to_excel_number_format
 from .options import (
     DEFAULT_FORMULA_FORMAT,
     DEFAULT_VALUE_FORMAT,
     merge_cell_format,
     validate_sheet_name,
 )
+from .rich_text import parse_markup
+from .rows import BlankRow, CalcRow, CommentRow, HeadingRow, ParamRow, Row
+from .symbolic import register_symbolic_rules, symbolic_markup
 
 
 class ExcelRenderer(BaseRenderer):
@@ -31,6 +47,9 @@ class ExcelRenderer(BaseRenderer):
     - ``filepath``: if given, ``complete()`` also saves the workbook there.
     - ``general_format``: the Excel number format used for format codes that
       have no exact Excel equivalent (e.g. the default ``.5g``).
+
+    ``functions`` maps Python callables to ``formulas.ExcelFunction``
+    translations; extend a renderer's copy to support more functions.
     """
     name = 'excel'
 
@@ -50,9 +69,259 @@ class ExcelRenderer(BaseRenderer):
         if not isinstance(general_format, str) or not general_format:
             raise ValueError("general_format must be a non-empty Excel number format string.")
         self.general_format = general_format
+        self.functions = dict(DEFAULT_FUNCTIONS)
+        self.constants = dict(DEFAULT_CONSTANTS)
 
     def __repr__(self) -> str:
         return f"ExcelRenderer(sheet_name={self.sheet_name!r})"
+
+    def render_root(self, root, base_context: BaseRenderContext) -> list[Row]:
+        """Render every statement into one flat list of rows."""
+        base_context.global_context.excel_state = ExcelState.create(self, base_context)
+        rows: list[Row] = []
+        for node in root.sequence:
+            rows.extend(self.render(node, base_context))
+        return rows
+
+    def complete(self, tree: list[Row], base_context: BaseRenderContext) -> Any:
+        return tree
+
+
+@dataclass
+class ExcelState:
+    """Per-render state carried on the global render context."""
+    symbols: SymbolTable
+    builder: FormulaBuilder
+    evaluator: ValueEvaluator
+
+    @classmethod
+    def create(cls, renderer: ExcelRenderer, base_context: BaseRenderContext) -> "ExcelState":
+        global_ns = getattr(base_context.global_context, "global_ns", None)
+        symbols = SymbolTable()
+        builder = FormulaBuilder(symbols, global_ns, renderer.functions, renderer.constants)
+        return cls(symbols, builder, ValueEvaluator(global_ns))
+
+
+def excel_state(renderer: ExcelRenderer, base_context: BaseRenderContext) -> ExcelState:
+    """The render's state, created on first use (e.g. a handler rendered alone)."""
+    state = getattr(base_context.global_context, "excel_state", None)
+    if state is None:
+        state = ExcelState.create(renderer, base_context)
+        base_context.global_context.excel_state = state
+    return state
+
+
+ER = ExcelRenderer
+BRC = BaseRenderContext
+
+# Python statements and blocks with no worksheet equivalent.
+INCOMPATIBLE_BLOCKS = {
+    "for_block": "for loops have no Excel equivalent",
+    "function_block": "function definitions have no Excel equivalent",
+    "if_block": "if blocks are only supported as complete if/elif/else trees",
+    "else_block": "else blocks are only supported as part of an if/elif/else tree",
+}
+
+
+def _literal_value(expression: list) -> Any:
+    """The value of a bare literal right-hand side (``2``, ``-1.5``, ``"a"``), else NoValue."""
+    if len(expression) != 1:
+        return NoValue()
+    node = expression[0]
+    if isinstance(node, Constant) and isinstance(node.value, (bool, int, float, str)):
+        return node.value
+    if (
+        isinstance(node, HcUnaryOp)
+        and node.symbol.strip() in ("-", "+")
+        and isinstance(node.operand, Constant)
+        and isinstance(node.operand.value, (int, float))
+        and not isinstance(node.operand.value, bool)
+    ):
+        return -node.operand.value if node.symbol.strip() == "-" else node.operand.value
+    return NoValue()
+
+
+def _cached_value(state: ExcelState, expression: list, target: Name) -> Any:
+    """The row's own result: re-evaluated in order, else the captured value."""
+    try:
+        return state.evaluator.evaluate(expression)
+    except EvaluationError:
+        value = target.value
+        return None if isinstance(value, NoValue) else value
+
+
+@ER.register('calc_line')
+def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
+    """
+    A CalcLine becomes one row: a ``ParamRow`` for a literal (or ``-p``) line,
+    otherwise a ``CalcRow`` whose value cell holds a live formula.
+    """
+    state = excel_state(renderer, base_context)
+    # The calc_line:pre rule may already have flagged a param line; an inline
+    # command replaces the line context, so read the flag first.
+    param_line = getattr(base_context.current, 'param_line', False)
+    comment = None
+    if node.comment is not None:
+        if node.comment.type == 'inline_comment':
+            comment = node.comment.content
+        else:
+            renderer.render(node.comment, base_context)
+    context = base_context.current
+    param_line = param_line or getattr(context, 'param_line', False)
+    try:
+        targets = list(node.assigns)
+        if len(targets) != 1:
+            raise incompatible("chained assignment (a = b = 1) has no Excel equivalent", node)
+        target = targets[0]
+        if not isinstance(target, Name):
+            raise incompatible(
+                "only single-name assignments can become worksheet rows "
+                "(tuple unpacking and attribute/item targets are not supported)",
+                node,
+            )
+        identifier = target.identifier
+        expression = list(node.expression_tree)
+        try:
+            literal = _literal_value(expression)
+            formula = None
+            if isinstance(literal, NoValue):
+                formula = "=" + state.builder.build(expression)
+                cached = _cached_value(state, expression, target)
+            else:
+                cached = literal
+            if has_units(cached) or has_units(target.value):
+                raise incompatible("values with units are not yet supported", node)
+        except ExcelRendererIncompatibleError as error:
+            raise error.with_target(identifier) from None
+
+        # Assign after building the formula: ``x = x * 2`` refers to the
+        # previous version of x.
+        name = state.symbols.assign(identifier)
+        state.evaluator.assign(identifier, cached)
+        number_format = to_excel_number_format(context.format_code, renderer.general_format)
+        symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
+        hidden = bool(getattr(context, 'ignore', False))
+
+        if param_line or formula is None:
+            row: Row = ParamRow(
+                name=name,
+                symbol=symbol,
+                value=cached,
+                number_format=number_format,
+                formula=formula,
+                comment=comment,
+                hidden=hidden,
+            )
+        else:
+            row = CalcRow(
+                name=name,
+                symbol=symbol,
+                symbolic=parse_markup(symbolic_markup(renderer, expression, base_context)),
+                formula=formula,
+                cached=cached,
+                number_format=number_format,
+                comment=comment,
+                hidden=hidden,
+            )
+        rows: list[Row] = [row]
+        if getattr(context, 'line_break', False):
+            rows.append(BlankRow())
+        return rows
+    finally:
+        base_context.line_context = RenderContext.sparse()
+
+
+@ER.register('calcs_block')
+def render_calcs_block(renderer: ER, node, base_context: BRC) -> list[Row]:
+    rows: list[Row] = []
+    for line in node.lines:
+        rows.extend(renderer.render(line, base_context))
+    return rows
+
+
+@ER.register('params_block')
+def render_params_block(renderer: ER, node, base_context: BRC) -> list[Row]:
+    """Each line of a ``;`` or ``# hc: -h`` params block is its own ParamRow."""
+    rows: list[Row] = []
+    for line in node.lines:
+        base_context.line_context.param_line = True
+        rows.extend(renderer.render(line, base_context))
+    return rows
+
+
+@ER.register('comments_block')
+def render_comments_block(renderer: ER, node, base_context: BRC) -> list[Row]:
+    """Consecutive comment lines become one paragraph row."""
+    texts = []
+    for line in node.lines:
+        rendered = renderer.render(line, base_context)
+        if line.type == 'comment_line' and isinstance(rendered, str) and rendered.strip():
+            texts.append(rendered.strip())
+    return [CommentRow(" ".join(texts))] if texts else []
+
+
+@ER.register('heading')
+def render_heading(renderer: ER, node, base_context: BRC) -> list[Row]:
+    return [HeadingRow(node.content, node.heading_level)]
+
+
+@ER.register('comment_command')
+def render_comment_command(renderer: ER, node, base_context: BRC) -> list[Row]:
+    """Updates the global context (e.g. ``-f``); ``-b`` inserts a blank row."""
+    line_break = base_render_comment_command(renderer, node, base_context)
+    return [BlankRow()] if line_break else []
+
+
+@ER.register('expr_line')
+def render_expr_line(renderer: ER, node, base_context: BRC) -> list[Row]:
+    """A bare string (docstring) becomes a comment row; other expressions raise."""
+    tree = list(node.expression_tree)
+    if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
+        return [CommentRow(tree[0].value.strip())]
+    raise incompatible(
+        "an expression statement (e.g. print(...)) has no worksheet equivalent; "
+        "only assignments become rows",
+        node,
+    )
+
+
+@ER.register('import')
+def render_import(renderer: ER, node, base_context: BRC) -> list[Row]:
+    """Imports of ``math`` are skipped (its functions map to Excel); others raise."""
+    if node.import_from:
+        modules = [node.import_from_module]
+    else:
+        modules = [name.identifier for name in node.names]
+    for module in modules:
+        if module != "math":
+            raise incompatible(
+                f"importing '{module}' has no Excel equivalent (only 'math' may be imported)",
+                node,
+            )
+    return []
+
+
+@ER.register('elif_block')
+def render_elif_block(renderer: ER, node, base_context: BRC) -> list[Row]:
+    raise incompatible("if/elif/else trees are not yet supported", node)
+
+
+def _incompatible_block(renderer: ER, node, base_context: BRC) -> list[Row]:
+    raise incompatible(INCOMPATIBLE_BLOCKS[node.type], node)
+
+
+for _block_type in INCOMPATIBLE_BLOCKS:
+    ER.register(_block_type)(_incompatible_block)
+
+
+@ER.register('no_value')
+@ER.register('not_implemented')
+def render_unparsed_statement(renderer: ER, node, base_context: BRC) -> list[Row]:
+    raise incompatible(
+        "a statement handcalcs does not parse (e.g. a function or class definition, "
+        "augmented assignment 'x += 1', while, with or try) has no worksheet equivalent",
+        node,
+    )
 
 
 register_symbolic_rules(ExcelRenderer)

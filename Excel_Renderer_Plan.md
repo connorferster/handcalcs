@@ -10,7 +10,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 - [x] Phase 2 — names and number formats
 - [x] Phase 3 — formula (`xl`) mode
 - [x] Phase 4 — symbolic mode and rich text
-- [ ] Phase 5 — rows and compatibility
+- [x] Phase 5 — rows and compatibility
 - [ ] Phase 6 — writer
 - [ ] Phase 7 — conditionals
 - [ ] Phase 8 — units, docs, push
@@ -442,3 +442,12 @@ clear error.
   `symbolic_markup()` renders nodes in `sym` mode). Note: the base
   `function_call:pre` rule still mutates `pre`/`post` once (idempotent, harmless).
   Tests: `tests/test_excel_symbolic.py`.
+- 2026-10-17: phase 5 done — `rows.py` (`ParamRow` gained `formula` for `-p` lines
+  with a calculation), `evaluate.py` (`ValueEvaluator`: captured `Name.value` is the
+  value at the *end* of the cell, so each row's cached result is re-evaluated in
+  order; falls back to the captured value), and the handlers in `renderer.py`:
+  `render_root` → flat `list[Row]`, state (`SymbolTable`, `FormulaBuilder`,
+  `ValueEvaluator`) on `global_context.excel_state`. Formula is built before the
+  target is assigned so `x = x*2` references the previous version. A top-level
+  `def`, `x += 1`, `while` parse to `NoValue` → raise. `complete()` returns the rows
+  until the writer lands. Tests: `tests/test_excel_rows.py`.

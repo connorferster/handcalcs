@@ -206,6 +206,34 @@ def format_string(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+def resolve_function(node: FunctionCall, global_ns: dict) -> tuple[Any, str]:
+    """
+    The callable a call refers to (or None) and its display name.
+
+    A namespaced call resolves through the module captured in ``global_ns``; a
+    bare name through ``global_ns``, then builtins. With no captured namespace
+    (e.g. ``supplied_globals`` without the import) a ``math`` name is used.
+    """
+    function_name = node.function_name
+    identifier = getattr(function_name, "identifier", str(function_name))
+    namespace = getattr(node.namespace, "identifier", "") or ""
+    display = f"{namespace}.{identifier}" if namespace else identifier
+    missing = object()
+    if namespace:
+        module = global_ns.get(namespace, missing)
+        if module is missing:
+            if namespace == "math":
+                return getattr(math, identifier, None), display
+            return None, display
+        return getattr(module, identifier, None), display
+    obj = global_ns.get(identifier, missing)
+    if obj is missing:
+        obj = getattr(builtins, identifier, missing)
+    if obj is missing:
+        obj = getattr(math, identifier, None)
+    return obj, display
+
+
 class FormulaBuilder:
     """
     Translates one expression tree into Excel formula text.
@@ -377,28 +405,7 @@ class FormulaBuilder:
     # --- function calls ---
 
     def resolve_function(self, node: FunctionCall) -> tuple[Any, str]:
-        """The callable a call refers to (or None) and its display name."""
-        function_name = node.function_name
-        identifier = getattr(function_name, "identifier", str(function_name))
-        namespace = getattr(node.namespace, "identifier", "") or ""
-        display = f"{namespace}.{identifier}" if namespace else identifier
-        missing = object()
-        if namespace:
-            module = self.global_ns.get(namespace, missing)
-            if module is missing:
-                # No namespace captured: fall back to the plain 'math.' name.
-                if namespace == "math":
-                    return getattr(math, identifier, None), display
-                return None, display
-            return getattr(module, identifier, None), display
-        obj = self.global_ns.get(identifier, missing)
-        if obj is missing:
-            obj = getattr(builtins, identifier, missing)
-        if obj is missing:
-            # Fallback by name: a bare math function name (e.g. supplied_globals
-            # without the import).
-            obj = getattr(math, identifier, None)
-        return obj, display
+        return resolve_function(node, self.global_ns)
 
     def function_call(self, node: FunctionCall) -> Formula:
         function, display = self.resolve_function(node)
