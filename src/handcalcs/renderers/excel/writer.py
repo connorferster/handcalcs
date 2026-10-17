@@ -61,11 +61,15 @@ def _import_xlsxwriter():
 
 
 class ExcelWorkbook:
-    """The result of ``ExcelRenderer.complete()``: an .xlsx file in memory."""
+    """
+    The result of ``ExcelRenderer.complete()``: an .xlsx file in memory, plus
+    the ``rows`` it was written from (for inspection and tests).
+    """
 
-    def __init__(self, data: bytes, sheet_name: str) -> None:
+    def __init__(self, data: bytes, sheet_name: str, rows: Optional[list[Row]] = None) -> None:
         self._data = data
         self.sheet_name = sheet_name
+        self.rows = list(rows or [])
 
     def __repr__(self) -> str:
         return f"ExcelWorkbook(sheet_name={self.sheet_name!r}, size={len(self._data)} bytes)"
@@ -290,4 +294,4 @@ def build_workbook(rows: list[Row], sheet_name: str, value_format: dict, formula
     workbook = xlsxwriter.Workbook(buffer, {"in_memory": True})
     write_sheet(workbook, rows, sheet_name, value_format, formula_format)
     workbook.close()
-    return ExcelWorkbook(buffer.getvalue(), sheet_name)
+    return ExcelWorkbook(buffer.getvalue(), sheet_name, rows)

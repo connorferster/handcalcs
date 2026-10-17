@@ -12,7 +12,7 @@ from handcalcs.renderers.excel.rows import BlankRow, CalcRow, CommentRow, Headin
 
 
 def rows(source: str, **kwargs) -> list:
-    return HandCalcs(renderer=ExcelRenderer(**kwargs))(source)
+    return HandCalcs(renderer=ExcelRenderer(**kwargs))(source).rows
 
 
 def test_param_and_calc_rows():
@@ -130,8 +130,8 @@ def test_rows_do_not_mutate_the_tree():
     renderer = ExcelRenderer()
     hc = HandCalcs(renderer=renderer)
     source = "from math import sqrt\nM_u = 2.0\nphi_b = 0.9\nM_r = phi_b * sqrt(M_u) ** 2\n"
-    first = hc(source)
-    assert hc(source) == first
+    first = hc(source).rows
+    assert hc(source).rows == first
 
 
 @pytest.mark.parametrize("source, match", [
