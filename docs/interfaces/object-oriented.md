@@ -61,7 +61,8 @@ text = HandCalcs(PlainTextRenderer())("M = w * L**2 / 8", values)
 ```
 
 If a name has no value in `supplied_globals`, it is shown as empty in the substituted
-step.
+step. The exception is a name used in an `if` condition: the condition is evaluated to
+decide which branch to show, so a missing name raises `NameError`.
 
 ### Inspecting the parsed tree
 

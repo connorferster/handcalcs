@@ -169,7 +169,7 @@ reference/
 | 4 Renderers | done | excel.md adapted from the old page |
 | 5 Customizing | done | examples in docs/_examples, run by hc-example |
 | 6 Building renderers | done | 12 pages; src role links objects to exact lines |
-| 7 Developers | todo | |
+| 7 Developers | done | 8 pages |
 | 8 Reference | todo | |
 | 9 Polish | todo | |
 
