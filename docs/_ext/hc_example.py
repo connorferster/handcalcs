@@ -1,6 +1,8 @@
 """
-The ``hc-example`` directive: run handcalcs at build time and show the source
-next to the real output, so examples in the docs cannot go stale.
+Directives that run handcalcs at build time, so the docs cannot go stale:
+
+- ``hc-example`` shows example source next to its real rendered output;
+- ``hc-registry`` tables a renderer's registered handlers and rules.
 
 Usage (MyST)::
 
