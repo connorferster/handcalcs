@@ -3,8 +3,6 @@ Tests for the XlsxWriter backend: each workbook is read back with openpyxl to
 check layout, defined names, formulas, cached values, formats and merges.
 """
 import io
-import math
-
 import pytest
 
 openpyxl = pytest.importorskip("openpyxl")
@@ -227,18 +225,20 @@ def test_write_sheet_validates_sheet_name():
     workbook.close()
 
 
-def test_recalculated_results_match_python(result):
-    """Evaluate the workbook with the ``formulas`` package, if installed."""
-    formulas = pytest.importorskip("formulas")
-    import tempfile, pathlib
-    with tempfile.TemporaryDirectory() as tmp:
-        path = result.save(pathlib.Path(tmp) / "calc.xlsx")
-        model = formulas.ExcelModel().loads(str(path)).finish()
-        solution = model.calculate()
-    computed = {
-        key.rsplit("!", 1)[-1].upper(): value.value[0, 0]
-        for key, value in solution.items()
-        if "!" in key
-    }
-    assert computed[f"E{X1}"] == pytest.approx((7 + math.sqrt(49 - 24)) / 4)
-    assert computed[f"E{H}"] == pytest.approx(60)
+def test_demo_renders():
+    from handcalcs.renderers.excel.demo import source
+    result = render(source, sheet_name="Beam check")
+    sheet = load(result)["Beam check"]
+    assert sheet.defined_names["M_r_2"].attr_text.startswith("'Beam check'!$E$")
+    assert result.rows[-1].cached is True
+
+
+@pytest.mark.parametrize("source", ["quadratic", "demo"])
+def test_recalculated_results_match_python(source, tmp_path):
+    """Recalculate with the ``formulas`` package (if installed) and compare."""
+    pytest.importorskip("formulas")
+    from scripts.excel_demo import recalculation_problems
+    from handcalcs.renderers.excel.demo import source as demo_source
+    result = render(SOURCE if source == "quadratic" else demo_source)
+    path = result.save(tmp_path / "calc.xlsx")
+    assert recalculation_problems(path, result.rows) == []

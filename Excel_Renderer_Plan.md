@@ -11,7 +11,7 @@ Branch: `features/excel_renderer`. Requirements source: `excel_renderer.md`.
 - [x] Phase 3 — formula (`xl`) mode
 - [x] Phase 4 — symbolic mode and rich text
 - [x] Phase 5 — rows and compatibility
-- [ ] Phase 6 — writer
+- [x] Phase 6 — writer
 - [ ] Phase 7 — conditionals
 - [ ] Phase 8 — units, docs, push
 
@@ -451,3 +451,18 @@ clear error.
   target is assigned so `x = x*2` references the previous version. A top-level
   `def`, `x += 1`, `while` parse to `NoValue` → raise. `complete()` returns the rows
   until the writer lands. Tests: `tests/test_excel_rows.py`.
+- 2026-10-17: two sessions ran concurrently (a "closed" session kept working);
+  phase 5 was finished by the other one. Resume rule now checks for live writers.
+- 2026-10-17: phase 6 done — `writer.py` (`SheetWriter`: §4.1 columns, scoped names
+  → `$E$n`, formulas with cached values, rich strings with sub/superscript runs,
+  A–E merged headings at 16/14/12.5/11.5 pt and wrapped paragraphs with estimated
+  heights, grey italic comments, hidden `-i` rows, clamped widths; 10 pt body).
+  `complete()` returns `ExcelWorkbook` (`.to_bytes()`, `.save()`, `.rows`) and saves
+  to `filepath`; `ExcelRenderer.write_sheet(workbook, rows, sheet_name)` for
+  multi-sheet. Fix: symbolic constants no longer use `format_code` (`-f .3f` made
+  `b**2` read b^2.000). Demo source lives in `excel/demo.py` (W410x60 LTB check);
+  `scripts/excel_demo.py` writes `excel_demo_build/excel_demo.xlsx` and, with
+  `uv run --with formulas`, recalculates every formula cell and compares it with
+  Python (all match). The `formulas` package returns `#REF!` for sheet-scoped names,
+  so the check evaluates a copy with names promoted to workbook scope.
+  Tests: `tests/test_excel_writer.py` (openpyxl read-back).
