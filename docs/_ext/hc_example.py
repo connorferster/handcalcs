@@ -110,8 +110,13 @@ class HcExampleDirective(SphinxDirective):
     def run(self):
         source = "\n".join(self.content)
         setup = self.options.get("setup", "")
-        renderer, name = self._renderer()
-        output_kind, language = _DEFAULT_OUTPUT.get(name, ("code", "text"))
+        renderer, _name = self._renderer()
+        # A custom renderer is shown like the built-in renderer it inherits from.
+        output_kind, language = next(
+            (_DEFAULT_OUTPUT[cls.__dict__["name"]] for cls in type(renderer).__mro__
+             if cls.__dict__.get("name") in _DEFAULT_OUTPUT),
+            ("code", "text"),
+        )
         output_kind = self.options.get("output", output_kind)
         language = self.options.get("output-language", language)
 

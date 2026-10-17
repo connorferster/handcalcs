@@ -70,8 +70,9 @@ notebooks.
   literal underscore.
 - Operators: `*` → $\cdot$, `/` → a fraction, `**` → a superscript, `//` → a fraction in
   floor brackets, `%` → $\bmod$, `<=` → $\le$.
-- Functions: `sqrt` → a radical; `sin`, `cos`, `log`, `exp` and the other `math`
-  functions → their operators; any other function by its name, upright.
+- Functions: `sqrt` → a radical; `floor`, `ceil` → brackets; `sin`, `cos`, `exp` and the
+  other trigonometric and hyperbolic functions → their operators; any other function by
+  its name, upright (`\operatorname`).
 - Numbers: scientific notation is written as $\times 10^{n}$; `inf` → $\infty$.
 - Collections longer than 10 items show their first and last three items around
   $\ldots$.

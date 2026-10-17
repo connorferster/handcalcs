@@ -167,7 +167,7 @@ reference/
 | 2 Getting started | done | all 10 pages |
 | 3 Interfaces | done | decorator page describes intended behaviour (see issue) |
 | 4 Renderers | done | excel.md adapted from the old page |
-| 5 Customizing | todo | |
+| 5 Customizing | done | examples in docs/_examples, run by hc-example |
 | 6 Building renderers | todo | |
 | 7 Developers | todo | |
 | 8 Reference | todo | |
