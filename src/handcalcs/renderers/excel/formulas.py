@@ -48,6 +48,7 @@ from handcalcs.parsing.operator_nodes import (
 )
 from .compat import ExcelRendererIncompatibleError, incompatible
 from .names import SymbolTable
+from .units import has_units, unit_constant  # noqa: F401  (has_units re-exported)
 
 # Excel operator precedence, loosest to tightest. Atoms (names, numbers,
 # function calls) are ATOM and never need parentheses.
@@ -182,13 +183,6 @@ DEFAULT_CONSTANTS: dict[int, Formula] = {
 }
 
 
-def has_units(value: Any) -> bool:
-    """True for a pint Quantity or a forallpeople Physical (or similar)."""
-    if isinstance(value, (bool, int, float, str)):
-        return False
-    return hasattr(value, "units") or type(value).__name__ == "Physical"
-
-
 def format_number(value: int | float) -> str:
     """A Python number as an Excel numeric literal."""
     if isinstance(value, float):
@@ -234,6 +228,16 @@ def resolve_function(node: FunctionCall, global_ns: dict) -> tuple[Any, str]:
     return obj, display
 
 
+def scale_formula(formula: Formula, factor: float) -> Formula:
+    """``formula / factor``: an SI result back in its display unit."""
+    if factor == 1:
+        return formula
+    return Formula(
+        f"{formula.wrapped(formula.precedence < MULTIPLICATIVE)}/{format_number(factor)}",
+        MULTIPLICATIVE,
+    )
+
+
 class FormulaBuilder:
     """
     Translates one expression tree into Excel formula text.
@@ -250,8 +254,11 @@ class FormulaBuilder:
         global_ns: Optional[dict] = None,
         functions: Optional[dict] = None,
         constants: Optional[dict] = None,
+        factors: Optional[dict] = None,
     ) -> None:
         self.symbols = symbols
+        # Excel name -> display-unit-to-SI factor, for rows with units.
+        self.factors = {} if factors is None else factors
         self.global_ns = global_ns if isinstance(global_ns, dict) else {}
         self.functions = DEFAULT_FUNCTIONS if functions is None else functions
         self.constants = DEFAULT_CONSTANTS if constants is None else constants
@@ -264,6 +271,19 @@ class FormulaBuilder:
                 raise incompatible("the expression could not be parsed into a single formula")
             expression = nodes[0]
         return self.translate(expression).text
+
+    def build_scaled(self, expression: Any, factor: float = 1) -> str:
+        """
+        The formula body of an expression whose references are in SI units,
+        scaled back to a display unit: ``body/factor`` (``body`` when 1).
+        """
+        if hasattr(expression, "__iter__") and not hasattr(expression, "type"):
+            nodes = list(expression)
+            if len(nodes) != 1:
+                raise incompatible("the expression could not be parsed into a single formula")
+            expression = nodes[0]
+        formula = self.translate(expression)
+        return scale_formula(formula, factor).text
 
     # --- dispatch ---
 
@@ -316,12 +336,19 @@ class FormulaBuilder:
     def name(self, node: Name) -> Formula:
         identifier = node.identifier
         if identifier in self.symbols:
-            if has_units(node.value):
-                raise incompatible("values with units are not yet supported", node)
-            return Formula(self.symbols.lookup(identifier, node))
-        constant = self._math_constant(self.global_ns.get(identifier, NoValue()))
+            excel_name = self.symbols.lookup(identifier, node)
+            factor = self.factors.get(excel_name, 1)
+            if factor != 1:
+                # The row holds a display-unit magnitude; formulas work in SI.
+                return Formula(f"{excel_name}*{format_number(factor)}", MULTIPLICATIVE)
+            return Formula(excel_name)
+        value = self.global_ns.get(identifier, node.value)
+        constant = self._math_constant(value)
         if constant is not None:
             return constant
+        unit = unit_constant(value)
+        if unit is not None:
+            return Formula(format_number(unit))
         return Formula(self.symbols.lookup(identifier, node))
 
     def attribute(self, node: Attribute) -> Formula:
@@ -331,6 +358,9 @@ class FormulaBuilder:
             constant = self._math_constant(value)
             if constant is not None:
                 return constant
+        unit = unit_constant(node.value)
+        if unit is not None:  # e.g. ureg.mm
+            return Formula(format_number(unit))
         raise incompatible(
             f"the attribute '{node.namespace}.{node.identifier}' has no Excel equivalent", node
         )
