@@ -148,6 +148,39 @@ def _copy_rule_handlers(
 class ContextValueError(Exception):
     pass
 
+# The columns a calc line can show, in order: assignment target, symbolic,
+# numeric substitution and result. ``context.mode`` is ``'full'`` (all of them),
+# a string naming the columns to keep (e.g. ``'ass sym res'``), or one or more
+# drop aliases naming the columns to remove (e.g. ``'no_num'``).
+MODE_COLUMNS = ('ass', 'sym', 'num', 'res')
+MODE_DROP_ALIASES = {
+    'no_num': 'num',
+    'drop_numeric': 'num',
+    'no_sym': 'sym',
+    'drop_symbolic': 'sym',
+}
+
+
+def mode_columns(mode: str) -> set[str]:
+    """
+    Return the set of calc-line columns shown under ``mode``.
+
+    ``'full'`` shows every column. If the mode contains a drop alias
+    (``no_num``/``drop_numeric``, ``no_sym``/``drop_symbolic``), every column
+    except the dropped ones is shown, e.g. ``'no_num'`` -> ``{'ass', 'sym',
+    'res'}``. Otherwise the mode names the columns to keep, matched as
+    substrings (``'ass sym res'``). The aliases are checked first because they
+    contain ``num``/``sym`` themselves.
+    """
+    if mode == 'full':
+        return set(MODE_COLUMNS)
+    tokens = mode.replace(',', ' ').split()
+    dropped = {MODE_DROP_ALIASES[token] for token in tokens if token in MODE_DROP_ALIASES}
+    if dropped:
+        return set(MODE_COLUMNS) - dropped
+    return {column for column in MODE_COLUMNS if column in mode}
+
+
 class ContextKeyError(Exception):
     pass
 
@@ -1003,21 +1036,22 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
         base_context.line_context = RenderContext.sparse()
         return ''
 
+    shown = mode_columns(context.mode)
     columns: deque = deque([])
-    if context.mode == 'full' or 'ass' in context.mode:
+    if 'ass' in shown:
         base_context.line_context.current_mode = 'sym'
         assign_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
         columns.append(",{_}".join(assign_nodes))
     if not param_line:
-        if context.mode == 'full' or 'sym' in context.mode:
+        if 'sym' in shown:
             base_context.line_context.current_mode = 'sym'
             symbolic = "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
             columns.append(symbolic)
-        if context.mode == "full" or "num" in context.mode:
+        if 'num' in shown:
             base_context.line_context.current_mode = "num"
             numeric = "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
             columns.append(numeric)
-    if context.mode == "full" or "res" in context.mode:
+    if 'res' in shown:
         base_context.line_context.current_mode = "num"
         result_nodes = [renderer.render(subnode, base_context) for subnode in node.assigns]
         columns.append(f",{_}".join(result_nodes))
@@ -1025,7 +1059,7 @@ def render_calcline(renderer: BaseRenderer, node: CalcLine, base_context: BaseRe
     # Drop a value column that repeats the one before it: a bare reference
     # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
     # in more than one column, which would otherwise show as ``= 3 = 3``.
-    has_target = context.mode == 'full' or 'ass' in context.mode
+    has_target = 'ass' in shown
     head = [columns.popleft()] if has_target and columns else []
     values: list = []
     for column in columns:
@@ -1127,11 +1161,12 @@ def render_exprline(renderer: BaseRenderer, node: ExprLine, base_context: BaseRe
         base_context.line_context.current_mode = mode
         return "".join(renderer.render(subnode, base_context) for subnode in node.expression_tree)
 
+    shown = mode_columns(context.mode)
     columns = deque([])
-    if context.mode == 'full' or 'sym' in context.mode:
+    if 'sym' in shown:
         columns.append(render_tree('sym'))
     # A return statement has no single runtime value; omit numeric substitution.
-    if not node.return_expr and (context.mode == 'full' or 'num' in context.mode):
+    if not node.return_expr and 'num' in shown:
         columns.append(render_tree('num'))
 
     components = deque([])
