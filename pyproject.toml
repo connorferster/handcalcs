@@ -44,18 +44,27 @@ source = ['handcalcs']
 show_missing = true
 
 [dependency-groups]
-dev = [
-    "pint>=0.24.4",
+# What the test suite needs; CI installs only this group (and 'lint').
+test = [
     "pytest>=8.4.1",
+    "pint>=0.24.4",
+    "forallpeople>=2.7.1",
+    "ipython>=8.0",
+    "markdown-it-py>=3.0",
+    "openpyxl>=3.1.5",
+    "xlsxwriter>=3.2",
+]
+lint = [
+    "black>=25.1.0",
+]
+dev = [
+    {include-group = "test"},
+    {include-group = "lint"},
     "pytest-cov>=6.2.1",
     "sympy>=1.14.0",
     "jupyterlab>=4.4.4",
-    "forallpeople>=2.7.1",
-    "black>=25.1.0",
     "rich>=14.2.0",
     "ipykernel>=7.3.0",
-    "openpyxl>=3.1.5",
-    "xlsxwriter>=3.2",
 ]
 
 [tool.black]
