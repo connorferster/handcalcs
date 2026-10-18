@@ -124,8 +124,8 @@ class HTMLRenderer(BaseRenderer):
         self.theme = theme_variables(theme_color)
 
     # One scoped stylesheet owns ALL vertical rhythm and indentation. Emitted
-    # once by ``complete``; every rule uses ``:where()`` so it contributes zero
-    # specificity and a host page's own styles always win. ``--hc-gap`` and
+    # once by ``complete``; every rule except the table rules uses ``:where()``
+    # so it contributes zero specificity and a host page's own styles win. ``--hc-gap`` and
     # ``--hc-indent`` are the two knobs everything else references.
     STYLE = (
         ".handcalcs{"
@@ -188,25 +188,31 @@ class HTMLRenderer(BaseRenderer):
         # table shrinks to its content and sits centered. ``hc-multiline`` overrides
         # the alignment to left (see below). The table sits on a tinted panel
         # (``border-collapse:separate`` so its corners can round).
-        ".handcalcs :where(table.hc-params){"
-        "margin-block:0;border-collapse:separate;border-spacing:0;table-layout:auto;"
-        "width:auto;align-self:center;"
+        # Unlike the rest of the sheet, the table rules carry real specificity
+        # (``.handcalcs table.hc-params ...``): notebook hosts style every table
+        # (JupyterLab sets a fixed layout, a 12px font, padded right-aligned cells
+        # and zebra rows), which would otherwise break the alignment on ``=``.
+        ".handcalcs table.hc-params{"
+        "margin:0;border:0;border-collapse:separate;border-spacing:0;table-layout:auto;"
+        "width:auto;align-self:center;font-size:inherit;color:inherit;"
         "font-variant-numeric:tabular-nums;"
         "background:var(--hc-tint);border-radius:4px;padding:0.1em 0.6em;}"
         # A multi-line calc reads as one unit: no panel, an accent bar on its left.
-        ".handcalcs :where(table.hc-multiline){align-self:start;"
+        ".handcalcs table.hc-params.hc-multiline{align-self:start;"
         "background:none;border-radius:0;padding:0 0 0 0.5em;"
-        "border-inline-start:2px solid var(--hc-accent);}"
-        ".handcalcs :where(table.hc-params tr){background:none;}"
-        ".handcalcs :where(table.hc-params td){"
-        "padding:0;border:0;vertical-align:baseline;}"
-        ".handcalcs :where(.hc-param-id){"
+        "border-inline-start:2px solid var(--hc-accent-text);}"
+        ".handcalcs table.hc-params tr:nth-child(n){background:none;}"
+        ".handcalcs table.hc-params td{"
+        "padding:0;border:0;vertical-align:baseline;line-height:inherit;"
+        "white-space:normal;max-width:none;}"
+        ".handcalcs table.hc-params td.hc-param-id{"
         "text-align:right;padding-inline-end:var(--hc-eq-gap);}"
-        ".handcalcs :where(.hc-param-eq){text-align:center;}"
-        ".handcalcs :where(.hc-param-val){"
+        ".handcalcs table.hc-params td.hc-param-eq{text-align:center;}"
+        ".handcalcs table.hc-params td.hc-param-val{"
         "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
-        ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
-        ".handcalcs :where(.hc-param-comment){text-align:left;padding-inline-start:var(--hc-eq-gap);}"
+        ".handcalcs table.hc-params td.hc-param-gap{width:var(--hc-param-gap);}"
+        ".handcalcs table.hc-params td.hc-param-comment{"
+        "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
     )
 
