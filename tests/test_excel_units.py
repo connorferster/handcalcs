@@ -165,7 +165,9 @@ def test_pint_rows():
     r = rows(PINT)
     assert (r["F"].value, r["F"].unit) == (12.5, "kN")
     assert r["M"].formula == "=F*1000*(L*0.001)"  # kN·mm is SI-equivalent (N·m)
-    assert (r["M"].cached, r["M"].unit) == (3750, "kN⋅mm")
+    # pint 0.26 joins units with "⋅" (U+22C5); pint 0.25 (the newest on Python
+    # 3.11) uses "·" (U+00B7). The renderer passes pint's text through.
+    assert (r["M"].cached, r["M"].unit.replace("·", "⋅")) == (3750, "kN⋅mm")
     assert r["A"].formula == "=(L*0.001)^2/1E-06"
     assert (r["A"].cached, r["A"].unit) == (90000, "mm²")
 

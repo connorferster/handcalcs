@@ -6,6 +6,7 @@ records. They hold everything the writer needs (names, formulas, cached values,
 rich text, formats) and nothing about cell positions, so all handcalcs logic is
 testable without opening a workbook.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -16,6 +17,7 @@ from .rich_text import RichText
 @dataclass
 class CalcRow:
     """``| symbol | = | symbolic | = | formula | unit | comment |``"""
+
     name: str
     symbol: RichText
     symbolic: RichText
@@ -36,6 +38,7 @@ class ParamRow:
     ``value``); a calculation forced to the param layout with ``# hc: -p``
     keeps its formula, with ``value`` as the cached result.
     """
+
     name: str
     symbol: RichText
     value: Any
@@ -55,6 +58,7 @@ class HeadingRow:
 @dataclass
 class CommentRow:
     """One paragraph: the lines of a CommentsBlock (or a docstring)."""
+
     text: str
 
 

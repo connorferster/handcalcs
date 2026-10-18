@@ -412,7 +412,7 @@ b = 6
 values = [elem + b for elem in a]
 """
     source_1_locals = {}
-    exec(source_1, locals=source_1_locals)
+    exec(source_1, source_1_locals)
     basic_parser = AST_Parser(globals() | source_1_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_1) == deque([
         Import(
@@ -561,7 +561,7 @@ values = [elem + b for elem in a]
     ])
 
     source_2_locals = {}
-    exec(source_2, locals=source_2_locals)
+    exec(source_2, source_2_locals)
     basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_2) == deque([
         CalcLine(

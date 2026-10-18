@@ -18,6 +18,7 @@ Two Excel precedence traps are handled here:
 - ``^`` is *left*-associative (``2^3^2`` is 64), so ``a**b**c`` becomes
   ``a^(b^c)``.
 """
+
 from __future__ import annotations
 import builtins
 import math
@@ -80,6 +81,7 @@ COMPARISON_OPERATORS = {
 @dataclass(frozen=True)
 class Formula:
     """Formula text plus the precedence of its outermost operator."""
+
     text: str
     precedence: float = ATOM
 
@@ -97,6 +99,7 @@ class ExcelFunction:
     replaces the default ``NAME(arg, ...)`` spelling: it receives the rendered
     argument texts and returns a ``Formula``.
     """
+
     excel: str
     arity: Optional[tuple[int, ...]] = (1,)
     min_args: int = 1
@@ -268,7 +271,9 @@ class FormulaBuilder:
         if hasattr(expression, "__iter__") and not hasattr(expression, "type"):
             nodes = list(expression)
             if len(nodes) != 1:
-                raise incompatible("the expression could not be parsed into a single formula")
+                raise incompatible(
+                    "the expression could not be parsed into a single formula"
+                )
             expression = nodes[0]
         return self.translate(expression).text
 
@@ -280,7 +285,9 @@ class FormulaBuilder:
         if hasattr(expression, "__iter__") and not hasattr(expression, "type"):
             nodes = list(expression)
             if len(nodes) != 1:
-                raise incompatible("the expression could not be parsed into a single formula")
+                raise incompatible(
+                    "the expression could not be parsed into a single formula"
+                )
             expression = nodes[0]
         formula = self.translate(expression)
         return scale_formula(formula, factor).text
@@ -305,7 +312,9 @@ class FormulaBuilder:
         if isinstance(node, FloorOp):
             return self.floor_div(node)
         if isinstance(node, ModuloOp):
-            return Formula(f"MOD({self.translate(node.left).text},{self.translate(node.right).text})")
+            return Formula(
+                f"MOD({self.translate(node.left).text},{self.translate(node.right).text})"
+            )
         if isinstance(node, HcBinOp) and type(node) in BINARY_OPERATORS:
             return self.binary(node)
         if isinstance(node, Compare):
@@ -366,7 +375,8 @@ class FormulaBuilder:
         if unit is not None:  # e.g. ureg.mm
             return Formula(format_number(unit))
         raise incompatible(
-            f"the attribute '{node.namespace}.{node.identifier}' has no Excel equivalent", node
+            f"the attribute '{node.namespace}.{node.identifier}' has no Excel equivalent",
+            node,
         )
 
     def _math_constant(self, value: Any) -> Optional[Formula]:
@@ -384,8 +394,12 @@ class FormulaBuilder:
         if symbol == "+":
             return operand
         if symbol == "-":
-            return Formula("-" + operand.wrapped(operand.precedence <= NEGATION), NEGATION)
-        raise incompatible(f"the unary operator '{symbol}' has no Excel equivalent", node)
+            return Formula(
+                "-" + operand.wrapped(operand.precedence <= NEGATION), NEGATION
+            )
+        raise incompatible(
+            f"the unary operator '{symbol}' has no Excel equivalent", node
+        )
 
     def binary(self, node: HcBinOp) -> Formula:
         symbol, precedence = BINARY_OPERATORS[type(node)]
@@ -400,7 +414,10 @@ class FormulaBuilder:
         # equal precedence on the right keeps its parentheses: a-(b-c), a^(b^c).
         # A negated right operand is wrapped too: a-(-b), not a--b.
         right_parens = right.precedence <= precedence or right.precedence == NEGATION
-        return Formula(f"{left.wrapped(left_parens)}{symbol}{right.wrapped(right_parens)}", precedence)
+        return Formula(
+            f"{left.wrapped(left_parens)}{symbol}{right.wrapped(right_parens)}",
+            precedence,
+        )
 
     def floor_div(self, node: FloorOp) -> Formula:
         # INT floors toward -inf, matching Python's //.
@@ -423,14 +440,17 @@ class FormulaBuilder:
             excel_op = COMPARISON_OPERATORS.get(type(operator))
             if excel_op is None:
                 symbol = getattr(operator, "symbol", "?").strip()
-                raise incompatible(f"the '{symbol}' comparison has no Excel equivalent", operator)
+                raise incompatible(
+                    f"the '{symbol}' comparison has no Excel equivalent", operator
+                )
             excel_ops.append(excel_op)
         rendered = []
         for operand in operands:
             formula = self.translate(operand)
             rendered.append(formula.wrapped(formula.precedence <= COMPARISON))
         parts = [
-            f"{rendered[i]}{excel_op}{rendered[i + 1]}" for i, excel_op in enumerate(excel_ops)
+            f"{rendered[i]}{excel_op}{rendered[i + 1]}"
+            for i, excel_op in enumerate(excel_ops)
         ]
         if len(parts) == 1:
             return Formula(parts[0], COMPARISON)
@@ -448,13 +468,18 @@ class FormulaBuilder:
         except TypeError:  # unhashable object in the function position
             spec = None
         if spec is None:
-            raise incompatible(f"the function '{display}()' has no Excel equivalent", node)
+            raise incompatible(
+                f"the function '{display}()' has no Excel equivalent", node
+            )
         args = list(node.args)
         if any(isinstance(arg, Keyword) for arg in args):
-            raise incompatible(f"keyword arguments to '{display}()' cannot be written in Excel", node)
+            raise incompatible(
+                f"keyword arguments to '{display}()' cannot be written in Excel", node
+            )
         if not spec.accepts(len(args)):
             raise incompatible(
-                f"'{display}()' with {len(args)} argument(s) has no Excel equivalent", node
+                f"'{display}()' with {len(args)} argument(s) has no Excel equivalent",
+                node,
             )
         rendered = [self.translate(arg).text for arg in args]
         return spec.translate(rendered)

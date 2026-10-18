@@ -4,7 +4,12 @@ from typing import Optional
 from .nodes import HcNode, Name
 from .inline_nodes import InlineComment, InlineCommand
 from .commands import command_parser
-from .comment_parser import is_comment_command, is_markdown_heading, parse_kwargs, split_commands
+from .comment_parser import (
+    is_comment_command,
+    is_markdown_heading,
+    parse_kwargs,
+    split_commands,
+)
 
 
 @dataclass
@@ -12,6 +17,7 @@ class HcLineNode(HcNode):
     level: int = 0
     pre: str = ""
     post: str = ""
+
 
 @dataclass
 class CalcLine(HcLineNode):
@@ -61,6 +67,7 @@ class Heading(HcLineNode):
         content = stripped.lstrip("#").strip()
         return cls(content=content, heading_level=heading_level)
 
+
 @dataclass
 class CommentCommand(HcLineNode):
     commands: dict = field(default_factory=dict)
@@ -75,10 +82,11 @@ class CommentCommand(HcLineNode):
             parsed = vars(command_parser.parse_args(split_commands(stripped)))
         return cls(commands=parsed)
 
+
 @dataclass
 class Import(HcLineNode):
     import_from: bool = False
     names: deque[str] = field(default_factory=deque)
     import_from_module: Optional[str] = None
     import_from_level: Optional[int] = None
-    type: str = 'import'
+    type: str = "import"

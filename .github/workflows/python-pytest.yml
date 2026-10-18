@@ -5,22 +5,25 @@ name: Python testing
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "hc2/dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "hc2/dev" ]
 
 jobs:
-  build:
+  test:
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
+    env:
+      # uv otherwise follows .python-version and tests every cell on 3.13.
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -28,9 +31,41 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install uv
         uv sync
-    - name: Test black formatted
-      run: |
-        uv run black src --check
     - name: Test with pytest
       run: |
+        uv run python --version
         uv run pytest
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Test black formatted
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install uv
+        uv sync
+        uv run black src --check
+
+  package:
+    # Build the wheel and import it in a bare environment (no dev or optional
+    # dependencies), as a user's 'pip install handcalcs' would.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+    - name: Build sdist and wheel
+      run: |
+        python -m pip install --upgrade pip build
+        python -m build
+    - name: Install the wheel into a bare venv and render
+      run: |
+        python -m venv /tmp/bare
+        /tmp/bare/bin/pip install dist/*.whl
+        cd /tmp
+        /tmp/bare/bin/python -c "from handcalcs import HandCalcs, PlainTextRenderer; print(HandCalcs(PlainTextRenderer())('a = 2\nb = a * 3'))"

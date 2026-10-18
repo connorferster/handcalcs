@@ -28,6 +28,7 @@ def split_commands(comment: str) -> list[str]:
     commands = strip_command_prefix(comment)
     return commands.split()
 
+
 def strip_command_prefix(comment: str) -> str:
     """
     Splits the commands by white space.
@@ -36,11 +37,13 @@ def strip_command_prefix(comment: str) -> str:
     stripped = pattern.sub("", comment)
     return stripped
 
+
 def parse_kwargs(comment: str) -> dict:
     """
     For kwarg comment commands.
     """
     stripped = strip_command_prefix(comment)
     kwarg_locals = {}
-    exec(stripped, locals=kwarg_locals)
+    # Positional: exec() only accepts globals/locals as keywords from Python 3.13.
+    exec(stripped, {}, kwarg_locals)
     return kwarg_locals

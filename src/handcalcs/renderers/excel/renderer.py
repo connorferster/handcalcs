@@ -114,7 +114,8 @@ class ExcelRenderer(BaseRenderer):
     ``functions`` maps Python callables to ``formulas.ExcelFunction``
     translations; extend a renderer's copy to support more functions.
     """
-    name = 'excel'
+
+    name = "excel"
     # HandCalcs.demo() renders this instead of the general demo, which uses
     # loops and collections that have no worksheet form.
     demo_source = excel_demo.source
@@ -129,11 +130,17 @@ class ExcelRenderer(BaseRenderer):
     ) -> None:
         super().__init__()
         self.sheet_name = validate_sheet_name(sheet_name)
-        self.value_format = merge_cell_format(value_format, DEFAULT_VALUE_FORMAT, "value_format")
-        self.formula_format = merge_cell_format(formula_format, DEFAULT_FORMULA_FORMAT, "formula_format")
+        self.value_format = merge_cell_format(
+            value_format, DEFAULT_VALUE_FORMAT, "value_format"
+        )
+        self.formula_format = merge_cell_format(
+            formula_format, DEFAULT_FORMULA_FORMAT, "formula_format"
+        )
         self.filepath = pathlib.Path(filepath) if filepath is not None else None
         if not isinstance(general_format, str) or not general_format:
-            raise ValueError("general_format must be a non-empty Excel number format string.")
+            raise ValueError(
+                "general_format must be a non-empty Excel number format string."
+            )
         self.general_format = general_format
         self.functions = dict(DEFAULT_FUNCTIONS)
         self.constants = dict(DEFAULT_CONSTANTS)
@@ -149,9 +156,13 @@ class ExcelRenderer(BaseRenderer):
             rows.extend(self.render(node, base_context))
         return rows
 
-    def complete(self, tree: list[Row], base_context: BaseRenderContext) -> ExcelWorkbook:
+    def complete(
+        self, tree: list[Row], base_context: BaseRenderContext
+    ) -> ExcelWorkbook:
         """Lay the rows out as a one-sheet workbook; save it if ``filepath`` is set."""
-        workbook = build_workbook(tree, self.sheet_name, self.value_format, self.formula_format)
+        workbook = build_workbook(
+            tree, self.sheet_name, self.value_format, self.formula_format
+        )
         if self.filepath is not None:
             workbook.save(self.filepath)
         return workbook
@@ -162,24 +173,33 @@ class ExcelRenderer(BaseRenderer):
         ``xlsxwriter.Workbook``, for several cells in one workbook. Names are
         worksheet-scoped, so each sheet may reuse the same variables.
         """
-        sheet_name = self.sheet_name if sheet_name is None else validate_sheet_name(sheet_name)
-        return write_sheet(workbook, rows, sheet_name, self.value_format, self.formula_format)
+        sheet_name = (
+            self.sheet_name if sheet_name is None else validate_sheet_name(sheet_name)
+        )
+        return write_sheet(
+            workbook, rows, sheet_name, self.value_format, self.formula_format
+        )
 
 
 @dataclass
 class ExcelState:
     """Per-render state carried on the global render context."""
+
     symbols: SymbolTable
     builder: FormulaBuilder
     evaluator: ValueEvaluator
     factors: dict  # Excel name -> display-unit-to-SI factor (rows with units)
 
     @classmethod
-    def create(cls, renderer: ExcelRenderer, base_context: BaseRenderContext) -> "ExcelState":
+    def create(
+        cls, renderer: ExcelRenderer, base_context: BaseRenderContext
+    ) -> "ExcelState":
         global_ns = getattr(base_context.global_context, "global_ns", None)
         symbols = SymbolTable()
         factors: dict = {}
-        builder = FormulaBuilder(symbols, global_ns, renderer.functions, renderer.constants, factors)
+        builder = FormulaBuilder(
+            symbols, global_ns, renderer.functions, renderer.constants, factors
+        )
         return cls(symbols, builder, ValueEvaluator(global_ns), factors)
 
 
@@ -246,7 +266,7 @@ def _cached_value(state: ExcelState, expression: list, target: Name) -> Any:
         return None if isinstance(value, NoValue) else value
 
 
-@ER.register('calc_line')
+@ER.register("calc_line")
 def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
     """
     A CalcLine becomes one row: a ``ParamRow`` for a literal (or ``-p``) line,
@@ -255,19 +275,21 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
     state = excel_state(renderer, base_context)
     # The calc_line:pre rule may already have flagged a param line; an inline
     # command replaces the line context, so read the flag first.
-    param_line = getattr(base_context.current, 'param_line', False)
+    param_line = getattr(base_context.current, "param_line", False)
     comment = None
     if node.comment is not None:
-        if node.comment.type == 'inline_comment':
+        if node.comment.type == "inline_comment":
             comment = node.comment.content
         else:
             renderer.render(node.comment, base_context)
     context = base_context.current
-    param_line = param_line or getattr(context, 'param_line', False)
+    param_line = param_line or getattr(context, "param_line", False)
     try:
         targets = list(node.assigns)
         if len(targets) != 1:
-            raise incompatible("chained assignment (a = b = 1) has no Excel equivalent", node)
+            raise incompatible(
+                "chained assignment (a = b = 1) has no Excel equivalent", node
+            )
         target = targets[0]
         if not isinstance(target, Name):
             raise incompatible(
@@ -288,7 +310,9 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
             if isinstance(literal, NoValue):
                 value = _cached_value(state, expression, target)
                 unit = unit_value(value) or unit_value(target.value)
-                if unit is not None and not _references_sheet(expression, state.symbols):
+                if unit is not None and not _references_sheet(
+                    expression, state.symbols
+                ):
                     # ``L = 300 * mm``: an input of 300 in the unit column's mm.
                     cached = unit.magnitude
                 else:
@@ -307,9 +331,11 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
         if unit is not None and unit.factor != 1:
             state.factors[name] = unit.factor
         unit_text = unit.unit if unit is not None and unit.unit else None
-        number_format = to_excel_number_format(context.format_code, renderer.general_format)
+        number_format = to_excel_number_format(
+            context.format_code, renderer.general_format
+        )
         symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
-        hidden = bool(getattr(context, 'ignore', False))
+        hidden = bool(getattr(context, "ignore", False))
 
         if param_line or formula is None:
             row: Row = ParamRow(
@@ -326,7 +352,9 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
             row = CalcRow(
                 name=name,
                 symbol=symbol,
-                symbolic=parse_markup(symbolic_markup(renderer, expression, base_context)),
+                symbolic=parse_markup(
+                    symbolic_markup(renderer, expression, base_context)
+                ),
                 formula=formula,
                 cached=cached,
                 number_format=number_format,
@@ -335,14 +363,14 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 hidden=hidden,
             )
         rows: list[Row] = [row]
-        if getattr(context, 'line_break', False):
+        if getattr(context, "line_break", False):
             rows.append(BlankRow())
         return rows
     finally:
         base_context.line_context = RenderContext.sparse()
 
 
-@ER.register('calcs_block')
+@ER.register("calcs_block")
 def render_calcs_block(renderer: ER, node, base_context: BRC) -> list[Row]:
     rows: list[Row] = []
     for line in node.lines:
@@ -350,7 +378,7 @@ def render_calcs_block(renderer: ER, node, base_context: BRC) -> list[Row]:
     return rows
 
 
-@ER.register('params_block')
+@ER.register("params_block")
 def render_params_block(renderer: ER, node, base_context: BRC) -> list[Row]:
     """Each line of a ``;`` or ``# hc: -h`` params block is its own ParamRow."""
     rows: list[Row] = []
@@ -360,36 +388,48 @@ def render_params_block(renderer: ER, node, base_context: BRC) -> list[Row]:
     return rows
 
 
-@ER.register('comments_block')
+@ER.register("comments_block")
 def render_comments_block(renderer: ER, node, base_context: BRC) -> list[Row]:
     """Consecutive comment lines become one paragraph row."""
     texts = []
     for line in node.lines:
         rendered = renderer.render(line, base_context)
-        if line.type == 'comment_line' and isinstance(rendered, str) and rendered.strip():
+        if (
+            line.type == "comment_line"
+            and isinstance(rendered, str)
+            and rendered.strip()
+        ):
             texts.append(rendered.strip())
     return [CommentRow(" ".join(texts))] if texts else []
 
 
-@ER.register('heading')
+@ER.register("heading")
 def render_heading(renderer: ER, node, base_context: BRC) -> list[Row]:
     return [HeadingRow(node.content, node.heading_level)]
 
 
-@ER.register('comment_command')
+@ER.register("comment_command")
 def render_comment_command(renderer: ER, node, base_context: BRC) -> list[Row]:
     """Updates the global context (e.g. ``-f``); ``-b`` inserts a blank row."""
     line_break = base_render_comment_command(renderer, node, base_context)
     return [BlankRow()] if line_break else []
 
 
-@ER.register('expr_line')
+@ER.register("expr_line")
 def render_expr_line(renderer: ER, node, base_context: BRC) -> list[Row]:
     """A bare string (docstring) becomes a comment row; other expressions raise."""
     tree = list(node.expression_tree)
-    if len(tree) == 1 and isinstance(tree[0], Constant) and isinstance(tree[0].value, str):
+    if (
+        len(tree) == 1
+        and isinstance(tree[0], Constant)
+        and isinstance(tree[0].value, str)
+    ):
         return [CommentRow(tree[0].value.strip())]
-    if len(tree) == 1 and isinstance(tree[0], FunctionCall) and _is_units_call(tree[0], excel_state(renderer, base_context)):
+    if (
+        len(tree) == 1
+        and isinstance(tree[0], FunctionCall)
+        and _is_units_call(tree[0], excel_state(renderer, base_context))
+    ):
         return []  # e.g. si.environment('structural')
     raise incompatible(
         "an expression statement (e.g. print(...)) has no worksheet equivalent; "
@@ -404,7 +444,7 @@ def _is_units_call(node: FunctionCall, state: ExcelState) -> bool:
     return function is not None and is_units_setup(function)
 
 
-@ER.register('import')
+@ER.register("import")
 def render_import(renderer: ER, node, base_context: BRC) -> list[Row]:
     """
     Imports of ``math`` (its functions map to Excel) and of the units
@@ -425,10 +465,12 @@ def render_import(renderer: ER, node, base_context: BRC) -> list[Row]:
     return []
 
 
-@ER.register('elif_block')
+@ER.register("elif_block")
 def render_elif_block(renderer: ER, node, base_context: BRC) -> list[Row]:
     """An if/elif/else tree: one IF-formula row per assigned variable."""
-    return render_conditional(renderer, node, excel_state(renderer, base_context), base_context)
+    return render_conditional(
+        renderer, node, excel_state(renderer, base_context), base_context
+    )
 
 
 def _incompatible_block(renderer: ER, node, base_context: BRC) -> list[Row]:
@@ -439,8 +481,8 @@ for _block_type in INCOMPATIBLE_BLOCKS:
     ER.register(_block_type)(_incompatible_block)
 
 
-@ER.register('no_value')
-@ER.register('not_implemented')
+@ER.register("no_value")
+@ER.register("not_implemented")
 def render_unparsed_statement(renderer: ER, node, base_context: BRC) -> list[Row]:
     raise incompatible(
         "a statement handcalcs does not parse (e.g. a function or class definition, "

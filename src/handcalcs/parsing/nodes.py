@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 from .null_values import NoValue
 
+
 @dataclass
 class HcNode:
     pass
@@ -12,6 +13,7 @@ class HcNode:
         raise NotImplementedError(
             f"The render method for {__class__.__name__} has not been implemented yet."
         )
+
 
 @dataclass
 class Name(HcNode):
@@ -33,20 +35,24 @@ class Attribute(HcNode):
     value: Any = NoValue()
     type: str = "attribute"
 
+
 @dataclass
 class List(HcNode):
     elems: deque[Any]
     type: str = "list"
+
 
 @dataclass
 class Tuple(HcNode):
     elems: deque[Any]
     type: str = "tuple"
 
+
 @dataclass
 class Set(HcNode):
     elems: deque[Any]
     type: str = "set"
+
 
 @dataclass
 class Dictionary(HcNode):

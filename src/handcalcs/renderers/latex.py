@@ -2,8 +2,15 @@ import re
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError, render_condition, OP_PRECEDENCE
-
+from handcalcs.renderers.base import (
+    BaseRenderer,
+    RenderContext,
+    BaseRenderContext,
+    ContextKeyError,
+    ContextValueError,
+    render_condition,
+    OP_PRECEDENCE,
+)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
@@ -33,14 +40,9 @@ from handcalcs.parsing.operator_nodes import (
     LtOp,
     LtEOp,
     NeqOp,
-    HcCompOp
+    HcCompOp,
 )
-from handcalcs.parsing.inline_nodes import (
-    InlineComment,
-    FunctionCall,
-    Keyword,
-    Compare
-)
+from handcalcs.parsing.inline_nodes import InlineComment, FunctionCall, Keyword, Compare
 from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
@@ -105,27 +107,77 @@ def latex_prose(text: str) -> str:
 
 
 GREEK_LOWER = {
-    name: f"\\{name}" for name in (
-        "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta",
-        "eta", "theta", "vartheta", "iota", "kappa", "mu", "nu", "xi", "pi",
-        "varpi", "rho", "varrho", "sigma", "varsigma", "tau", "upsilon", "phi",
-        "varphi", "chi", "psi", "omega",
+    name: f"\\{name}"
+    for name in (
+        "alpha",
+        "beta",
+        "gamma",
+        "delta",
+        "epsilon",
+        "varepsilon",
+        "zeta",
+        "eta",
+        "theta",
+        "vartheta",
+        "iota",
+        "kappa",
+        "mu",
+        "nu",
+        "xi",
+        "pi",
+        "varpi",
+        "rho",
+        "varrho",
+        "sigma",
+        "varsigma",
+        "tau",
+        "upsilon",
+        "phi",
+        "varphi",
+        "chi",
+        "psi",
+        "omega",
     )
 } | {"omicron": "o", "lamb": "\\lambda"}
 
 # LaTeX only defines the capitals that differ from a Latin letter; the rest are
 # typeset as the upright Latin letter they look like.
-GREEK_UPPER = {
-    name: f"\\{name}" for name in (
-        "Gamma", "Delta", "Theta", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega",
-    )
-} | {
-    name: f"\\mathrm{{{letter}}}" for name, letter in (
-        ("Alpha", "A"), ("Beta", "B"), ("Epsilon", "E"), ("Zeta", "Z"),
-        ("Eta", "H"), ("Iota", "I"), ("Kappa", "K"), ("Mu", "M"), ("Nu", "N"),
-        ("Omicron", "O"), ("Rho", "P"), ("Tau", "T"), ("Chi", "X"),
-    )
-} | {"Lamb": "\\Lambda"}
+GREEK_UPPER = (
+    {
+        name: f"\\{name}"
+        for name in (
+            "Gamma",
+            "Delta",
+            "Theta",
+            "Xi",
+            "Pi",
+            "Sigma",
+            "Upsilon",
+            "Phi",
+            "Psi",
+            "Omega",
+        )
+    }
+    | {
+        name: f"\\mathrm{{{letter}}}"
+        for name, letter in (
+            ("Alpha", "A"),
+            ("Beta", "B"),
+            ("Epsilon", "E"),
+            ("Zeta", "Z"),
+            ("Eta", "H"),
+            ("Iota", "I"),
+            ("Kappa", "K"),
+            ("Mu", "M"),
+            ("Nu", "N"),
+            ("Omicron", "O"),
+            ("Rho", "P"),
+            ("Tau", "T"),
+            ("Chi", "X"),
+        )
+    }
+    | {"Lamb": "\\Lambda"}
+)
 
 GREEK = GREEK_LOWER | GREEK_UPPER
 
@@ -166,25 +218,24 @@ def latex_identifier(identifier: str) -> str:
     return head + "".join(f"_{{{sub}" for sub in subscripts) + "}" * len(subscripts)
 
 
-
 # The LaTeX symbol of each operator node type (see ``swap_operator_symbols``).
 OPERATOR_SYMBOLS = {
-    'mult_op': '\\cdot',
-    'add_op': '+',
-    'sub_op': '-',
-    'modulo_op': '\\bmod',
-    'lt_op': ' < ',
-    'gt_op': ' > ',
-    'lte_op': ' \\le ',
-    'gte_op': ' \\ge ',
-    'eq_op': ' == ',
-    'neq_op': ' \\ne ',
-    'in_op': ' \\in ',
-    'not_in_op': ' \\notin ',
-    'is_op': ' \\;\\mathrm{is}\\; ',
-    'is_not_op': ' \\;\\mathrm{is\\ not}\\; ',
-    'and_op': '\\;\\mathrm{and}\\;',
-    'or_op': '\\;\\mathrm{or}\\;',
+    "mult_op": "\\cdot",
+    "add_op": "+",
+    "sub_op": "-",
+    "modulo_op": "\\bmod",
+    "lt_op": " < ",
+    "gt_op": " > ",
+    "lte_op": " \\le ",
+    "gte_op": " \\ge ",
+    "eq_op": " == ",
+    "neq_op": " \\ne ",
+    "in_op": " \\in ",
+    "not_in_op": " \\notin ",
+    "is_op": " \\;\\mathrm{is}\\; ",
+    "is_not_op": " \\;\\mathrm{is\\ not}\\; ",
+    "and_op": "\\;\\mathrm{and}\\;",
+    "or_op": "\\;\\mathrm{or}\\;",
 }
 
 
@@ -221,7 +272,8 @@ class LatexRenderer(BaseRenderer):
     The class attributes below are the structural tokens; override them in a
     subclass to change the document wrappers.
     """
-    name = 'latex'
+
+    name = "latex"
 
     # Math groups are set flush-left as displaystyle boxes (not centred
     # displays), so they line up with the prose and show a nested block's indent.
@@ -247,28 +299,23 @@ class LatexRenderer(BaseRenderer):
     OPERATOR_SYMBOLS = OPERATOR_SYMBOLS
     MATH_FUNCS = MATH_FUNCS
 
-    def create_context(
-        self,
-        **kwargs
-    ):
+    def create_context(self, **kwargs):
         # Spacing inside math mode is insignificant, so space/newline stay plain
         # whitespace; all LaTeX structure is added by ``join_item``.
         context = BaseRenderContext(
             global_context=RenderContext(
-                space=' ',
-                newline='\n',
-                indent='',
+                space=" ",
+                newline="\n",
+                indent="",
                 lpar="\\left(",
                 rpar="\\right)",
-                **kwargs
+                **kwargs,
             ),
-            line_context=RenderContext.sparse()
+            line_context=RenderContext.sparse(),
         )
         return context
 
-    def complete(
-        self, tree: list, base_context: BRC
-    ):
+    def complete(self, tree: list, base_context: BRC):
         body = self.join(tree, base_context)
         return body.strip() + "\n"
 
@@ -315,8 +362,16 @@ class LatexRenderer(BaseRenderer):
         Prefix a text paragraph with PARAGRAPH (``\\noindent``) unless it is
         already a complete structural command (a heading or a math group).
         """
-        if text.startswith(("\\section", "\\subsection", "\\subsubsection",
-                            "\\paragraph", self.MATH_SKIP, self.PARAGRAPH)):
+        if text.startswith(
+            (
+                "\\section",
+                "\\subsection",
+                "\\subsubsection",
+                "\\paragraph",
+                self.MATH_SKIP,
+                self.PARAGRAPH,
+            )
+        ):
             return text
         return f"{self.PARAGRAPH}{text}"
 
@@ -357,8 +412,11 @@ class LatexRenderer(BaseRenderer):
         if parts and parts[0] == "":
             return ""
         comment_row = ""
-        if (parts and parts[-1].startswith(self.COMMENT_OPEN)
-                and parts.count(context.assign) > 1):
+        if (
+            parts
+            and parts[-1].startswith(self.COMMENT_OPEN)
+            and parts.count(context.assign) > 1
+        ):
             comment_row = f"{self.ROW_SEP}&{parts.pop()}"
         if context.assign in parts:
             idx = parts.index(context.assign)
@@ -378,7 +436,8 @@ class LatexRenderer(BaseRenderer):
         _ = base_context.current.space
         has_comments = any(
             cell is not None and len(cell) > 3 and str(cell[3])
-            for row in rows for cell in row
+            for row in rows
+            for cell in row
         )
         lines = []
         for row in rows:
@@ -420,18 +479,19 @@ LR = LatexRenderer
 
 ## TEXT-MODE HANDLERS
 
-@LR.register('heading')
+
+@LR.register("heading")
 def render_heading(renderer: LR, node: Heading, base_context: BRC) -> str:
     level = min(node.heading_level, len(renderer.HEADINGS)) - 1
     return f"\\{renderer.HEADINGS[level]}{{{latex_prose(node.content)}}}"
 
 
-@LR.register('comment_line')
+@LR.register("comment_line")
 def render_comment_line(renderer: LR, node: CommentLine, base_context: BRC) -> str:
     return latex_prose(node.content)
 
 
-@LR.register('import')
+@LR.register("import")
 def render_import(renderer: LR, node: Import, base_context: BRC) -> str:
     """
     An import renders as a single typewriter line of the Python source.
@@ -442,8 +502,11 @@ def render_import(renderer: LR, node: Import, base_context: BRC) -> str:
 def import_source(node: Import) -> str:
     """The Python source of an import statement, rebuilt from its node."""
     names = ", ".join(
-        f"{name.identifier} as {name.value}" if name.value is not None
-        else f"{name.identifier}"
+        (
+            f"{name.identifier} as {name.value}"
+            if name.value is not None
+            else f"{name.identifier}"
+        )
         for name in node.names
     )
     if node.import_from:
@@ -457,8 +520,8 @@ def import_source(node: Import) -> str:
 
 @LR.register("header:if_block")
 def if_block_header(renderer: LR, node: IfBlock, base_context: BRC) -> str:
-    sym_expr = render_condition(renderer, node.test, base_context, 'sym')
-    num_expr = render_condition(renderer, node.test, base_context, 'num')
+    sym_expr = render_condition(renderer, node.test, base_context, "sym")
+    num_expr = render_condition(renderer, node.test, base_context, "num")
     # Fixed-size \\bigl( \\bigr) rather than \\left( \\right): TeX cannot break
     # a line inside a \\left...\\right group, and a long condition must wrap.
     return (
@@ -469,7 +532,7 @@ def if_block_header(renderer: LR, node: IfBlock, base_context: BRC) -> str:
 
 @LR.register("header:for_block")
 def for_block_header(renderer: LR, node: ForBlock, base_context: BRC) -> str:
-    base_context.line_context.current_mode = 'sym'
+    base_context.line_context.current_mode = "sym"
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     return f"Iterating over each ${target}$ in ${iterable}$:"
@@ -477,16 +540,16 @@ def for_block_header(renderer: LR, node: ForBlock, base_context: BRC) -> str:
 
 @LR.register("header:function_block")
 def function_block_header(renderer: LR, node: FunctionBlock, base_context: BRC) -> str:
-    base_context.line_context.current_mode = 'sym'
+    base_context.line_context.current_mode = "sym"
     name = "".join(
-        renderer.render(part, base_context) if hasattr(part, 'type') else str(part)
+        renderer.render(part, base_context) if hasattr(part, "type") else str(part)
         for part in node.function_name
     )
     params = ", ".join(str(param) for param in node.params)
     return f"Evaluating ${name}\\left({params}\\right)$:"
 
 
-@LR.register('function_call')
+@LR.register("function_call")
 def render_function_call(renderer: LR, node: FunctionCall, base_context: BRC) -> str:
     """
     A function's name and namespace are symbols, not values, so they render
@@ -496,14 +559,14 @@ def render_function_call(renderer: LR, node: FunctionCall, base_context: BRC) ->
     rather than re-rendering (which would apply the non-idempotent swaps twice).
     """
     context = base_context.current
-    symbolic = getattr(context, 'current_mode', 'sym') == 'sym'
+    symbolic = getattr(context, "current_mode", "sym") == "sym"
     namespace_node = node.namespace
-    if not namespace_node or getattr(namespace_node, 'identifier', None) == '__main__':
-        namespace = ''
+    if not namespace_node or getattr(namespace_node, "identifier", None) == "__main__":
+        namespace = ""
     elif symbolic:
         namespace = renderer.render(namespace_node, base_context)
     else:
-        namespace = getattr(namespace_node, 'identifier', '')
+        namespace = getattr(namespace_node, "identifier", "")
     if symbolic:
         function_name = renderer.render(node.function_name, base_context)
     else:
@@ -513,7 +576,7 @@ def render_function_call(renderer: LR, node: FunctionCall, base_context: BRC) ->
     return f"{prefix}{function_name}{node.pre}{args}{node.post}"
 
 
-@LR.register('keyword')
+@LR.register("keyword")
 def render_keyword(renderer: LR, node: Keyword, base_context: BRC) -> str:
     """
     A keyword argument. The keyword is a symbol in both columns, typeset like
@@ -526,8 +589,10 @@ def render_keyword(renderer: LR, node: Keyword, base_context: BRC) -> str:
     return f"{latex_identifier(node.arg)} = {value}"
 
 
-@LR.register('calcs_block:pre')
-def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> CalcsBlock:
+@LR.register("calcs_block:pre")
+def calcs_block_pre_post(
+    renderer: LR, node: CalcsBlock, base_context: BRC
+) -> CalcsBlock:
     """
     Marks the body of a CalcsBlock as a math group: ``join_item`` recognises
     the MATH_OPEN/MATH_CLOSE sentinels and joins the rows between them as one
@@ -539,6 +604,7 @@ def calcs_block_pre_post(renderer: LR, node: CalcsBlock, base_context: BRC) -> C
 
 
 ## SWAP RULES
+
 
 @LR.register("name:sym")
 def swap_identifier(renderer: LR, node: Name, base_context: BRC) -> Name:
@@ -552,7 +618,7 @@ def swap_identifier(renderer: LR, node: Name, base_context: BRC) -> Name:
     return node
 
 
-@LR.register('attribute')
+@LR.register("attribute")
 def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     """
     An attribute access. Math-library namespaces are dropped so that constants
@@ -561,16 +627,16 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     column shows the captured value, as for a Name.
     """
     context = base_context.current
-    if context.current_mode == 'num' and not isinstance(node.value, NoValue):
+    if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
-    identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(node.identifier)
+    identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(
+        node.identifier
+    )
     namespace = node.namespace
-    if namespace in ('', '__main__', None) or namespace in MATH_NAMESPACES:
+    if namespace in ("", "__main__", None) or namespace in MATH_NAMESPACES:
         return identifier
     namespace = ".".join(latex_identifier(part) for part in namespace.split("."))
     return f"{namespace}.{identifier}"
-
-
 
 
 @LR.register("mult_op:pre")
@@ -612,12 +678,12 @@ def swap_unary_not(renderer: LR, node: HcUnaryOp, base_context: BRC) -> HcUnaryO
 def _wrap_signed(rendered: str, base_context: BRC) -> str:
     """Parenthesise an operand that renders with a leading sign."""
     context = base_context.current
-    if rendered.lstrip().startswith(('-', '+')):
+    if rendered.lstrip().startswith(("-", "+")):
         return f"{context.lpar}{rendered}{context.rpar}"
     return rendered
 
 
-@LR.register('pow_op')
+@LR.register("pow_op")
 def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
     """
     ``{base}^{exponent}``. The exponent is braced, so it never needs parens. The
@@ -627,7 +693,7 @@ def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
     context = base_context.current
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
-    base_pre = OP_PRECEDENCE.get(type(node.left), float('inf'))
+    base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
     if base_pre <= OP_PRECEDENCE[PowOp]:
         base = f"{context.lpar}{base}{context.rpar}"
     else:
@@ -635,7 +701,7 @@ def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
     return f"{base}^{{{exponent}}}"
 
 
-@LR.register('div_op')
+@LR.register("div_op")
 def render_div_op(renderer: LR, node: DivOp, base_context: BRC) -> str:
     """``\\frac{num}{den}``: the fraction bar groups both operands, so no parens."""
     numerator = renderer.render_node(node.left, base_context)
@@ -643,7 +709,7 @@ def render_div_op(renderer: LR, node: DivOp, base_context: BRC) -> str:
     return f"\\frac{{{numerator}}}{{{denominator}}}"
 
 
-@LR.register('floor_op')
+@LR.register("floor_op")
 def render_floor_op(renderer: LR, node: FloorOp, base_context: BRC) -> str:
     numerator = renderer.render_node(node.left, base_context)
     denominator = renderer.render_node(node.right, base_context)
@@ -651,6 +717,7 @@ def render_floor_op(renderer: LR, node: FloorOp, base_context: BRC) -> str:
 
 
 ## VALUES
+
 
 def format_latex_number(value, format_code: str) -> str:
     """
@@ -679,7 +746,7 @@ def format_latex_number(value, format_code: str) -> str:
     return f"{mantissa} \\times 10^{{{power}}}"
 
 
-@LR.register('constant')
+@LR.register("constant")
 def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
     value = node.value
     fc = base_context.current.format_code
@@ -711,25 +778,25 @@ def join_items(renderer: LR, items: list[str]) -> str:
     return ", ".join(items)
 
 
-@LR.register('list')
+@LR.register("list")
 def render_list(renderer: LR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return f"[{join_items(renderer, elems)}]"
 
 
-@LR.register('tuple')
+@LR.register("tuple")
 def render_tuple(renderer: LR, node: Tuple, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return f"({join_items(renderer, elems)})"
 
 
-@LR.register('set')
+@LR.register("set")
 def render_set(renderer: LR, node: Set, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return f"\\{{{join_items(renderer, elems)}\\}}"
 
 
-@LR.register('dictionary')
+@LR.register("dictionary")
 def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
     keys = [renderer.render(elem, base_context) for elem in node.keys]
     values = [renderer.render(elem, base_context) for elem in node.values]
@@ -737,7 +804,7 @@ def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
     return f"\\{{{join_items(renderer, items)}\\}}"
 
 
-@LR.register('inline_comment')
+@LR.register("inline_comment")
 def render_inline_comment(renderer: LR, node: InlineComment, base_context: BRC) -> str:
     return f"{renderer.COMMENT_OPEN}{latex_prose(node.content)}{renderer.COMMENT_CLOSE}"
 
@@ -758,16 +825,21 @@ def swap_math_constants(renderer: LR, node: Attribute, base_context: BRC) -> Att
     dropping the module namespace. Idempotent: once swapped, the namespace is
     empty and the rule no longer matches.
     """
-    if node.namespace in ("math", "cmath", "numpy", "np") and node.identifier in MATH_CONSTANTS:
+    if (
+        node.namespace in ("math", "cmath", "numpy", "np")
+        and node.identifier in MATH_CONSTANTS
+    ):
         node.namespace = ""
         node.identifier = MATH_CONSTANTS[node.identifier]
     return node
 
 
 @LR.register("function_call:pre")
-def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+def swap_func_symbols(
+    renderer: LR, node: FunctionCall, base_context: BRC
+) -> FunctionCall:
     """
-    Swap function names for special function symbols in Latex. e.g. swap a ``sqrt(...)`` call's 
+    Swap function names for special function symbols in Latex. e.g. swap a ``sqrt(...)`` call's
     function name for the '\\sqrt{}' symbol.
 
     Registered as a 'pre' rule on function_call: the function name is shown in
@@ -778,29 +850,29 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
     # A name that has already been swapped (a LaTeX command, or emptied for
     # floor/ceil) must be left alone so the second pass does not re-wrap it.
     identifier = node.function_name.identifier
-    if identifier == '' or identifier.startswith('\\'):
+    if identifier == "" or identifier.startswith("\\"):
         return node
-    node.pre = '\\left('
-    node.post = '\\right)'
+    node.pre = "\\left("
+    node.post = "\\right)"
     # A math-library prefix reads as noise on a math function (e.g.
     # 'math.\\lfloor x\\rfloor'), so drop the namespace, as for attributes.
-    if getattr(node.namespace, 'identifier', None) in MATH_NAMESPACES:
+    if getattr(node.namespace, "identifier", None) in MATH_NAMESPACES:
         node.namespace = deque()
-    if node.function_name.identifier == 'sqrt':
-        node.function_name.identifier = '\\sqrt'
-        node.function_name.value = '\\sqrt'
-        node.pre = '{'
-        node.post = '}'
-    elif node.function_name.identifier == 'floor':
-        node.function_name.identifier = ''
-        node.function_name.value = ''
-        node.pre = '\\lfloor '
-        node.post = '\\rfloor'
-    elif node.function_name.identifier == 'ceil':
-        node.function_name.identifier = ''
-        node.function_name.value = ''
-        node.pre = '\\lceil '
-        node.post = '\\rceil'
+    if node.function_name.identifier == "sqrt":
+        node.function_name.identifier = "\\sqrt"
+        node.function_name.value = "\\sqrt"
+        node.pre = "{"
+        node.post = "}"
+    elif node.function_name.identifier == "floor":
+        node.function_name.identifier = ""
+        node.function_name.value = ""
+        node.pre = "\\lfloor "
+        node.post = "\\rfloor"
+    elif node.function_name.identifier == "ceil":
+        node.function_name.identifier = ""
+        node.function_name.value = ""
+        node.pre = "\\lceil "
+        node.post = "\\rceil"
     elif node.function_name.identifier in renderer.MATH_FUNCS:
         func_identifier = node.function_name.identifier
         latex_func_name = renderer.MATH_FUNCS[func_identifier]
@@ -810,7 +882,7 @@ def swap_func_symbols(renderer: LR, node: FunctionCall, base_context: BRC) -> Fu
         # A method (one that keeps its namespace) is set upright with ordinary
         # spacing; \\operatorname would add an operator's gap after the '.'.
         new_func_name = node.function_name.identifier.replace("_", "\\_")
-        is_method = getattr(node.namespace, 'identifier', '') not in ('', '__main__')
+        is_method = getattr(node.namespace, "identifier", "") not in ("", "__main__")
         wrapper = "\\mathrm" if is_method else "\\operatorname"
         wrapped_func_name = f"{wrapper}{{{new_func_name}}}"
         node.function_name.identifier = wrapped_func_name

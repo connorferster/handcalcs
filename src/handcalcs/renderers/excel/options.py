@@ -4,6 +4,7 @@ Validation of the ``ExcelRenderer`` configuration given at instantiation.
 Every option is checked here, when the renderer is created, so a bad colour or
 sheet name fails immediately instead of when the workbook is written.
 """
+
 from __future__ import annotations
 import re
 from typing import Any, Optional
@@ -38,7 +39,10 @@ def normalize_color(value: Any, option: str) -> Optional[str]:
             f"{option}: {value!r} is not a hex colour; use '#RRGGBB', 'RRGGBB' or an (r, g, b) tuple."
         )
     if isinstance(value, (tuple, list)) and len(value) == 3:
-        if all(isinstance(c, int) and not isinstance(c, bool) and 0 <= c <= 255 for c in value):
+        if all(
+            isinstance(c, int) and not isinstance(c, bool) and 0 <= c <= 255
+            for c in value
+        ):
             return "#{:02X}{:02X}{:02X}".format(*value)
         raise ValueError(f"{option}: {value!r} must hold three ints from 0 to 255.")
     raise ValueError(
@@ -63,7 +67,9 @@ def merge_cell_format(user: Optional[dict], defaults: dict, option: str) -> dict
         )
     merged = dict(defaults) | user
     if not isinstance(merged["bold"], bool):
-        raise ValueError(f"{option}['bold'] must be True or False, not {merged['bold']!r}.")
+        raise ValueError(
+            f"{option}['bold'] must be True or False, not {merged['bold']!r}."
+        )
     for key in ("text_color", "cell_color"):
         merged[key] = normalize_color(merged[key], f"{option}[{key!r}]")
     return merged
@@ -74,10 +80,14 @@ def validate_sheet_name(name: Any) -> str:
     if not isinstance(name, str) or not name:
         raise ValueError("sheet_name must be a non-empty string.")
     if len(name) > 31:
-        raise ValueError(f"sheet_name {name!r} is longer than Excel's 31-character limit.")
+        raise ValueError(
+            f"sheet_name {name!r} is longer than Excel's 31-character limit."
+        )
     bad = _SHEET_NAME_FORBIDDEN & set(name)
     if bad:
-        raise ValueError(f"sheet_name {name!r} contains characters Excel forbids: {sorted(bad)}.")
+        raise ValueError(
+            f"sheet_name {name!r} contains characters Excel forbids: {sorted(bad)}."
+        )
     if name.startswith("'") or name.endswith("'"):
         raise ValueError(f"sheet_name {name!r} cannot begin or end with an apostrophe.")
     if name.lower() == "history":
