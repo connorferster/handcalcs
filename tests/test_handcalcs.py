@@ -101,3 +101,16 @@ def test_function_call_keyword_arguments_are_rendered(renderer):
         " = datetime.timedelta(days=3, hours=2) = 3 days, 2:00:00"
     ) in out
     assert "r = f(1, **opts) = f(1, **{b: 2}) = 3" in out
+
+
+def test_line_after_an_ignored_first_line_renders_whole():
+    # An ignored (``# hc: -i``) first line renders to '', which used to make the
+    # block body read as a header plus a block, so the next calc split into one
+    # line per component (``b`` / ``=`` / ``2``), and LaTeX dropped it entirely.
+    from handcalcs.renderers import HTMLRenderer, LatexRenderer, MarkdownRenderer
+
+    source = "a = 1 # hc: -i\nb = 2\nc = b * 3"
+    assert HandCalcs(PlainTextRenderer())(source).splitlines() == ["b = 2", "c = b * 3 = 2 * 3 = 6"]
+    assert "b &= 2" in HandCalcs(LatexRenderer())(source)
+    assert "b &= 2" in HandCalcs(MarkdownRenderer())(source)
+    assert '<div class="hc-line">b = 2</div>' in HandCalcs(HTMLRenderer())(source)
