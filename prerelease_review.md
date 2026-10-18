@@ -15,7 +15,7 @@
 - The Markdown, LaTeX, HTML, plain-text and Excel renderers all render the demo.
 - The new Sphinx docs build with zero warnings.
 
-Several problems would still give users a broken experience on day one. One is that **`import handcalcs` fails on a clean `pip install`**, and two others affect a supported interface or Python version. Each one is small to fix. Most of the remaining work is merging and housekeeping: docs, the ReportLab extraction, packaging metadata and CI.
+Several problems would still give users a broken experience on day one. One is that **`import handcalcs` fails on a clean `pip install`**, and two others affect a supported interface or Python version. Each one is small to fix. Most of the remaining work is merging and housekeeping: docs, packaging metadata and CI. The ReportLab extraction is done on the handcalcs side (§4).
 
 Suggested path: fix the blockers (§1), merge the docs branch, publish **2.0.0rc1** to PyPI as a pre-release, smoke-test it from PyPI in a fresh notebook, then tag 2.0.0.
 
@@ -76,6 +76,9 @@ Subscripts and conditional expressions are common in calc sheets, so I'd fix tho
 ### 2.5 HTML escaping is inconsistent
 Inline comments are escaped, but comment lines, headings and string values are not. `# a < b & c` emits raw `a < b & c`, which is malformed HTML, and `s = '<i>hi</i>'` injects markup. If raw HTML in comments is intentional, document it. String values should be escaped in any case.
 
+### 2.6 An unknown `# hc:` flag exits the process
+Comment commands are parsed with `argparse`, which calls `sys.exit(2)` on an unrecognised option. A typo such as `# hc: --mdoe no_num` therefore raises `SystemExit` and prints argparse's usage text, instead of raising an ordinary error that names the line. Under `HandCalcs()` in a script, that ends the whole program. Found 2026-10-18. The fix is `argparse.ArgumentParser(exit_on_error=False)` plus overriding `error()` to raise a `ValueError` (`parsing/commands.py`).
+
 ---
 
 ## 3. Documentation
@@ -100,14 +103,14 @@ Inline comments are escaped, but comment lines, headings and string values are n
 
 ## 4. `ym_handcalcs` / ReportLab renderer (known issue)
 
-**State:** `ym_handcalcs` exists only on `features/reportlab_renderer` (23 commits ahead and 31 behind `hc2/dev`). It is **not** in `hc2/dev` and not in the wheel, which is correct for the release. Locally, `src/ym_handcalcs/` holds only stale `.ipynb_checkpoints` files.
+**Update, 2026-10-18: resolved on the handcalcs side.** Nothing ReportLab-related remains in `hc2/dev`. Everything this section originally listed has been dealt with:
 
-Findings that affect the move:
+1. **Core changes:** they were ported to `hc2/dev` separately. PR #296 brought the `--mode` command and the `no_num`/`no_sym`/`drop_numeric`/`drop_symbolic` aliases (`mode_columns()` in `renderers/base.py`). They ship in 2.0, but the docs branch does not document them yet.
+2. **Breakage:** `ReportLabRenderer` now subclasses `BaseRenderer`, not `HTMLRenderer`, and implements its own inline rules. HTML changes therefore no longer reach the PDF, and all of its tests pass against current `hc2/dev`. Two guard tests keep it that way.
+3. **Internals:** it now depends only on `handcalcs.renderers.base` and the parser node classes, and a test enforces that. The target package should still pin `handcalcs>=2.0,<2.1` until those are declared stable.
+4. **Core fixes found along the way, now merged:** PR #297 fixes a calc after an ignored (`# hc: -i`) first line splitting into one line per part (LaTeX dropped it entirely). PR #298 is an HTML renderer tidy-up with byte-identical output.
 
-1. **The branch also changes handcalcs core, and those changes must come back separately.** The changes are the `--mode` comment command with `JoinWords` (`parsing/commands.py`), plus `MODE_COLUMNS`, `MODE_DROP_ALIASES` and `mode_columns()` with the `no_num`/`no_sym`/`drop_numeric`/`drop_symbolic` aliases (`renderers/base.py`). The branch adds tests for them in `test_handcalcs.py`, `test_render_nodes.py` and `test_parser.py`. Cherry-pick or re-PR these into `hc2/dev` *before* 2.0.0, or decide that they wait for 2.1. They are not ReportLab-specific, but the docs' "mode" section should match whatever ships.
-2. **It is already broken against current `hc2/dev`.** After a trial merge, 13 tests in `test_reportlab_renderer.py` fail. The restyled `HTMLRenderer` now emits `<span class="hc-result">`, and ReportLab's paragraph parser rejects it (`paraparser: syntax error: invalid attribute name class`). `ReportLabRenderer` subclasses `HTMLRenderer`, so it needs to override the result wrapper, or `HTMLRenderer` needs a hook for it.
-3. **It imports internals.** It imports `handcalcs.renderers.base` (`BaseRenderContext`, `RenderContext`, `render_condition`), `handcalcs.renderers.html.HTMLRenderer` and node classes from `handcalcs.parsing.*`. Once it lives in another package, these become de facto public API. Either declare them stable in v2 (the "Building renderers" docs already treat them as such), or have the target package pin `handcalcs>=2.0,<2.1` until they are.
-4. **Move checklist:** copy `src/ym_handcalcs/`, `tests/test_reportlab_renderer.py`, `tests/golden/reportlab_*.txt` and `scripts/reportlab_demo_check.py` to the target library. Add `reportlab>=5.0.1` there (on the branch it is only in handcalcs' dev group). Fix item 2, and keep `reportlab_demo/` in `.gitignore` or drop it.
+**Still open:** the move itself. The pushed `features/reportlab_renderer` branch (4821cf1) is the only copy of `ym_handcalcs`; `ymprint` does not have it yet. Its core code is identical to `hc2/dev`, and the branch adds only ReportLab files: `src/ym_handcalcs/`, `tests/test_reportlab_renderer.py`, `tests/golden/reportlab_*.txt`, `scripts/reportlab_demo_check.py`, `reportlab_renderer_plan.md`, the `reportlab` dev dependency and a `reportlab_demo/` `.gitignore` line. Copy them to the target library, add `handcalcs` and `reportlab` as dependencies there, then delete the branch.
 
 ---
 
@@ -170,7 +173,7 @@ Findings that affect the move:
 4. [ ] §2.1: the `handcalcs.render` shim, an optional `renderer` in `@handcalc`, and `load_ipython_extension`.
 5. [ ] §2.2: surface exceptions from `%%render`.
 6. [ ] §2.3 (at least the crash, subscripts and conditional expressions) and §2.4 (the `create_context` merge).
-7. [ ] Decide whether the `--mode`/`no_num` core changes from the ReportLab branch ship in 2.0 (§4.1); cherry-pick them if so.
+7. [x] The `--mode`/`no_num` core changes from the ReportLab branch ship in 2.0 (PR #296). Still to do: document them on the docs branch.
 8. [ ] Delete `superceded/`, `function_recursion/` and the stale root files (P2, P4, P7). Add `__version__`, the metadata and the `jupyter` extra (P3, P5, P6).
 9. [ ] Run `black src`; point CI at `hc2/dev`; add the wheel smoke-test job (B5, §6).
 10. [ ] Merge `docs/prerelease_docs_upa` → `hc2/dev`; update the decorator, gotchas and caveat pages for the fixes; rewrite the README (B6, §3).
@@ -178,4 +181,4 @@ Findings that affect the move:
 12. [ ] PR `hc2/dev` → `main` with green CI on 3.11–3.14 × 3 OSes.
 13. [ ] Publish `2.0.0rc1` as a GitHub pre-release. Then `pip install --pre handcalcs` in a fresh venv and notebook and run the demo, the decorator, `%%render` and Excel.
 14. [ ] Bump to `2.0.0`, tag and release. Post the migration notes.
-15. [ ] Separately: move `ym_handcalcs` to its target library, fix the `hc-result` span issue there, and pin `handcalcs>=2.0,<2.1` (§4).
+15. [ ] Separately: copy `ym_handcalcs` from `features/reportlab_renderer` to its target library and pin `handcalcs>=2.0,<2.1` there; then delete the branch (§4). The `hc-result` breakage is already fixed.
