@@ -113,8 +113,9 @@ def _reify(value):
     """
     Wrap a raw runtime Python value in the matching HcNode so it renders through
     the existing node handlers (and their format-code logic). A scalar becomes a
-    ``Constant``; ``list``/``tuple``/``set``/``dict`` become the corresponding
-    collection node, recursively. An existing HcNode is returned unchanged. This
+    ``Constant`` marked ``calculated`` (so the format code applies to it);
+    ``list``/``tuple``/``set``/``dict`` become the corresponding collection
+    node, recursively. An existing HcNode is returned unchanged. This
     keeps all value formatting in one place (``render_constant`` and the
     collection handlers) rather than duplicating it.
     """
@@ -131,7 +132,7 @@ def _reify(value):
             keys=deque(_reify(k) for k in value.keys()),
             values=deque(_reify(v) for v in value.values()),
         )
-    return Constant(value=value)
+    return Constant(value=value, calculated=True)
 
 
 def _copy_rule_handlers(
@@ -629,6 +630,16 @@ def render_novalue(
     return ""
 
 
+def is_source_number(node: Constant) -> bool:
+    """True if ``node`` is a number literal written in the source."""
+    return (
+        not node.calculated
+        and bool(node.source_text)
+        and isinstance(node.value, (int, float, complex))
+        and not isinstance(node.value, bool)
+    )
+
+
 @BaseRenderer.register("constant")
 def render_constant(
     renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext
@@ -642,6 +653,11 @@ def render_constant(
     # such as '.5g' would render literally instead of the value.
     if isinstance(node.value, (datetime.date, datetime.time)):
         return f"{node.value}"
+    # A number literal from the source is shown as written: the format code is
+    # for calculated values (substitutions and results), not the formula's own
+    # coefficients and exponents.
+    if is_source_number(node):
+        return node.source_text
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError):  # Format code not implemented / not a scalar
