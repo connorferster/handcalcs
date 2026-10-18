@@ -79,6 +79,9 @@ Inline comments are escaped, but comment lines, headings and string values are n
 ### 2.6 An unknown `# hc:` flag exits the process
 Comment commands are parsed with `argparse`, which calls `sys.exit(2)` on an unrecognised option. A typo such as `# hc: --mdoe no_num` therefore raises `SystemExit` and prints argparse's usage text, instead of raising an ordinary error that names the line. Under `HandCalcs()` in a script, that ends the whole program. Found 2026-10-18. The fix is `argparse.ArgumentParser(exit_on_error=False)` plus overriding `error()` to raise a `ValueError` (`parsing/commands.py`).
 
+### 2.7 A format code is applied to literal exponents (LaTeX/Markdown)
+With `# hc: -f .3f`, `a**2` renders as `a^{2.000}` in the LaTeX and Markdown renderers; the plain-text renderer is unaffected. Found 2026-10-18. Exponent literals should keep their source form.
+
 ---
 
 ## 3. Documentation
@@ -167,16 +170,16 @@ Comment commands are parsed with `argparse`, which calls `sys.exit(2)` on an unr
 
 ## 9. Suggested release checklist (in order)
 
-1. [ ] B1: fix the `ImportError` guard in `__init__.py` and add an IPython-less import test.
-2. [ ] B4: fix the `exec` keyword in `comment_parser.py`; add `requires-python = ">=3.11"`.
-3. [ ] B2 and B3: decorator dedent and body extraction, plus content assertions in `test_decorator.py`.
+1. [x] B1: fix the `ImportError` guard in `__init__.py` and add an IPython-less import test. *(branch `fixes/release_blockers`)*
+2. [x] B4: fix the `exec` keyword in `comment_parser.py`; add `requires-python = ">=3.11"`. *(`fixes/release_blockers`)*
+3. [x] B2 and B3: decorator dedent and body extraction, plus content assertions in `test_decorator.py`. *(`fixes/release_blockers`; also needed innerscope>=0.8.0 for closures on 3.13+)*
 4. [ ] §2.1: the `handcalcs.render` shim, an optional `renderer` in `@handcalc`, and `load_ipython_extension`.
 5. [ ] §2.2: surface exceptions from `%%render`.
 6. [ ] §2.3 (at least the crash, subscripts and conditional expressions) and §2.4 (the `create_context` merge).
 7. [x] The `--mode`/`no_num` core changes from the ReportLab branch ship in 2.0 (PR #296). Still to do: document them on the docs branch.
 8. [ ] Delete `superceded/`, `function_recursion/` and the stale root files (P2, P4, P7). Add `__version__`, the metadata and the `jupyter` extra (P3, P5, P6).
-9. [ ] Run `black src`; point CI at `hc2/dev`; add the wheel smoke-test job (B5, §6).
-10. [ ] Merge `docs/prerelease_docs_upa` → `hc2/dev`; update the decorator, gotchas and caveat pages for the fixes; rewrite the README (B6, §3).
+9. [x] Run `black src`; point CI at `hc2/dev`; add the wheel smoke-test job (B5, §6). *(`fixes/release_blockers`; also fixed the matrix, which tested 3.13 in every cell)*
+10. [ ] Merge `docs/prerelease_docs_upa` → `hc2/dev`; update the decorator, gotchas and caveat pages for the fixes. The README rewrite (B6) is done on `fixes/release_blockers`; add the hosted docs link at its TODO.
 11. [ ] Set up docs hosting; set `HC_SOURCE_REF = "v2.0.0"`.
 12. [ ] PR `hc2/dev` → `main` with green CI on 3.11–3.14 × 3 OSes.
 13. [ ] Publish `2.0.0rc1` as a GitHub pre-release. Then `pip install --pre handcalcs` in a fresh venv and notebook and run the demo, the decorator, `%%render` and Excel.
