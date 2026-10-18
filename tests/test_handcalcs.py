@@ -101,3 +101,44 @@ def test_function_call_keyword_arguments_are_rendered(renderer):
         " = datetime.timedelta(days=3, hours=2) = 3 days, 2:00:00"
     ) in out
     assert "r = f(1, **opts) = f(1, **{b: 2}) = 3" in out
+
+
+def test_mode_drop_aliases_from_comment_commands():
+    # An inline `# hc: mode=...` applies to its own line only; a standalone one
+    # persists until another command changes it.
+    source = (
+        "a = 2\nb = 3\n"
+        "c = a + b  # hc: mode='no_num'\n"
+        "d = a * b  # hc: mode='no_sym'\n"
+        "e = a - b\n"
+        "# hc: mode='drop_numeric'\n"
+        "f = a + b\n"
+        "# hc: mode='full'\n"
+        "g = a + b\n"
+    )
+    lines = HandCalcs(PlainTextRenderer())(source).splitlines()
+    assert "c = a + b = 5" in lines
+    assert "d = 2 * 3 = 6" in lines
+    assert "e = a - b = 2 - 3 = -1" in lines
+    assert "f = a + b = 5" in lines
+    assert "g = a + b = 2 + 3 = 5" in lines
+
+
+def test_mode_flag_form_of_comment_commands():
+    # `--mode` is the flag form of `mode=...`; several words join into one mode.
+    source = (
+        "a = 2\nb = 3\n"
+        "c = a + b  # hc: --mode no_num\n"
+        "d = a * b  # hc: --mode no_sym\n"
+        "e = a - b  # hc: --mode no_num no_sym\n"
+        "# hc: --mode drop_numeric\n"
+        "f = a + b\n"
+        "# hc: --mode full\n"
+        "g = a + b\n"
+    )
+    lines = HandCalcs(PlainTextRenderer())(source).splitlines()
+    assert "c = a + b = 5" in lines
+    assert "d = 2 * 3 = 6" in lines
+    assert "e = -1" in lines
+    assert "f = a + b = 5" in lines
+    assert "g = a + b = 2 + 3 = 5" in lines
