@@ -640,6 +640,11 @@ def is_source_number(node: Constant) -> bool:
     )
 
 
+def literal_text(node: Constant) -> str:
+    """A number literal's source text without digit-grouping underscores."""
+    return node.source_text.replace("_", "")
+
+
 @BaseRenderer.register("constant")
 def render_constant(
     renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext
@@ -657,7 +662,7 @@ def render_constant(
     # for calculated values (substitutions and results), not the formula's own
     # coefficients and exponents.
     if is_source_number(node):
-        return node.source_text
+        return literal_text(node)
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError):  # Format code not implemented / not a scalar

@@ -8,7 +8,7 @@ from collections import deque
 from handcalcs import HandCalcs, PlainTextRenderer
 from handcalcs.parsing.ast_parser import AST_Parser
 from handcalcs.parsing.nodes import Constant
-from handcalcs.renderers import HTMLRenderer
+from handcalcs.renderers import HTMLRenderer, LatexRenderer, MarkdownRenderer
 from handcalcs.renderers.base import _reify
 
 
@@ -66,3 +66,27 @@ def test_non_numeric_literals_unchanged():
     rendered = HandCalcs(PlainTextRenderer())("a = True\nb = 'text'")
     assert "a = True" in rendered
     assert "b = text" in rendered
+
+
+def test_underscores_dropped():
+    rendered = HandCalcs(PlainTextRenderer())("a = 2.0\nb = 1_000 * a")
+    assert "b = 1000 * a = 1000 * 2 = 2000" in rendered
+
+
+def test_latex_literals_keep_digits_and_typeset_exponents():
+    rendered = HandCalcs(LatexRenderer())(
+        "a = 3.14159\nb = 2 * a**2 + 0.50 * 2.5E-3 * 1e3  # hc: -f .3f"
+    )
+    assert "2 \\cdot a^{2} + 0.50 \\cdot 2.5 \\times 10^{-3} \\cdot 10^{3}" in rendered
+    assert "3.142^{2}" in rendered
+    assert "2.000" not in rendered
+
+
+def test_latex_non_decimal_literal_not_typeset():
+    rendered = HandCalcs(LatexRenderer())("a = 2\nb = 0xe5 * a")
+    assert "0xe5 \\cdot a" in rendered
+
+
+def test_markdown_exponent_is_not_formatted():
+    rendered = HandCalcs(MarkdownRenderer())("a = 2.0\nb = a**2  # hc: -f .3f")
+    assert "a^{2} = 2.000^{2} = 4.000" in rendered

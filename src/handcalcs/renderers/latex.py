@@ -10,6 +10,8 @@ from handcalcs.renderers.base import (
     ContextValueError,
     render_condition,
     OP_PRECEDENCE,
+    is_source_number,
+    literal_text,
 )
 
 # Node type imports only used for typing
@@ -728,6 +730,14 @@ def format_latex_number(value, format_code: str) -> str:
         formatted = f"{value:{format_code}}"
     except (ValueError, TypeError):
         formatted = f"{value}"
+    return typeset_latex_number(formatted)
+
+
+def typeset_latex_number(formatted: str) -> str:
+    """
+    Typeset a number already written out as text: any exponent becomes
+    ``\times 10^{n}`` and infinities and NaN get their maths symbols.
+    """
     if formatted in ("inf", "+inf"):
         return "\\infty"
     if formatted == "-inf":
@@ -752,6 +762,14 @@ def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
     fc = base_context.current.format_code
     if isinstance(value, bool) or value is None:
         return f"\\mathrm{{{value}}}"
+    # A number literal from the source keeps its digits as written (the format
+    # code is for calculated values); only an exponent is typeset.
+    # (A hex, octal or binary literal has no exponent: 0xe5 is not 0x * 10^5.)
+    if is_source_number(node):
+        text = literal_text(node)
+        if isinstance(value, complex) or text.lower().startswith(("0x", "0o", "0b")):
+            return text
+        return typeset_latex_number(text)
     if isinstance(value, str):
         return f"\\text{{``{latex_escape(value)}''}}"
     if isinstance(value, complex):
