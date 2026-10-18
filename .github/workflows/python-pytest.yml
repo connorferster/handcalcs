@@ -27,13 +27,26 @@ jobs:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        # docs/ is ~25 MB of v1 images the tests never read; skipping it
+        # roughly halves checkout time on Windows. (Root files are included.)
+        sparse-checkout: |
+          src
+          tests
+          scripts
+        persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - uses: astral-sh/setup-uv@v6
       with:
+        # A pinned uv skips a GitHub API lookup of the latest release.
+        version: "0.13.1"
         enable-cache: true
+        # Key the cache on the lock file alone: the default glob searches the
+        # whole checkout, which takes ~4 s on Windows.
+        cache-dependency-glob: uv.lock
         # Keep the wheels downloaded from PyPI in the cache too (the default
         # prunes them), so a warm run downloads nothing from pypi.org.
         prune-cache: false
@@ -49,9 +62,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - uses: astral-sh/setup-uv@v6
       with:
+        version: "0.13.1"
         enable-cache: true
+        cache-dependency-glob: uv.lock
         prune-cache: false
     - name: Test black formatted
       run: uv run --locked --only-group lint black src --check
@@ -62,9 +79,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - uses: astral-sh/setup-uv@v6
       with:
+        version: "0.13.1"
         enable-cache: true
+        cache-dependency-glob: uv.lock
         prune-cache: false
     - name: Build sdist and wheel
       run: uv build
