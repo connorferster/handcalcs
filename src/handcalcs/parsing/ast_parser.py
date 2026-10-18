@@ -114,6 +114,7 @@ class AST_Parser:
     functions_cache: ChainMap = field(default_factory=ChainMap)
     ast_cache: dict = field(default_factory=dict)
     show_notimplemented: bool = False
+    source: str = ""
 
     def __post_init__(self):
         pass
@@ -171,6 +172,7 @@ class AST_Parser:
         """
         Returns the handcalcs tree from the source.
         """
+        self.source = source
         self._classify_comments(source)
         ast_tree = ast.parse(source)
         hc_tree = self.ast_parse(ast_tree)
@@ -182,6 +184,7 @@ class AST_Parser:
         Clears existing data out of the parser.
         """
         self.current_block = None
+        self.source = ""
         self.current_line_number = 1
         self.prev_line_number = 0
         self.new_block_from_comment = False
@@ -382,7 +385,8 @@ class AST_Parser:
             node: ast.Name
             val = Name(identifier=node.id, value=self.globals.get(node.id, NoValue()))
         elif isinstance(node, ast.Constant):
-            val = Constant(value=node.value)
+            source_text = ast.get_source_segment(self.source, node) or ""
+            val = Constant(value=node.value, source_text=source_text)
         elif isinstance(node, ast.Compare):
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)

@@ -1,5 +1,5 @@
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 from .null_values import NoValue
 
@@ -24,7 +24,15 @@ class Name(HcNode):
 
 @dataclass
 class Constant(HcNode):
+    """
+    A scalar value: a literal from the source (``calculated=False``, with its
+    text as written in ``source_text``) or a value computed at runtime and shown
+    in a substitution or result (``calculated=True``).
+    """
+
     value: Any
+    source_text: str = field(default="", compare=False)
+    calculated: bool = False
     type: str = "constant"
 
 
