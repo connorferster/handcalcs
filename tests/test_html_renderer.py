@@ -65,3 +65,56 @@ def test_comparisons_are_spaced_and_not_equal_is_a_sign():
 def test_prose_backticks_become_code():
     out = _render("# Use `and` here\na = 1\n", {"a": 1})
     assert "Use <code>and</code> here" in out
+
+
+def _render_with_globals(source, global_ns):
+    r = HTMLRenderer()
+    ctx = r.create_context(global_ns=global_ns)
+    tree = r.render(HcSequence.from_source(source, global_ns, {}), ctx)
+    return r.complete(tree, ctx)
+
+
+def test_math_prefix_is_dropped_from_function_calls():
+    import math
+    out = _render_with_globals(
+        "y = math.sqrt(x) + math.sin(x)\n", {"math": math, "x": 4, "y": 0}
+    )
+    assert "y = √(x) + sin(x) = √(4) + sin(4)" in out
+    assert "math." not in out
+
+
+def test_aliased_math_module_is_recognised():
+    import math
+    out = _render_with_globals("y = m.sqrt(x)\n", {"m": math, "x": 4, "y": 2})
+    assert "y = √(x) = √(4)" in out
+
+
+def test_math_constants_show_as_symbols():
+    import math
+    out = _render_with_globals(
+        "y = math.pi * math.e\nz = math.inf\n", {"math": math, "y": 0, "z": 0}
+    )
+    assert "y = π · e = 3.1416 · 2.7183" in out
+    assert "z = ∞ = inf" in out
+
+
+def test_numpy_prefix_is_dropped_only_for_maths_functions():
+    import math, types
+    np = types.ModuleType("numpy")
+    np.sqrt, np.hypot, np.pi = math.sqrt, math.hypot, math.pi
+    out = _render_with_globals(
+        "y = np.sqrt(x) + np.hypot(x, x)\nz = np.pi\n", {"np": np, "x": 4, "y": 0, "z": 0}
+    )
+    assert "y = √(x) + hypot(x, x)" in out
+    assert "z = π" in out
+    # An array function keeps its prefix.
+    np.linspace = lambda *a: [0]
+    out = _render_with_globals("w = np.linspace(0, 1)\n", {"np": np, "w": [0]})
+    assert "np.linspace(0, 1)" in out
+
+
+def test_other_namespaces_keep_their_prefix():
+    class Beam:
+        e = 3
+    out = _render_with_globals("w = beam.e * 2\n", {"beam": Beam(), "w": 6})
+    assert "beam.e" in out

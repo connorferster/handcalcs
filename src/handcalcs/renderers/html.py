@@ -32,6 +32,7 @@ from handcalcs.parsing.operator_nodes import (
     HcCompOp
 )
 from handcalcs.parsing.inline_nodes import (
+    Attribute,
     InlineComment,
     FunctionCall,
     Compare
@@ -688,6 +689,62 @@ def space_comparison(renderer: HTMLR, rendered, node: HcCompOp, base_context: BR
     _ = base_context.current.space
     symbol = "\u2260" if rendered == "!=" else rendered
     return f"{_}{symbol}{_}"
+
+
+# Modules whose functions and constants read as plain maths, so their module
+# prefix is dropped: ``math.sqrt(x)`` shows as ``√(x)``, ``math.sin(x)`` as
+# ``sin(x)`` and ``math.pi`` as ``π``. Every ``math``/``cmath`` function
+# qualifies; numpy also holds array functions (``np.linspace``), so only its
+# elementwise maths functions do. A module is recognised by its real name (via
+# the render context's ``global_ns``, so ``import math as m`` works) or, when
+# no namespace was supplied, by the conventional alias.
+MATH_MODULES = {"math": "math", "cmath": "cmath", "numpy": "numpy", "np": "numpy"}
+NUMPY_MATH_FUNCTIONS = {
+    "sqrt", "cbrt", "exp", "log", "log2", "log10", "abs", "sin", "cos", "tan",
+    "arcsin", "arccos", "arctan", "arctan2", "sinh", "cosh", "tanh", "degrees",
+    "radians", "deg2rad", "rad2deg", "floor", "ceil", "hypot",
+}
+MATH_CONSTANTS = {"pi": "π", "tau": "τ", "e": "e", "inf": "∞"}
+
+
+def math_module(alias: str, base_context: BRC) -> Optional[str]:
+    """The maths module ('math', 'cmath' or 'numpy') that ``alias`` names, if any."""
+    global_ns = getattr(base_context.current, "global_ns", None) or {}
+    module = getattr(global_ns.get(alias), "__name__", alias)
+    return MATH_MODULES.get(module)
+
+
+@HTMLR.register("function_call:pre")
+def drop_math_namespace(renderer: HTMLR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+    """
+    Drop the module prefix of a maths function call (``math.sqrt(x)`` →
+    ``sqrt(x)``, which ``swap_sqrt_symbol`` then shows as ``√(x)``).
+
+    A mode-independent 'pre' rule, registered before ``swap_sqrt_symbol`` so it
+    still sees the ``sqrt`` name. Clearing the namespace is idempotent, and the
+    base handler renders an empty namespace as nothing.
+    """
+    namespace = getattr(node.namespace, "identifier", None)
+    if not isinstance(namespace, str):
+        return node
+    module = math_module(namespace, base_context)
+    name = getattr(node.function_name, "identifier", None)
+    if module in ("math", "cmath") or (module == "numpy" and name in NUMPY_MATH_FUNCTIONS):
+        node.namespace = deque()
+    return node
+
+
+@HTMLR.register("attribute:sym")
+def swap_math_constants(renderer: HTMLR, node: Attribute, base_context: BRC) -> Attribute:
+    """
+    Show a maths constant as its symbol in the symbolic column: ``math.pi`` →
+    ``π``, ``math.tau`` → ``τ``, ``math.e`` → ``e``, ``math.inf`` → ``∞`` (also
+    for ``cmath`` and numpy). The numeric column still shows the value.
+    """
+    if node.identifier in MATH_CONSTANTS and math_module(node.namespace or "", base_context):
+        node.namespace = ""
+        node.identifier = MATH_CONSTANTS[node.identifier]
+    return node
 
 
 @HTMLR.register("function_call:pre")
