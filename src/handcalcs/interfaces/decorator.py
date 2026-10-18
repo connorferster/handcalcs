@@ -17,9 +17,10 @@ def function_body_source(func) -> str:
     line: the calculation the decorator renders.
 
     The comment lines directly above the first statement belong to the body (a
-    heading or a note opening the calculation). ``inspect.getsource`` returns a
-    nested function or a method still indented, so it is dedented before
-    parsing.
+    heading or a note opening the calculation). A final ``return`` that only
+    names values (``return M`` or ``return M, V``) is left out: the body already
+    shows them. ``inspect.getsource`` returns a nested function or a method
+    still indented, so it is dedented before parsing.
     """
     source = textwrap.dedent(inspect.getsource(func))
     tree = ast.parse(source)
@@ -37,7 +38,21 @@ def function_body_source(func) -> str:
     start = first.lineno - 1
     while start - 1 >= node.lineno and lines[start - 1].lstrip().startswith("#"):
         start -= 1
-    return textwrap.dedent("\n".join(lines[start : node.end_lineno]))
+    end = node.end_lineno
+    last = node.body[-1]
+    if len(node.body) > 1 and returns_names_only(last):
+        end = last.lineno - 1
+    return textwrap.dedent("\n".join(lines[start:end]))
+
+
+def returns_names_only(stmt: ast.stmt) -> bool:
+    """True for ``return``, ``return M`` and ``return M, V``."""
+    if not isinstance(stmt, ast.Return):
+        return False
+    if stmt.value is None:
+        return True
+    values = stmt.value.elts if isinstance(stmt.value, ast.Tuple) else [stmt.value]
+    return all(isinstance(value, ast.Name) for value in values)
 
 
 def handcalc(renderer: BaseRenderer, render_context: Optional[dict] = None):

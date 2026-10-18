@@ -165,3 +165,21 @@ def test_one_line_function():
     value, rendered = double(3)
     assert value == 6
     assert rendered.strip() == "x * 2"
+
+
+def test_a_return_that_only_names_values_is_not_rendered():
+    # ``return e`` would add a bare ``e`` line under ``e = d - 1 = ... = 9``.
+    _value, rendered = calc_plain()
+    assert rendered.splitlines()[-1] == "e = d - 1 = 10 - 1 = 9"
+
+
+def test_a_return_that_computes_is_rendered():
+    @handcalc(PlainTextRenderer())
+    def area(b, h):
+        A = b * h
+        return A / 2
+
+    value, rendered = area(4, 3)
+    assert value == 6
+    # A return expression is shown symbolically (it has no single runtime value).
+    assert rendered.splitlines() == ["A = b * h = 4 * 3 = 12", "A / 2"]
