@@ -79,8 +79,8 @@ Inline comments are escaped, but comment lines, headings and string values are n
 ### 2.6 An unknown `# hc:` flag exits the process
 Comment commands are parsed with `argparse`, which calls `sys.exit(2)` on an unrecognised option. A typo such as `# hc: --mdoe no_num` therefore raises `SystemExit` and prints argparse's usage text, instead of raising an ordinary error that names the line. Under `HandCalcs()` in a script, that ends the whole program. Found 2026-10-18. The fix is `argparse.ArgumentParser(exit_on_error=False)` plus overriding `error()` to raise a `ValueError` (`parsing/commands.py`).
 
-### 2.7 A format code is applied to literal exponents (LaTeX/Markdown)
-With `# hc: -f .3f`, `a**2` renders as `a^{2.000}` in the LaTeX and Markdown renderers; the plain-text renderer is unaffected. Found 2026-10-18. Exponent literals should keep their source form.
+### 2.7 A format code is applied to literal exponents (LaTeX/Markdown) — fixed in PR #300
+With `# hc: -f .3f`, `a**2` renders as `a^{2.000}` in the LaTeX and Markdown renderers; the plain-text renderer is unaffected. Found 2026-10-18. Exponent literals should keep their source form. **Fixed (PR #300):** number literals now render as written in every renderer; `-f` applies only to calculated values.
 
 ---
 
