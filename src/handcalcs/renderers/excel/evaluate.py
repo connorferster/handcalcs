@@ -7,6 +7,7 @@ its last value on every row. ``ValueEvaluator`` re-evaluates each expression
 against the values assigned so far, with Python's own operators and the same
 callables the formula pass resolved, so each row caches its own result.
 """
+
 from __future__ import annotations
 import builtins
 import math

@@ -28,6 +28,7 @@ def split_commands(comment: str) -> list[str]:
     commands = strip_command_prefix(comment)
     return commands.split()
 
+
 def strip_command_prefix(comment: str) -> str:
     """
     Splits the commands by white space.
@@ -35,6 +36,7 @@ def strip_command_prefix(comment: str) -> str:
     pattern = re.compile(r"^hc\:[\s]*")
     stripped = pattern.sub("", comment)
     return stripped
+
 
 def parse_kwargs(comment: str) -> dict:
     """

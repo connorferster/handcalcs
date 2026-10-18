@@ -24,8 +24,10 @@ def function_body_source(func) -> str:
     source = textwrap.dedent(inspect.getsource(func))
     tree = ast.parse(source)
     node = next(
-        node for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == func.__name__
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == func.__name__
     )
     lines = source.splitlines()
     first = node.body[0]
@@ -35,12 +37,10 @@ def function_body_source(func) -> str:
     start = first.lineno - 1
     while start - 1 >= node.lineno and lines[start - 1].lstrip().startswith("#"):
         start -= 1
-    return textwrap.dedent("\n".join(lines[start:node.end_lineno]))
+    return textwrap.dedent("\n".join(lines[start : node.end_lineno]))
 
 
-def handcalc(
-    renderer: BaseRenderer, render_context: Optional[dict] = None
-):
+def handcalc(renderer: BaseRenderer, render_context: Optional[dict] = None):
     if render_context is None:
         render_context = {}
     # Global config settings (format_code + any custom fields) seed the render
@@ -61,9 +61,13 @@ def handcalc(
             # innerscope retrieves values of locals, closures, and globals
             scope = innerscope.call(func, *args, **kwargs)
             hc_ast = HcSequence.from_source(body_source, hc_globals=scope, hc_locals={})
-            base_context = renderer.create_context(**(context_settings | render_context | {"global_ns": scope}))
+            base_context = renderer.create_context(
+                **(context_settings | render_context | {"global_ns": scope})
+            )
             rendered_tree = renderer.render(hc_ast, base_context)
             completed_render = renderer.complete(rendered_tree, base_context)
             return scope.return_value, completed_render
+
         return decorated
+
     return handcalc_decorator

@@ -13,6 +13,7 @@ value, so viewers that do not recalculate still show numbers.
 
 XlsxWriter is imported lazily so the renderer stays importable without it.
 """
+
 from __future__ import annotations
 import io
 import math
@@ -66,7 +67,9 @@ class ExcelWorkbook:
     the ``rows`` it was written from (for inspection and tests).
     """
 
-    def __init__(self, data: bytes, sheet_name: str, rows: Optional[list[Row]] = None) -> None:
+    def __init__(
+        self, data: bytes, sheet_name: str, rows: Optional[list[Row]] = None
+    ) -> None:
         self._data = data
         self.sheet_name = sheet_name
         self.rows = list(rows or [])
@@ -92,7 +95,10 @@ class FormatCache:
         self._formats: dict[tuple, Any] = {}
 
     def get(self, **props) -> Any:
-        props = {"font_size": BODY_SIZE, **{k: v for k, v in props.items() if v is not None}}
+        props = {
+            "font_size": BODY_SIZE,
+            **{k: v for k, v in props.items() if v is not None},
+        }
         key = tuple(sorted(props.items()))
         if key not in self._formats:
             self._formats[key] = self.workbook.add_format(props)
@@ -122,7 +128,9 @@ def _value_text(value: Any) -> str:
 class SheetWriter:
     """Writes rows into one worksheet of an open XlsxWriter workbook."""
 
-    def __init__(self, workbook, sheet_name: str, value_format: dict, formula_format: dict) -> None:
+    def __init__(
+        self, workbook, sheet_name: str, value_format: dict, formula_format: dict
+    ) -> None:
         self.workbook = workbook
         self.sheet_name = sheet_name
         self.sheet = workbook.add_worksheet(sheet_name)
@@ -163,8 +171,17 @@ class SheetWriter:
             fragments.append(text)
         self.sheet.write_rich_string(row, col, *fragments, cell_format)
 
-    def write_value(self, row: int, value: Any, formula: Optional[str], props: dict, number_format: str) -> None:
-        cell_format = self.formats.get(align="right", valign="top", num_format=number_format, **props)
+    def write_value(
+        self,
+        row: int,
+        value: Any,
+        formula: Optional[str],
+        props: dict,
+        number_format: str,
+    ) -> None:
+        cell_format = self.formats.get(
+            align="right", valign="top", num_format=number_format, **props
+        )
         self._measure(VALUE, _value_text(value))
         if formula is not None:
             if value is None:
@@ -199,9 +216,15 @@ class SheetWriter:
     def write_calc(self, row: int, record: CalcRow) -> None:
         self.write_rich(row, SYMBOL, record.symbol, self.text_format())
         self.write_equals(row)
-        self.write_rich(row, MIDDLE, record.symbolic,
-                        self.text_format(align="center", text_wrap=True))
-        self.write_value(row, record.cached, record.formula, self.formula_props, record.number_format)
+        self.write_rich(
+            row,
+            MIDDLE,
+            record.symbolic,
+            self.text_format(align="center", text_wrap=True),
+        )
+        self.write_value(
+            row, record.cached, record.formula, self.formula_props, record.number_format
+        )
         self.write_unit(row, record.unit)
         if record.comment:
             self._measure(COMMENT, record.comment)
@@ -213,9 +236,17 @@ class SheetWriter:
         self.write_equals(row)
         if record.comment:
             self._measure(MIDDLE, record.comment)
-            self.sheet.write_string(row, MIDDLE, record.comment,
-                                    self.text_format(align="center", italic=True,
-                                                     font_color=COMMENT_COLOR, text_wrap=True))
+            self.sheet.write_string(
+                row,
+                MIDDLE,
+                record.comment,
+                self.text_format(
+                    align="center",
+                    italic=True,
+                    font_color=COMMENT_COLOR,
+                    text_wrap=True,
+                ),
+            )
         props = self.formula_props if record.formula is not None else self.value_props
         self.write_value(row, record.value, record.formula, props, record.number_format)
         self.write_unit(row, record.unit)
@@ -267,7 +298,10 @@ class SheetWriter:
             self.sheet.set_row(row, None, None, {"hidden": True})
 
     def set_height(self, row: int, text: str, width: float) -> None:
-        lines = sum(max(1, math.ceil(len(part) / max(width - 1, 1))) for part in text.split("\n"))
+        lines = sum(
+            max(1, math.ceil(len(part) / max(width - 1, 1)))
+            for part in text.split("\n")
+        )
         if lines > 1:
             self.sheet.set_row(row, round(lines * BODY_SIZE * LINE_HEIGHT, 1))
 
@@ -280,14 +314,18 @@ class SheetWriter:
         return widths
 
 
-def write_sheet(workbook, rows: list[Row], sheet_name: str, value_format: dict, formula_format: dict):
+def write_sheet(
+    workbook, rows: list[Row], sheet_name: str, value_format: dict, formula_format: dict
+):
     """Write ``rows`` as a new sheet of an open ``xlsxwriter.Workbook``; return the worksheet."""
     writer = SheetWriter(workbook, sheet_name, value_format, formula_format)
     writer.write_rows(rows)
     return writer.sheet
 
 
-def build_workbook(rows: list[Row], sheet_name: str, value_format: dict, formula_format: dict) -> ExcelWorkbook:
+def build_workbook(
+    rows: list[Row], sheet_name: str, value_format: dict, formula_format: dict
+) -> ExcelWorkbook:
     """A one-sheet workbook of ``rows``, in memory."""
     xlsxwriter = _import_xlsxwriter()
     buffer = io.BytesIO()

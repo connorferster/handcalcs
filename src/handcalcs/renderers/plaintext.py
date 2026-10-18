@@ -1,15 +1,19 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, BaseRenderContext, ContextKeyError, ContextValueError
-
+from handcalcs.renderers.base import (
+    BaseRenderer,
+    RenderContext,
+    BaseRenderContext,
+    ContextKeyError,
+    ContextValueError,
+)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Constant,
-    
 )
 from handcalcs.parsing.operator_nodes import (
     AddOp,
@@ -26,29 +30,15 @@ from handcalcs.parsing.operator_nodes import (
     LtOp,
     LtEOp,
     NeqOp,
-    HcCompOp
+    HcCompOp,
 )
-from handcalcs.parsing.inline_nodes import (
-    InlineComment,
-    FunctionCall,
-    Compare
-)
-from handcalcs.parsing.line_nodes import (
-    CalcLine,
-    ExprLine,
-    Import
-)
-from handcalcs.parsing.block_nodes import (
-    IfBlock,
-    ElseBlock,
-    ElifBlock
-)
-
+from handcalcs.parsing.inline_nodes import InlineComment, FunctionCall, Compare
+from handcalcs.parsing.line_nodes import CalcLine, ExprLine, Import
+from handcalcs.parsing.block_nodes import IfBlock, ElseBlock, ElifBlock
 
 
 class PlainTextRenderer(BaseRenderer):
-    name = 'plain_text'
-
+    name = "plain_text"
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> str:
         body = self.join(tree, base_context)
@@ -60,6 +50,7 @@ BRC = BaseRenderContext
 
 
 ## SWAP RULES
+
 
 @PlainTextRenderer.register("name:sym")
 def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
@@ -139,8 +130,8 @@ def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
         swapped_id = "_".join(swapped_components)
         node.identifier = swapped_id
     return node
-    
-    
+
+
 @PlainTextRenderer.register("mult_op:pre")
 @PlainTextRenderer.register("pow_op:pre")
 @PlainTextRenderer.register("div_op:pre")
@@ -158,14 +149,14 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
     """
     context = base_context.current
     _ = context.space
-    if node.type not in ('mult_op', 'pow_op', 'div_op', 'floor_op', 'add_op', 'sub_op'):
+    if node.type not in ("mult_op", "pow_op", "div_op", "floor_op", "add_op", "sub_op"):
         return node
-    elif node.type == 'mult_op':
-        node.symbol = '*'
-        node.pre = ''
-        node.post = ''
+    elif node.type == "mult_op":
+        node.symbol = "*"
+        node.pre = ""
+        node.post = ""
         return node
-    elif node.type == 'div_op':
+    elif node.type == "div_op":
         # Division always renders with its '/' symbol. Any parentheses around an
         # operand come from the infix precedence logic (lpar/rpar), not from
         # pre/post, so pre/post stay empty regardless of operand type.
@@ -173,20 +164,20 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
         node.pre = ""
         node.post = ""
         return node
-    elif node.type == 'floor_op':
-        node.symbol = '//'
-        node.pre = ''
-        node.post = ''
+    elif node.type == "floor_op":
+        node.symbol = "//"
+        node.pre = ""
+        node.post = ""
         return node
-    elif node.type == 'add_op':
-        node.symbol = '+'
+    elif node.type == "add_op":
+        node.symbol = "+"
         return node
-    elif node.type == 'sub_op':
-        node.symbol = '-'
+    elif node.type == "sub_op":
+        node.symbol = "-"
         return node
-    elif node.type == 'pow_op' and isinstance(node.right, Constant):
+    elif node.type == "pow_op" and isinstance(node.right, Constant):
         exp_str = str(node.right.value)
-        node.symbol = ''
+        node.symbol = ""
         superscript_integers = {
             "1": "¹",
             "2": "²",
@@ -198,12 +189,12 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
             "8": "⁸",
             "9": "⁹",
             "0": "⁰",
-            ".": "'"
+            ".": "'",
         }
         acc = []
         for char in exp_str:
-            acc.append(superscript_integers.get(char,char))
-        
+            acc.append(superscript_integers.get(char, char))
+
         node.right = Constant(value="".join(acc))
         return node
     else:
@@ -211,7 +202,9 @@ def swap_py_operators(renderer: PTR, node: HcBinOp, base_context: BRC) -> HcBinO
 
 
 @PlainTextRenderer.register("function_call:pre")
-def swap_sqrt_symbol(renderer: PTR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+def swap_sqrt_symbol(
+    renderer: PTR, node: FunctionCall, base_context: BRC
+) -> FunctionCall:
     """
     Swap a ``sqrt(...)`` call's function name for the '√' symbol.
 
@@ -219,13 +212,9 @@ def swap_sqrt_symbol(renderer: PTR, node: FunctionCall, base_context: BRC) -> Fu
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
-    node.pre = '('
-    node.post = ')'
-    if node.function_name.identifier == 'sqrt':
-        node.function_name.identifier = '√'
-        node.function_name.value = '√'
+    node.pre = "("
+    node.post = ")"
+    if node.function_name.identifier == "sqrt":
+        node.function_name.identifier = "√"
+        node.function_name.value = "√"
     return node
-
-
-            
-

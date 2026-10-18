@@ -57,3 +57,7 @@ dev = [
     "openpyxl>=3.1.5",
     "xlsxwriter>=3.2",
 ]
+
+[tool.black]
+# The v1 code kept for reference is not formatted (it is not imported or shipped as API).
+extend-exclude = "src/handcalcs/superceded/"

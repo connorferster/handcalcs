@@ -5,6 +5,7 @@ The renderer raises ``ExcelRendererIncompatibleError`` *during render*, before
 any workbook is written, so an incompatible cell never produces a partial or
 silently wrong sheet.
 """
+
 from __future__ import annotations
 from typing import Any, Optional
 

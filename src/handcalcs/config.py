@@ -120,7 +120,9 @@ def get_option(option: str, default: Any = None) -> Any:
 
 def set_option(option: str, value: Any) -> None:
     # __doc__ is assigned below, built from DEFAULTS (mirrors handcalcs v1).
-    if option in _BASE_OPTION_TYPES and not isinstance(value, _BASE_OPTION_TYPES[option]):
+    if option in _BASE_OPTION_TYPES and not isinstance(
+        value, _BASE_OPTION_TYPES[option]
+    ):
         raise ValueError(
             f"Option '{option}' must be set with a value of type "
             f"{_BASE_OPTION_TYPES[option].__name__}, not {type(value).__name__}."

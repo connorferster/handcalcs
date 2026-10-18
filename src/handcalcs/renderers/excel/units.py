@@ -18,6 +18,7 @@ constant ``0.001``.
 Neither library is imported here: values are recognized by duck typing, so
 the renderer works without them installed.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 from types import ModuleType
@@ -36,8 +37,8 @@ UNITS_MODULES = ("pint", "forallpeople")
 @dataclass(frozen=True)
 class UnitValue:
     magnitude: float  # in the display unit
-    unit: str         # display unit text ('' when dimensionless)
-    factor: float     # display unit -> SI base unit
+    unit: str  # display unit text ('' when dimensionless)
+    factor: float  # display unit -> SI base unit
 
 
 def _clean(factor: float) -> float:
@@ -45,11 +46,19 @@ def _clean(factor: float) -> float:
 
 
 def is_pint_quantity(value: Any) -> bool:
-    return hasattr(value, "magnitude") and hasattr(value, "units") and hasattr(value, "to_base_units")
+    return (
+        hasattr(value, "magnitude")
+        and hasattr(value, "units")
+        and hasattr(value, "to_base_units")
+    )
 
 
 def is_pint_unit(value: Any) -> bool:
-    return type(value).__name__ == "Unit" and hasattr(value, "dimensionality") and hasattr(value, "_REGISTRY")
+    return (
+        type(value).__name__ == "Unit"
+        and hasattr(value, "dimensionality")
+        and hasattr(value, "_REGISTRY")
+    )
 
 
 def is_pint_registry(value: Any) -> bool:
@@ -58,7 +67,11 @@ def is_pint_registry(value: Any) -> bool:
 
 def is_physical(value: Any) -> bool:
     """A forallpeople Physical."""
-    return type(value).__name__ == "Physical" and hasattr(value, "dimensions") and hasattr(value, "value")
+    return (
+        type(value).__name__ == "Physical"
+        and hasattr(value, "dimensions")
+        and hasattr(value, "value")
+    )
 
 
 def has_units(value: Any) -> bool:
@@ -123,7 +136,9 @@ def unit_constant(value: Any) -> Optional[float]:
     a row on the sheet.
     """
     if is_pint_unit(value):
-        return _clean(float(value._REGISTRY.Quantity(1, value).to_base_units().magnitude))
+        return _clean(
+            float(value._REGISTRY.Quantity(1, value).to_base_units().magnitude)
+        )
     info = unit_value(value)
     if info is not None and info.magnitude == 1:
         return info.factor

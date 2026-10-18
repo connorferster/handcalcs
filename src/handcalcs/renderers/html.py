@@ -3,14 +3,26 @@ import re
 from html import escape
 from collections import deque
 from typing import Optional, Any
-from handcalcs.renderers.base import BaseRenderer, RenderContext, render_condition, infix_binop, BaseRenderContext
+from handcalcs.renderers.base import (
+    BaseRenderer,
+    RenderContext,
+    render_condition,
+    infix_binop,
+    BaseRenderContext,
+)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import HcNode, Name, Constant
 from handcalcs.parsing.operator_nodes import AddOp, HcBinOp, HcCompOp
 from handcalcs.parsing.inline_nodes import Attribute, InlineComment, FunctionCall
 from handcalcs.parsing.line_nodes import Import, Heading, CommentLine
-from handcalcs.parsing.block_nodes import IfBlock, ElseBlock, CommentsBlock, CalcsBlock, ForBlock
+from handcalcs.parsing.block_nodes import (
+    IfBlock,
+    ElseBlock,
+    CommentsBlock,
+    CalcsBlock,
+    ForBlock,
+)
 
 # The default theme colour ("petrol").
 DEFAULT_THEME = "#0B5F66"
@@ -20,7 +32,9 @@ DEFAULT_THEME = "#0B5F66"
 # convention of most Sphinx themes. ``prefers-color-scheme`` is deliberately not
 # used: a light Jupyter theme on a dark OS would pick up the dark colours.
 DARK_HOSTS = (
-    '[data-jp-theme-light="false"]', ".vscode-dark", ".vscode-high-contrast",
+    '[data-jp-theme-light="false"]',
+    ".vscode-dark",
+    ".vscode-high-contrast",
     '[data-theme="dark"]',
 )
 
@@ -31,7 +45,7 @@ def _rgb(color: str) -> tuple[float, float, float]:
         color = "".join(ch * 2 for ch in color)
     if not re.fullmatch(r"[0-9a-fA-F]{6}", color):
         raise ValueError(f"theme_color must be a '#RRGGBB' hex colour, not {color!r}")
-    return tuple(int(color[k:k + 2], 16) / 255 for k in (0, 2, 4))
+    return tuple(int(color[k : k + 2], 16) / 255 for k in (0, 2, 4))
 
 
 def _hls(hue: float, light: float, sat: float) -> str:
@@ -75,7 +89,8 @@ class HTMLRenderer(BaseRenderer):
     ``--hc-guide-1`` to ``--hc-guide-3``, ``--hc-tint``, ``--hc-muted``, ...), so
     a host stylesheet can restyle the output without changing the renderer.
     """
-    name = 'html'
+
+    name = "html"
 
     def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
         super().__init__()
@@ -289,7 +304,8 @@ class HTMLRenderer(BaseRenderer):
         # ``hc-params`` rule) and sizes to its content.
         gap = '<td class="hc-param-gap"></td>'
         body = "".join(
-            f'<tr>{gap.join(self._cell_tds(cell, True) for cell in row)}</tr>' for row in rows
+            f"<tr>{gap.join(self._cell_tds(cell, True) for cell in row)}</tr>"
+            for row in rows
         )
         return f'<table class="hc-params">{body}</table>'
 
@@ -304,7 +320,7 @@ class HTMLRenderer(BaseRenderer):
         if len(rows) > 1:
             value, sep, note = str(rows[-1][2]).partition(NOTE_OPEN)
             rows[-1][2] = result_span(value.rstrip()) + (f" {sep}{note}" if sep else "")
-        body = "".join(f'<tr>{self._cell_tds(row)}</tr>' for row in rows)
+        body = "".join(f"<tr>{self._cell_tds(row)}</tr>" for row in rows)
         return f'<table class="hc-params hc-multiline">{body}</table>'
 
 
@@ -330,8 +346,11 @@ def code_spans(text: str) -> str:
 
 ## SWAP RULES
 
-@HTMLRenderer.register('heading')
-def render_heading(renderer: HTMLR, node: Heading, base_context: BaseRenderContext) -> str:
+
+@HTMLRenderer.register("heading")
+def render_heading(
+    renderer: HTMLR, node: Heading, base_context: BaseRenderContext
+) -> str:
     # A heading renders as a single block-level element in the master list, its
     # markdown level reproduced from the node's ``heading_level``. It carries no
     # trailing newline: ``join`` passes block-level HTML through as a flex child
@@ -339,8 +358,10 @@ def render_heading(renderer: HTMLR, node: Heading, base_context: BaseRenderConte
     return f"<h{node.heading_level}>{node.content}</h{node.heading_level}>"
 
 
-@HTMLRenderer.register('comments_block')
-def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: BaseRenderContext) -> str:
+@HTMLRenderer.register("comments_block")
+def render_comments_block(
+    renderer: HTMLR, node: CommentsBlock, base_context: BaseRenderContext
+) -> str:
     # A run of consecutive comment lines is true prose, so it renders as a single
     # flowing ``<p>`` paragraph (its lines joined by a space) rather than one
     # ``.hc-line`` per source line. ``join`` passes the ``<p>`` through as a
@@ -352,7 +373,7 @@ def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: Ba
     lines = [renderer.render(line, base_context) for line in node.lines]
     texts = [line for line in lines if isinstance(line, str) and line.strip()]
     if not texts:
-        return ''
+        return ""
     return f'<p class="hc-comment">{code_spans(_.join(texts))}</p>'
 
 
@@ -363,12 +384,19 @@ def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: Ba
 # wrapping ``<p>``). An ignored/``-i`` line renders to '' and is skipped, so no
 # empty element is emitted.
 
+
 @HTMLRenderer.register("import")
-def render_import(renderer: HTMLR, node: Import, base_context: BaseRenderContext) -> str:
+def render_import(
+    renderer: HTMLR, node: Import, base_context: BaseRenderContext
+) -> str:
     # An import is a quiet monospace chip (``.hc-import``) showing the import
     # statement as written; the chip itself marks it as an import.
     names = ", ".join(
-        f"{name.identifier} as {name.value}" if name.value is not None else name.identifier
+        (
+            f"{name.identifier} as {name.value}"
+            if name.value is not None
+            else name.identifier
+        )
         for name in node.names
     )
     if node.import_from:
@@ -380,7 +408,9 @@ def render_import(renderer: HTMLR, node: Import, base_context: BaseRenderContext
 
 
 @HTMLRenderer.register("inline_comment")
-def render_inline_comment(renderer: HTMLR, node: InlineComment, base_context: BaseRenderContext) -> str:
+def render_inline_comment(
+    renderer: HTMLR, node: InlineComment, base_context: BaseRenderContext
+) -> str:
     # Inline comments are muted (``.hc-note``), so they read the same in calc
     # lines, multi-line grids and params grids.
     context = base_context.current
@@ -412,43 +442,93 @@ def mark_result(renderer: HTMLR, rendered, node, base_context: BaseRenderContext
 
 
 @HTMLRenderer.register("header:if_block")
-def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
+def if_block_header(
+    renderer: HTMLRenderer, node: IfBlock, base_context: BaseRenderContext
+) -> str:
     context = base_context.current
     _ = context.space
-    sym_expr = render_condition(renderer, node.test, base_context, 'sym')
-    num_expr = render_condition(renderer, node.test, base_context, 'num')
+    sym_expr = render_condition(renderer, node.test, base_context, "sym")
+    num_expr = render_condition(renderer, node.test, base_context, "num")
     # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
     return f"{keyword('Since')}{_}({sym_expr}){_}\u2192{_}({num_expr}){_}{keyword(f'is{_}True:')}"
 
 
 @HTMLRenderer.register("header:else_block")
-def else_block_header(renderer: HTMLRenderer, node: ElseBlock, base_context: BaseRenderContext) -> str:
+def else_block_header(
+    renderer: HTMLRenderer, node: ElseBlock, base_context: BaseRenderContext
+) -> str:
     return keyword("Otherwise:")
 
 
 @HTMLRenderer.register("header:for_block")
-def for_block_header(renderer: HTMLRenderer, node: ForBlock, base_context: BaseRenderContext) -> str:
+def for_block_header(
+    renderer: HTMLRenderer, node: ForBlock, base_context: BaseRenderContext
+) -> str:
     context = base_context.current
     _ = context.space
-    base_context.line_context.current_mode = 'sym'
+    base_context.line_context.current_mode = "sym"
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
     over_each = keyword(f"Iterating{_}over{_}each")
     return f"{over_each}{_}{target}{_}{keyword('in')}{_}{iterable}:"
 
+
 GREEK = {
-    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε",
-    "varepsilon": "ϵ", "zeta": "ζ", "eta": "η", "theta": "θ", "vartheta": "ϑ",
-    "iota": "ι", "kappa": "κ", "lamb": "λ", "mu": "μ", "nu": "ν", "xi": "ξ",
-    "omicron": "ο", "pi": "π", "varpi": "ϖ", "rho": "ρ", "varrho": "ϱ",
-    "sigma": "σ", "varsigma": "ς", "tau": "τ", "upsilon": "υ", "phi": "φ",
-    "varphi": "ϕ", "chi": "χ", "psi": "ψ", "omega": "ω",
-    "Alpha": "Α", "Beta": "Β", "Gamma": "Γ", "Delta": "Δ", "Epsilon": "Ε",
-    "Zeta": "Ζ", "Eta": "Η", "Theta": "Θ", "Iota": "Ι", "Kappa": "Κ",
-    "Lamb": "Λ", "Mu": "Μ", "Nu": "Ν", "Xi": "Ξ", "Omicron": "Ο", "Pi": "Π",
-    "Rho": "Ρ", "Sigma": "Σ", "Tau": "Τ", "Upsilon": "Υ", "Phi": "Φ",
-    "Chi": "Χ", "Psi": "Ψ", "Omega": "Ω",
+    "alpha": "α",
+    "beta": "β",
+    "gamma": "γ",
+    "delta": "δ",
+    "epsilon": "ε",
+    "varepsilon": "ϵ",
+    "zeta": "ζ",
+    "eta": "η",
+    "theta": "θ",
+    "vartheta": "ϑ",
+    "iota": "ι",
+    "kappa": "κ",
+    "lamb": "λ",
+    "mu": "μ",
+    "nu": "ν",
+    "xi": "ξ",
+    "omicron": "ο",
+    "pi": "π",
+    "varpi": "ϖ",
+    "rho": "ρ",
+    "varrho": "ϱ",
+    "sigma": "σ",
+    "varsigma": "ς",
+    "tau": "τ",
+    "upsilon": "υ",
+    "phi": "φ",
+    "varphi": "ϕ",
+    "chi": "χ",
+    "psi": "ψ",
+    "omega": "ω",
+    "Alpha": "Α",
+    "Beta": "Β",
+    "Gamma": "Γ",
+    "Delta": "Δ",
+    "Epsilon": "Ε",
+    "Zeta": "Ζ",
+    "Eta": "Η",
+    "Theta": "Θ",
+    "Iota": "Ι",
+    "Kappa": "Κ",
+    "Lamb": "Λ",
+    "Mu": "Μ",
+    "Nu": "Ν",
+    "Xi": "Ξ",
+    "Omicron": "Ο",
+    "Pi": "Π",
+    "Rho": "Ρ",
+    "Sigma": "Σ",
+    "Tau": "Τ",
+    "Upsilon": "Υ",
+    "Phi": "Φ",
+    "Chi": "Χ",
+    "Psi": "Ψ",
+    "Omega": "Ω",
 }
 
 
@@ -465,6 +545,7 @@ def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
     node.identifier = "_".join(GREEK.get(part, part) for part in parts)
     return node
 
+
 @HTMLR.register("name:sym")
 def swap_special_symbols(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     """
@@ -478,6 +559,7 @@ def swap_special_symbols(renderer: HTMLR, node: Name, base_context: BRC) -> Name
     node.identifier = identifier
     return node
 
+
 @HTMLR.register("name:sym")
 def swap_subscripts(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     """
@@ -488,7 +570,7 @@ def swap_subscripts(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     _ = context.space
     identifier = node.identifier
     # Replace all extra underscores with non-identifier characters for later
-    identifier = identifier.replace('___', '|')
+    identifier = identifier.replace("___", "|")
     identifier = identifier.replace("__", "^")
     under_count = identifier.count("_")
     identifier = identifier.replace("_", "<sub>")
@@ -498,18 +580,25 @@ def swap_subscripts(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     identifier = identifier.replace("|", "_")
     node.identifier = identifier
     return node
-    
-@HTMLR.register('pow_op')
+
+
+@HTMLR.register("pow_op")
 def render_pow_op(renderer: HTMLR, node: AddOp, base_context: BaseRenderContext) -> str:
-    as_infix = infix_binop(
-        node, renderer, False, base_context)
+    as_infix = infix_binop(node, renderer, False, base_context)
     return f"{node.pre}{as_infix}{node.post}"
+
 
 # The display symbol of each arithmetic operator: ``*`` is a centred dot, the
 # others keep their Python symbol. Multiplication and both divisions carry no
 # pre/post wrapping of their own: any brackets around an operand come from the
 # infix precedence logic (lpar/rpar).
-OPERATOR_SYMBOLS = {"mult_op": "·", "div_op": "/", "floor_op": "//", "add_op": "+", "sub_op": "-"}
+OPERATOR_SYMBOLS = {
+    "mult_op": "·",
+    "div_op": "/",
+    "floor_op": "//",
+    "add_op": "+",
+    "sub_op": "-",
+}
 UNWRAPPED_OPERATORS = {"mult_op", "div_op", "floor_op"}
 
 
@@ -565,7 +654,9 @@ def swap_angle_ops(renderer: HTMLR, node: HcCompOp, base_context: BRC) -> HcComp
 @HTMLR.register("lte_op:post")
 @HTMLR.register("eq_op:post")
 @HTMLR.register("neq_op:post")
-def space_comparison(renderer: HTMLR, rendered, node: HcCompOp, base_context: BRC) -> str:
+def space_comparison(
+    renderer: HTMLR, rendered, node: HcCompOp, base_context: BRC
+) -> str:
     """
     Space comparison operators like the arithmetic ones (``a &lt; b``, not
     ``a&lt;b``); ``!=`` becomes ``≠``.
@@ -584,9 +675,30 @@ def space_comparison(renderer: HTMLR, rendered, node: HcCompOp, base_context: BR
 # no namespace was supplied, by the conventional alias.
 MATH_MODULES = {"math": "math", "cmath": "cmath", "numpy": "numpy", "np": "numpy"}
 NUMPY_MATH_FUNCTIONS = {
-    "sqrt", "cbrt", "exp", "log", "log2", "log10", "abs", "sin", "cos", "tan",
-    "arcsin", "arccos", "arctan", "arctan2", "sinh", "cosh", "tanh", "degrees",
-    "radians", "deg2rad", "rad2deg", "floor", "ceil", "hypot",
+    "sqrt",
+    "cbrt",
+    "exp",
+    "log",
+    "log2",
+    "log10",
+    "abs",
+    "sin",
+    "cos",
+    "tan",
+    "arcsin",
+    "arccos",
+    "arctan",
+    "arctan2",
+    "sinh",
+    "cosh",
+    "tanh",
+    "degrees",
+    "radians",
+    "deg2rad",
+    "rad2deg",
+    "floor",
+    "ceil",
+    "hypot",
 }
 MATH_CONSTANTS = {"pi": "π", "tau": "τ", "e": "e", "inf": "∞"}
 
@@ -599,7 +711,9 @@ def math_module(alias: str, base_context: BRC) -> Optional[str]:
 
 
 @HTMLR.register("function_call:pre")
-def drop_math_namespace(renderer: HTMLR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+def drop_math_namespace(
+    renderer: HTMLR, node: FunctionCall, base_context: BRC
+) -> FunctionCall:
     """
     Drop the module prefix of a maths function call (``math.sqrt(x)`` →
     ``sqrt(x)``, which ``swap_sqrt_symbol`` then shows as ``√(x)``).
@@ -613,26 +727,34 @@ def drop_math_namespace(renderer: HTMLR, node: FunctionCall, base_context: BRC) 
         return node
     module = math_module(namespace, base_context)
     name = getattr(node.function_name, "identifier", None)
-    if module in ("math", "cmath") or (module == "numpy" and name in NUMPY_MATH_FUNCTIONS):
+    if module in ("math", "cmath") or (
+        module == "numpy" and name in NUMPY_MATH_FUNCTIONS
+    ):
         node.namespace = deque()
     return node
 
 
 @HTMLR.register("attribute:sym")
-def swap_math_constants(renderer: HTMLR, node: Attribute, base_context: BRC) -> Attribute:
+def swap_math_constants(
+    renderer: HTMLR, node: Attribute, base_context: BRC
+) -> Attribute:
     """
     Show a maths constant as its symbol in the symbolic column: ``math.pi`` →
     ``π``, ``math.tau`` → ``τ``, ``math.e`` → ``e``, ``math.inf`` → ``∞`` (also
     for ``cmath`` and numpy). The numeric column still shows the value.
     """
-    if node.identifier in MATH_CONSTANTS and math_module(node.namespace or "", base_context):
+    if node.identifier in MATH_CONSTANTS and math_module(
+        node.namespace or "", base_context
+    ):
         node.namespace = ""
         node.identifier = MATH_CONSTANTS[node.identifier]
     return node
 
 
 @HTMLR.register("function_call:pre")
-def swap_sqrt_symbol(renderer: HTMLR, node: FunctionCall, base_context: BRC) -> FunctionCall:
+def swap_sqrt_symbol(
+    renderer: HTMLR, node: FunctionCall, base_context: BRC
+) -> FunctionCall:
     """
     Swap a ``sqrt(...)`` call's function name for the '√' symbol.
 
@@ -640,9 +762,9 @@ def swap_sqrt_symbol(renderer: HTMLR, node: FunctionCall, base_context: BRC) -> 
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
-    node.pre = '('
-    node.post = ')'
-    if node.function_name.identifier == 'sqrt':
-        node.function_name.identifier = '√'
-        node.function_name.value = '√'
+    node.pre = "("
+    node.post = ")"
+    if node.function_name.identifier == "sqrt":
+        node.function_name.identifier = "√"
+        node.function_name.value = "√"
     return node

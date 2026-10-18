@@ -13,30 +13,9 @@ import tokenize
 from typing import List, Union, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap, Counter
-from .nodes import (
-    Attribute,
-    List,
-    Tuple,
-    Set,
-    Dictionary,
-    Name,
-    Constant
-)
-from .block_nodes import (
-    ForBlock,
-    IfBlock,
-    ElifBlock,
-    HcBlockNode,
-    ParamsBlock
-)
-from .line_nodes import (
-    CalcLine,
-    ExprLine,
-    CommentLine,
-    CommentCommand,
-    Heading,
-    Import
-)
+from .nodes import Attribute, List, Tuple, Set, Dictionary, Name, Constant
+from .block_nodes import ForBlock, IfBlock, ElifBlock, HcBlockNode, ParamsBlock
+from .line_nodes import CalcLine, ExprLine, CommentLine, CommentCommand, Heading, Import
 from .inline_nodes import (
     FunctionCall,
     ComprehensionChain,
@@ -46,10 +25,7 @@ from .inline_nodes import (
     Compare,
     Keyword,
 )
-from .null_values import (
-    HcNotImplemented,
-    NoValue
-)
+from .null_values import HcNotImplemented, NoValue
 
 from .operator_nodes import (
     AddOp,
@@ -71,14 +47,15 @@ from .operator_nodes import (
     NotInOp,
     AndOp,
     OrOp,
-    HcUnaryOp
+    HcUnaryOp,
 )
+
 # from handcalcs.parsing.commands import command_parser
 from .comment_parser import (
     is_comment_command,
     parse_kwargs,
     is_markdown_heading,
-    split_commands
+    split_commands,
 )
 
 ARITHMETIC_OPS = {
@@ -221,7 +198,9 @@ class AST_Parser:
         """
         self.line_comments = {}
         self._blank_rows = {
-            row for row, text in enumerate(source.splitlines(), start=1) if not text.strip()
+            row
+            for row, text in enumerate(source.splitlines(), start=1)
+            if not text.strip()
         }
         code_rows = []
         trivia = (
@@ -440,7 +419,7 @@ class AST_Parser:
                     import_from=True,
                     import_from_level=node.level,
                     import_from_module=node.module,
-                    names=acc
+                    names=acc,
                 )
 
         elif isinstance(node, ast.Call):
@@ -460,9 +439,7 @@ class AST_Parser:
                 # Fall back to standard Rule 2
                 # ... (original Rule 2 logic) ...
                 module_name = ""
-                func_name = self.ast_parse(
-                    node.func
-                )  # Get the function's name (str)
+                func_name = self.ast_parse(node.func)  # Get the function's name (str)
                 if isinstance(func_name, ast.Attribute):
                     module_name = func_name.module_name
                     func_name = func_name.attr_name
@@ -470,12 +447,11 @@ class AST_Parser:
                 # Create the inner nested list for arguments
             # args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
 
-                # Create the main nested list for the function call
-                # val = deque([func_name, deque([args_list])])
+            # Create the main nested list for the function call
+            # val = deque([func_name, deque([args_list])])
 
             # # Check for a specific target function you want to recurse into
             # if func_name == "external_func" and module_name == "some_module":
-
 
             # TODO: COMMENT OUT FUNCTION RECURSION
             # 1. Get the source code string for the external function
@@ -535,9 +511,7 @@ class AST_Parser:
             # fallback: skip evaluation, treat as indeterminate, or surface a
             # clearer error naming the missing variable.
             if_block.is_true = eval(
-                compile(
-                    py_ast.Expression(node.test), mode='eval', filename='<ast>'
-                ),
+                compile(py_ast.Expression(node.test), mode="eval", filename="<ast>"),
                 dict(self.globals),
             )
             # "body": The block of code inside the if (nested list of statements)
@@ -644,14 +618,16 @@ class AST_Parser:
                 comment_content = None
 
             expression_tree = self.ast_parse(node.value)
-            nested_pars = bool(node.value.f.pars().n) # True if the expression tree is nested in parenths
+            nested_pars = bool(
+                node.value.f.pars().n
+            )  # True if the expression tree is nested in parenths
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
                 assigns=deque([self.ast_parse(n) for n in node.targets]),
                 expression_tree=expression_tree,
-                comment = comment_content,
-                pars_nesting = nested_pars
+                comment=comment_content,
+                pars_nesting=nested_pars,
             )
             val = calc_line
 
@@ -682,14 +658,16 @@ class AST_Parser:
             val = Attribute(
                 namespace=namespace,
                 identifier=attribute,
-                value=getattr(self.globals.get(namespace, NoValue()), attribute, NoValue())
+                value=getattr(
+                    self.globals.get(namespace, NoValue()), attribute, NoValue()
+                ),
             )
 
         elif isinstance(node, ast.Module):
             # Entry point: process all body statements, interleaving standalone
             # comment lines, then append any trailing comments after the last stmt.
             val = self._parse_body(node.body)
-            val.extend(self._flush_comment_lines(before=2 ** 63))
+            val.extend(self._flush_comment_lines(before=2**63))
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
