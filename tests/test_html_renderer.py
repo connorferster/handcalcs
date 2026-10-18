@@ -15,8 +15,9 @@ def _render(source, names, **kwargs):
     return r.complete(tree, ctx)
 
 
-def test_default_theme_matches_reportlab_palette():
-    # Same derivation as the ReportLab renderer's Palette.from_theme (petrol).
+def test_default_theme_derives_the_petrol_palette():
+    # The accent is the theme itself; the guides keep its hue, then turn it by
+    # +210 and +40 degrees.
     theme = theme_variables(DEFAULT_THEME)
     assert theme["--hc-accent"] == "#0B5F66"
     assert (theme["--hc-guide-1"], theme["--hc-guide-2"], theme["--hc-guide-3"]) == (
