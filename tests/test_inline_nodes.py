@@ -2,6 +2,7 @@
 Layer-1 data-model tests for inline nodes, including the branching
 ``InlineCommand.from_raw_comment`` constructor.
 """
+
 from collections import deque
 
 import pytest
@@ -56,6 +57,7 @@ def test_comprehension_and_chain_defaults():
 
 # --- InlineCommand.from_raw_comment: three code paths --------------------
 
+
 def test_from_raw_comment_non_command_returns_inline_comment():
     result = InlineCommand.from_raw_comment("an inline note")
     assert isinstance(result, InlineComment)
@@ -81,6 +83,14 @@ def test_from_raw_comment_unknown_flag_raises_not_exits():
     # argparse would sys.exit(2); a typo in a comment must not end the program.
     with pytest.raises(CommentCommandError, match=r"'# hc: --mdoe no_num'"):
         InlineCommand.from_raw_comment("hc: --mdoe no_num")
+
+
+def test_from_raw_comment_kwarg_error_shows_the_code():
+    with pytest.raises(
+        CommentCommandError, match=r"'# hc: x = 1/0': ZeroDivisionError"
+    ) as raised:
+        InlineCommand.from_raw_comment("hc: x = 1/0")
+    assert isinstance(raised.value.__cause__, ZeroDivisionError)
 
 
 def test_from_raw_comment_invalid_value_raises():
