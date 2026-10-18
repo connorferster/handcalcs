@@ -94,6 +94,11 @@ def test_comment_command_flag_style():
     assert cc.commands["multiline"] is False
 
 
+def test_comment_command_unknown_flag_raises_value_error():
+    with pytest.raises(ValueError, match=r"'# hc: --bogus'.*unrecognized arguments"):
+        CommentCommand.from_raw_comment("# hc: --bogus")
+
+
 # --- Import --------------------------------------------------------------
 
 def test_import_defaults():

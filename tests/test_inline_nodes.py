@@ -8,6 +8,7 @@ import pytest
 
 from handcalcs.parsing.nodes import Name, Constant
 from handcalcs.parsing.operator_nodes import GtOp
+from handcalcs.parsing.commands import CommentCommandError
 from handcalcs.parsing.inline_nodes import (
     FunctionCall,
     Compare,
@@ -74,3 +75,14 @@ def test_from_raw_comment_flag_style_falls_back_to_argparse():
     # argparse defaults are present alongside the parsed flag.
     assert result.commands["multiline"] is False
     assert result.commands["ignore"] is False
+
+
+def test_from_raw_comment_unknown_flag_raises_not_exits():
+    # argparse would sys.exit(2); a typo in a comment must not end the program.
+    with pytest.raises(CommentCommandError, match=r"'# hc: --mdoe no_num'"):
+        InlineCommand.from_raw_comment("hc: --mdoe no_num")
+
+
+def test_from_raw_comment_invalid_value_raises():
+    with pytest.raises(CommentCommandError, match="invalid int value: 'two'"):
+        InlineCommand.from_raw_comment("hc: -c two")

@@ -1,8 +1,24 @@
 import argparse
 
+
+class CommentCommandError(ValueError):
+    """A ``# hc:`` comment command that cannot be parsed."""
+
+
+class CommentCommandParser(argparse.ArgumentParser):
+    """
+    An ArgumentParser for ``# hc:`` comments. argparse's ``error()`` prints a
+    usage message and calls ``sys.exit(2)``, which would end the user's whole
+    program over a typo in a comment; this one raises instead.
+    """
+
+    def error(self, message: str):
+        raise CommentCommandError(message)
+
+
 # add_help=False frees ``-h`` for the params-block command (this parser reads
 # ``# hc:`` comments, never a real command line).
-command_parser = argparse.ArgumentParser(add_help=False)
+command_parser = CommentCommandParser(prog="# hc:", add_help=False)
 
 
 class JoinWords(argparse.Action):
@@ -24,3 +40,16 @@ command_parser.add_argument("-c", "--param-cols", "--param_cols", type=int)
 command_parser.add_argument("--mode", nargs="+", action=JoinWords)
 
 command_parser.add_argument("-h", "--params-block", "--params", action="store_true")
+
+
+def parse_commands(comment: str, args: list[str]) -> dict:
+    """
+    Parse the flags of the ``# hc:`` comment ``comment`` (already split into
+    ``args``). Raises CommentCommandError naming the comment if they are invalid.
+    """
+    try:
+        return vars(command_parser.parse_args(args))
+    except CommentCommandError as error:
+        raise CommentCommandError(
+            f"Invalid handcalcs comment command '# {comment}': {error}"
+        ) from None

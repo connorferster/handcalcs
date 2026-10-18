@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from .nodes import Attribute, Tuple, List, Dictionary, Set, HcNode, Constant, Name
 from .operator_nodes import EqOp, GtOp, GtEOp, LtOp, LtEOp, NeqOp, HcCompOp
-from .commands import command_parser
+from .commands import parse_commands
 from .comment_parser import (
     is_comment_command,
     is_markdown_heading,
@@ -67,7 +67,7 @@ class InlineCommand(HcInlineNode):
             try:
                 parsed = parse_kwargs(comment)
             except (SyntaxError, NameError):
-                parsed = vars(command_parser.parse_args(split_commands(comment)))
+                parsed = parse_commands(comment, split_commands(comment))
             return cls(content=comment, commands=parsed)
         else:
             return InlineComment(content=comment)

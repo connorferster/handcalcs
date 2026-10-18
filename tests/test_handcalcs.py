@@ -155,3 +155,10 @@ def test_mode_flag_form_of_comment_commands():
     assert "e = -1" in lines
     assert "f = a + b = 5" in lines
     assert "g = a + b = 2 + 3 = 5" in lines
+
+
+def test_bad_comment_command_raises_instead_of_exiting():
+    from handcalcs.parsing.commands import CommentCommandError
+
+    with pytest.raises(CommentCommandError, match="unrecognized arguments: --mdoe"):
+        HandCalcs(PlainTextRenderer())("a = 2\nb = a  # hc: --mdoe no_num")
