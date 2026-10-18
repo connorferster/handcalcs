@@ -1245,7 +1245,12 @@ def render_block_body(
     """
     header = renderer.render_header(node, base_context)
     body = [renderer.render(line, base_context) for line in node.lines]
-    if isinstance(body[0], str): # Caused by a comment command
+    # A body of only strings (the lines of a comments block) is one line of
+    # prose: wrap it so the join step reads it as a single all-string line. A
+    # body that merely *starts* with a string (an ignored ``# hc: -i`` line, or a
+    # comment before a calc) must not be wrapped, or the join step would read
+    # the string as a block header and split the next line into its components.
+    if body and all(isinstance(line, str) for line in body):
         body = [body]
     header = f"{node.header_pre}{header}{node.header_post}"
     if node.body_pre:
