@@ -9,6 +9,11 @@ on:
   pull_request:
     branches: [ "main", "hc2/dev" ]
 
+# A new push to a branch cancels its run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     strategy:
@@ -17,55 +22,80 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
-    env:
-      # uv otherwise follows .python-version and tests every cell on 3.13.
-      UV_PYTHON: ${{ matrix.python-version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
+    - uses: astral-sh/setup-uv@v10.3.0
+      with:
+        # A pinned uv skips a GitHub API lookup of the latest release.
+        version: "0.13.1"
+        # Given the version, the action does not run uv to find one for the
+        # cache key (up to ~12 s on Windows). It also sets UV_PYTHON.
+        python-version: ${{ matrix.python-version }}
+        enable-cache: true
+        # Key the cache on the lock file alone, not the default glob over the
+        # whole checkout. Downloaded PyPI wheels are kept in the cache (not
+        # pruned), so a warm run downloads nothing from pypi.org.
+        cache-dependency-glob: uv.lock
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install uv
-        uv sync
+      # Only the test group: the dev group's JupyterLab is not needed to test.
+      run: uv sync --locked --no-default-groups --group test
     - name: Test with pytest
       run: |
-        uv run python --version
-        uv run pytest
+        uv run --no-sync python --version
+        uv run --no-sync pytest
 
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v7
       with:
         python-version: "3.13"
+    - uses: astral-sh/setup-uv@v10.3.0
+      with:
+        version: "0.13.1"
+        python-version: "3.13"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+        # Its own cache: the key would otherwise match test (ubuntu, 3.13),
+        # and whichever job saved first would leave the other a partial cache.
+        cache-suffix: lint
     - name: Test black formatted
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install uv
-        uv sync
-        uv run black src --check
+      run: uv run --locked --only-group lint black src --check
 
   package:
     # Build the wheel and import it in a bare environment (no dev or optional
     # dependencies), as a user's 'pip install handcalcs' would.
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v7
       with:
         python-version: "3.13"
+    - uses: astral-sh/setup-uv@v10.3.0
+      with:
+        version: "0.13.1"
+        python-version: "3.13"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+        # Its own cache: the key would otherwise match test (ubuntu, 3.13),
+        # and whichever job saved first would leave the other a partial cache.
+        cache-suffix: package
     - name: Build sdist and wheel
-      run: |
-        python -m pip install --upgrade pip build
-        python -m build
+      run: uv build
     - name: Install the wheel into a bare venv and render
       run: |
-        python -m venv /tmp/bare
-        /tmp/bare/bin/pip install dist/*.whl
+        uv venv /tmp/bare
+        uv pip install --python /tmp/bare dist/*.whl
         cd /tmp
         /tmp/bare/bin/python -c "from handcalcs import HandCalcs, PlainTextRenderer; print(HandCalcs(PlainTextRenderer())('a = 2\nb = a * 3'))"
