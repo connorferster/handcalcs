@@ -13,7 +13,7 @@ from decimal import Decimal
 
 import pytest
 
-from handcalcs.renderers.base import ContextKeyError, ContextValueError
+from handcalcs.renderers.base import ContextKeyError, ContextValueError, mode_columns
 from handcalcs.parsing.nodes import Name, Constant, List, Tuple, Set, Dictionary, Attribute
 from handcalcs.parsing.operator_nodes import (
     AddOp,
@@ -454,6 +454,53 @@ def test_calc_line_symbolic_only_mode(render):
 def test_calc_line_numeric_only_mode(render):
     # Numeric-only mode: just the numeric-substitution column.
     assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="num") == ["3 + 2"]
+
+
+def test_calc_line_no_num_mode(render):
+    # 'no_num' drops only the numeric-substitution column.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="no_num") == [
+        "c", "=", "a + 2", "=", "5",
+    ]
+
+
+def test_calc_line_no_sym_mode(render):
+    # 'no_sym' drops only the symbolic column.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="no_sym") == [
+        "c", "=", "3 + 2", "=", "5",
+    ]
+
+
+def test_calc_line_long_drop_aliases(render):
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="drop_numeric") == [
+        "c", "=", "a + 2", "=", "5",
+    ]
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="drop_symbolic") == [
+        "c", "=", "3 + 2", "=", "5",
+    ]
+
+
+def test_calc_line_no_num_no_sym_mode(render):
+    # Both drop aliases together leave the target and the result.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="no_num no_sym") == [
+        "c", "=", "5",
+    ]
+
+
+@pytest.mark.parametrize(
+    "mode, expected",
+    [
+        ("full", {"ass", "sym", "num", "res"}),
+        ("sym", {"sym"}),
+        ("ass sym res", {"ass", "sym", "res"}),
+        ("no_num", {"ass", "sym", "res"}),
+        ("no_sym", {"ass", "num", "res"}),
+        ("drop_numeric", {"ass", "sym", "res"}),
+        ("drop_symbolic", {"ass", "num", "res"}),
+        ("no_num, no_sym", {"ass", "res"}),
+    ],
+)
+def test_mode_columns(mode, expected):
+    assert mode_columns(mode) == expected
 
 
 def test_calc_line_param_line_single_constant(render):
