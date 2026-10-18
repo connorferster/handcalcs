@@ -23,20 +23,14 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
       with:
-        # docs/ is ~25 MB of v1 images the tests never read. (Cone mode keeps
-        # the root files: pyproject.toml, README.md, uv.lock, ...)
-        sparse-checkout: |
-          src
-          tests
-          scripts
         persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: astral-sh/setup-uv@v10.2.0
+    - uses: astral-sh/setup-uv@v10.3.0
       with:
         # A pinned uv skips a GitHub API lookup of the latest release.
         version: "0.13.1"
@@ -59,13 +53,13 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: "3.13"
-    - uses: astral-sh/setup-uv@v10.2.0
+    - uses: astral-sh/setup-uv@v10.3.0
       with:
         version: "0.13.1"
         python-version: "3.13"
@@ -82,13 +76,13 @@ jobs:
     # dependencies), as a user's 'pip install handcalcs' would.
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
-    - uses: actions/setup-python@v6
+    - uses: actions/setup-python@v7
       with:
         python-version: "3.13"
-    - uses: astral-sh/setup-uv@v10.2.0
+    - uses: astral-sh/setup-uv@v10.3.0
       with:
         version: "0.13.1"
         python-version: "3.13"
