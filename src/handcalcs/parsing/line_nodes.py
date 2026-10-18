@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from .nodes import HcNode, Name
 from .inline_nodes import InlineComment, InlineCommand
-from .commands import command_parser
+from .commands import parse_commands
 from .comment_parser import (
     is_comment_command,
     is_markdown_heading,
@@ -79,7 +79,7 @@ class CommentCommand(HcLineNode):
         try:
             parsed = parse_kwargs(stripped)
         except (SyntaxError, NameError):
-            parsed = vars(command_parser.parse_args(split_commands(stripped)))
+            parsed = parse_commands(stripped, split_commands(stripped))
         return cls(commands=parsed)
 
 
