@@ -6,6 +6,8 @@ These guard the wiring between the layers and pin current rendered output.
 Node- and BaseRenderer-level behavior is covered in the dedicated unit
 modules; here we only assert that a realistic script renders coherently.
 """
+import re
+
 from handcalcs import HandCalcs, PlainTextRenderer
 
 
@@ -92,6 +94,8 @@ KWARGS_SOURCE = (
 @pytest.mark.parametrize("renderer", ["plain_text", "html"])
 def test_function_call_keyword_arguments_are_rendered(renderer):
     out = str(HandCalcs(renderer=get_renderer(renderer)())(KWARGS_SOURCE))
+    # The HTML renderer wraps the result in a highlight span; compare the text.
+    out = re.sub(r"<[^>]+>", "", out)
     assert (
         "t = datetime.timedelta(days=n, hours=2)"
         " = datetime.timedelta(days=3, hours=2) = 3 days, 2:00:00"

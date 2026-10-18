@@ -1,3 +1,6 @@
+import colorsys
+import re
+from html import escape
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
@@ -49,8 +52,76 @@ from handcalcs.parsing.block_nodes import (
     ForBlock
 )
 
+# The default theme colour ("petrol"), shared with the ReportLab renderer.
+DEFAULT_THEME = "#0B5F66"
+
+# Ancestors that mark a dark host page: JupyterLab / Notebook 7 dark themes, VS
+# Code's dark and high-contrast notebook themes, and the ``data-theme="dark"``
+# convention of most Sphinx themes. ``prefers-color-scheme`` is deliberately not
+# used: a light Jupyter theme on a dark OS would pick up the dark colours.
+DARK_HOSTS = (
+    '[data-jp-theme-light="false"]', ".vscode-dark", ".vscode-high-contrast",
+    '[data-theme="dark"]',
+)
+
+
+def _rgb(color: str) -> tuple[float, float, float]:
+    color = color.strip().lstrip("#")
+    if len(color) == 3:
+        color = "".join(ch * 2 for ch in color)
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", color):
+        raise ValueError(f"theme_color must be a '#RRGGBB' hex colour, not {color!r}")
+    return tuple(int(color[k:k + 2], 16) / 255 for k in (0, 2, 4))
+
+
+def _hls(hue: float, light: float, sat: float) -> str:
+    r, g, b = colorsys.hls_to_rgb(hue % 1.0, light, min(sat, 1.0))
+    return "#" + "".join(f"{round(c * 255):02X}" for c in (r, g, b))
+
+
+def theme_variables(theme_color: str) -> dict[str, str]:
+    """
+    The CSS custom properties derived from one dark theme colour, with the same
+    derivation as the ReportLab renderer's ``Palette.from_theme``: the theme is
+    the accent, and the three indent-guide colours keep its hue for the first
+    level and turn it by +210 and +40 degrees for the next two. A lighter accent
+    (``--hc-accent-dark``) is used for text on dark host pages.
+    """
+    rgb = _rgb(theme_color)
+    hue, _, sat = colorsys.rgb_to_hls(*rgb)
+    return {
+        "--hc-accent": "#" + "".join(f"{round(c * 255):02X}" for c in rgb),
+        "--hc-accent-dark": _hls(hue, 0.70, sat * 0.55),
+        "--hc-guide-1": _hls(hue, 0.63, sat * 0.37),
+        "--hc-guide-2": _hls(hue + 210 / 360, 0.68, sat * 0.60),
+        "--hc-guide-3": _hls(hue + 40 / 360, 0.72, sat * 0.27),
+    }
+
+
 class HTMLRenderer(BaseRenderer):
+    """
+    Renders a calculation as a self-contained HTML fragment for Jupyter, VS Code
+    or any web page.
+
+    Fonts, text colour and headings are left to the host page. On top of that,
+    one theme colour (``theme_color``, default petrol ``#0B5F66``) gives the
+    calculation a quiet visual structure: each result is highlighted, inline
+    comments are muted, imports sit in small code chips, block headers (``Since
+    ... is True:``, ``Iterating over ...``) are tinted callouts, params grids sit
+    on a tinted panel, multi-line calcs carry an accent bar, and nested block
+    bodies get coloured indent guides. Backgrounds are translucent tints of the
+    theme, so they work on light and dark pages alike.
+
+    Every colour is a CSS custom property on ``.handcalcs`` (``--hc-accent``,
+    ``--hc-guide-1`` to ``--hc-guide-3``, ``--hc-tint``, ``--hc-muted``, ...), so
+    a host stylesheet can restyle the output without changing the renderer.
+    """
     name = 'html'
+
+    def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
+        super().__init__()
+        self.theme_color = theme_color
+        self.theme = theme_variables(theme_color)
 
     # One scoped stylesheet owns ALL vertical rhythm and indentation. Emitted
     # once by ``complete``; every rule uses ``:where()`` so it contributes zero
@@ -59,13 +130,50 @@ class HTMLRenderer(BaseRenderer):
     STYLE = (
         ".handcalcs{"
         "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;--hc-eq-gap:0.3em;"
+        "--hc-accent-text:var(--hc-accent);"
+        "--hc-tint:color-mix(in srgb,var(--hc-accent) 9%,transparent);"
+        "--hc-highlight:color-mix(in srgb,var(--hc-accent) 12%,transparent);"
+        "--hc-muted:color-mix(in srgb,currentColor 60%,transparent);"
+        "--hc-chip:color-mix(in srgb,currentColor 6%,transparent);"
         "display:flex;flex-direction:column;gap:var(--hc-gap);"
         "line-height:1.6;font-variant-numeric:tabular-nums;}"
         ".handcalcs :where(.hc-block,.hc-body){"
         "display:flex;flex-direction:column;gap:var(--hc-gap);}"
-        ".handcalcs :where(.hc-body){padding-inline-start:var(--hc-indent);}"
+        # A nested body is indented with an indent guide: a thin vertical line
+        # under the header's marker, one colour per level (cycled), like a code
+        # editor's indent guides.
+        ".handcalcs :where(.hc-body){"
+        "margin-inline-start:0.55em;"
+        "padding-inline-start:calc(var(--hc-indent) - 0.55em);"
+        "border-inline-start:2px solid var(--hc-guide);--hc-guide:var(--hc-guide-1);}"
+        ".handcalcs :where(.hc-body .hc-body){--hc-guide:var(--hc-guide-2);}"
+        ".handcalcs :where(.hc-body .hc-body .hc-body){--hc-guide:var(--hc-guide-3);}"
+        ".handcalcs :where(.hc-body .hc-body .hc-body .hc-body){--hc-guide:var(--hc-guide-1);}"
+        ".handcalcs :where(.hc-body .hc-body .hc-body .hc-body .hc-body){--hc-guide:var(--hc-guide-2);}"
         ".handcalcs :where(.hc-line,.hc-header,.hc-comment){"
         "margin-block:0;}"
+        # Block headers (``Since ... is True:``) are callouts: a tinted band with
+        # an accent marker; their keywords (``.hc-kw``) are set in the accent.
+        ".handcalcs :where(.hc-header){"
+        "background:var(--hc-tint);border-radius:4px;padding:0.1em 0.5em;}"
+        ".handcalcs :where(.hc-header)::before{"
+        'content:"\\25B8";color:var(--hc-accent-text);margin-inline-end:0.4em;}'
+        ".handcalcs :where(.hc-kw){color:var(--hc-accent-text);}"
+        # The result of a calc with a substitution is highlighted; inline
+        # comments are muted.
+        ".handcalcs :where(.hc-result){"
+        "color:var(--hc-accent-text);background:var(--hc-highlight);font-weight:600;"
+        "padding:0 0.25em;border-radius:3px;"
+        "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
+        ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
+        # Imports are small, quiet monospace chips.
+        ".handcalcs :where(.hc-import){"
+        "align-self:start;font-family:var(--jp-code-font-family,"
+        "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);"
+        "font-size:0.85em;color:var(--hc-muted);background:var(--hc-chip);"
+        "padding:0.05em 0.5em;border-radius:3px;}"
+        ".handcalcs :where(.hc-comment,.hc-note) :where(code){"
+        "font-size:0.9em;background:var(--hc-chip);padding:0 0.25em;border-radius:3px;}"
         # A params block is a real table so each ``id = value`` group aligns on
         # its ``=`` (identifier right, ``=`` centered, value left), separated by
         # an empty spacer column. Alignment no longer depends on the fragile
@@ -78,12 +186,18 @@ class HTMLRenderer(BaseRenderer):
         # the full flex-container width (the default ``align-items:stretch`` would
         # otherwise blow the columns out and make the ``=`` look over-padded); the
         # table shrinks to its content and sits centered. ``hc-multiline`` overrides
-        # the alignment to left (see below).
+        # the alignment to left (see below). The table sits on a tinted panel
+        # (``border-collapse:separate`` so its corners can round).
         ".handcalcs :where(table.hc-params){"
-        "margin-block:0;border-collapse:collapse;table-layout:auto;"
+        "margin-block:0;border-collapse:separate;border-spacing:0;table-layout:auto;"
         "width:auto;align-self:center;"
-        "font-variant-numeric:tabular-nums;}"
-        ".handcalcs :where(table.hc-multiline){align-self:start;}"
+        "font-variant-numeric:tabular-nums;"
+        "background:var(--hc-tint);border-radius:4px;padding:0.1em 0.6em;}"
+        # A multi-line calc reads as one unit: no panel, an accent bar on its left.
+        ".handcalcs :where(table.hc-multiline){align-self:start;"
+        "background:none;border-radius:0;padding:0 0 0 0.5em;"
+        "border-inline-start:2px solid var(--hc-accent);}"
+        ".handcalcs :where(table.hc-params tr){background:none;}"
         ".handcalcs :where(table.hc-params td){"
         "padding:0;border:0;vertical-align:baseline;}"
         ".handcalcs :where(.hc-param-id){"
@@ -94,15 +208,29 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-param-gap){width:var(--hc-param-gap);}"
         ".handcalcs :where(.hc-param-comment){text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
-        # "@media (prefers-color-scheme:dark){.handcalcs{color:#e6e6e6;}}"
     )
+
+    def theme_style(self) -> str:
+        """
+        The theme's custom properties on ``.handcalcs``, plus the dark-host
+        overrides: a lighter accent for text and stronger tints. The dark rule
+        uses ``:is()`` so it outranks the light defaults on ``.handcalcs``.
+        """
+        props = "".join(f"{key}:{value};" for key, value in self.theme.items())
+        return (
+            f".handcalcs{{{props}}}"
+            f":is({','.join(DARK_HOSTS)}) .handcalcs{{--hc-accent-text:var(--hc-accent-dark);"
+            "--hc-tint:color-mix(in srgb,var(--hc-accent) 30%,transparent);"
+            "--hc-highlight:color-mix(in srgb,var(--hc-accent) 38%,transparent);}"
+        )
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> str:
         # ``self.join`` (inherited) walks the master list via the overridden
         # ``_join_item`` below, emitting nested ``<div>``s. Wrap the whole body
         # once in ``.handcalcs`` and inject the scoped stylesheet a single time.
         body = self.join(tree, base_context)
-        return f'<div class="handcalcs"><style>{self.STYLE}</style>{body}</div>'
+        style = self.theme_style() + self.STYLE
+        return f'<div class="handcalcs"><style>{style}</style>{body}</div>'
 
     def create_context(self, **config_kwargs):
         # Indentation is now structural (``.hc-body`` padding), not a text
@@ -205,12 +333,34 @@ class HTMLRenderer(BaseRenderer):
         # → one ``<tr>`` of three ``<td>``s, reusing the params id/eq/val column
         # alignment so every row lines up on its ``=``. The extra ``hc-multiline``
         # class left-aligns the whole table (the params grid stays centered).
+        # The last row holds the result (and any trailing comment); it is
+        # highlighted like the result of a one-line calc.
+        rows = [list(row) for row in rows]
+        if len(rows) > 1:
+            value, sep, note = str(rows[-1][2]).partition(NOTE_OPEN)
+            rows[-1][2] = result_span(value.rstrip()) + (f" {sep}{note}" if sep else "")
         body = "".join(f'<tr>{self._cell_tds(row)}</tr>' for row in rows)
         return f'<table class="hc-params hc-multiline">{body}</table>'
 
 
 HTMLR = HTMLRenderer
 BRC = BaseRenderContext
+
+# Opening tag of every rendered inline comment (see ``render_inline_comment``).
+NOTE_OPEN = '<span class="hc-note">'
+
+
+def result_span(text: str) -> str:
+    return f'<span class="hc-result">{text}</span>'
+
+
+def keyword(text: str) -> str:
+    return f'<span class="hc-kw">{text}</span>'
+
+
+def code_spans(text: str) -> str:
+    """Turn each `backtick` span in comment text into ``<code>``."""
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
 
 
 ## SWAP RULES
@@ -237,14 +387,14 @@ def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: Ba
     # ``.hc-line`` per source line. ``join`` passes the ``<p>`` through as a
     # block-level flex child; ``.hc-comment`` tames its margin. Comment commands
     # (``# hc: ...``) in the run render to '' and drop out; an all-empty block
-    # (e.g. only commands) emits nothing.
+    # (e.g. only commands) emits nothing. A `backtick` span becomes ``<code>``.
     context = base_context.current
     _ = context.space
     lines = [renderer.render(line, base_context) for line in node.lines]
     texts = [line for line in lines if isinstance(line, str) and line.strip()]
     if not texts:
         return ''
-    return f'<p class="hc-comment">{_.join(texts)}</p>'
+    return f'<p class="hc-comment">{code_spans(_.join(texts))}</p>'
 
 
 # ``calcs_block`` intentionally has no HTML override: the inherited
@@ -254,6 +404,54 @@ def render_comments_block(renderer: HTMLR, node: CommentsBlock, base_context: Ba
 # wrapping ``<p>``). An ignored/``-i`` line renders to '' and is skipped, so no
 # empty element is emitted.
 
+@HTMLRenderer.register("import")
+def render_import(renderer: HTMLR, node: Import, base_context: BaseRenderContext) -> str:
+    # An import is a quiet monospace chip (``.hc-import``) showing the import
+    # statement as written; the chip itself marks it as an import.
+    names = ", ".join(
+        f"{name.identifier} as {name.value}" if name.value is not None else name.identifier
+        for name in node.names
+    )
+    if node.import_from:
+        dots = "." * (node.import_from_level or 0)
+        text = f"from {dots}{node.import_from_module or ''} import {names}"
+    else:
+        text = f"import {names}"
+    return f'<div class="hc-import">{escape(text)}</div>'
+
+
+@HTMLRenderer.register("inline_comment")
+def render_inline_comment(renderer: HTMLR, node: InlineComment, base_context: BaseRenderContext) -> str:
+    # Inline comments are muted (``.hc-note``), so they read the same in calc
+    # lines, multi-line grids and params grids.
+    context = base_context.current
+    content = code_spans(escape(node.content, quote=False))
+    return f"{NOTE_OPEN}{context.lpar}{content}{context.rpar}</span>"
+
+
+@HTMLRenderer.register("calc_line:post")
+@HTMLRenderer.register("expr_line:post")
+def mark_result(renderer: HTMLR, rendered, node, base_context: BaseRenderContext):
+    """
+    Highlight the result of a one-line calc that shows a substitution.
+
+    A rendered line is ``[col, '=', col, '=', col, comment?]``: the columns
+    interleave with the ``=`` sign, so the list has an odd length unless a
+    comment trails it. Only a line with three or more columns (target, an
+    expression and its result) has a result worth highlighting; a param line
+    (``a = 5``) stays plain. Grids and ignored lines are strings and pass through.
+    """
+    if not isinstance(rendered, list):
+        return rendered
+    has_comment = len(rendered) % 2 == 0
+    result_idx = len(rendered) - 1 - has_comment
+    if result_idx < 4:
+        return rendered
+    rendered = list(rendered)
+    rendered[result_idx] = result_span(rendered[result_idx])
+    return rendered
+
+
 @HTMLRenderer.register("header:if_block")
 def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRenderContext) -> str:
     context = base_context.current
@@ -261,7 +459,12 @@ def if_block_header(renderer: HTMLRenderer, node: IfBlock, base_context: BaseRen
     sym_expr = render_condition(renderer, node.test, base_context, 'sym')
     num_expr = render_condition(renderer, node.test, base_context, 'num')
     # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
-    return f"Since{_}({sym_expr}){_}->{_}({num_expr}){_}is{_}True:"
+    return f"{keyword('Since')}{_}({sym_expr}){_}\u2192{_}({num_expr}){_}{keyword(f'is{_}True:')}"
+
+
+@HTMLRenderer.register("header:else_block")
+def else_block_header(renderer: HTMLRenderer, node: ElseBlock, base_context: BaseRenderContext) -> str:
+    return keyword("Otherwise:")
 
 
 @HTMLRenderer.register("header:for_block")
@@ -272,7 +475,8 @@ def for_block_header(renderer: HTMLRenderer, node: ForBlock, base_context: BaseR
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
-    return f"Iterating{_}over{_}each{_}{target}{_}in{_}{iterable}:"
+    over_each = keyword(f"Iterating{_}over{_}each")
+    return f"{over_each}{_}{target}{_}{keyword('in')}{_}{iterable}:"
 
 @HTMLR.register("name:sym")
 def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
@@ -462,6 +666,22 @@ def swap_angle_ops(renderer: HTMLR, node: HcCompOp, base_context: BRC) -> HcComp
     elif node.symbol == ">=":
         node.symbol = "&ge;"
     return node
+
+
+@HTMLR.register("gt_op:post")
+@HTMLR.register("lt_op:post")
+@HTMLR.register("gte_op:post")
+@HTMLR.register("lte_op:post")
+@HTMLR.register("eq_op:post")
+@HTMLR.register("neq_op:post")
+def space_comparison(renderer: HTMLR, rendered, node: HcCompOp, base_context: BRC) -> str:
+    """
+    Space comparison operators like the arithmetic ones (``a &lt; b``, not
+    ``a&lt;b``); ``!=`` becomes ``≠``.
+    """
+    _ = base_context.current.space
+    symbol = "\u2260" if rendered == "!=" else rendered
+    return f"{_}{symbol}{_}"
 
 
 @HTMLR.register("function_call:pre")
