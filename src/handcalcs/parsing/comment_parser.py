@@ -42,5 +42,6 @@ def parse_kwargs(comment: str) -> dict:
     """
     stripped = strip_command_prefix(comment)
     kwarg_locals = {}
-    exec(stripped, locals=kwarg_locals)
+    # Positional: exec() only accepts globals/locals as keywords from Python 3.13.
+    exec(stripped, {}, kwarg_locals)
     return kwarg_locals
