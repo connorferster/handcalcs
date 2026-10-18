@@ -22,34 +22,32 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
-    env:
-      # uv otherwise follows .python-version and tests every cell on 3.13.
-      UV_PYTHON: ${{ matrix.python-version }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
-        # docs/ is ~25 MB of v1 images the tests never read; skipping it
-        # roughly halves checkout time on Windows. (Root files are included.)
+        # docs/ is ~25 MB of v1 images the tests never read. (Cone mode keeps
+        # the root files: pyproject.toml, README.md, uv.lock, ...)
         sparse-checkout: |
           src
           tests
           scripts
         persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - uses: astral-sh/setup-uv@v6
+    - uses: astral-sh/setup-uv@v10.2.0
       with:
         # A pinned uv skips a GitHub API lookup of the latest release.
         version: "0.13.1"
+        # Given the version, the action does not run uv to find one for the
+        # cache key (up to ~12 s on Windows). It also sets UV_PYTHON.
+        python-version: ${{ matrix.python-version }}
         enable-cache: true
-        # Key the cache on the lock file alone: the default glob searches the
-        # whole checkout, which takes ~4 s on Windows.
+        # Key the cache on the lock file alone, not the default glob over the
+        # whole checkout. Downloaded PyPI wheels are kept in the cache (not
+        # pruned), so a warm run downloads nothing from pypi.org.
         cache-dependency-glob: uv.lock
-        # Keep the wheels downloaded from PyPI in the cache too (the default
-        # prunes them), so a warm run downloads nothing from pypi.org.
-        prune-cache: false
     - name: Install dependencies
       # Only the test group: the dev group's JupyterLab is not needed to test.
       run: uv sync --locked --no-default-groups --group test
@@ -61,15 +59,15 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         persist-credentials: false
-    - uses: astral-sh/setup-uv@v6
+    - uses: astral-sh/setup-uv@v10.2.0
       with:
         version: "0.13.1"
+        python-version: "3.13"
         enable-cache: true
         cache-dependency-glob: uv.lock
-        prune-cache: false
     - name: Test black formatted
       run: uv run --locked --only-group lint black src --check
 
@@ -78,20 +76,20 @@ jobs:
     # dependencies), as a user's 'pip install handcalcs' would.
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         persist-credentials: false
-    - uses: astral-sh/setup-uv@v6
+    - uses: astral-sh/setup-uv@v10.2.0
       with:
         version: "0.13.1"
+        python-version: "3.13"
         enable-cache: true
         cache-dependency-glob: uv.lock
-        prune-cache: false
     - name: Build sdist and wheel
       run: uv build
     - name: Install the wheel into a bare venv and render
       run: |
-        uv venv --python 3.13 /tmp/bare
+        uv venv /tmp/bare
         uv pip install --python /tmp/bare dist/*.whl
         cd /tmp
         /tmp/bare/bin/python -c "from handcalcs import HandCalcs, PlainTextRenderer; print(HandCalcs(PlainTextRenderer())('a = 2\nb = a * 3'))"
