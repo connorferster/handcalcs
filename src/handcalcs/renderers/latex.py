@@ -14,6 +14,8 @@ from handcalcs.renderers.base import (
     literal_text,
 )
 
+from handcalcs.renderers.identifiers import has_greek, split_greek
+
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
     HcNode,
@@ -189,14 +191,26 @@ MATH_NAMESPACES = ("math", "cmath", "numpy", "np", "scipy.constants")
 MATH_CONSTANTS = {"inf": "\\infty", "nan": "\\mathrm{NaN}"}
 
 
-def latex_identifier(identifier: str) -> str:
+def latex_word(text: str) -> str:
+    """One character in math italic; a longer word (not a number) upright."""
+    typeset = text.replace("\0", "\\_").replace("\1", "\\ ")
+    if len(text) > 1 and not text.isdigit():
+        return f"\\mathrm{{{typeset}}}"
+    return typeset
+
+
+def latex_identifier(identifier: str, greek_prefixes: bool = True) -> str:
     """
     Typeset a Python identifier as a LaTeX math symbol.
 
     - Single underscores are nested subscripts: ``x_a_b`` -> ``x_{a_{b}}``.
     - Double underscores are spaces and triple underscores literal underscores.
     - A component that names a greek letter becomes that letter
-      (``omega_2`` -> ``\\omega_{2}``).
+      (``omega_2`` -> ``\\omega_{2}``), and so does a Unicode Greek letter
+      (``σ_R`` -> ``\\sigma_{R}``, ``ΔH`` -> ``\\Delta H``) and, with
+      ``greek_prefixes``, a leading Greek name followed by an uppercase letter
+      or a digit (``DeltaH`` -> ``\\Delta H``). Each ``__``-separated word gets
+      the same lookup (``Delta__H`` -> ``\\Delta\\ H``).
     - Any other component longer than one character is a word, set upright
       (``class_section`` -> ``\\mathrm{class}_{\\mathrm{section}}``).
 
@@ -209,13 +223,20 @@ def latex_identifier(identifier: str) -> str:
     identifier = identifier.replace("___", "\0").replace("__", "\1")
     components = []
     for component in identifier.split("_"):
-        if component in GREEK:
-            components.append(GREEK[component])
+        words = [split_greek(word, greek_prefixes) for word in component.split("\1")]
+        if not any(has_greek(pieces) for pieces in words):
+            # No Greek letter: the component is one symbol or one upright word.
+            components.append(latex_word(component))
             continue
-        text = component.replace("\0", "\\_").replace("\1", "\\ ")
-        if len(component) > 1 and not component.isdigit():
-            text = f"\\mathrm{{{text}}}"
-        components.append(text)
+        components.append(
+            "\\ ".join(
+                " ".join(
+                    GREEK[text] if is_greek else latex_word(text)
+                    for is_greek, text in pieces
+                )
+                for pieces in words
+            )
+        )
     head, *subscripts = components
     return head + "".join(f"_{{{sub}" for sub in subscripts) + "}" * len(subscripts)
 
@@ -600,7 +621,7 @@ def render_keyword(renderer: LR, node: Keyword, base_context: BRC) -> str:
     value = renderer.render(node.value, base_context)
     if node.arg is None:
         return f"\\ast\\ast {value}"
-    return f"{latex_identifier(node.arg)} = {value}"
+    return f"{latex_identifier(node.arg, renderer.GREEK_PREFIXES)} = {value}"
 
 
 @LR.register("calcs_block:pre")
@@ -628,7 +649,7 @@ def swap_identifier(renderer: LR, node: Name, base_context: BRC) -> Name:
     Registered as a 'sym' rule on the Name node: the identifier is only shown in
     symbolic mode (numeric mode renders the Name's value instead).
     """
-    node.identifier = latex_identifier(node.identifier)
+    node.identifier = latex_identifier(node.identifier, renderer.GREEK_PREFIXES)
     return node
 
 
@@ -644,12 +665,14 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
     identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(
-        node.identifier
+        node.identifier, renderer.GREEK_PREFIXES
     )
     namespace = node.namespace
     if namespace in ("", "__main__", None) or namespace in MATH_NAMESPACES:
         return identifier
-    namespace = ".".join(latex_identifier(part) for part in namespace.split("."))
+    namespace = ".".join(
+        latex_identifier(part, renderer.GREEK_PREFIXES) for part in namespace.split(".")
+    )
     return f"{namespace}.{identifier}"
 
 

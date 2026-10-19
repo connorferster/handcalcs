@@ -259,8 +259,52 @@ def test_latex_identifier(identifier, expected):  # 8, 23
     assert latex_identifier(identifier) == expected
 
 
+@pytest.mark.parametrize("identifier, expected", [
+    # R1: Unicode Greek letters become commands.
+    ("ΔH", "\\Delta H"),
+    ("σ_R", "\\sigma_{R}"),
+    ("λ_2", "\\lambda_{2}"),
+    ("ΔT_max", "\\Delta T_{\\mathrm{max}}"),
+    ("Σρ", "\\Sigma \\rho"),
+    # R2: each word of a ``__`` label gets the Greek lookup.
+    ("Delta__H", "\\Delta\\ H"),
+    ("Delta__E_car", "\\Delta\\ E_{\\mathrm{car}}"),
+    ("Annual__Rate", "\\mathrm{Annual\\ Rate}"),
+    # R3: a Greek-name prefix before an uppercase letter or a digit.
+    ("DeltaH", "\\Delta H"),
+    ("DeltaT_max", "\\Delta T_{\\mathrm{max}}"),
+    ("gammaM0", "\\gamma \\mathrm{M0}"),
+    ("alpha2", "\\alpha 2"),
+    ("lambdaR", "\\lambda R"),
+    ("DeltaHvap", "\\Delta \\mathrm{Hvap}"),
+    ("N_DeltaH", "N_{\\Delta H}"),
+    ("metal", "\\mathrm{metal}"),
+    ("Pin", "\\mathrm{Pin}"),
+    ("xtheta", "\\mathrm{xtheta}"),
+])
+def test_latex_identifier_greek(identifier, expected):  # #117
+    assert latex_identifier(identifier) == expected
+
+
+@pytest.mark.parametrize("identifier, expected", [
+    ("DeltaH", "\\mathrm{DeltaH}"),
+    ("ΔH", "\\Delta H"),
+    ("Delta__H", "\\Delta\\ H"),
+])
+def test_latex_identifier_without_greek_prefixes(identifier, expected):  # #117
+    assert latex_identifier(identifier, greek_prefixes=False) == expected
+
+
+def test_greek_prefixes_class_attribute_turns_the_split_off():  # #117
+    class NoPrefixes(LatexRenderer):
+        GREEK_PREFIXES = False
+
+    assert "\\Delta H" in render("DeltaH = 2\n")
+    assert "\\mathrm{DeltaH}" in HandCalcs(renderer=NoPrefixes())("DeltaH = 2\n")
+
+
 def test_latex_identifier_is_idempotent():
-    for identifier in ("x_1", "class_section", "omega_2", "Alpha"):
+    for identifier in ("x_1", "class_section", "omega_2", "Alpha", "DeltaH", "ΔH"):
         once = latex_identifier(identifier)
         assert latex_identifier(once) == once
 

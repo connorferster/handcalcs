@@ -32,9 +32,25 @@ def test_split_greek_prefix(component, expected):
 @pytest.mark.parametrize(
     "component",
     [
-        "metal", "pier", "beta", "Betas", "etalon", "psion", "alphabet", "Pin",
-        "Pi", "Mud", "Rhombus", "Taunt", "Chin", "xtheta", "Delta", "lambda",
-        "x", "", "H",
+        "metal",
+        "pier",
+        "beta",
+        "Betas",
+        "etalon",
+        "psion",
+        "alphabet",
+        "Pin",
+        "Pi",
+        "Mud",
+        "Rhombus",
+        "Taunt",
+        "Chin",
+        "xtheta",
+        "Delta",
+        "lambda",
+        "x",
+        "",
+        "H",
     ],
 )
 def test_split_greek_prefix_no_split(component):
@@ -68,7 +84,13 @@ def test_unicode_round_trip():
 
 @pytest.mark.parametrize(
     "word, expected",
-    [("DeltaH", "ΔH"), ("sigma", "σ"), ("gammaM0", "γM0"), ("metal", "metal"), ("ΔH", "ΔH")],
+    [
+        ("DeltaH", "ΔH"),
+        ("sigma", "σ"),
+        ("gammaM0", "γM0"),
+        ("metal", "metal"),
+        ("ΔH", "ΔH"),
+    ],
 )
 def test_unicode_greek(word, expected):
     assert unicode_greek(word) == expected
