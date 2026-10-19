@@ -6,7 +6,8 @@ function calls and collections, each returning an OMML fragment.
 from __future__ import annotations
 
 import datetime
-from collections import deque
+import re
+from html import unescape
 
 from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword
 from handcalcs.parsing.nodes import (
@@ -27,6 +28,14 @@ from handcalcs.renderers.base import (
     is_source_number,
     literal_text,
 )
+from handcalcs.renderers.identifiers import (
+    GREEK_UNICODE,
+    IdentifierOptions,
+    Symbol,
+    identifier_options,
+    is_identifier,
+    parse_identifier,
+)
 from . import omml
 from .renderer import WordRenderer
 
@@ -35,66 +44,9 @@ BRC = BaseRenderContext
 
 MINUS = "−"
 
-# Greek letter names usable as identifier components, and their letters.
-# ``lamb`` stands in for ``lambda``, a Python keyword.
-GREEK_LOWER = {
-    "alpha": "α",
-    "beta": "β",
-    "gamma": "γ",
-    "delta": "δ",
-    "epsilon": "ε",
-    "varepsilon": "ϵ",
-    "zeta": "ζ",
-    "eta": "η",
-    "theta": "θ",
-    "vartheta": "ϑ",
-    "iota": "ι",
-    "kappa": "κ",
-    "lamb": "λ",
-    "mu": "μ",
-    "nu": "ν",
-    "xi": "ξ",
-    "omicron": "ο",
-    "pi": "π",
-    "varpi": "ϖ",
-    "rho": "ρ",
-    "varrho": "ϱ",
-    "sigma": "σ",
-    "varsigma": "ς",
-    "tau": "τ",
-    "upsilon": "υ",
-    "phi": "φ",
-    "varphi": "ϕ",
-    "chi": "χ",
-    "psi": "ψ",
-    "omega": "ω",
-}
-GREEK_UPPER = {
-    "Alpha": "Α",
-    "Beta": "Β",
-    "Gamma": "Γ",
-    "Delta": "Δ",
-    "Epsilon": "Ε",
-    "Zeta": "Ζ",
-    "Eta": "Η",
-    "Theta": "Θ",
-    "Iota": "Ι",
-    "Kappa": "Κ",
-    "Lamb": "Λ",
-    "Mu": "Μ",
-    "Nu": "Ν",
-    "Xi": "Ξ",
-    "Omicron": "Ο",
-    "Pi": "Π",
-    "Rho": "Ρ",
-    "Sigma": "Σ",
-    "Tau": "Τ",
-    "Upsilon": "Υ",
-    "Phi": "Φ",
-    "Chi": "Χ",
-    "Psi": "Ψ",
-    "Omega": "Ω",
-}
+# The combining mark Word draws for each identifier accent (``m:acc``).
+ACCENT_MARKS = {"hat": "̂", "bar": "̅", "dot": "̇", "ddot": "̈"}
+PRIME_MARK = "′"
 
 # Namespaces whose attributes are mathematical constants (``math.pi``); the
 # namespace is dropped when the attribute is shown symbolically.
@@ -155,45 +107,99 @@ MATH_FUNCS = {
 BRACKET_FUNCS = {"floor": ("⌊", "⌋"), "ceil": ("⌈", "⌉"), "abs": ("|", "|")}
 
 
-def is_omml(text: str) -> bool:
-    return text.startswith("<m:")
+def word_text(text: str) -> str:
+    """One character in math italic; a longer word (not a number) upright."""
+    if len(text) > 1 and not text.isdigit():
+        return omml.upright(text)
+    return omml.run(text)
 
 
-def word_identifier(identifier: str) -> str:
+def word_greek(name: str) -> str:
+    """A Greek letter; a capital is set upright, as in print."""
+    letter = GREEK_UNICODE[name]
+    return omml.upright(letter) if name[0].isupper() else omml.run(letter)
+
+
+# One upright run and its (escaped) text.
+_UPRIGHT_RUN = re.compile(
+    "([^<]*)".join(map(re.escape, omml.upright("\0").split("\0")))
+)
+
+
+def word_subscripts(parts: list[str]) -> str:
     """
-    Typeset a Python identifier as OMML, with the rules of ``latex_identifier``:
-
-    - single underscores are nested subscripts: ``x_a_b`` -> x with subscript
-      a, which has subscript b;
-    - double underscores are spaces and triple underscores literal underscores;
-    - a component that names a Greek letter becomes that letter
-      (``omega_2`` -> ω₂); a capital is set upright, as in print;
-    - any other component longer than one character is a word, set upright in
-      one run (``M_max`` -> M with subscript "max").
-
-    Identifiers that are already OMML are returned unchanged, so the swap is
-    idempotent.
+    Sibling subscripts separated by commas, with neighbouring upright words set
+    as one run ("pl,Rd", as in Eurocode notation).
     """
-    if not identifier or is_omml(identifier):
-        return identifier
-    identifier = identifier.replace("___", "\0").replace("__", "\1")
-    components = []
-    for component in identifier.split("_"):
-        if component in GREEK_LOWER:
-            components.append(omml.run(GREEK_LOWER[component]))
-            continue
-        if component in GREEK_UPPER:
-            components.append(omml.upright(GREEK_UPPER[component]))
-            continue
-        text = component.replace("\0", "_").replace("\1", " ")
-        if len(component) > 1 and not component.isdigit():
-            components.append(omml.upright(text))
+    joined: list[str] = []
+    for part in parts:
+        upright = _UPRIGHT_RUN.fullmatch(part)
+        previous = _UPRIGHT_RUN.fullmatch(joined[-1]) if joined else None
+        if upright and previous:
+            joined[-1] = omml.upright(
+                unescape(f"{previous.group(1)},{upright.group(1)}")
+            )
         else:
-            components.append(omml.run(text))
-    rendered = components[-1]
-    for component in reversed(components[:-1]):
-        rendered = omml.sub(component, rendered)
+            joined.append(part)
+    return omml.run(",").join(joined)
+
+
+def word_symbol(symbol: Symbol) -> str:
+    """Typeset a parsed ``Symbol`` as OMML (see ``word_identifier``)."""
+    if symbol.is_text:
+        # No Greek letter: the base is one symbol or one upright word.
+        rendered = word_text(symbol.text())
+    else:
+        rendered = omml.upright(" ").join(
+            "".join(
+                word_greek(text) if is_greek else word_text(text)
+                for is_greek, text in pieces
+            )
+            for pieces in symbol.words
+        )
+    for accent in symbol.accents:
+        rendered = omml.acc(rendered, ACCENT_MARKS[accent])
+    superscripts = omml.run(",").join(word_symbol(sup) for sup in symbol.superscripts)
+    primes = PRIME_MARK * symbol.primes
+    if primes and not superscripts:
+        rendered += omml.run(primes)
+    elif superscripts:
+        superscripts = omml.run(primes) + superscripts
+    subscripts = word_subscripts([word_symbol(sub) for sub in symbol.subscripts])
+    if subscripts and superscripts:
+        return omml.sub_sup(rendered, subscripts, superscripts)
+    if subscripts:
+        return omml.sub(rendered, subscripts)
+    if superscripts:
+        return omml.sup(rendered, superscripts)
     return rendered
+
+
+def word_identifier(identifier: str, options: IdentifierOptions | None = None) -> str:
+    """
+    Typeset a Python identifier as OMML from its parsed ``Symbol`` (see
+    ``identifiers.parse_identifier``), with the rules of ``latex_identifier``:
+
+    - single underscores are subscripts: ``N_pl_Rd`` -> N with subscript
+      "pl,Rd" in the comma style (the default), ``x_a_b`` -> x with subscript
+      a, which has subscript b, in the nested style;
+    - double underscores are spaces and triple underscores literal underscores;
+    - Greek names, Unicode letters and (with ``greek_prefixes``) Greek prefixes
+      become letters (``omega_2`` -> ω₂, ``DeltaH`` -> ΔH); a capital is set
+      upright, as in print;
+    - ``hat``, ``bar``, ``dot`` and ``ddot`` are accents (``m:acc``), ``prime``
+      a prime and ``star`` a superscript ``*``;
+    - any other component longer than one character is a word, set upright in
+      one run (``M_max`` -> M with subscript "max");
+    - an identifier in ``options.symbols`` is typeset from its spec.
+
+    Text that isn't an identifier (OMML from a ``name:pre`` rule or an earlier
+    pass) is returned unchanged, so the swap is idempotent.
+    """
+    options = options or IdentifierOptions()
+    if identifier not in options.symbols and not is_identifier(identifier):
+        return identifier
+    return word_symbol(parse_identifier(identifier, options))
 
 
 ## NAMES
@@ -202,7 +208,9 @@ def word_identifier(identifier: str) -> str:
 @WR.register("name:sym")
 def swap_identifier(renderer: WR, node: Name, base_context: BRC) -> Name:
     """Typeset a Name's identifier (see ``word_identifier``)."""
-    node.identifier = word_identifier(node.identifier)
+    node.identifier = word_identifier(
+        node.identifier, identifier_options(renderer, base_context)
+    )
     return node
 
 
@@ -216,13 +224,14 @@ def render_attribute(renderer: WR, node: Attribute, base_context: BRC) -> str:
     context = base_context.current
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
+    options = identifier_options(renderer, base_context)
     namespace = node.namespace
     if namespace in ("", "__main__", None) or namespace in MATH_NAMESPACES:
         if namespace in MATH_NAMESPACES and node.identifier in MATH_CONSTANTS:
             return MATH_CONSTANTS[node.identifier]
-        return word_identifier(node.identifier)
-    parts = [word_identifier(part) for part in namespace.split(".")]
-    return omml.run(".").join([*parts, word_identifier(node.identifier)])
+        return word_identifier(node.identifier, options)
+    parts = [word_identifier(part, options) for part in namespace.split(".")]
+    return omml.run(".").join([*parts, word_identifier(node.identifier, options)])
 
 
 @WR.register("keyword")
@@ -231,7 +240,8 @@ def render_keyword(renderer: WR, node: Keyword, base_context: BRC) -> str:
     value = renderer.render(node.value, base_context)
     if node.arg is None:
         return f"{omml.run('**')}{value}"
-    return f"{word_identifier(node.arg)}{omml.run('=')}{value}"
+    options = identifier_options(renderer, base_context)
+    return f"{word_identifier(node.arg, options)}{omml.run('=')}{value}"
 
 
 ## VALUES
@@ -456,6 +466,9 @@ def render_function_call(renderer: WR, node: FunctionCall, base_context: BRC) ->
             return omml.func(omml.upright(MATH_FUNCS[identifier]), omml.delim(joined))
     name = omml.upright(identifier)
     if namespace and not is_math:
-        prefix = omml.run(".").join(word_identifier(p) for p in namespace.split("."))
+        options = identifier_options(renderer, base_context)
+        prefix = omml.run(".").join(
+            word_identifier(part, options) for part in namespace.split(".")
+        )
         name = f"{prefix}{omml.run('.')}{name}"
     return f"{name}{omml.delim_items(args)}"

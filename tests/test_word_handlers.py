@@ -10,6 +10,7 @@ pytest.importorskip("lxml")
 
 from handcalcs import HandCalcs
 from handcalcs.renderers.base import BaseRenderer
+from handcalcs.renderers.identifiers import IdentifierOptions
 from handcalcs.renderers.word import WordRenderer, omml
 from handcalcs.renderers.word.handlers import typeset_number, word_identifier
 
@@ -46,6 +47,12 @@ def linear(fragment: str) -> str:
             return f"{{{walk(kids['e'])}}}^{{{walk(kids['sup'])}}}"
         if tag == "sSub":
             return f"{{{walk(kids['e'])}}}_{{{walk(kids['sub'])}}}"
+        if tag == "sSubSup":
+            base, sub, sup = (walk(kids[name]) for name in ("e", "sub", "sup"))
+            return f"{{{base}}}_{{{sub}}}^{{{sup}}}"
+        if tag == "acc":
+            mark = el.find(f"{M}accPr/{M}chr").get(f"{M}val")
+            return f"{{{walk(kids['e'])}}}{mark}"
         if tag == "rad":
             degree = walk(kids["deg"])
             body = walk(kids["e"])
@@ -88,19 +95,142 @@ def last_line(source: str) -> str:
         ("x", "x"),
         ("x_1", "{x}_{1}"),
         ("M_max", "{M}_{'max'}"),
-        ("x_a_b", "{x}_{{a}_{b}}"),
+        ("x_a_b", "{x}_{a,b}"),
+        ("N_pl_Rd", "{N}_{'pl,Rd'}"),
+        ("M_Ed_y", "{M}_{'Ed',y}"),
         ("width", "'width'"),
         ("sigma", "σ"),
         ("Delta_T", "{'Δ'}_{T}"),
         ("omega_2", "{ω}_{2}"),
         ("lamb", "λ"),
+        ("lambda_", "λ"),
+        ("DeltaH", "'Δ'H"),
+        ("ΔH", "'Δ'H"),
+        ("gammaM0", "γ'M0'"),
+        ("Delta__E_car", "{'Δ'' 'E}_{'car'}"),
         ("f__c", "'f c'"),
         ("a___b", "'a_b'"),
         ("x_10", "{x}_{10}"),
+        ("x_hat", "{x}̂"),
+        ("x_hat_max", "{{x}̂}_{'max'}"),
+        ("V_dot", "{V}̇"),
+        ("x_ddot_1", "{{x}̈}_{1}"),
+        ("M_star", "{M}^{*}"),
+        ("f_prime_c", "{f′}_{c}"),
+        ("M_star_prime_Ed", "{M}_{'Ed'}^{′*}"),
     ],
 )
 def test_word_identifier(identifier, expected):
     assert linear(word_identifier(identifier)) == expected
+
+
+def test_word_identifier_nested_style():
+    nested = IdentifierOptions(subscripts="nested")
+    assert linear(word_identifier("x_a_b", nested)) == "{x}_{{a}_{b}}"
+    assert linear(word_identifier("N_pl_Rd", nested)) == "{N}_{{'pl'}_{'Rd'}}"
+
+
+@pytest.mark.parametrize(
+    "spec, expected",
+    [
+        ("N_{pl,Rd}", "{N}_{'pl,Rd'}"),
+        ("ΔH^{*}", "{'Δ'H}^{*}"),
+        ("dot(V)", "{V}̇"),
+        ("bar(x)_{m}", "{{x}̅}_{m}"),
+        ("hat(sigma)'_{c}", "{{σ}̂′}_{c}"),
+    ],
+)
+def test_word_identifier_symbols(spec, expected):
+    options = IdentifierOptions(symbols={"s": spec})
+    assert linear(word_identifier("s", options)) == expected
+
+
+def test_greek_prefixes_off():
+    options = IdentifierOptions(greek_prefixes=False)
+    assert linear(word_identifier("DeltaH", options)) == "'DeltaH'"
+
+
+def test_identifier_options_reach_the_renderer():
+    source = '# hc: subscripts = "nested"\nN_pl_Rd = 2\n'
+    assert last_line(source) == "{N}_{{'pl'}_{'Rd'}} = 2"
+    source = "# hc: symbols = {'N_plRd': 'N_{pl,Rd}'}\nN_plRd = 2\n"
+    assert last_line(source) == "{N}_{'pl,Rd'} = 2"
+
+
+# The Word column of the cross-renderer tables in test_greek_identifiers.py and
+# test_subscripts_and_symbols.py, keyed the same way.
+GREEK_WORD = {
+    "DeltaH": "'Δ'H",
+    "DeltaT_max": "{'Δ'T}_{'max'}",
+    "gammaM0": "γ'M0'",
+    "alpha2": "α2",
+    "Delta__H": "'Δ'' 'H",
+    "Delta__E_car": "{'Δ'' 'E}_{'car'}",
+    "ΔH": "'Δ'H",
+    "Sigma_rho": "{'Σ'}_{ρ}",
+    "metal": "'metal'",
+    "Annual__Rate": "'Annual Rate'",
+}
+COMMA_WORD = {
+    "N_pl_Rd": "{N}_{'pl,Rd'}",
+    "f_y_k": "{f}_{y,k}",
+    "M_Ed_y": "{M}_{'Ed',y}",
+    "x_hat_max": "{{x}̂}_{'max'}",
+    "M_star": "{M}^{*}",
+}
+NESTED_WORD = {"N_pl_Rd": "{N}_{{'pl'}_{'Rd'}}"}
+SYMBOL_WORD = {"N_plRd": "{N}_{'pl,Rd'}", "dH": "{'Δ'H}^{*}"}
+ACCENT_WORD = {
+    "V_dot": "{V}̇",
+    "x_ddot_1": "{{x}̈}_{1}",
+    "V_flow": "{V}̇",
+    "x_m": "{{x}̅}_{m}",
+    "s_c": "{{σ}̂′}_{c}",
+}
+
+
+def test_word_tables_cover_the_shared_tables():
+    from tests import test_greek_identifiers as greek
+    from tests import test_subscripts_and_symbols as subs
+
+    assert GREEK_WORD.keys() == greek.TABLE.keys()
+    assert COMMA_WORD.keys() == subs.COMMA.keys()
+    assert NESTED_WORD.keys() == subs.NESTED_TABLE.keys()
+    assert SYMBOL_WORD.keys() == subs.SYMBOL_TABLE.keys()
+    assert ACCENT_WORD.keys() == subs.ACCENT_TABLE.keys()
+
+
+@pytest.mark.parametrize("identifier", [*GREEK_WORD, *COMMA_WORD])
+def test_shared_identifier_tables(identifier):
+    expected = {**GREEK_WORD, **COMMA_WORD}[identifier]
+    assert last_line(f"{identifier} = 2\n") == f"{expected} = 2"
+
+
+@pytest.mark.parametrize("identifier", NESTED_WORD)
+def test_shared_nested_table(identifier):
+    source = f'# hc: subscripts = "nested"\n{identifier} = 2\n'
+    assert last_line(source) == f"{NESTED_WORD[identifier]} = 2"
+
+
+@pytest.mark.parametrize("identifier", SYMBOL_WORD)
+def test_shared_symbol_table(identifier):
+    from tests.test_subscripts_and_symbols import SYMBOLS
+
+    source = f"# hc: symbols = {SYMBOLS!r}\n{identifier} = 2\n"
+    assert last_line(source) == f"{SYMBOL_WORD[identifier]} = 2"
+
+
+@pytest.mark.parametrize("identifier", ACCENT_WORD)
+def test_shared_accent_table(identifier):
+    from tests.test_subscripts_and_symbols import ACCENT_SPECS
+
+    source = f"# hc: symbols = {ACCENT_SPECS!r}\n{identifier} = 2\n"
+    assert last_line(source) == f"{ACCENT_WORD[identifier]} = 2"
+
+
+def test_upright_subscripts_are_escaped_when_merged():
+    options = IdentifierOptions(symbols={"s": "N_{a<b,c&d}"})
+    assert linear(word_identifier("s", options)) == "{N}_{'a<b,c&d'}"
 
 
 def test_word_identifier_is_idempotent():

@@ -74,6 +74,19 @@ def sup(base: str, superscript: str) -> str:
     return f"<m:sSup>{e(base)}{element('sup', superscript)}</m:sSup>"
 
 
+def sub_sup(base: str, subscript: str, superscript: str) -> str:
+    """A base with both a subscript and a superscript, stacked (``m:sSubSup``)."""
+    return (
+        f"<m:sSubSup>{e(base)}{element('sub', subscript)}"
+        f"{element('sup', superscript)}</m:sSubSup>"
+    )
+
+
+def acc(base: str, char: str) -> str:
+    """An accent over a base: ``char`` is a combining mark (U+0302 is a hat)."""
+    return f'<m:acc><m:accPr><m:chr m:val="{char}"/></m:accPr>{e(base)}</m:acc>'
+
+
 def frac(numerator: str, denominator: str) -> str:
     return f"<m:f>{element('num', numerator)}{element('den', denominator)}</m:f>"
 
