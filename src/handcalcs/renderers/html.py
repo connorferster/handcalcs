@@ -101,6 +101,8 @@ class HTMLRenderer(BaseRenderer):
     # once by ``complete``; every rule except the table rules uses ``:where()``
     # so it contributes zero specificity and a host page's own styles win. ``--hc-gap`` and
     # ``--hc-indent`` are the two knobs everything else references.
+    # Leads a continuation row of a multi-line calc (see ``format_calc_grid``).
+    CONTINUATION_INDENT = "&emsp;&emsp;"
     STYLE = (
         ".handcalcs{"
         "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;--hc-eq-gap:0.3em;"
@@ -315,9 +317,13 @@ class HTMLRenderer(BaseRenderer):
         # alignment so every row lines up on its ``=``. The extra ``hc-multiline``
         # class left-aligns the whole table (the params grid stays centered).
         # The last row holds the result (and any trailing comment); it is
-        # highlighted like the result of a one-line calc.
+        # highlighted like the result of a one-line calc. A row with an empty ``eq``
+        # continues the value above it (a source line continuation) and is indented.
         rows = [list(row) for row in rows]
-        if len(rows) > 1:
+        for row in rows:
+            if not row[1]:
+                row[2] = f"{self.CONTINUATION_INDENT}{row[2]}"
+        if len(rows) > 1 and rows[-1][1]:
             value, sep, note = str(rows[-1][2]).partition(NOTE_OPEN)
             rows[-1][2] = result_span(value.rstrip()) + (f" {sep}{note}" if sep else "")
         body = "".join(f"<tr>{self._cell_tds(row)}</tr>" for row in rows)

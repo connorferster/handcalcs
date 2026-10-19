@@ -287,6 +287,7 @@ class LatexRenderer(BaseRenderer):
     PARAGRAPH = "\\noindent "
     ROW_SEP = " \\\\\n"
     LINE_BREAK = "\\medskip"
+    CONTINUATION_INDENT = "\\quad"
     BLOCK_OPEN = "\\begin{list}{}{\\setlength{\\leftmargin}{1.5em}}\\item[]"
     BLOCK_CLOSE = "\\end{list}"
     # Collections longer than MAX_ITEMS show only their first and last
@@ -470,9 +471,20 @@ class LatexRenderer(BaseRenderer):
         A multiline (``# hc: -m``) calc: one ``aligned`` row per ``[id, eq, value]``
         triple, all aligned on ``eq``. Returned as a single pre-joined string that
         sits as one row inside its CalcsBlock's math group.
+
+        A row with an empty ``eq`` continues the row above (a line continuation in
+        the source) and is indented by ``CONTINUATION_INDENT``. An empty group
+        ``{}`` closes the row before it and opens the continuation, so an operator
+        at the break keeps its binary spacing.
         """
         _ = base_context.current.space
-        lines = [f"{ident}{_}&{eq}{_}{val}".strip() for ident, eq, val in rows]
+        lines = []
+        for k, (ident, eq, val) in enumerate(rows):
+            if not eq:
+                val = f"{self.CONTINUATION_INDENT}{_}{{}}{val}"
+            if k + 1 < len(rows) and not rows[k + 1][1]:
+                val = f"{val}{{}}"
+            lines.append(f"{ident}{_}&{eq}{_}{val}".strip())
         return self.ROW_SEP.join(lines)
 
 

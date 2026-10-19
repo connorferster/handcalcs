@@ -259,6 +259,29 @@ class AST_Parser:
         pending = getattr(self, "_pending_comment_rows", deque())
         return bool(pending) and pending[0] < before
 
+    def _line_break(self, node: ast.BinOp) -> str:
+        """
+        Where a line continuation splits the operands of ``node``: ``"after"``
+        if the operator ends the left operand's line (``a + \\`` then ``b``),
+        ``"before"`` if it starts the right operand's line, or ``""`` when both
+        operands share a line (or their positions are unknown).
+        """
+        left, right = node.left, node.right
+        end_row = getattr(left, "end_lineno", None)
+        start_row = getattr(right, "lineno", None)
+        if end_row is None or start_row is None or end_row >= start_row:
+            return ""
+        # The rest of the left operand's line, after the operand itself. Column
+        # offsets are UTF-8 byte offsets.
+        lines = self.source.splitlines()
+        if end_row > len(lines):
+            return ""
+        tail = lines[end_row - 1].encode()[left.end_col_offset :].decode()
+        tail = tail.split("#", 1)[0]
+        if tail.strip(" \t\\()"):
+            return "after"
+        return "before"
+
     def _blank_between(self, prev: ast.AST, nxt: ast.AST) -> bool:
         """True if a blank source line separates statement ``prev`` from ``nxt``."""
         end = getattr(prev, "end_lineno", prev.lineno)
@@ -347,6 +370,7 @@ class AST_Parser:
             op_name = type(node.op).__name__
             op_class = ARITHMETIC_OPS[op_name]
             hc_op = op_class(left, right)
+            hc_op.line_break = self._line_break(node)
             val = hc_op
 
             # add_to_current_block = True

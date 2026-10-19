@@ -8,7 +8,12 @@ from .nodes import HcNode
 
 @dataclass
 class HcBinOp(HcNode):
-    pass
+    """
+    A binary arithmetic operator. ``line_break`` records a line continuation in
+    the source between the operands: ``"after"`` when the operator ends the
+    first physical line (``a + \\``), ``"before"`` when it starts the next one,
+    ``""`` when both operands are on one line.
+    """
 
 
 @dataclass
@@ -18,6 +23,7 @@ class PowOp(HcBinOp):
     symbol: str = "**"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "pow_op"
 
 
@@ -28,6 +34,7 @@ class DivOp(HcBinOp):
     symbol: str = "/"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "div_op"
 
 
@@ -38,6 +45,7 @@ class FloorOp(HcBinOp):
     symbol: str = "//"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "floor_op"
 
 
@@ -48,6 +56,7 @@ class ModuloOp(HcBinOp):
     symbol: str = "%"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "modulo_op"
 
 
@@ -58,6 +67,7 @@ class MultOp(HcBinOp):
     symbol: str = "*"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "mult_op"
 
 
@@ -68,6 +78,7 @@ class AddOp(HcBinOp):
     symbol: str = "+"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "add_op"
 
 
@@ -78,6 +89,7 @@ class SubOp(HcBinOp):
     symbol: str = "-"
     pre: str = ""
     post: str = ""
+    line_break: str = field(default="", compare=False)
     type: str = "sub_op"
 
 
