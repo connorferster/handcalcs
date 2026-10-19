@@ -78,7 +78,7 @@ def test_rad_hides_degree_for_square_root():
 def test_bare_text_becomes_runs():
     # A base handler joins components with bare text (the assignment, commas).
     fragment = f"{omml.run('a')}={omml.run('b')}, {omml.frac('1', '2')}"
-    assert texts(fragment) == ["a", "=", "b", ",", "1", "2"]
+    assert texts(fragment) == ["a", "=", "b", ", ", "1", "2"]
     root = omml.to_element(fragment)
     assert all(el.tail is None for el in root.iter())
     assert root.text is None

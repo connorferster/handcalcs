@@ -1,0 +1,289 @@
+"""
+Tests for the Word renderer's inline handlers (#222), run through the HandCalcs
+pipeline. Each rendered OMML fragment is parsed and read back as linear text
+(see ``linear``) so the assertions stay readable.
+"""
+
+import pytest
+
+pytest.importorskip("lxml")
+
+from handcalcs import HandCalcs
+from handcalcs.renderers.base import BaseRenderer
+from handcalcs.renderers.word import WordRenderer, omml
+from handcalcs.renderers.word.handlers import typeset_number, word_identifier
+
+M = f"{{{omml.M_NS}}}"
+
+
+class TreeWordRenderer(WordRenderer):
+    """Returns the render tree instead of a document, to inspect fragments."""
+
+    complete = BaseRenderer.complete
+
+
+def linear(fragment: str) -> str:
+    """
+    OMML as linear text: a fraction is ``{num}/{den}``, a superscript
+    ``{base}^{sup}``, a subscript ``{base}_{sub}``, a radical ``√{x}`` or
+    ``root{n}{x}``, brackets their characters around the items, a function
+    ``name␣arg``. Upright runs are marked ``'word'`` and normal text ``"text"``.
+    """
+
+    def walk(el) -> str:
+        tag = el.tag.removeprefix(M)
+        kids = {child.tag.removeprefix(M): child for child in el}
+        if tag == "r":
+            text = "".join(t.text or "" for t in el.iter(f"{M}t"))
+            if el.find(f"{M}rPr/{M}nor") is not None:
+                return f'"{text}"'
+            if el.find(f"{M}rPr/{M}sty") is not None:
+                return f"'{text}'"
+            return text
+        if tag == "f":
+            return f"{{{walk(kids['num'])}}}/{{{walk(kids['den'])}}}"
+        if tag == "sSup":
+            return f"{{{walk(kids['e'])}}}^{{{walk(kids['sup'])}}}"
+        if tag == "sSub":
+            return f"{{{walk(kids['e'])}}}_{{{walk(kids['sub'])}}}"
+        if tag == "rad":
+            degree = walk(kids["deg"])
+            body = walk(kids["e"])
+            return f"root{{{degree}}}{{{body}}}" if degree else f"√{{{body}}}"
+        if tag == "d":
+            props = el.find(f"{M}dPr")
+
+            def prop(name, default):
+                found = props.find(f"{M}{name}") if props is not None else None
+                return found.get(f"{M}val") if found is not None else default
+
+            items = [walk(child) for child in el.findall(f"{M}e")]
+            return f"{prop('begChr', '(')}{prop('sepChr', '|').join(items)}{prop('endChr', ')')}"
+        if tag == "func":
+            return f"{walk(kids['fName'])} {walk(kids['e'])}"
+        if tag.endswith("Pr"):
+            return ""
+        return "".join(walk(child) for child in el)
+
+    return walk(omml.to_element(fragment))
+
+
+def tree(source: str, **config) -> list:
+    return HandCalcs(renderer=TreeWordRenderer())(source)
+
+
+def last_line(source: str) -> str:
+    """The last calc line of ``source``, components joined by spaces, as linear text."""
+    calcs = [item for item in tree(source) if isinstance(item, list)]
+    body = calcs[-1][-1]
+    return " ".join(linear(part) for part in body[-1])
+
+
+# --- Identifiers ------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "identifier, expected",
+    [
+        ("x", "x"),
+        ("x_1", "{x}_{1}"),
+        ("M_max", "{M}_{'max'}"),
+        ("x_a_b", "{x}_{{a}_{b}}"),
+        ("width", "'width'"),
+        ("sigma", "σ"),
+        ("Delta_T", "{'Δ'}_{T}"),
+        ("omega_2", "{ω}_{2}"),
+        ("lamb", "λ"),
+        ("f__c", "'f c'"),
+        ("a___b", "'a_b'"),
+        ("x_10", "{x}_{10}"),
+    ],
+)
+def test_word_identifier(identifier, expected):
+    assert linear(word_identifier(identifier)) == expected
+
+
+def test_word_identifier_is_idempotent():
+    once = word_identifier("M_max")
+    assert word_identifier(once) == once
+
+
+# --- Numbers ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "formatted, expected",
+    [
+        ("3", "3"),
+        ("-3", "−3"),
+        ("2.5e+05", "2.5×{10}^{5}"),
+        ("1e-06", "{10}^{−6}"),
+        ("-1.2e-03", "−1.2×{10}^{−3}"),
+        ("inf", "∞"),
+        ("-inf", "−∞"),
+        ("nan", "'NaN'"),
+    ],
+)
+def test_typeset_number(formatted, expected):
+    assert linear(typeset_number(formatted)) == expected
+
+
+def test_calculated_values_use_format_code():
+    assert last_line("a = 1/3\n").endswith("= 0.33333")
+
+
+def test_source_literals_keep_their_digits():
+    assert last_line("x = 2\nb = 2.50 * x\n") == "b = 2.50⋅x = 2.50⋅2 = 5"
+
+
+def test_bool_none_string_constants():
+    assert last_line("a = True\n") == "a = 'True'"
+    assert last_line("a = None\n") == "a = 'None'"
+    assert last_line("a = 'steel'\n") == 'a = "“steel”"'
+
+
+def test_complex_constant():
+    assert last_line("a = 1+2j\nb = a * 1\n").endswith("= 1+2j")
+
+
+def test_unit_like_values_are_text():
+    class Qty:
+        def __format__(self, spec):
+            return "3.000 kN"
+
+    # A value with no number form is shown as normal text.
+    from handcalcs.renderers.word.handlers import render_constant
+    from handcalcs.parsing.nodes import Constant
+
+    renderer = WordRenderer()
+    node = Constant(value=Qty(), calculated=True)
+    assert (
+        linear(render_constant(renderer, node, renderer.create_context()))
+        == '"3.000 kN"'
+    )
+
+
+# --- Operators --------------------------------------------------------------
+
+
+def test_arithmetic_operators():
+    assert last_line("a = 2\nb = 3\nc = a * b + a - b\n").startswith("c = a⋅b+a−b")
+
+
+def test_division_is_a_fraction():
+    assert last_line("a = 2\nb = 3\nc = (a + b) / b\n").startswith("c = {a+b}/{b}")
+
+
+def test_floor_division():
+    assert last_line("a = 7\nb = 2\nc = a // b\n").startswith("c = ⌊{a}/{b}⌋")
+
+
+def test_modulo():
+    assert last_line("a = 7\nb = 2\nc = a % b\n").startswith("c = a' mod 'b")
+
+
+def test_power_and_bracketed_base():
+    assert last_line("a = 2\nb = 3\nc = (a + b)**2\n").startswith("c = {(a+b)}^{2}")
+    assert last_line("a = 2\nc = a**(a + 1)\n").startswith("c = {a}^{a+1}")
+
+
+def test_negative_substitution_is_bracketed():
+    # The leading_sign hook sees past the OMML runs.
+    line = last_line("a = 2\nb = -3\nc = a * b\nd = b**2\n")
+    assert line == "d = {b}^{2} = {(−3)}^{2} = 9"
+    assert last_line("a = 2\nb = -3\nc = a * b\n") == "c = a⋅b = 2⋅(−3) = −6"
+
+
+def test_unary_minus_and_not():
+    assert last_line("a = 2\nc = -a\n") == "c = −a = −2"
+    assert last_line("a = 2\nb = -3\nc = -b\n") == "c = −b = −(−3) = 3"
+
+
+def test_comparisons_and_bool_ops():
+    line = last_line("a = 2\nb = 3\nc = a <= b and a != b\n")
+    assert line.startswith("c = a≤b' and 'a≠b")
+
+
+def test_brackets_from_precedence_are_growing_delimiters():
+    assert last_line("a = 2\nb = 3\nc = a * (a + b)\n").startswith("c = a⋅(a+b)")
+
+
+# --- Function calls ---------------------------------------------------------
+
+
+def test_sqrt_and_cbrt_are_radicals():
+    assert last_line("import math\na = 4\nc = math.sqrt(a)\n").startswith("c = √{a}")
+    assert last_line("import math\na = 8\nc = math.cbrt(a)\n").startswith(
+        "c = root{3}{a}"
+    )
+
+
+def test_math_functions_are_function_names():
+    assert last_line("import math\na = 1\nc = math.sin(a)\n").startswith(
+        "c = 'sin' (a)"
+    )
+    assert last_line("import math\na = 1\nc = math.asin(a)\n").startswith(
+        "c = 'arcsin' (a)"
+    )
+
+
+def test_floor_ceil_abs_are_brackets():
+    assert last_line("import math\na = 1.5\nc = math.floor(a)\n").startswith("c = ⌊a⌋")
+    assert last_line("a = -1\nc = abs(a)\n").startswith("c = |a|")
+
+
+def test_user_function_arguments():
+    source = "def f(x, y):\n    return x\n\na = 1\nc = f(a, 2)\n"
+    assert last_line(source).startswith("c = 'f'(a,2)")
+
+
+def test_method_keeps_namespace():
+    source = "acc = []\nacc.append(1)\nn = len(acc)\n"
+    assert last_line(source) == "n = 'len'('acc') = 'len'([1]) = 1"
+
+
+def test_keyword_argument():
+    source = "def f(x, days=1):\n    return x\n\na = 1\nc = f(a, days=3)\n"
+    assert last_line(source).startswith("c = 'f'(a,'days'=3)")
+
+
+# --- Collections and comments -----------------------------------------------
+
+
+def test_collections():
+    assert last_line("a = 1\nc = [a, 2]\n").startswith("c = [a,2]")
+    assert last_line("a = 1\nc = (a, 2)\n").startswith("c = (a,2)")
+    assert last_line("a = 1\nc = {a, 2}\n").startswith("c = {a,2}")
+    assert last_line("a = 1\nc = {'k': a}\n").startswith('c = {"“k”":a}')
+
+
+def test_long_collections_are_elided():
+    line = last_line("a = 1\nc = [a, a, a, a, a, a, a, a, a, a, a]\n")
+    assert line.startswith("c = [a,a,a,…,a,a,a]")
+
+
+def test_inline_comment_is_normal_text():
+    assert last_line("a = 2  # the <span> & co\n") == 'a = 2  "(the <span> & co)"'
+
+
+def test_attribute_math_constant():
+    assert last_line("import math\nr = 2\nA = math.pi * r**2\n").startswith(
+        "A = π⋅{r}^{2}"
+    )
+
+
+def test_every_demo_fragment_parses():
+    fragments = []
+
+    def collect(item):
+        if isinstance(item, str):
+            if "<m:" in item:
+                fragments.append(item)
+        elif item:
+            for child in item:
+                collect(child)
+
+    collect(HandCalcs(renderer=TreeWordRenderer()).demo())
+    assert len(fragments) > 50
+    for fragment in fragments:
+        omml.to_element(fragment)

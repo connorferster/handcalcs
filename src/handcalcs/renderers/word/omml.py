@@ -153,17 +153,18 @@ def _text_run(content: str):
 def _wrap_bare_text(node) -> None:
     """
     Turn bare text inside math content into ``m:r`` runs. Whitespace-only text
-    is dropped: Word spaces math itself, and a bare space is not valid OMML.
+    is dropped (Word spaces math itself, and bare text is not valid OMML); other
+    text keeps its spaces, so a base handler's ``" in "`` still reads as a word.
     """
     if node.tag in _CONTENT_TAGS:
         if node.text is not None:
             if node.text.strip():
-                node.insert(0, _text_run(node.text.strip()))
+                node.insert(0, _text_run(node.text))
             node.text = None
         for child in list(node):
             if child.tail is not None:
                 if child.tail.strip():
-                    child.addnext(_text_run(child.tail.strip()))
+                    child.addnext(_text_run(child.tail))
                 child.tail = None
     for child in node:
         if child.tag != _M_R:
