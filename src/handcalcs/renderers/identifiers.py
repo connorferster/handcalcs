@@ -92,8 +92,8 @@ GREEK_NAMES = tuple(GREEK_UNICODE)
 # The name of each Unicode letter (the inverse of ``GREEK_UNICODE``).
 UNICODE_NAMES = {letter: name for name, letter in GREEK_UNICODE.items()}
 
-# Names that are recognised as a prefix only: ``lambdaR`` is a valid identifier
-# although ``lambda`` is not. Each maps to its canonical name.
+# Extra spellings, each mapped to its canonical name: ``lambda`` is a keyword,
+# but ``lambdaR``, ``lambda_1`` and ``lambda_`` are valid identifiers.
 PREFIX_ONLY = {"lambda": "lamb", "Lambda": "Lamb"}
 
 # Prefix candidates, longest first, so ``varepsilonR`` matches ``varepsilon``
@@ -135,6 +135,8 @@ def split_greek(word: str, prefixes: bool = True) -> list[tuple[bool, str]]:
     """
     if word in GREEK_UNICODE:
         return [(True, word)]
+    if word in PREFIX_ONLY:
+        return [(True, PREFIX_ONLY[word])]
     pieces: list[tuple[bool, str]] = []
     if prefixes:
         name, word = split_greek_prefix(word)
@@ -286,7 +288,9 @@ def parse_identifier(
     if identifier in options.symbols:
         return parse_spec(options.symbols[identifier], options.greek_prefixes)
     prefixes = options.greek_prefixes
-    if not identifier or identifier.strip("_") != identifier:
+    # A trailing underscore avoids a keyword clash (``lambda_``, ``class_``).
+    identifier = identifier.rstrip("_") or identifier
+    if identifier.startswith("_"):
         return Symbol(words=[[(False, identifier)]])
     text = identifier.replace("___", "\0").replace("__", "\1")
     symbols: list[Symbol] = []
@@ -336,7 +340,7 @@ def parse_spec(spec: str, greek_prefixes: bool = True) -> Symbol:
     """
     parser = _SpecParser(spec, greek_prefixes)
     symbol = parser.symbol()
-    if parser.pos != len(spec):
+    if parser.peek():
         parser.fail(f"unexpected {spec[parser.pos]!r}")
     return symbol
 
@@ -351,6 +355,9 @@ class _SpecParser:
         raise SpecError(f"Can't parse symbol {self.spec!r} at {self.pos}: {message}")
 
     def peek(self) -> str:
+        """The next character after any spaces (spaces only separate words)."""
+        while self.pos < len(self.spec) and self.spec[self.pos] == " ":
+            self.pos += 1
         return self.spec[self.pos] if self.pos < len(self.spec) else ""
 
     def read(self, stops: str) -> str:

@@ -9,7 +9,13 @@ from handcalcs.renderers.base import (
     ContextValueError,
 )
 
-from handcalcs.renderers.identifiers import greek_identifier
+from handcalcs.renderers.identifiers import (
+    GREEK_UNICODE,
+    Symbol,
+    greek_identifier,
+    identifier_options,
+    parse_identifier,
+)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
@@ -54,6 +60,33 @@ BRC = BaseRenderContext
 ## SWAP RULES
 
 
+def plain_symbol(symbol: Symbol) -> str:
+    """A parsed ``Symbol`` as plain text: ``N_pl,Rd``, ``M^*``, ``ΔH``."""
+    text = " ".join(
+        "".join(GREEK_UNICODE[t] if is_greek else t for is_greek, t in pieces)
+        for pieces in symbol.words
+    )
+    text += "'" * symbol.primes
+    if symbol.superscripts:
+        text += "^" + ",".join(plain_symbol(sup) for sup in symbol.superscripts)
+    if symbol.subscripts:
+        text += "_" + ",".join(plain_symbol(sub) for sub in symbol.subscripts)
+    return text
+
+
+@PlainTextRenderer.register("name:sym")
+def swap_symbols(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
+    """
+    Show an identifier listed in the ``symbols`` option from its spec
+    (``{"N_plRd": "N_{pl,Rd}"}`` -> ``N_pl,Rd``). Other identifiers keep their
+    underscores: plain text doesn't typeset subscripts.
+    """
+    options = identifier_options(renderer, base_context)
+    if node.identifier in options.symbols:
+        node.identifier = plain_symbol(parse_identifier(node.identifier, options))
+    return node
+
+
 @PlainTextRenderer.register("name:sym")
 def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     """
@@ -66,7 +99,9 @@ def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     Registered as a 'sym' rule on the Name node: the identifier is only shown in
     symbolic mode (numeric mode renders the Name's value instead).
     """
-    identifier = greek_identifier(node.identifier, renderer.GREEK_PREFIXES)
+    identifier = greek_identifier(
+        node.identifier, identifier_options(renderer, base_context).greek_prefixes
+    )
     # Spaces for double underscores; a triple underscore is left as it is.
     words = identifier.split("___")
     node.identifier = "___".join(word.replace("__", " ") for word in words)

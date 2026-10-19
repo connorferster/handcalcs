@@ -7,6 +7,7 @@ import pytest
 
 from handcalcs import HandCalcs
 from handcalcs.renderers.excel.names import to_excel_name
+from handcalcs.renderers.identifiers import IdentifierOptions
 from handcalcs.renderers.excel.symbolic import symbolic_identifier
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
@@ -88,9 +89,12 @@ def test_greek_prefixes_off(renderer_class, expected):
     assert expected in render(NoPrefixes(), "DeltaH")
 
 
+NO_PREFIXES = IdentifierOptions(greek_prefixes=False)
+
+
 def test_excel_display_with_greek_prefixes_off():
-    assert symbolic_identifier("DeltaH", greek_prefixes=False) == "DeltaH"
-    assert symbolic_identifier("Delta__H", greek_prefixes=False) == "Δ H"
+    assert symbolic_identifier("DeltaH", NO_PREFIXES) == "DeltaH"
+    assert symbolic_identifier("Delta__H", NO_PREFIXES) == "Δ H"
 
 
 @pytest.mark.parametrize("identifier", ["DeltaH", "gammaM0", "Delta__H", "sigma_max"])
