@@ -328,6 +328,10 @@ class BaseRenderer:
     # Split a leading Greek name from an identifier component when an uppercase
     # letter or digit follows it (``DeltaH`` -> ΔH); see ``identifiers.py``.
     GREEK_PREFIXES: ClassVar[bool] = True
+    # How several ``_`` subscripts are shown: ``"comma"`` (``N_pl_Rd`` ->
+    # N with subscript "pl,Rd") or ``"nested"`` (``x_a_b`` -> x_{a_{b}}). The
+    # ``subscripts`` render-context field overrides it.
+    SUBSCRIPT_STYLE: ClassVar[str] = "comma"
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)

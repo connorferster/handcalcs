@@ -1,5 +1,15 @@
 """
-Recognising Greek letters in Python identifiers, shared by every renderer.
+Parsing Python identifiers into symbols, shared by every renderer.
+
+``parse_identifier`` turns an identifier into a ``Symbol`` tree (base words,
+accents, primes, subscripts, superscripts); each renderer only formats the tree.
+``_`` separates subscripts: siblings joined by commas in the ``"comma"`` style
+(``N_pl_Rd`` -> N with subscript "pl,Rd"), or nested in the ``"nested"`` style
+(``x_a_b`` -> x with subscript a, which has subscript b). A ``symbols`` mapping
+replaces an identifier's display with a spec written in a small renderer-neutral
+syntax (``"N_{pl,Rd}"``, see ``parse_spec``).
+
+Greek letters:
 
 A Greek letter can be written three ways in an identifier component (the text
 between single underscores), or in a word of one (the text between ``__``):
@@ -14,6 +24,9 @@ its own output table and formatting, so only the recognition lives here.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Mapping
 
 # Every recognised name and its Unicode letter. ``lamb`` stands in for
 # ``lambda``, which is a Python keyword.
@@ -167,3 +180,211 @@ def greek_identifier(identifier: str, prefixes: bool = True) -> str:
         for component in text.split("_")
     ]
     return "_".join(components).replace("\1", "__").replace("\0", "___")
+
+
+# A word of a symbol: its ``split_greek`` pieces.
+Pieces = list[tuple[bool, str]]
+
+SUBSCRIPT_STYLES = ("comma", "nested")
+# Identifier components that decorate the component before them.
+ACCENTS = ("hat", "bar")
+PRIME = "prime"
+STAR = "star"
+
+
+@dataclass
+class Symbol:
+    """
+    One displayed symbol: its base (``__``-separated words, each a list of
+    ``split_greek`` pieces), the accents over the base, its primes, and the
+    symbols set as its subscripts and superscripts. Several subscripts are
+    siblings, shown separated by commas.
+    """
+
+    words: list[Pieces]
+    accents: list[str] = field(default_factory=list)
+    primes: int = 0
+    subscripts: list[Symbol] = field(default_factory=list)
+    superscripts: list[Symbol] = field(default_factory=list)
+
+    @property
+    def is_text(self) -> bool:
+        """True when the base has no Greek letter (one run of plain text)."""
+        return not any(has_greek(pieces) for pieces in self.words)
+
+    def text(self, space: str = " ") -> str:
+        """The base as plain text, its Greek names left as they are."""
+        return space.join("".join(text for _, text in pieces) for pieces in self.words)
+
+    @property
+    def is_plain(self) -> bool:
+        """True for a base with no decoration, subscript or superscript."""
+        return not (self.accents or self.primes or self.subscripts or self.superscripts)
+
+
+@dataclass(frozen=True)
+class IdentifierOptions:
+    """How identifiers are parsed: see ``identifier_options``."""
+
+    greek_prefixes: bool = True
+    subscripts: str = "comma"
+    symbols: Mapping[str, str] = field(default_factory=dict)
+
+
+def identifier_options(renderer: Any, base_context: Any = None) -> IdentifierOptions:
+    """
+    The identifier options in effect: the ``greek_prefixes``, ``subscripts`` and
+    ``symbols`` render-context fields (set with ``set_option`` or a ``# hc:``
+    comment), defaulting to the renderer's ``GREEK_PREFIXES`` and
+    ``SUBSCRIPT_STYLE`` class attributes and no symbols.
+    """
+    context = base_context.current if base_context is not None else None
+    options = IdentifierOptions(
+        greek_prefixes=bool(
+            getattr(context, "greek_prefixes", renderer.GREEK_PREFIXES)
+        ),
+        subscripts=getattr(context, "subscripts", renderer.SUBSCRIPT_STYLE),
+        symbols=getattr(context, "symbols", None) or {},
+    )
+    if options.subscripts not in SUBSCRIPT_STYLES:
+        raise ValueError(
+            f"subscripts must be one of {SUBSCRIPT_STYLES}, not {options.subscripts!r}"
+        )
+    return options
+
+
+def is_identifier(text: str) -> bool:
+    """
+    True for text a renderer should typeset as an identifier. A ``name:pre``
+    rule may already have replaced it with markup (``\\dot{V}``, ``V&#775;``),
+    which is left alone.
+    """
+    return text.isidentifier()
+
+
+def _word(text: str, prefixes: bool) -> Pieces:
+    return split_greek(text, prefixes)
+
+
+def parse_identifier(
+    identifier: str, options: IdentifierOptions = IdentifierOptions()
+) -> Symbol:
+    """
+    Parse an identifier into a ``Symbol``:
+
+    - ``___`` is a literal underscore and ``__`` a space between words;
+    - ``_`` starts a subscript, in the ``options.subscripts`` style;
+    - ``hat`` and ``bar`` put an accent over the component before them,
+      ``prime`` adds a prime to it and ``star`` a superscript ``*``
+      (``M_star`` -> M*, ``x_hat_max`` -> x̂ with subscript max);
+    - every word is split into Greek and text pieces (``split_greek``).
+
+    An identifier in ``options.symbols`` is parsed from its spec instead (see
+    ``parse_spec``). A leading or trailing underscore makes the whole
+    identifier literal text (``_x``).
+    """
+    if identifier in options.symbols:
+        return parse_spec(options.symbols[identifier], options.greek_prefixes)
+    prefixes = options.greek_prefixes
+    if not identifier or identifier.strip("_") != identifier:
+        return Symbol(words=[[(False, identifier)]])
+    text = identifier.replace("___", "\0").replace("__", "\1")
+    symbols: list[Symbol] = []
+    for component in text.split("_"):
+        if symbols and component in ACCENTS:
+            symbols[-1].accents.append(component)
+        elif symbols and component == PRIME:
+            symbols[-1].primes += 1
+        elif symbols and component == STAR:
+            symbols[-1].superscripts.append(Symbol(words=[[(False, "*")]]))
+        else:
+            words = [
+                _word(word.replace("\0", "_"), prefixes)
+                for word in component.split("\1")
+            ]
+            symbols.append(Symbol(words=words))
+    base, *subscripts = symbols
+    if options.subscripts == "comma":
+        base.subscripts = subscripts
+    else:
+        parent = base
+        for subscript in subscripts:
+            parent.subscripts = [subscript]
+            parent = subscript
+    return base
+
+
+class SpecError(ValueError):
+    """A ``symbols`` spec that can't be parsed."""
+
+
+_SPEC_STOPS = "_^,{}"
+
+
+def parse_spec(spec: str, greek_prefixes: bool = True) -> Symbol:
+    """
+    Parse a display spec from the ``symbols`` option into a ``Symbol``. The
+    syntax is TeX-like but renderer-neutral:
+
+    - ``N_{pl,Rd}``: subscripts in braces, siblings separated by commas;
+      ``N_Rd`` takes the run of letters and digits after ``_``;
+    - ``M^{*}``, ``x^2``: superscripts, the same way;
+    - ``x_{a_{b}}``: a subscript can have its own subscripts;
+    - spaces separate words (``Delta H``); ``'`` after a base adds a prime;
+    - Greek letters as names or Unicode, as in identifiers (``Delta H``,
+      ``ΔH``, ``sigma_{max}``).
+    """
+    parser = _SpecParser(spec, greek_prefixes)
+    symbol = parser.symbol()
+    if parser.pos != len(spec):
+        parser.fail(f"unexpected {spec[parser.pos]!r}")
+    return symbol
+
+
+class _SpecParser:
+    def __init__(self, spec: str, greek_prefixes: bool) -> None:
+        self.spec = spec
+        self.pos = 0
+        self.prefixes = greek_prefixes
+
+    def fail(self, message: str) -> None:
+        raise SpecError(f"Can't parse symbol {self.spec!r} at {self.pos}: {message}")
+
+    def peek(self) -> str:
+        return self.spec[self.pos] if self.pos < len(self.spec) else ""
+
+    def read(self, stops: str) -> str:
+        start = self.pos
+        while self.pos < len(self.spec) and self.spec[self.pos] not in stops:
+            self.pos += 1
+        return self.spec[start : self.pos]
+
+    def symbol(self) -> Symbol:
+        base = self.read(_SPEC_STOPS).strip()
+        primes = len(base) - len(base.rstrip("'"))
+        base = base.rstrip("'").strip()
+        if not base:
+            self.fail("expected a symbol")
+        words = [_word(word, self.prefixes) for word in base.split()]
+        symbol = Symbol(words=words, primes=primes)
+        while self.peek() in ("_", "^") and self.peek():
+            target = symbol.subscripts if self.peek() == "_" else symbol.superscripts
+            self.pos += 1
+            target.extend(self.group())
+        return symbol
+
+    def group(self) -> list[Symbol]:
+        if self.peek() != "{":
+            atom = self.read(_SPEC_STOPS + " ")
+            if not atom:
+                self.fail("expected a subscript or superscript")
+            return [Symbol(words=[_word(atom, self.prefixes)])]
+        self.pos += 1
+        items = [self.symbol()]
+        while self.peek() == ",":
+            self.pos += 1
+            items.append(self.symbol())
+        if self.peek() != "}":
+            self.fail("expected '}'")
+        self.pos += 1
+        return items

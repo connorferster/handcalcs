@@ -14,7 +14,13 @@ from handcalcs.renderers.base import (
     literal_text,
 )
 
-from handcalcs.renderers.identifiers import has_greek, split_greek
+from handcalcs.renderers.identifiers import (
+    IdentifierOptions,
+    Symbol,
+    identifier_options,
+    is_identifier,
+    parse_identifier,
+)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
@@ -193,17 +199,66 @@ MATH_CONSTANTS = {"inf": "\\infty", "nan": "\\mathrm{NaN}"}
 
 def latex_word(text: str) -> str:
     """One character in math italic; a longer word (not a number) upright."""
-    typeset = text.replace("\0", "\\_").replace("\1", "\\ ")
+    typeset = text.replace("_", "\\_").replace(" ", "\\ ")
     if len(text) > 1 and not text.isdigit():
         return f"\\mathrm{{{typeset}}}"
     return typeset
 
 
-def latex_identifier(identifier: str, greek_prefixes: bool = True) -> str:
-    """
-    Typeset a Python identifier as a LaTeX math symbol.
+_UPRIGHT = re.compile(r"\\mathrm\{([^{}]*)\}")
 
-    - Single underscores are nested subscripts: ``x_a_b`` -> ``x_{a_{b}}``.
+
+def latex_subscripts(parts: list[str]) -> str:
+    """
+    Sibling subscripts joined by commas, with neighbouring upright words set as
+    one group (``\\mathrm{pl,Rd}``, as in Eurocode notation).
+    """
+    joined: list[str] = []
+    for part in parts:
+        upright = _UPRIGHT.fullmatch(part)
+        previous = _UPRIGHT.fullmatch(joined[-1]) if joined else None
+        if upright and previous:
+            joined[-1] = f"\\mathrm{{{previous.group(1)},{upright.group(1)}}}"
+        else:
+            joined.append(part)
+    return ",".join(joined)
+
+
+def latex_symbol(symbol: Symbol) -> str:
+    """Typeset a parsed ``Symbol`` (see ``latex_identifier``)."""
+    if symbol.is_text:
+        # No Greek letter: the base is one symbol or one upright word.
+        typeset = latex_word(symbol.text())
+    else:
+        typeset = "\\ ".join(
+            " ".join(
+                GREEK[text] if is_greek else latex_word(text)
+                for is_greek, text in pieces
+            )
+            for pieces in symbol.words
+        )
+    for accent in symbol.accents:
+        typeset = f"\\{accent}{{{typeset}}}"
+    superscripts = ",".join(latex_symbol(sup) for sup in symbol.superscripts)
+    if symbol.primes and not superscripts:
+        typeset += "'" * symbol.primes
+    elif symbol.primes or superscripts:
+        primes = "\\prime" * symbol.primes
+        typeset += f"^{{{primes}{superscripts}}}"
+    if symbol.subscripts:
+        subscripts = latex_subscripts([latex_symbol(sub) for sub in symbol.subscripts])
+        typeset += f"_{{{subscripts}}}"
+    return typeset
+
+
+def latex_identifier(identifier: str, options: IdentifierOptions | None = None) -> str:
+    """
+    Typeset a Python identifier as a LaTeX math symbol (see
+    ``identifiers.parse_identifier``).
+
+    - Single underscores are subscripts: ``N_pl_Rd`` -> ``N_{\\mathrm{pl,Rd}}``
+      in the comma style (the default), ``x_a_b`` -> ``x_{a_{b}}`` in the nested
+      style.
     - Double underscores are spaces and triple underscores literal underscores.
     - A component that names a greek letter becomes that letter
       (``omega_2`` -> ``\\omega_{2}``), and so does a Unicode Greek letter
@@ -211,34 +266,19 @@ def latex_identifier(identifier: str, greek_prefixes: bool = True) -> str:
       ``greek_prefixes``, a leading Greek name followed by an uppercase letter
       or a digit (``DeltaH`` -> ``\\Delta H``). Each ``__``-separated word gets
       the same lookup (``Delta__H`` -> ``\\Delta\\ H``).
+    - ``hat``, ``bar``, ``prime`` and ``star`` decorate the component before
+      them (``x_hat`` -> ``\\hat{x}``, ``M_star`` -> ``M^{*}``).
     - Any other component longer than one character is a word, set upright
       (``class_section`` -> ``\\mathrm{class}_{\\mathrm{section}}``).
+    - An identifier in ``options.symbols`` is typeset from its spec.
 
-    An identifier that already contains LaTeX (a backslash or brace, which no
-    Python identifier can) is returned unchanged, so the swap is idempotent.
+    Text that isn't an identifier (it already holds LaTeX, from a ``name:pre``
+    rule or an earlier pass) is returned unchanged, so the swap is idempotent.
     """
-    if not identifier or "\\" in identifier or "{" in identifier:
+    options = options or IdentifierOptions()
+    if identifier not in options.symbols and not is_identifier(identifier):
         return identifier
-    # Placeholders for the double/triple underscores, which are not subscripts.
-    identifier = identifier.replace("___", "\0").replace("__", "\1")
-    components = []
-    for component in identifier.split("_"):
-        words = [split_greek(word, greek_prefixes) for word in component.split("\1")]
-        if not any(has_greek(pieces) for pieces in words):
-            # No Greek letter: the component is one symbol or one upright word.
-            components.append(latex_word(component))
-            continue
-        components.append(
-            "\\ ".join(
-                " ".join(
-                    GREEK[text] if is_greek else latex_word(text)
-                    for is_greek, text in pieces
-                )
-                for pieces in words
-            )
-        )
-    head, *subscripts = components
-    return head + "".join(f"_{{{sub}" for sub in subscripts) + "}" * len(subscripts)
+    return latex_symbol(parse_identifier(identifier, options))
 
 
 # The LaTeX symbol of each operator node type (see ``swap_operator_symbols``).
@@ -621,7 +661,7 @@ def render_keyword(renderer: LR, node: Keyword, base_context: BRC) -> str:
     value = renderer.render(node.value, base_context)
     if node.arg is None:
         return f"\\ast\\ast {value}"
-    return f"{latex_identifier(node.arg, renderer.GREEK_PREFIXES)} = {value}"
+    return f"{latex_identifier(node.arg, identifier_options(renderer, base_context))} = {value}"
 
 
 @LR.register("calcs_block:pre")
@@ -649,7 +689,9 @@ def swap_identifier(renderer: LR, node: Name, base_context: BRC) -> Name:
     Registered as a 'sym' rule on the Name node: the identifier is only shown in
     symbolic mode (numeric mode renders the Name's value instead).
     """
-    node.identifier = latex_identifier(node.identifier, renderer.GREEK_PREFIXES)
+    node.identifier = latex_identifier(
+        node.identifier, identifier_options(renderer, base_context)
+    )
     return node
 
 
@@ -664,14 +706,15 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     context = base_context.current
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
+    options = identifier_options(renderer, base_context)
     identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(
-        node.identifier, renderer.GREEK_PREFIXES
+        node.identifier, options
     )
     namespace = node.namespace
     if namespace in ("", "__main__", None) or namespace in MATH_NAMESPACES:
         return identifier
     namespace = ".".join(
-        latex_identifier(part, renderer.GREEK_PREFIXES) for part in namespace.split(".")
+        latex_identifier(part, options) for part in namespace.split(".")
     )
     return f"{namespace}.{identifier}"
 
