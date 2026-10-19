@@ -12,6 +12,7 @@ from handcalcs import HandCalcs
 from handcalcs.renderers.base import BaseRenderer
 from handcalcs.renderers.identifiers import IdentifierOptions
 from handcalcs.renderers.word import WordRenderer, omml
+from handcalcs.renderers.word.document import CalcGrid, ParamsTable
 from handcalcs.renderers.word.handlers import typeset_number, word_identifier
 
 M = f"{{{omml.M_NS}}}"
@@ -111,10 +112,10 @@ def last_line(source: str) -> str:
         ("f__c", "'f c'"),
         ("a___b", "'a_b'"),
         ("x_10", "{x}_{10}"),
-        ("x_hat", "{x}̂"),
-        ("x_hat_max", "{{x}̂}_{'max'}"),
-        ("V_dot", "{V}̇"),
-        ("x_ddot_1", "{{x}̈}_{1}"),
+        ("x_hat", "{x}\u0302"),
+        ("x_hat_max", "{{x}\u0302}_{'max'}"),
+        ("V_dot", "{V}\u0307"),
+        ("x_ddot_1", "{{x}\u0308}_{1}"),
         ("M_star", "{M}^{*}"),
         ("f_prime_c", "{f′}_{c}"),
         ("M_star_prime_Ed", "{M}_{'Ed'}^{′*}"),
@@ -135,9 +136,9 @@ def test_word_identifier_nested_style():
     [
         ("N_{pl,Rd}", "{N}_{'pl,Rd'}"),
         ("ΔH^{*}", "{'Δ'H}^{*}"),
-        ("dot(V)", "{V}̇"),
-        ("bar(x)_{m}", "{{x}̅}_{m}"),
-        ("hat(sigma)'_{c}", "{{σ}̂′}_{c}"),
+        ("dot(V)", "{V}\u0307"),
+        ("bar(x)_{m}", "{{x}\u0305}_{m}"),
+        ("hat(sigma)'_{c}", "{{σ}\u0302′}_{c}"),
     ],
 )
 def test_word_identifier_symbols(spec, expected):
@@ -175,17 +176,17 @@ COMMA_WORD = {
     "N_pl_Rd": "{N}_{'pl,Rd'}",
     "f_y_k": "{f}_{y,k}",
     "M_Ed_y": "{M}_{'Ed',y}",
-    "x_hat_max": "{{x}̂}_{'max'}",
+    "x_hat_max": "{{x}\u0302}_{'max'}",
     "M_star": "{M}^{*}",
 }
 NESTED_WORD = {"N_pl_Rd": "{N}_{{'pl'}_{'Rd'}}"}
 SYMBOL_WORD = {"N_plRd": "{N}_{'pl,Rd'}", "dH": "{'Δ'H}^{*}"}
 ACCENT_WORD = {
-    "V_dot": "{V}̇",
-    "x_ddot_1": "{{x}̈}_{1}",
-    "V_flow": "{V}̇",
-    "x_m": "{{x}̅}_{m}",
-    "s_c": "{{σ}̂′}_{c}",
+    "V_dot": "{V}\u0307",
+    "x_ddot_1": "{{x}\u0308}_{1}",
+    "V_flow": "{V}\u0307",
+    "x_m": "{{x}\u0305}_{m}",
+    "s_c": "{{σ}\u0302′}_{c}",
 }
 
 
@@ -393,7 +394,7 @@ def test_long_collections_are_elided():
 
 
 def test_inline_comment_is_normal_text():
-    assert last_line("a = 2  # the <span> & co\n") == 'a = 2  "(the <span> & co)"'
+    assert last_line("a = 2  # the <span> & co\n") == 'a = 2 \u2003"(the <span> & co)"'
 
 
 def test_attribute_math_constant():
@@ -409,7 +410,9 @@ def test_every_demo_fragment_parses():
         if isinstance(item, str):
             if "<m:" in item:
                 fragments.append(item)
-        elif item:
+        elif isinstance(item, (ParamsTable, CalcGrid)):
+            collect(item.rows)
+        elif isinstance(item, list):
             for child in item:
                 collect(child)
 

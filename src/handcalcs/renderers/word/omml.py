@@ -141,6 +141,16 @@ def omath(*parts: str) -> str:
     return element("oMath", *parts)
 
 
+# The alignment point of an equation-array row: a literal ``&`` run, which Word
+# (like pandoc) reads as the column the rows line up on.
+ALIGN = "<m:r><m:t>&amp;</m:t></m:r>"
+
+
+def eq_arr(rows: list[str]) -> str:
+    """An equation array (``m:eqArr``): one ``m:e`` per row."""
+    return element("eqArr", *(e(row) for row in rows))
+
+
 # --- Parsing ---------------------------------------------------------------
 
 # OMML elements whose children are math content, where bare text becomes a run.

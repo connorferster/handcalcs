@@ -1,6 +1,7 @@
 """
-The Word renderer's inline handlers and rules: names, values, operators,
-function calls and collections, each returning an OMML fragment.
+The Word renderer's handlers and rules: names, values, operators, function
+calls and collections, each returning an OMML fragment, and the line and block
+handlers (headings, imports, block headers with inline equations).
 """
 
 from __future__ import annotations
@@ -9,7 +10,9 @@ import datetime
 import re
 from html import unescape
 
+from handcalcs.parsing.block_nodes import CalcsBlock, ForBlock, FunctionBlock, IfBlock
 from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword
+from handcalcs.parsing.line_nodes import Heading as HeadingLine, Import
 from handcalcs.parsing.nodes import (
     Attribute,
     Constant,
@@ -27,6 +30,7 @@ from handcalcs.renderers.base import (
     BaseRenderContext,
     is_source_number,
     literal_text,
+    render_condition,
 )
 from handcalcs.renderers.identifiers import (
     GREEK_UNICODE,
@@ -36,7 +40,9 @@ from handcalcs.renderers.identifiers import (
     is_identifier,
     parse_identifier,
 )
+from handcalcs.renderers.latex import import_source
 from . import omml
+from .document import Code, Heading, MathGroup, inline_math, validate_layout
 from .renderer import WordRenderer
 
 WR = WordRenderer
@@ -45,8 +51,8 @@ BRC = BaseRenderContext
 MINUS = "−"
 
 # The combining mark Word draws for each identifier accent (``m:acc``).
-ACCENT_MARKS = {"hat": "̂", "bar": "̅", "dot": "̇", "ddot": "̈"}
-PRIME_MARK = "′"
+ACCENT_MARKS = {"hat": "\u0302", "bar": "\u0305", "dot": "\u0307", "ddot": "\u0308"}
+PRIME_MARK = "\u2032"
 
 # Namespaces whose attributes are mathematical constants (``math.pi``); the
 # namespace is dropped when the attribute is shown symbolically.
@@ -355,7 +361,7 @@ def render_dictionary(renderer: WR, node: Dictionary, base_context: BRC) -> str:
 
 @WR.register("inline_comment")
 def render_inline_comment(renderer: WR, node: InlineComment, base_context: BRC) -> str:
-    return omml.run(omml.EM_SPACE) + omml.text(f"({node.content})")
+    return renderer.COMMENT_OPEN + omml.text(f"({node.content})")
 
 
 ## OPERATORS
@@ -472,3 +478,57 @@ def render_function_call(renderer: WR, node: FunctionCall, base_context: BRC) ->
         )
         name = f"{prefix}{omml.run('.')}{name}"
     return f"{name}{omml.delim_items(args)}"
+
+
+## LINES AND BLOCKS
+
+
+@WR.register("heading")
+def render_heading(renderer: WR, node: HeadingLine, base_context: BRC) -> Heading:
+    return Heading(node.content, node.heading_level)
+
+
+@WR.register("import")
+def render_import(renderer: WR, node: Import, base_context: BRC) -> Code:
+    """An import is one line of its Python source, in a monospace font."""
+    return Code(import_source(node))
+
+
+@WR.register("calcs_block:pre")
+def mark_math_group(renderer: WR, node: CalcsBlock, base_context: BRC) -> CalcsBlock:
+    """
+    Open the body of a CalcsBlock with a ``MathGroup``, so ``write_item`` sets
+    its rows out as one group of equations. The group keeps the layout in
+    effect here (the renderer's, or a ``# hc: layout = ...`` comment's).
+    """
+    layout = getattr(base_context.current, "layout", renderer.layout)
+    node.body_pre = MathGroup(validate_layout(layout))
+    return node
+
+
+@WR.register("header:if_block")
+def if_block_header(renderer: WR, node: IfBlock, base_context: BRC) -> str:
+    sym_expr = render_condition(renderer, node.test, base_context, "sym")
+    num_expr = render_condition(renderer, node.test, base_context, "num")
+    condition = f"{omml.delim(sym_expr)}{omml.run('→')}{omml.delim(num_expr)}"
+    return f"Since {inline_math(condition)} is True:"
+
+
+@WR.register("header:for_block")
+def for_block_header(renderer: WR, node: ForBlock, base_context: BRC) -> str:
+    base_context.line_context.current_mode = "sym"
+    target = renderer.render(node.assigns[0], base_context)
+    iterable = renderer.render(node.iterator[0], base_context)
+    return f"Iterating over each {inline_math(target)} in {inline_math(iterable)}:"
+
+
+@WR.register("header:function_block")
+def function_block_header(renderer: WR, node: FunctionBlock, base_context: BRC) -> str:
+    base_context.line_context.current_mode = "sym"
+    options = identifier_options(renderer, base_context)
+    name = "".join(
+        renderer.render(part, base_context) if hasattr(part, "type") else str(part)
+        for part in node.function_name
+    )
+    params = [word_identifier(str(param), options) for param in node.params]
+    return f"Evaluating {inline_math(name + omml.delim_items(params))}:"
