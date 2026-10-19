@@ -45,7 +45,8 @@ a header string and a body containing a flat group with one line.
 
 Handlers can return anything, as long as your `complete()` (and `join_item`, if you use
 `join`) knows what to do with it. The [structured data example](example-json.md) returns
-dicts from its line handlers; the Excel renderer returns row objects. If you keep the
+dicts from its line handlers; the Excel renderer returns row objects; the Word renderer
+returns OMML strings for calc lines and small objects for headings and params tables. If you keep the
 base handlers for some node types and use `join`, keep their outputs in the three shapes
 above.
 

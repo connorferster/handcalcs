@@ -61,5 +61,13 @@ handles the three [tree shapes](output-tree.md) as well as the dicts.
   serialising them in `complete`.
 - Write **straight to a file or a service** in `complete`, as the Excel renderer does
   with its `filepath` option.
+- Keep **markup strings** in the handlers and parse them only in `complete`, as the
+  [Word renderer](../renderers/word.md) does. Its handlers return fragments of Word's
+  math markup (OMML) the way the LaTeX handlers return LaTeX, so the base line and
+  block handlers concatenate them unchanged. Brackets are the two halves of one
+  element (the `lpar`/`rpar` context fields), always used as a pair. A few handlers
+  return small objects (a heading, a params table) that its `complete` walks into a
+  python-docx document
+  ({src}`WordRenderer.write_item <handcalcs.renderers.word.renderer.WordRenderer.write_item>`).
 
 **Next:** [Testing your renderer](testing.md).

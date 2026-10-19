@@ -2,7 +2,7 @@
 
 A **renderer** decides what a calculation looks like. handcalcs parses your code once,
 and the renderer turns the parsed calculation into Markdown, LaTeX, HTML, plain text, an
-Excel workbook, or anything else you write a renderer for.
+Excel workbook, a Word document, or anything else you write a renderer for.
 
 ## Choosing a renderer
 
@@ -13,6 +13,7 @@ Excel workbook, or anything else you write a renderer for.
 | [`HTMLRenderer`](html.md) | `html` | An HTML fragment with a scoped stylesheet, no math engine needed | Web apps, emails, HTML reports, Jupyter |
 | [`PlainTextRenderer`](plain-text.md) | `plain_text` | Unicode text | Terminals, logs, test snapshots, plain-text reports |
 | [`ExcelRenderer`](excel.md) | `excel` | A live `.xlsx` worksheet | Handing a calculation to someone who works in Excel |
+| [`WordRenderer`](word.md) | `word` | A `.docx` document with editable Word equations | Reports in Word (or Google Docs), from a script or a notebook |
 | [`BaseRenderer`](base.md) | `base` | A nested Python list | Building your own renderer, debugging |
 
 ## Using one
@@ -117,5 +118,6 @@ latex
 html
 plain-text
 excel
+word
 base
 ```

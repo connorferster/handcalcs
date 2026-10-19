@@ -17,6 +17,7 @@ $ uv add handcalcs
 | Extra | Install | Adds |
 |---|---|---|
 | `excel` | `pip install "handcalcs[excel]"` | [XlsxWriter](https://xlsxwriter.readthedocs.io/), needed by the [Excel renderer](../renderers/excel.md) to write `.xlsx` files |
+| `word` | `pip install "handcalcs[word]"` | [python-docx](https://python-docx.readthedocs.io/), needed by the [Word renderer](../renderers/word.md) to write `.docx` files |
 | `exporters` | `pip install "handcalcs[exporters]"` | [nb-hideinputs](https://github.com/connorferster/nb-hideinputs), Jupyter export options that hide input cells |
 | `doc` | `pip install "handcalcs[doc]"` | Sphinx and the theme used to build these docs |
 

@@ -49,6 +49,9 @@ in [the Jupyter interface](../interfaces/jupyter.md).
 
 .. autoclass:: handcalcs.renderers.ExcelRenderer
    :members: complete, write_sheet, render_root
+
+.. autoclass:: handcalcs.renderers.WordRenderer
+   :members: complete, write_item, join_math_row, format_param_grid, format_calc_grid
 ```
 
 ## Render context

@@ -15,8 +15,8 @@ c = sqrt(a**2 + b**2)  # Hypotenuse
 ```
 
 The same parsed calculation can be sent to different **renderers**: Markdown and LaTeX for
-Jupyter and documents, HTML for web pages, plain text for terminals and logs, and a live
-Excel worksheet. You can restyle the built-in renderers or write your own.
+Jupyter and documents, HTML for web pages, plain text for terminals and logs, a live
+Excel worksheet, and a Word document with editable equations. You can restyle the built-in renderers or write your own.
 
 ## Where do you want to go?
 
@@ -34,7 +34,7 @@ Install handcalcs and render your first calculation in Jupyter or a Python scrip
 :link: renderers/index
 :link-type: doc
 
-Markdown, LaTeX, HTML, plain text or Excel: what each produces and when to use it.
+Markdown, LaTeX, HTML, plain text, Excel or Word: what each produces and when to use it.
 :::
 
 :::{grid-item-card} {octicon}`plug` Pick an interface

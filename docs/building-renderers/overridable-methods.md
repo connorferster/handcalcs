@@ -32,6 +32,8 @@ def complete(self, tree, base_context):
 
 For anything else, walk the tree yourself: the Excel renderer turns its rows into a
 workbook ({src}`ExcelRenderer.complete <handcalcs.renderers.excel.renderer.ExcelRenderer.complete>`),
+the Word renderer writes its tree into a .docx
+({src}`WordRenderer.complete <handcalcs.renderers.word.renderer.WordRenderer.complete>`),
 and the [structured data example](example-json.md) flattens the tree into dicts.
 
 Built-in versions:
