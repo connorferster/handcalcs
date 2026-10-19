@@ -5,9 +5,16 @@ from .nodes import HcNode
 
 # Arithmetic Operators
 
+
 @dataclass
 class HcBinOp(HcNode):
-    pass
+    """
+    A binary arithmetic operator. ``line_break`` records a line continuation in
+    the source between the operands: ``"after"`` when the operator ends the
+    first physical line (``a + \\``), ``"before"`` when it starts the next one,
+    ``""`` when both operands are on one line.
+    """
+
 
 @dataclass
 class PowOp(HcBinOp):
@@ -16,7 +23,9 @@ class PowOp(HcBinOp):
     symbol: str = "**"
     pre: str = ""
     post: str = ""
-    type: str = 'pow_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "pow_op"
+
 
 @dataclass
 class DivOp(HcBinOp):
@@ -25,7 +34,9 @@ class DivOp(HcBinOp):
     symbol: str = "/"
     pre: str = ""
     post: str = ""
-    type: str = 'div_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "div_op"
+
 
 @dataclass
 class FloorOp(HcBinOp):
@@ -34,7 +45,9 @@ class FloorOp(HcBinOp):
     symbol: str = "//"
     pre: str = ""
     post: str = ""
-    type: str = 'floor_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "floor_op"
+
 
 @dataclass
 class ModuloOp(HcBinOp):
@@ -43,7 +56,9 @@ class ModuloOp(HcBinOp):
     symbol: str = "%"
     pre: str = ""
     post: str = ""
-    type: str = 'modulo_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "modulo_op"
+
 
 @dataclass
 class MultOp(HcBinOp):
@@ -52,7 +67,9 @@ class MultOp(HcBinOp):
     symbol: str = "*"
     pre: str = ""
     post: str = ""
-    type: str = 'mult_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "mult_op"
+
 
 @dataclass
 class AddOp(HcBinOp):
@@ -61,7 +78,9 @@ class AddOp(HcBinOp):
     symbol: str = "+"
     pre: str = ""
     post: str = ""
-    type: str = 'add_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "add_op"
+
 
 @dataclass
 class SubOp(HcBinOp):
@@ -70,10 +89,12 @@ class SubOp(HcBinOp):
     symbol: str = "-"
     pre: str = ""
     post: str = ""
-    type: str = 'sub_op'
+    line_break: str = field(default="", compare=False)
+    type: str = "sub_op"
 
 
 # Unary Operators
+
 
 @dataclass
 class HcUnaryOp(HcNode):
@@ -81,50 +102,51 @@ class HcUnaryOp(HcNode):
     symbol: str = "-"
     pre: str = ""
     post: str = ""
-    type: str = 'unary_op'
+    type: str = "unary_op"
 
 
 # Comparison Operators
+
 
 @dataclass
 class HcCompOp(HcNode):
     pass
 
 
-@dataclass 
+@dataclass
 class EqOp(HcCompOp):
     symbol: str = "=="
-    type: str = 'eq_op'
+    type: str = "eq_op"
 
 
-@dataclass 
+@dataclass
 class NeqOp(HcCompOp):
     symbol: str = "!="
-    type: str = 'neq_op'
+    type: str = "neq_op"
 
 
 @dataclass
 class GtOp(HcCompOp):
     symbol: str = ">"
-    type: str = 'gt_op'
+    type: str = "gt_op"
 
 
-@dataclass 
+@dataclass
 class GtEOp(HcCompOp):
     symbol: str = ">="
-    type: str = 'gte_op'
+    type: str = "gte_op"
 
 
-@dataclass 
+@dataclass
 class LtOp(HcCompOp):
     symbol: str = "<"
-    type: str = 'lt_op'
+    type: str = "lt_op"
 
 
 @dataclass
 class LtEOp(HcCompOp):
     symbol: str = "<="
-    type: str = 'lte_op'
+    type: str = "lte_op"
 
 
 # Identity and membership operators (``is``, ``is not``, ``in``, ``not in``).
@@ -133,28 +155,29 @@ class LtEOp(HcCompOp):
 # carry their own surrounding spaces (``a is b``, not ``aisb``), unlike the
 # symbolic relational ops above which render tight (``a<b``).
 
+
 @dataclass
 class IsOp(HcCompOp):
     symbol: str = " is "
-    type: str = 'is_op'
+    type: str = "is_op"
 
 
 @dataclass
 class IsNotOp(HcCompOp):
     symbol: str = " is not "
-    type: str = 'is_not_op'
+    type: str = "is_not_op"
 
 
 @dataclass
 class InOp(HcCompOp):
     symbol: str = " in "
-    type: str = 'in_op'
+    type: str = "in_op"
 
 
 @dataclass
 class NotInOp(HcCompOp):
     symbol: str = " not in "
-    type: str = 'not_in_op'
+    type: str = "not_in_op"
 
 
 # Boolean Operators (``and``, ``or``)
@@ -162,6 +185,7 @@ class NotInOp(HcCompOp):
 # A boolean operator is n-ary in Python (``a and b and c`` is one ``BoolOp`` with
 # three ``values``), so unlike ``HcBinOp`` it holds a single ``values`` deque
 # rather than a left/right pair.
+
 
 @dataclass
 class HcBoolOp(HcNode):
@@ -174,7 +198,7 @@ class AndOp(HcBoolOp):
     symbol: str = "and"
     pre: str = ""
     post: str = ""
-    type: str = 'and_op'
+    type: str = "and_op"
 
 
 @dataclass
@@ -183,4 +207,4 @@ class OrOp(HcBoolOp):
     symbol: str = "or"
     pre: str = ""
     post: str = ""
-    type: str = 'or_op'
+    type: str = "or_op"

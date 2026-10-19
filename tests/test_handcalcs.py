@@ -6,6 +6,8 @@ These guard the wiring between the layers and pin current rendered output.
 Node- and BaseRenderer-level behavior is covered in the dedicated unit
 modules; here we only assert that a realistic script renders coherently.
 """
+import re
+
 from handcalcs import HandCalcs, PlainTextRenderer
 
 
@@ -92,8 +94,71 @@ KWARGS_SOURCE = (
 @pytest.mark.parametrize("renderer", ["plain_text", "html"])
 def test_function_call_keyword_arguments_are_rendered(renderer):
     out = str(HandCalcs(renderer=get_renderer(renderer)())(KWARGS_SOURCE))
+    # The HTML renderer wraps the result in a highlight span; compare the text.
+    out = re.sub(r"<[^>]+>", "", out)
     assert (
         "t = datetime.timedelta(days=n, hours=2)"
         " = datetime.timedelta(days=3, hours=2) = 3 days, 2:00:00"
     ) in out
     assert "r = f(1, **opts) = f(1, **{b: 2}) = 3" in out
+
+
+def test_line_after_an_ignored_first_line_renders_whole():
+    # An ignored (``# hc: -i``) first line renders to '', which used to make the
+    # block body read as a header plus a block, so the next calc split into one
+    # line per component (``b`` / ``=`` / ``2``), and LaTeX dropped it entirely.
+    from handcalcs.renderers import HTMLRenderer, LatexRenderer, MarkdownRenderer
+
+    source = "a = 1 # hc: -i\nb = 2\nc = b * 3"
+    assert HandCalcs(PlainTextRenderer())(source).splitlines() == ["b = 2", "c = b * 3 = 2 * 3 = 6"]
+    assert "b &= 2" in HandCalcs(LatexRenderer())(source)
+    assert "b &= 2" in HandCalcs(MarkdownRenderer())(source)
+    assert '<div class="hc-line">b = 2</div>' in HandCalcs(HTMLRenderer())(source)
+
+
+def test_mode_drop_aliases_from_comment_commands():
+    # An inline `# hc: mode=...` applies to its own line only; a standalone one
+    # persists until another command changes it.
+    source = (
+        "a = 2\nb = 3\n"
+        "c = a + b  # hc: mode='no_num'\n"
+        "d = a * b  # hc: mode='no_sym'\n"
+        "e = a - b\n"
+        "# hc: mode='drop_numeric'\n"
+        "f = a + b\n"
+        "# hc: mode='full'\n"
+        "g = a + b\n"
+    )
+    lines = HandCalcs(PlainTextRenderer())(source).splitlines()
+    assert "c = a + b = 5" in lines
+    assert "d = 2 * 3 = 6" in lines
+    assert "e = a - b = 2 - 3 = -1" in lines
+    assert "f = a + b = 5" in lines
+    assert "g = a + b = 2 + 3 = 5" in lines
+
+
+def test_mode_flag_form_of_comment_commands():
+    # `--mode` is the flag form of `mode=...`; several words join into one mode.
+    source = (
+        "a = 2\nb = 3\n"
+        "c = a + b  # hc: --mode no_num\n"
+        "d = a * b  # hc: --mode no_sym\n"
+        "e = a - b  # hc: --mode no_num no_sym\n"
+        "# hc: --mode drop_numeric\n"
+        "f = a + b\n"
+        "# hc: --mode full\n"
+        "g = a + b\n"
+    )
+    lines = HandCalcs(PlainTextRenderer())(source).splitlines()
+    assert "c = a + b = 5" in lines
+    assert "d = 2 * 3 = 6" in lines
+    assert "e = -1" in lines
+    assert "f = a + b = 5" in lines
+    assert "g = a + b = 2 + 3 = 5" in lines
+
+
+def test_bad_comment_command_raises_instead_of_exiting():
+    from handcalcs.parsing.commands import CommentCommandError
+
+    with pytest.raises(CommentCommandError, match="unrecognized arguments: --mdoe"):
+        HandCalcs(PlainTextRenderer())("a = 2\nb = a  # hc: --mdoe no_num")

@@ -9,6 +9,7 @@ Unlike the HTML rules, every rule here returns a *copy* of the node
 (``dataclasses.replace``) and never mutates it: the formula pass and, for
 conditionals, several display passes read the same nodes.
 """
+
 from __future__ import annotations
 import math
 from collections import deque
@@ -18,27 +19,75 @@ from typing import Any, Iterable
 from handcalcs.parsing.nodes import Attribute, Constant, Name
 from handcalcs.parsing.inline_nodes import FunctionCall
 from handcalcs.parsing.operator_nodes import HcBinOp, HcCompOp, HcUnaryOp, PowOp
-from handcalcs.renderers.base import OP_PRECEDENCE, BaseRenderContext, infix_binop, render_constant
+from handcalcs.renderers.base import (
+    OP_PRECEDENCE,
+    BaseRenderContext,
+    infix_binop,
+    render_constant,
+)
 from .rich_text import escape
 
 GREEK = {
-    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε",
-    "varepsilon": "ϵ", "zeta": "ζ", "eta": "η", "theta": "θ", "vartheta": "ϑ",
-    "iota": "ι", "kappa": "κ", "lamb": "λ", "mu": "μ", "nu": "ν", "xi": "ξ",
-    "omicron": "ο", "pi": "π", "varpi": "ϖ", "rho": "ρ", "varrho": "ϱ",
-    "sigma": "σ", "varsigma": "ς", "tau": "τ", "upsilon": "υ", "phi": "φ",
-    "varphi": "ϕ", "chi": "χ", "psi": "ψ", "omega": "ω",
-    "Alpha": "Α", "Beta": "Β", "Gamma": "Γ", "Delta": "Δ", "Epsilon": "Ε",
-    "Zeta": "Ζ", "Eta": "Η", "Theta": "Θ", "Iota": "Ι", "Kappa": "Κ",
-    "Lamb": "Λ", "Mu": "Μ", "Nu": "Ν", "Xi": "Ξ", "Omicron": "Ο", "Pi": "Π",
-    "Rho": "Ρ", "Sigma": "Σ", "Tau": "Τ", "Upsilon": "Υ", "Phi": "Φ",
-    "Chi": "Χ", "Psi": "Ψ", "Omega": "Ω",
+    "alpha": "α",
+    "beta": "β",
+    "gamma": "γ",
+    "delta": "δ",
+    "epsilon": "ε",
+    "varepsilon": "ϵ",
+    "zeta": "ζ",
+    "eta": "η",
+    "theta": "θ",
+    "vartheta": "ϑ",
+    "iota": "ι",
+    "kappa": "κ",
+    "lamb": "λ",
+    "mu": "μ",
+    "nu": "ν",
+    "xi": "ξ",
+    "omicron": "ο",
+    "pi": "π",
+    "varpi": "ϖ",
+    "rho": "ρ",
+    "varrho": "ϱ",
+    "sigma": "σ",
+    "varsigma": "ς",
+    "tau": "τ",
+    "upsilon": "υ",
+    "phi": "φ",
+    "varphi": "ϕ",
+    "chi": "χ",
+    "psi": "ψ",
+    "omega": "ω",
+    "Alpha": "Α",
+    "Beta": "Β",
+    "Gamma": "Γ",
+    "Delta": "Δ",
+    "Epsilon": "Ε",
+    "Zeta": "Ζ",
+    "Eta": "Η",
+    "Theta": "Θ",
+    "Iota": "Ι",
+    "Kappa": "Κ",
+    "Lamb": "Λ",
+    "Mu": "Μ",
+    "Nu": "Ν",
+    "Xi": "Ξ",
+    "Omicron": "Ο",
+    "Pi": "Π",
+    "Rho": "Ρ",
+    "Sigma": "Σ",
+    "Tau": "Τ",
+    "Upsilon": "Υ",
+    "Phi": "Φ",
+    "Chi": "Χ",
+    "Psi": "Ψ",
+    "Omega": "Ω",
 }
 
 # Suffix components that decorate the component before them.
 ACCENTS = {
-    "hat": "̂",    # combining circumflex
-    "bar": "̅",    # combining overline
+    "hat": "̂",  # combining circumflex
+    "bar": "̅",  # combining overline
     "prime": "′",  # prime
 }
 STAR = "star"
@@ -106,6 +155,7 @@ def _is_constant_exponent(node: Any) -> bool:
 
 # --- rules (registered on the ExcelRenderer by ``register_symbolic_rules``) ---
 
+
 def name_symbol(renderer, node: Name, base_context: BaseRenderContext) -> Name:
     """'name:sym': display form of the identifier, on a copy of the node."""
     return replace(node, identifier=symbolic_identifier(node.identifier))
@@ -115,16 +165,22 @@ def attribute_symbol(renderer, node: Attribute, base_context: BaseRenderContext)
     """'attribute:sym': ``math.pi`` -> π, ``math.e`` -> e, ``math.tau`` -> τ."""
     if node.identifier in ("pi", "e", "tau") and isinstance(node.value, float):
         if node.value == getattr(math, node.identifier):
-            return Name(identifier=GREEK.get(node.identifier, node.identifier), value=node.value)
+            return Name(
+                identifier=GREEK.get(node.identifier, node.identifier), value=node.value
+            )
     return node
 
 
-def function_call_symbol(renderer, node: FunctionCall, base_context: BaseRenderContext) -> FunctionCall:
+def function_call_symbol(
+    renderer, node: FunctionCall, base_context: BaseRenderContext
+) -> FunctionCall:
     """'function_call:pre': drop the module prefix; ``sqrt`` -> ``√``."""
     function_name = node.function_name
     if getattr(function_name, "identifier", None) == "sqrt":
         function_name = Name(identifier="√", value="√")
-    return replace(node, namespace=deque(), function_name=function_name, pre="(", post=")")
+    return replace(
+        node, namespace=deque(), function_name=function_name, pre="(", post=")"
+    )
 
 
 def binop_symbol(renderer, node: HcBinOp, base_context: BaseRenderContext) -> HcBinOp:
@@ -139,7 +195,9 @@ def binop_symbol(renderer, node: HcBinOp, base_context: BaseRenderContext) -> Hc
     return replace(node, symbol=symbol) if symbol is not None else node
 
 
-def compare_symbol(renderer, node: HcCompOp, base_context: BaseRenderContext) -> HcCompOp:
+def compare_symbol(
+    renderer, node: HcCompOp, base_context: BaseRenderContext
+) -> HcCompOp:
     """``<=`` -> ``≤`` etc., spaced, and escaped so ``<`` is never read as a tag."""
     symbol = COMPARISON_SYMBOLS.get(node.symbol.strip())
     if symbol is None:
@@ -159,7 +217,9 @@ def symbolic_constant(renderer, node: Constant, base_context: BaseRenderContext)
     return render_constant(renderer, node, base_context)
 
 
-def escape_constant(renderer, rendered: Any, node: Constant, base_context: BaseRenderContext) -> Any:
+def escape_constant(
+    renderer, rendered: Any, node: Constant, base_context: BaseRenderContext
+) -> Any:
     """'constant:post': escape string literals so they cannot inject markup."""
     if isinstance(rendered, str) and isinstance(node.value, str):
         return escape(rendered)
@@ -169,7 +229,9 @@ def escape_constant(renderer, rendered: Any, node: Constant, base_context: BaseR
 def render_pow(renderer, node: HcBinOp, base_context: BaseRenderContext) -> str:
     """Powers render tight: a<sup>2</sup>, a^(b + 1)."""
     if node.symbol != "<sup>":
-        return f"{node.pre}{infix_binop(node, renderer, False, base_context)}{node.post}"
+        return (
+            f"{node.pre}{infix_binop(node, renderer, False, base_context)}{node.post}"
+        )
     # A superscript exponent needs no parentheses (a<sup>-2</sup>); the base
     # keeps the infix rules: (a + b)<sup>2</sup>, (-a)<sup>2</sup>.
     context = base_context.current
@@ -186,7 +248,15 @@ def register_symbolic_rules(cls) -> None:
     cls.register("name:sym")(name_symbol)
     cls.register("attribute:sym")(attribute_symbol)
     cls.register("function_call:pre")(function_call_symbol)
-    for node_type in ("add_op", "sub_op", "mult_op", "div_op", "floor_op", "modulo_op", "pow_op"):
+    for node_type in (
+        "add_op",
+        "sub_op",
+        "mult_op",
+        "div_op",
+        "floor_op",
+        "modulo_op",
+        "pow_op",
+    ):
         cls.register(f"{node_type}:pre")(binop_symbol)
     for node_type in ("eq_op", "neq_op", "lt_op", "lte_op", "gt_op", "gte_op"):
         cls.register(f"{node_type}:pre")(compare_symbol)
@@ -195,7 +265,9 @@ def register_symbolic_rules(cls) -> None:
     cls.register("pow_op")(render_pow)
 
 
-def symbolic_markup(renderer, nodes: Iterable[Any], base_context: BaseRenderContext) -> str:
+def symbolic_markup(
+    renderer, nodes: Iterable[Any], base_context: BaseRenderContext
+) -> str:
     """Render nodes in symbolic mode and join them into one markup string."""
     previous = getattr(base_context.line_context, "current_mode", None)
     base_context.line_context.current_mode = "sym"

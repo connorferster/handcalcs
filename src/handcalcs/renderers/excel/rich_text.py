@@ -12,6 +12,7 @@ flattened: a subscript inside a subscript is joined with ``,``
 nesting keeps the outer style. Text leaves are escaped with ``escape`` before
 they are placed in markup, so a literal ``<sub>`` in a string survives.
 """
+
 from __future__ import annotations
 import html
 import re

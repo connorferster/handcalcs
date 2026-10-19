@@ -7,6 +7,7 @@ Excel equivalents; ``g`` (and no type) has none, so it maps to the renderer's
 ``general_format`` (``General`` unless configured). Fill, alignment and width
 are layout concerns the worksheet handles itself, so they are ignored.
 """
+
 from __future__ import annotations
 import re
 import warnings
@@ -56,11 +57,15 @@ def to_excel_number_format(format_code: str, general_format: str = "General") ->
     ``general_format`` with a warning.
     """
     if not isinstance(format_code, str):
-        warnings.warn(f"Format code {format_code!r} is not a string; using {general_format!r}.")
+        warnings.warn(
+            f"Format code {format_code!r} is not a string; using {general_format!r}."
+        )
         return general_format
     match = _FORMAT_SPEC.fullmatch(format_code)
     if match is None:
-        warnings.warn(f"Cannot parse format code {format_code!r}; using {general_format!r}.")
+        warnings.warn(
+            f"Cannot parse format code {format_code!r}; using {general_format!r}."
+        )
         return general_format
     kind = match["type"]
     precision = int(match["precision"]) if match["precision"] is not None else None
@@ -69,12 +74,19 @@ def to_excel_number_format(format_code: str, general_format: str = "General") ->
     if kind in (None, "g", "G", "n"):
         return general_format
     if kind in ("f", "F"):
-        fmt = integer + _digits(precision if precision is not None else _DEFAULT_PRECISION)[1:]
+        fmt = (
+            integer
+            + _digits(precision if precision is not None else _DEFAULT_PRECISION)[1:]
+        )
     elif kind in ("e", "E"):
         mantissa = _digits(precision if precision is not None else _DEFAULT_PRECISION)
         fmt = f"{mantissa}E+00"
     elif kind == "%":
-        fmt = integer + _digits(precision if precision is not None else _DEFAULT_PRECISION)[1:] + "%"
+        fmt = (
+            integer
+            + _digits(precision if precision is not None else _DEFAULT_PRECISION)[1:]
+            + "%"
+        )
     elif kind == "d":
         fmt = integer
     else:

@@ -3,6 +3,8 @@ handcalcs/.ipynb_checkpoints/
 handcalcs/__pycache__
 *.ipynb
 *.lock
+# uv.lock pins CI's dependencies and keys its cache.
+!uv.lock
 .idea
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -153,6 +155,7 @@ latex_demo_build/
 latex_demo.pdf
 markdown_demo_build/
 excel_demo/
+html_demo/
 
 # Sphinx docs build
 docs/_build/

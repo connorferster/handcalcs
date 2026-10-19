@@ -132,7 +132,8 @@ class MarkdownRenderer(LatexRenderer):
 
     See ``markdown_renderer_plan.md`` for the reasoning behind each rule.
     """
-    name = 'markdown'
+
+    name = "markdown"
 
     # A math group is a single physical line: Jupyter front-ends extract math
     # from the raw text before parsing Markdown, so a multi-line group inside a
@@ -148,7 +149,7 @@ class MarkdownRenderer(LatexRenderer):
     BLOCK_PREFIX = ">"
     # A raw '<' before a letter in the Markdown source can be taken for an HTML
     # tag by a front-end that does not protect math, so comparisons use \lt/\gt.
-    OPERATOR_SYMBOLS = OPERATOR_SYMBOLS | {'lt_op': ' \\lt ', 'gt_op': ' \\gt '}
+    OPERATOR_SYMBOLS = OPERATOR_SYMBOLS | {"lt_op": " \\lt ", "gt_op": " \\gt "}
 
     def join_item(self, item, depth: int, base_context: BRC) -> list[str]:
         """
@@ -160,8 +161,12 @@ class MarkdownRenderer(LatexRenderer):
           grids in a block body arrive this way) emits each group as its own
           paragraph, since two ``$$`` groups cannot share a line.
         """
-        if (item and isinstance(item, list) and all(isinstance(part, str) for part in item)
-                and any(part.startswith(self.MATH_OPEN) for part in item)):
+        if (
+            item
+            and isinstance(item, list)
+            and all(isinstance(part, str) for part in item)
+            and any(part.startswith(self.MATH_OPEN) for part in item)
+        ):
             return [f"{part}\n\n" for part in item if part.strip()]
         if item and isinstance(item, list) and isinstance(item[-1], list):
             header, body = item[0], item[-1]
@@ -202,18 +207,19 @@ MR = MarkdownRenderer
 
 ## TEXT-MODE HANDLERS
 
-@MR.register('heading')
+
+@MR.register("heading")
 def render_heading(renderer: MR, node: Heading, base_context: BRC) -> str:
     level = min(node.heading_level, 6)
     return f"{'#' * level} {markdown_prose(node.content)}"
 
 
-@MR.register('comment_line')
+@MR.register("comment_line")
 def render_comment_line(renderer: MR, node: CommentLine, base_context: BRC) -> str:
     return markdown_prose(node.content)
 
 
-@MR.register('import')
+@MR.register("import")
 def render_import(renderer: MR, node: Import, base_context: BRC) -> str:
     """An import renders as a single code span of the Python source."""
     return f"`{import_source(node)}`"
@@ -221,7 +227,8 @@ def render_import(renderer: MR, node: Import, base_context: BRC) -> str:
 
 ## MATH-MODE TEXT
 
-@MR.register('inline_comment')
+
+@MR.register("inline_comment")
 def render_inline_comment(renderer: MR, node: InlineComment, base_context: BRC) -> str:
     """
     ``\\quad`` + the parenthesised comment as math text. It still starts with
@@ -230,7 +237,7 @@ def render_inline_comment(renderer: MR, node: InlineComment, base_context: BRC) 
     return f"\\quad{math_prose(f'({node.content})')}"
 
 
-@MR.register('constant')
+@MR.register("constant")
 def render_constant(renderer: MR, node: Constant, base_context: BRC) -> str:
     """
     A string is shown in straight double quotes as math text (MathJax does not
@@ -239,4 +246,4 @@ def render_constant(renderer: MR, node: Constant, base_context: BRC) -> str:
     """
     if isinstance(node.value, str):
         return math_text(f'"{node.value}"')
-    return LatexRenderer.node_handlers['constant'](renderer, node, base_context)
+    return LatexRenderer.node_handlers["constant"](renderer, node, base_context)

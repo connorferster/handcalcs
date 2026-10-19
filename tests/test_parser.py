@@ -412,7 +412,7 @@ b = 6
 values = [elem + b for elem in a]
 """
     source_1_locals = {}
-    exec(source_1, locals=source_1_locals)
+    exec(source_1, source_1_locals)
     basic_parser = AST_Parser(globals() | source_1_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_1) == deque([
         Import(
@@ -561,7 +561,7 @@ values = [elem + b for elem in a]
     ])
 
     source_2_locals = {}
-    exec(source_2, locals=source_2_locals)
+    exec(source_2, source_2_locals)
     basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
     assert basic_parser(source_2) == deque([
         CalcLine(
@@ -1725,7 +1725,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 content='a plain note'
             ),
             CommentCommand(
-                commands={'multiline': False, 'format_code':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None, 'params_block': False}
+                commands={'multiline': False, 'format_code':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None, 'mode': None, 'params_block': False}
             ),
             CalcLine(
                 assigns=deque([
@@ -1781,7 +1781,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 ]),
                 comment=InlineCommand(
                     content='hc: -f 5E',
-                    commands={'multiline': False, 'format_code': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None, 'params_block': False}
+                    commands={'multiline': False, 'format_code': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'line_break': False, 'param_cols': None, 'mode': None, 'params_block': False}
                 )
             )
         ])

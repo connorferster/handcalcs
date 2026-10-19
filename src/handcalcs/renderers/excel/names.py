@@ -7,6 +7,7 @@ single ``c``/``r``), so identifiers are mangled into valid names here. A
 ``SymbolTable`` tracks the *current* Excel name of every Python identifier as
 rows are emitted, versioning reassigned variables (``M_u``, ``M_u_2``).
 """
+
 from __future__ import annotations
 import re
 from typing import Any, Optional

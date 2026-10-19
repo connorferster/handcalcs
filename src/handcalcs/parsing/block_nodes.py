@@ -13,46 +13,57 @@ class HcBlockNode(HcNode):
     body_pre: str = ""
     body_post: str = ""
 
+
 @dataclass
 class ParamsBlock(HcBlockNode):
     lines: deque[CalcLine] = field(default_factory=deque)
     # True for a block opened by ``# hc: -h``: each cell keeps its line comment.
     # A ``;`` block has nowhere to put one, so its comments are dropped.
     with_comments: bool = False
-    type: str = 'params_block'
+    type: str = "params_block"
+
 
 @dataclass
 class CommentsBlock(HcBlockNode):
     """CommentsBlock is an abstraction to allow formatting to apply to a group of CommentLines
     recognizing that the linebreaks in the code are not necessarily important
     to the rendered result."""
+
     lines: deque[CommentLine] = field(default_factory=deque)
-    type: str = 'comments_block'
+    type: str = "comments_block"
+
 
 @dataclass
 class CalcsBlock(HcBlockNode):
     """CalcsBlock is an abstraction to allow formatting to apply to a group of CalcLines
     recognizing that groups of calcs look good if they are grouped together."""
+
     lines: deque[CalcLine] = field(default_factory=deque)
-    type: str = 'calcs_block'
+    type: str = "calcs_block"
+
 
 @dataclass
 class FunctionBlock(HcBlockNode):
-    lines: deque[HcBlockNode | CalcLine | ExprLine | Heading | CommentCommand | CommentLine] = field(default_factory=deque)
+    lines: deque[
+        HcBlockNode | CalcLine | ExprLine | Heading | CommentCommand | CommentLine
+    ] = field(default_factory=deque)
     namespace: deque[str] = field(default_factory=deque)
     function_name: deque[Attribute | str] = field(default_factory=deque)
     args: deque[Any] = field(default_factory=deque)
     params: deque[str] = field(default_factory=deque)
-    type: str = 'function_block'
+    type: str = "function_block"
 
 
-# Use leading underscores for attribute 
+# Use leading underscores for attribute
 @dataclass
 class ForBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
     assigns: deque[str] = field(default_factory=deque)
-    iterator: deque[HcBlockNode | FunctionBlock | ExprLine | List | Tuple | Dictionary | str] = field(default_factory=deque)
-    type: str = 'for_block'
+    iterator: deque[
+        HcBlockNode | FunctionBlock | ExprLine | List | Tuple | Dictionary | str
+    ] = field(default_factory=deque)
+    type: str = "for_block"
+
 
 @dataclass
 class IfBlock(HcBlockNode):
@@ -60,19 +71,20 @@ class IfBlock(HcBlockNode):
     test: deque[HcBlockNode | str | float | int | Any] = field(default_factory=deque)
     orelse: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
     is_true: Optional[bool] = None
-    type: str = 'if_block'
-    
+    type: str = "if_block"
+
+
 @dataclass
 class ElseBlock(HcBlockNode):
     lines: deque[Any] = field(default_factory=deque)
-    type: str = 'else_block'
+    type: str = "else_block"
 
 
 @dataclass
 class ElifBlock(HcBlockNode):
     lines: deque[IfBlock] = field(default_factory=deque)
-    type: str = 'elif_block'
-    
+    type: str = "elif_block"
+
     @classmethod
     def from_if_tree(cls, ib: IfBlock):
         def flatten_if_tree(ib: IfBlock) -> deque[IfBlock]:
@@ -89,5 +101,6 @@ class ElifBlock(HcBlockNode):
                 acc.append(ElseBlock(lines=orelse))
             # An empty `orelse` deque means there was no else/elif branch.
             return acc
+
         flattened_tree = flatten_if_tree(ib)
         return cls(lines=flattened_tree)

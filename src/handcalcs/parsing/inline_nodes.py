@@ -1,26 +1,24 @@
-
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 from .nodes import Attribute, Tuple, List, Dictionary, Set, HcNode, Constant, Name
-from .operator_nodes import (
-    EqOp,
-    GtOp,
-    GtEOp,
-    LtOp,
-    LtEOp,
-    NeqOp,
-    HcCompOp
+from .operator_nodes import EqOp, GtOp, GtEOp, LtOp, LtEOp, NeqOp, HcCompOp
+from .commands import parse_commands
+from .comment_parser import (
+    is_comment_command,
+    is_markdown_heading,
+    parse_kwargs,
+    split_commands,
 )
-from .commands import command_parser
-from .comment_parser import is_comment_command, is_markdown_heading, parse_kwargs, split_commands
 
 # All attributes with renderable content should contain deques
 # even if only a single value is expected (and not a collection).
 
+
 @dataclass
 class HcInlineNode(HcNode):
     pass
+
 
 @dataclass
 class FunctionCall(HcInlineNode):
@@ -39,6 +37,7 @@ class Keyword(HcInlineNode):
     a ``**mapping`` unpacking. Stored in ``FunctionCall.args`` after the
     positional arguments, in source order.
     """
+
     arg: str | None
     value: Any
     type: str = "keyword"
@@ -47,7 +46,8 @@ class Keyword(HcInlineNode):
 @dataclass
 class Compare(HcNode):
     comparison: deque[Constant | FunctionCall | Name | HcCompOp]
-    type: str = 'compare'
+    type: str = "compare"
+
 
 @dataclass
 class InlineComment(HcInlineNode):
@@ -67,7 +67,7 @@ class InlineCommand(HcInlineNode):
             try:
                 parsed = parse_kwargs(comment)
             except (SyntaxError, NameError):
-                parsed = vars(command_parser.parse_args(split_commands(comment)))
+                parsed = parse_commands(comment, split_commands(comment))
             return cls(content=comment, commands=parsed)
         else:
             return InlineComment(content=comment)
@@ -86,9 +86,10 @@ class Comprehension(HcInlineNode):
 @dataclass
 class ComprehensionChain(HcInlineNode):
     comp_type: str = ""
-    assign: deque[str | FunctionCall | List | Tuple | Dictionary | Set] = field(default_factory=deque)
+    assign: deque[str | FunctionCall | List | Tuple | Dictionary | Set] = field(
+        default_factory=deque
+    )
     key: deque[str] = field(default_factory=deque)
     value: deque[str] = field(default_factory=deque)
     comprehensions: deque[Comprehension] = field(default_factory=deque)
     type: str = "comprehension_chain"
-    

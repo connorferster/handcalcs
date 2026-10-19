@@ -83,7 +83,9 @@ def test_html_multiline_emits_left_aligned_table():
     assert '<td class="hc-param-id">d</td>' in out
     assert '<td class="hc-param-id"></td>' in out
     # The left-aligned override is present in the stylesheet.
-    assert "table.hc-multiline){align-self:start;}" in out
+    assert "table.hc-params.hc-multiline{align-self:start;" in out
+    # The result row is highlighted like a one-line result.
+    assert '<td class="hc-param-val"><span class="hc-result">20</span></td>' in out
 
 
 def test_html_params_table_is_content_sized_and_centered():
@@ -95,5 +97,13 @@ def test_html_params_table_is_content_sized_and_centered():
 
 def test_html_params_block_with_comments_adds_comment_cells():
     out = _render_html("# hc: -h\nx = 3 # one\ny = 4\n", {"x": 3, "y": 4})
-    assert '<td class="hc-param-comment">(one)</td>' in out
+    assert '<td class="hc-param-comment"><span class="hc-note">(one)</span></td>' in out
     assert ".hc-param-comment" in out
+
+
+def test_html_one_line_result_is_highlighted_and_comment_muted():
+    out = _render_html("a = 5\nb = a * 2 # twice `a`\n", {"a": 5, "b": 10})
+    assert '<span class="hc-result">10</span>' in out
+    assert '<span class="hc-note">(twice <code>a</code>)</span>' in out
+    # A param line has no substitution, so its value is not highlighted.
+    assert '<span class="hc-result">5</span>' not in out

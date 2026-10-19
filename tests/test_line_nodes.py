@@ -2,6 +2,7 @@
 Layer-1 data-model tests for line nodes, including the ``from_raw_comment``
 constructors on the comment line types.
 """
+
 from collections import deque
 
 import pytest
@@ -44,6 +45,7 @@ def test_expr_line_defaults():
 
 # --- CommentLine.from_raw_comment ---------------------------------------
 
+
 def test_comment_line_strips_leading_hash_and_space():
     assert CommentLine.from_raw_comment("# a plain note").content == "a plain note"
 
@@ -54,6 +56,7 @@ def test_comment_line_strips_all_leading_hashes():
 
 
 # --- Heading.from_raw_comment -------------------------------------------
+
 
 def test_heading_single_hash():
     # A single '#' is only the Python comment marker (not a markdown heading);
@@ -82,6 +85,7 @@ def test_heading_level_excludes_comment_marker(raw, expected_level):
 
 # --- CommentCommand.from_raw_comment: kwarg vs flag ---------------------
 
+
 def test_comment_command_kwarg_style():
     cc = CommentCommand.from_raw_comment("# hc: decimals=2")
     assert cc.commands == {"decimals": 2}
@@ -94,7 +98,18 @@ def test_comment_command_flag_style():
     assert cc.commands["multiline"] is False
 
 
+def test_comment_command_kwarg_error_shows_the_code():
+    with pytest.raises(ValueError, match=r"""'# hc: mode = int\("x"\)': ValueError"""):
+        CommentCommand.from_raw_comment('# hc: mode = int("x")')
+
+
+def test_comment_command_unknown_flag_raises_value_error():
+    with pytest.raises(ValueError, match=r"'# hc: --bogus'.*unrecognized arguments"):
+        CommentCommand.from_raw_comment("# hc: --bogus")
+
+
 # --- Import --------------------------------------------------------------
+
 
 def test_import_defaults():
     imp = Import(names=deque([Name("math", None)]))

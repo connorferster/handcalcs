@@ -1,10 +1,16 @@
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 from .nodes import HcNode, Name
+from .null_values import NoValue
 from .inline_nodes import InlineComment, InlineCommand
-from .commands import command_parser
-from .comment_parser import is_comment_command, is_markdown_heading, parse_kwargs, split_commands
+from .commands import parse_commands
+from .comment_parser import (
+    is_comment_command,
+    is_markdown_heading,
+    parse_kwargs,
+    split_commands,
+)
 
 
 @dataclass
@@ -12,6 +18,7 @@ class HcLineNode(HcNode):
     level: int = 0
     pre: str = ""
     post: str = ""
+
 
 @dataclass
 class CalcLine(HcLineNode):
@@ -24,10 +31,17 @@ class CalcLine(HcLineNode):
 
 @dataclass
 class ExprLine(HcLineNode):
+    """
+    A bare expression statement (``a * b``) or a ``return``. ``value`` holds the
+    expression's result when the parser could evaluate it without side effects
+    (see ``AST_Parser._evaluate_expr``), otherwise ``NoValue``.
+    """
+
     expression_tree: deque = field(default_factory=deque)
     comment: Optional[InlineComment | InlineCommand] = None
     return_expr: bool = False
     pars_nesting: bool = False
+    value: Any = field(default_factory=NoValue, compare=False)
     type: str = "expr_line"
 
 
@@ -61,6 +75,7 @@ class Heading(HcLineNode):
         content = stripped.lstrip("#").strip()
         return cls(content=content, heading_level=heading_level)
 
+
 @dataclass
 class CommentCommand(HcLineNode):
     commands: dict = field(default_factory=dict)
@@ -72,8 +87,9 @@ class CommentCommand(HcLineNode):
         try:
             parsed = parse_kwargs(stripped)
         except (SyntaxError, NameError):
-            parsed = vars(command_parser.parse_args(split_commands(stripped)))
+            parsed = parse_commands(stripped, split_commands(stripped))
         return cls(commands=parsed)
+
 
 @dataclass
 class Import(HcLineNode):
@@ -81,4 +97,4 @@ class Import(HcLineNode):
     names: deque[str] = field(default_factory=deque)
     import_from_module: Optional[str] = None
     import_from_level: Optional[int] = None
-    type: str = 'import'
+    type: str = "import"

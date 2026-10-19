@@ -7,10 +7,9 @@ from ..renderers import demo
 from .. import config
 
 
-
 class HandCalcs:
 
-    def __init__(self, renderer = None):
+    def __init__(self, renderer=None):
         if renderer is None:
             renderer = self.__default_renderer()
         self.renderer = renderer
@@ -42,8 +41,12 @@ class HandCalcs:
             renderer_cls = BaseRenderer
         return renderer_cls()
 
-    
-    def __call__(self, source_or_path: str | pathlib.Path, supplied_globals: Optional[dict] = None, supplied_locals: Optional[dict] = None) -> str:
+    def __call__(
+        self,
+        source_or_path: str | pathlib.Path,
+        supplied_globals: Optional[dict] = None,
+        supplied_locals: Optional[dict] = None,
+    ) -> str:
         """
         Parses the data from 'filepath' and creates a HandCalcs object.
 
@@ -56,11 +59,12 @@ class HandCalcs:
         if supplied_globals is None:
             passed_globals = self.__evaluate(source)
         self.hc_ast = self.__parse(source, passed_globals)
-        base_context = self.renderer.create_context(**(self._context_settings | {"global_ns": passed_globals}))
+        base_context = self.renderer.create_context(
+            **(self._context_settings | {"global_ns": passed_globals})
+        )
         rendered_tree = self.renderer.render(self.hc_ast, base_context)
         completed_render = self.renderer.complete(rendered_tree, base_context)
         return completed_render
-
 
     def demo(self):
         """
@@ -73,21 +77,26 @@ class HandCalcs:
         source = self.__read(getattr(self.renderer, "demo_source", None) or demo.source)
         eval_globals = self.__evaluate(source)
         demo_ast = self.__parse(source, eval_globals)
-        base_context = self.renderer.create_context(**(self._context_settings | {"global_ns": eval_globals}))
+        base_context = self.renderer.create_context(
+            **(self._context_settings | {"global_ns": eval_globals})
+        )
         rendered_tree = self.renderer.render(demo_ast, base_context)
         completed_render = self.renderer.complete(rendered_tree, base_context)
         # demo() returns the completed render (renderer.complete()), matching
         # calculate(); for the PlainTextRenderer that is the joined text.
         return completed_render
 
-
     def __repr__(self):
         return f"HandCalcs(renderer={self.renderer}())"
-        
-        
-    def __read(self, source_or_path: str | pathlib.Path, supplied_globals: Optional[dict] = None, supplied_locals: Optional[dict] = None): 
+
+    def __read(
+        self,
+        source_or_path: str | pathlib.Path,
+        supplied_globals: Optional[dict] = None,
+        supplied_locals: Optional[dict] = None,
+    ):
         if isinstance(source_or_path, pathlib.Path):
-            with open(source_or_path, 'r') as file:
+            with open(source_or_path, "r") as file:
                 source = file.read()
         elif isinstance(source_or_path, str):
             source = source_or_path
@@ -97,20 +106,24 @@ class HandCalcs:
                 f"or a pathlib.Path object to an existing .py file, not {type(source_or_path)}"
             )
         return source
-        
+
     def __evaluate(self, source):
         eval_globals = eval_locals = {}
         exec(source, eval_globals, eval_locals)
         return eval_globals
-        
-        
-    def __parse(self, source: str, supplied_globals: Optional[dict] = None, supplied_locals: Optional[dict] = None):
+
+    def __parse(
+        self,
+        source: str,
+        supplied_globals: Optional[dict] = None,
+        supplied_locals: Optional[dict] = None,
+    ):
         if supplied_globals is None:
             supplied_globals = {}
         if supplied_locals is None:
-            supplied_locals= {}
-    
-        hc_ast = HcSequence.from_source(source, hc_globals=supplied_globals, hc_locals=supplied_locals)
+            supplied_locals = {}
+
+        hc_ast = HcSequence.from_source(
+            source, hc_globals=supplied_globals, hc_locals=supplied_locals
+        )
         return hc_ast
-    
-    

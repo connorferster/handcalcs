@@ -13,30 +13,9 @@ import tokenize
 from typing import List, Union, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap, Counter
-from .nodes import (
-    Attribute,
-    List,
-    Tuple,
-    Set,
-    Dictionary,
-    Name,
-    Constant
-)
-from .block_nodes import (
-    ForBlock,
-    IfBlock,
-    ElifBlock,
-    HcBlockNode,
-    ParamsBlock
-)
-from .line_nodes import (
-    CalcLine,
-    ExprLine,
-    CommentLine,
-    CommentCommand,
-    Heading,
-    Import
-)
+from .nodes import Attribute, List, Tuple, Set, Dictionary, Name, Constant
+from .block_nodes import ForBlock, IfBlock, ElifBlock, HcBlockNode, ParamsBlock
+from .line_nodes import CalcLine, ExprLine, CommentLine, CommentCommand, Heading, Import
 from .inline_nodes import (
     FunctionCall,
     ComprehensionChain,
@@ -46,10 +25,7 @@ from .inline_nodes import (
     Compare,
     Keyword,
 )
-from .null_values import (
-    HcNotImplemented,
-    NoValue
-)
+from .null_values import HcNotImplemented, NoValue
 
 from .operator_nodes import (
     AddOp,
@@ -71,14 +47,15 @@ from .operator_nodes import (
     NotInOp,
     AndOp,
     OrOp,
-    HcUnaryOp
+    HcUnaryOp,
 )
+
 # from handcalcs.parsing.commands import command_parser
 from .comment_parser import (
     is_comment_command,
     parse_kwargs,
     is_markdown_heading,
-    split_commands
+    split_commands,
 )
 
 ARITHMETIC_OPS = {
@@ -116,6 +93,23 @@ BOOL_OPS = {
     "Or": OrOp,
 }
 
+# Built-in functions with no side effects: a bare expression that calls only these
+# (and math/cmath functions or numpy ufuncs) is evaluated to show its result.
+PURE_BUILTINS = (
+    abs,
+    bool,
+    complex,
+    divmod,
+    float,
+    int,
+    len,
+    max,
+    min,
+    pow,
+    round,
+    sum,
+)
+
 
 # HERE: ast_parse to parse block comments, block options, and blocks in order to val = a "hc_tree"
 @dataclass
@@ -137,6 +131,7 @@ class AST_Parser:
     functions_cache: ChainMap = field(default_factory=ChainMap)
     ast_cache: dict = field(default_factory=dict)
     show_notimplemented: bool = False
+    source: str = ""
 
     def __post_init__(self):
         pass
@@ -194,6 +189,7 @@ class AST_Parser:
         """
         Returns the handcalcs tree from the source.
         """
+        self.source = source
         self._classify_comments(source)
         ast_tree = ast.parse(source)
         hc_tree = self.ast_parse(ast_tree)
@@ -205,6 +201,7 @@ class AST_Parser:
         Clears existing data out of the parser.
         """
         self.current_block = None
+        self.source = ""
         self.current_line_number = 1
         self.prev_line_number = 0
         self.new_block_from_comment = False
@@ -221,7 +218,9 @@ class AST_Parser:
         """
         self.line_comments = {}
         self._blank_rows = {
-            row for row, text in enumerate(source.splitlines(), start=1) if not text.strip()
+            row
+            for row, text in enumerate(source.splitlines(), start=1)
+            if not text.strip()
         }
         code_rows = []
         trivia = (
@@ -276,6 +275,29 @@ class AST_Parser:
         """
         pending = getattr(self, "_pending_comment_rows", deque())
         return bool(pending) and pending[0] < before
+
+    def _line_break(self, node: ast.BinOp) -> str:
+        """
+        Where a line continuation splits the operands of ``node``: ``"after"``
+        if the operator ends the left operand's line (``a + \\`` then ``b``),
+        ``"before"`` if it starts the right operand's line, or ``""`` when both
+        operands share a line (or their positions are unknown).
+        """
+        left, right = node.left, node.right
+        end_row = getattr(left, "end_lineno", None)
+        start_row = getattr(right, "lineno", None)
+        if end_row is None or start_row is None or end_row >= start_row:
+            return ""
+        # The rest of the left operand's line, after the operand itself. Column
+        # offsets are UTF-8 byte offsets.
+        lines = self.source.splitlines()
+        if end_row > len(lines):
+            return ""
+        tail = lines[end_row - 1].encode()[left.end_col_offset :].decode()
+        tail = tail.split("#", 1)[0]
+        if tail.strip(" \t\\()"):
+            return "after"
+        return "before"
 
     def _blank_between(self, prev: ast.AST, nxt: ast.AST) -> bool:
         """True if a blank source line separates statement ``prev`` from ``nxt``."""
@@ -365,6 +387,7 @@ class AST_Parser:
             op_name = type(node.op).__name__
             op_class = ARITHMETIC_OPS[op_name]
             hc_op = op_class(left, right)
+            hc_op.line_break = self._line_break(node)
             val = hc_op
 
             # add_to_current_block = True
@@ -403,7 +426,8 @@ class AST_Parser:
             node: ast.Name
             val = Name(identifier=node.id, value=self.globals.get(node.id, NoValue()))
         elif isinstance(node, ast.Constant):
-            val = Constant(value=node.value)
+            source_text = ast.get_source_segment(self.source, node) or ""
+            val = Constant(value=node.value, source_text=source_text)
         elif isinstance(node, ast.Compare):
             # Comparison operations (e.g., a > b). Structure:
             # [left, op_name, right] (simplified for this structure)
@@ -440,7 +464,7 @@ class AST_Parser:
                     import_from=True,
                     import_from_level=node.level,
                     import_from_module=node.module,
-                    names=acc
+                    names=acc,
                 )
 
         elif isinstance(node, ast.Call):
@@ -460,9 +484,7 @@ class AST_Parser:
                 # Fall back to standard Rule 2
                 # ... (original Rule 2 logic) ...
                 module_name = ""
-                func_name = self.ast_parse(
-                    node.func
-                )  # Get the function's name (str)
+                func_name = self.ast_parse(node.func)  # Get the function's name (str)
                 if isinstance(func_name, ast.Attribute):
                     module_name = func_name.module_name
                     func_name = func_name.attr_name
@@ -470,12 +492,11 @@ class AST_Parser:
                 # Create the inner nested list for arguments
             # args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
 
-                # Create the main nested list for the function call
-                # val = deque([func_name, deque([args_list])])
+            # Create the main nested list for the function call
+            # val = deque([func_name, deque([args_list])])
 
             # # Check for a specific target function you want to recurse into
             # if func_name == "external_func" and module_name == "some_module":
-
 
             # TODO: COMMENT OUT FUNCTION RECURSION
             # 1. Get the source code string for the external function
@@ -535,9 +556,7 @@ class AST_Parser:
             # fallback: skip evaluation, treat as indeterminate, or surface a
             # clearer error naming the missing variable.
             if_block.is_true = eval(
-                compile(
-                    py_ast.Expression(node.test), mode='eval', filename='<ast>'
-                ),
+                compile(py_ast.Expression(node.test), mode="eval", filename="<ast>"),
                 dict(self.globals),
             )
             # "body": The block of code inside the if (nested list of statements)
@@ -632,26 +651,18 @@ class AST_Parser:
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            # get_line_comment() returns the trailing comment already stripped
-            # of its leading '#' and surrounding whitespace (e.g. "hc: sympy").
-            comment_value = node.f.get_line_comment() or ""
-            if is_comment_command(comment_value):
-                parsed_commands = InlineCommand.from_raw_comment(comment_value)
-                comment_content = parsed_commands
-            elif comment_value:
-                comment_content = InlineComment(content=comment_value)
-            else:
-                comment_content = None
-
+            comment_content = self._inline_comment(node)
             expression_tree = self.ast_parse(node.value)
-            nested_pars = bool(node.value.f.pars().n) # True if the expression tree is nested in parenths
+            nested_pars = bool(
+                node.value.f.pars().n
+            )  # True if the expression tree is nested in parenths
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
                 assigns=deque([self.ast_parse(n) for n in node.targets]),
                 expression_tree=expression_tree,
-                comment = comment_content,
-                pars_nesting = nested_pars
+                comment=comment_content,
+                pars_nesting=nested_pars,
             )
             val = calc_line
 
@@ -682,19 +693,28 @@ class AST_Parser:
             val = Attribute(
                 namespace=namespace,
                 identifier=attribute,
-                value=getattr(self.globals.get(namespace, NoValue()), attribute, NoValue())
+                value=getattr(
+                    self.globals.get(namespace, NoValue()), attribute, NoValue()
+                ),
             )
 
         elif isinstance(node, ast.Module):
             # Entry point: process all body statements, interleaving standalone
             # comment lines, then append any trailing comments after the last stmt.
             val = self._parse_body(node.body)
-            val.extend(self._flush_comment_lines(before=2 ** 63))
+            val.extend(self._flush_comment_lines(before=2**63))
 
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
             parsed_node = self.ast_parse(node.value)
-            val = ExprLine(expression_tree=deque([parsed_node]))
+            val = ExprLine(
+                expression_tree=deque([parsed_node]),
+                comment=self._inline_comment(node),
+            )
+            if not isinstance(parsed_node, (NoValue, HcNotImplemented)) and not (
+                isinstance(parsed_node, Constant) and isinstance(parsed_node.value, str)
+            ):
+                val.value = self._evaluate_expr(node.value)
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
@@ -705,6 +725,58 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _inline_comment(self, node: ast.AST) -> InlineComment | InlineCommand | None:
+        """The trailing comment of a statement's line, as a comment or command node."""
+        # get_line_comment() returns the trailing comment already stripped
+        # of its leading '#' and surrounding whitespace (e.g. "hc: sympy").
+        comment_value = node.f.get_line_comment() or ""
+        if is_comment_command(comment_value):
+            return InlineCommand.from_raw_comment(comment_value)
+        elif comment_value:
+            return InlineComment(content=comment_value)
+        return None
+
+    def _evaluate_expr(self, node: ast.AST):
+        """
+        The value of a bare expression statement in the namespace, so that it can
+        be shown as the line's result (#54). The source already ran, so the
+        expression is evaluated a second time: it is only evaluated when that is
+        free of side effects, i.e. it calls nothing but the functions accepted by
+        ``_is_pure_callable``. Otherwise, or if evaluating it fails, NoValue.
+        """
+        for sub in py_ast.walk(node):
+            if isinstance(
+                sub, (ast.Await, ast.Yield, ast.YieldFrom, ast.NamedExpr, ast.Lambda)
+            ):
+                return NoValue()
+            if isinstance(sub, ast.Call) and not self._is_pure_callable(sub.func):
+                return NoValue()
+        try:
+            # A flattened copy of the namespace, as for an if test (see ast.If).
+            return eval(
+                compile(py_ast.Expression(node), mode="eval", filename="<ast>"),
+                dict(self.globals),
+            )
+        except Exception:
+            return NoValue()
+
+    def _is_pure_callable(self, func: ast.AST) -> bool:
+        """
+        True if the called object is a side-effect-free function: one of
+        ``PURE_BUILTINS``, a ``math``/``cmath`` function or a numpy ufunc.
+        """
+        if isinstance(func, ast.Name):
+            obj = self.globals.get(func.id, getattr(builtins, func.id, None))
+        elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            obj = getattr(self.globals.get(func.value.id), func.attr, None)
+        else:
+            return False
+        if any(obj is pure for pure in PURE_BUILTINS):
+            return True
+        if getattr(obj, "__module__", None) in ("math", "cmath"):
+            return True
+        return type(obj).__name__ == "ufunc"
 
     def find_source(self, func_name: str, module_name: str) -> ast.AST:
         """Finds the source code for a function within an imported module."""

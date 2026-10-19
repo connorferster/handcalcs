@@ -34,6 +34,7 @@ with "and"::
     2, if hw/tw ≤ 1700/√Fy
     4, otherwise
 """
+
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -85,7 +86,9 @@ class Conditional:
         found: list[str] = []
         for branch in self.branches:
             for item in branch.body:
-                names = [item.target] if isinstance(item, Assignment) else item.variables()
+                names = (
+                    [item.target] if isinstance(item, Assignment) else item.variables()
+                )
                 found.extend(name for name in names if name not in found)
         return found
 
@@ -94,6 +97,7 @@ class Conditional:
 
 
 # --- normalizing the parsed tree ---
+
 
 def _clauses(node: Any) -> list:
     """The if/elif/else clauses of an ElifBlock or a raw (nested) IfBlock."""
@@ -142,12 +146,14 @@ def _target(line: CalcLine) -> str:
     targets = list(line.assigns)
     if len(targets) != 1 or not isinstance(targets[0], Name):
         raise incompatible(
-            "only single-name assignments are supported inside an if/elif/else tree", line
+            "only single-name assignments are supported inside an if/elif/else tree",
+            line,
         )
     return targets[0].identifier
 
 
 # --- scoped name lookup ---
+
 
 class Scope:
     """
@@ -155,7 +161,9 @@ class Scope:
     interface the FormulaBuilder uses (``in`` and ``lookup``).
     """
 
-    def __init__(self, before: dict[str, str], overrides: Optional[dict[str, str]] = None) -> None:
+    def __init__(
+        self, before: dict[str, str], overrides: Optional[dict[str, str]] = None
+    ) -> None:
         self.before = before
         self.overrides = dict(overrides or {})
 
@@ -185,11 +193,15 @@ class ConditionalRenderer:
 
     def builder(self, scope: Scope) -> FormulaBuilder:
         base = self.state.builder
-        return FormulaBuilder(scope, base.global_ns, base.functions, base.constants, base.factors)
+        return FormulaBuilder(
+            scope, base.global_ns, base.functions, base.constants, base.factors
+        )
 
     # --- formulas ---
 
-    def formula(self, conditional: Conditional, variable: str, scope: Scope, fallback: str) -> str:
+    def formula(
+        self, conditional: Conditional, variable: str, scope: Scope, fallback: str
+    ) -> str:
         """``IF(...)`` text for ``variable`` over the tree, nested innermost-last."""
         text = fallback
         for branch in reversed(conditional.branches):
@@ -201,7 +213,9 @@ class ConditionalRenderer:
                 text = f"IF({test},{value},{text})"
         return text
 
-    def branch_formula(self, branch: Branch, variable: str, scope: Scope, fallback: str) -> str:
+    def branch_formula(
+        self, branch: Branch, variable: str, scope: Scope, fallback: str
+    ) -> str:
         current = fallback
         for item in branch.body:
             if isinstance(item, Assignment):
@@ -217,7 +231,9 @@ class ConditionalRenderer:
 
     # --- piecewise display ---
 
-    def cases(self, conditional: Conditional, variable: str, fallback: str) -> list[tuple[str, list[str]]]:
+    def cases(
+        self, conditional: Conditional, variable: str, fallback: str
+    ) -> list[tuple[str, list[str]]]:
         """``(value markup, [condition markups])`` per case, in order."""
         found = []
         for branch in conditional.branches:
@@ -228,7 +244,9 @@ class ConditionalRenderer:
             found.append((fallback, []))
         return found
 
-    def branch_cases(self, branch: Branch, variable: str, fallback: str) -> list[tuple[str, list[str]]]:
+    def branch_cases(
+        self, branch: Branch, variable: str, fallback: str
+    ) -> list[tuple[str, list[str]]]:
         current = [(fallback, [])]
         for item in branch.body:
             if isinstance(item, Assignment) and item.target == variable:
@@ -265,7 +283,9 @@ class ConditionalRenderer:
                 continue
             for item in branch.body:
                 if isinstance(item, Assignment):
-                    evaluator.assign(item.target, evaluator.evaluate(item.line.expression_tree))
+                    evaluator.assign(
+                        item.target, evaluator.evaluate(item.line.expression_tree)
+                    )
                 else:
                     self.run(item)
             return
@@ -303,7 +323,9 @@ class ConditionalRenderer:
         for variable in variables:
             try:
                 previous = self.before.get(variable)
-                fallback = self.builder(scope).name(Name(variable)).text if previous else NA
+                fallback = (
+                    self.builder(scope).name(Name(variable)).text if previous else NA
+                )
                 text = self.formula(conditional, variable, scope, fallback)
             except ExcelRendererIncompatibleError as error:
                 raise error.with_target(variable) from None
@@ -313,20 +335,24 @@ class ConditionalRenderer:
             formulas[variable] = "=" + text
 
         context = self.base_context.current
-        number_format = to_excel_number_format(context.format_code, self.renderer.general_format)
+        number_format = to_excel_number_format(
+            context.format_code, self.renderer.general_format
+        )
         rows: list[Row] = []
         for variable in variables:
             unit = units[variable]
-            rows.append(CalcRow(
-                name=self.new_names[variable],
-                symbol=parse_markup(symbolic_identifier(variable)),
-                symbolic=parse_markup(self.piecewise(conditional, variable)),
-                formula=formulas[variable],
-                cached=unit.magnitude if unit is not None else values[variable],
-                number_format=number_format,
-                unit=(unit.unit or None) if unit is not None else None,
-                comment=_first_comment(lines[variable]),
-            ))
+            rows.append(
+                CalcRow(
+                    name=self.new_names[variable],
+                    symbol=parse_markup(symbolic_identifier(variable)),
+                    symbolic=parse_markup(self.piecewise(conditional, variable)),
+                    formula=formulas[variable],
+                    cached=unit.magnitude if unit is not None else values[variable],
+                    number_format=number_format,
+                    unit=(unit.unit or None) if unit is not None else None,
+                    comment=_first_comment(lines[variable]),
+                )
+            )
         return rows
 
 

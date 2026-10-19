@@ -1,6 +1,8 @@
 import re
 import ast
 
+from .commands import CommentCommandError
+
 
 def is_markdown_heading(comment: str) -> bool:
     """
@@ -28,6 +30,7 @@ def split_commands(comment: str) -> list[str]:
     commands = strip_command_prefix(comment)
     return commands.split()
 
+
 def strip_command_prefix(comment: str) -> str:
     """
     Splits the commands by white space.
@@ -36,11 +39,26 @@ def strip_command_prefix(comment: str) -> str:
     stripped = pattern.sub("", comment)
     return stripped
 
+
 def parse_kwargs(comment: str) -> dict:
     """
-    For kwarg comment commands.
+    For kwarg comment commands (``# hc: mode = "ass sym"``).
+
+    A SyntaxError or NameError propagates unchanged: it means the comment is not
+    kwarg-style, and the callers fall back to the flag parser. Any other error
+    comes from running the comment's code, and is raised as a
+    CommentCommandError that shows that code.
     """
     stripped = strip_command_prefix(comment)
     kwarg_locals = {}
-    exec(stripped, locals=kwarg_locals)
+    try:
+        # Positional: exec() only accepts globals/locals as keywords from Python 3.13.
+        exec(stripped, {}, kwarg_locals)
+    except (SyntaxError, NameError):
+        raise
+    except Exception as error:
+        raise CommentCommandError(
+            f"Error running handcalcs comment command '# {comment}': "
+            f"{type(error).__name__}: {error}"
+        ) from error
     return kwarg_locals
