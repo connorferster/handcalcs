@@ -1315,9 +1315,8 @@ def render_exprline(
     """
     Render a bare expression statement (an ExprLine).
 
-    An ExprLine has no assignment target, so there is no result column. Until a
-    value-capture pass exists, the three kinds of ExprLine are classified and
-    rendered honestly (no dangling equals, no fabricated result):
+    An ExprLine has no assignment target. The three kinds of ExprLine are
+    classified and rendered honestly (no dangling equals, no fabricated result):
 
     - *docstring / bare string*: the expression tree is a single ``str`` (built
       by the parser for a string-literal statement); render it as a plain line.
@@ -1325,10 +1324,11 @@ def render_exprline(
       definition whose names have no runtime value, so render the symbolic form
       only -- no numeric substitution.
     - *ordinary expression statement* (e.g. ``print(x)``, ``x + y``): render the
-      symbolic form and its numeric substitution joined by the equality, with no
-      trailing equals and no result.
+      symbolic form and its numeric substitution joined by the equality, then the
+      result if the parser could evaluate the expression (``node.value``, e.g.
+      ``x + y = 1 + 2 = 3``). A column that repeats the one before it is dropped,
+      as in a calc line (``2 + 2 = 4``).
     """
-    context = base_context.current
 
     # A bare string-literal statement (e.g. a module or block docstring) is a
     # single Constant holding a str; render it as a plain line, not a calc.
@@ -1345,6 +1345,13 @@ def render_exprline(
                 line.append(comment_render)
         return line
 
+    # The comment is rendered first because a command comment (e.g. ``# hc: -f``)
+    # mutates the context that the columns below are rendered under.
+    comment_render = None
+    if node.comment is not None:
+        comment_render = renderer.render(node.comment, base_context)
+    context = base_context.current
+
     def render_tree(mode: str) -> str:
         base_context.line_context.current_mode = mode
         return "".join(
@@ -1356,20 +1363,26 @@ def render_exprline(
     if "sym" in shown:
         columns.append(render_tree("sym"))
     # A return statement has no single runtime value; omit numeric substitution.
-    if not node.return_expr and "num" in shown:
+    # So does a line marked as a param line (``# hc: -p``), which shows its result.
+    param_line = getattr(context, "param_line", False)
+    if not node.return_expr and not param_line and "num" in shown:
         columns.append(render_tree("num"))
+    if not isinstance(node.value, NoValue) and "res" in shown:
+        base_context.line_context.current_mode = "num"
+        columns.append(renderer.render_node(node.value, base_context))
 
     components = deque([])
-    for idx, column in enumerate(columns):
-        if idx > 0:
+    for column in columns:
+        if components and column == components[-1]:
+            continue
+        if components:
             components.append(context.assign)
         components.append(column)
 
-    if node.comment is not None:
-        comment_render = renderer.render(node.comment, base_context)
-        if comment_render:
-            components.append(comment_render)
+    if comment_render:
+        components.append(comment_render)
 
+    base_context.line_context = RenderContext.sparse()
     return list(components)
 
 

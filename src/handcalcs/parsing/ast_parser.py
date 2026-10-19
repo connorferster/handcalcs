@@ -93,6 +93,23 @@ BOOL_OPS = {
     "Or": OrOp,
 }
 
+# Built-in functions with no side effects: a bare expression that calls only these
+# (and math/cmath functions or numpy ufuncs) is evaluated to show its result.
+PURE_BUILTINS = (
+    abs,
+    bool,
+    complex,
+    divmod,
+    float,
+    int,
+    len,
+    max,
+    min,
+    pow,
+    round,
+    sum,
+)
+
 
 # HERE: ast_parse to parse block comments, block options, and blocks in order to val = a "hc_tree"
 @dataclass
@@ -634,17 +651,7 @@ class AST_Parser:
 
         # --- Other important nodes (e.g., Assignments, List construction) ---
         elif isinstance(node, ast.Assign):
-            # get_line_comment() returns the trailing comment already stripped
-            # of its leading '#' and surrounding whitespace (e.g. "hc: sympy").
-            comment_value = node.f.get_line_comment() or ""
-            if is_comment_command(comment_value):
-                parsed_commands = InlineCommand.from_raw_comment(comment_value)
-                comment_content = parsed_commands
-            elif comment_value:
-                comment_content = InlineComment(content=comment_value)
-            else:
-                comment_content = None
-
+            comment_content = self._inline_comment(node)
             expression_tree = self.ast_parse(node.value)
             nested_pars = bool(
                 node.value.f.pars().n
@@ -700,7 +707,14 @@ class AST_Parser:
         elif isinstance(node, ast.Expr):
             # An expression used as a statement (e.g., a standalone function call)
             parsed_node = self.ast_parse(node.value)
-            val = ExprLine(expression_tree=deque([parsed_node]))
+            val = ExprLine(
+                expression_tree=deque([parsed_node]),
+                comment=self._inline_comment(node),
+            )
+            if not isinstance(parsed_node, (NoValue, HcNotImplemented)) and not (
+                isinstance(parsed_node, Constant) and isinstance(parsed_node.value, str)
+            ):
+                val.value = self._evaluate_expr(node.value)
 
         # Default case for unhandled nodes: val = a simple string for clarity
         else:
@@ -711,6 +725,58 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _inline_comment(self, node: ast.AST) -> InlineComment | InlineCommand | None:
+        """The trailing comment of a statement's line, as a comment or command node."""
+        # get_line_comment() returns the trailing comment already stripped
+        # of its leading '#' and surrounding whitespace (e.g. "hc: sympy").
+        comment_value = node.f.get_line_comment() or ""
+        if is_comment_command(comment_value):
+            return InlineCommand.from_raw_comment(comment_value)
+        elif comment_value:
+            return InlineComment(content=comment_value)
+        return None
+
+    def _evaluate_expr(self, node: ast.AST):
+        """
+        The value of a bare expression statement in the namespace, so that it can
+        be shown as the line's result (#54). The source already ran, so the
+        expression is evaluated a second time: it is only evaluated when that is
+        free of side effects, i.e. it calls nothing but the functions accepted by
+        ``_is_pure_callable``. Otherwise, or if evaluating it fails, NoValue.
+        """
+        for sub in py_ast.walk(node):
+            if isinstance(
+                sub, (ast.Await, ast.Yield, ast.YieldFrom, ast.NamedExpr, ast.Lambda)
+            ):
+                return NoValue()
+            if isinstance(sub, ast.Call) and not self._is_pure_callable(sub.func):
+                return NoValue()
+        try:
+            # A flattened copy of the namespace, as for an if test (see ast.If).
+            return eval(
+                compile(py_ast.Expression(node), mode="eval", filename="<ast>"),
+                dict(self.globals),
+            )
+        except Exception:
+            return NoValue()
+
+    def _is_pure_callable(self, func: ast.AST) -> bool:
+        """
+        True if the called object is a side-effect-free function: one of
+        ``PURE_BUILTINS``, a ``math``/``cmath`` function or a numpy ufunc.
+        """
+        if isinstance(func, ast.Name):
+            obj = self.globals.get(func.id, getattr(builtins, func.id, None))
+        elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            obj = getattr(self.globals.get(func.value.id), func.attr, None)
+        else:
+            return False
+        if any(obj is pure for pure in PURE_BUILTINS):
+            return True
+        if getattr(obj, "__module__", None) in ("math", "cmath"):
+            return True
+        return type(obj).__name__ == "ufunc"
 
     def find_source(self, func_name: str, module_name: str) -> ast.AST:
         """Finds the source code for a function within an imported module."""

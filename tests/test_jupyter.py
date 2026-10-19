@@ -136,3 +136,13 @@ def test_line_magic_needs_code(shell):
     ip, jupyter = shell
     with pytest.raises(jupyter.UsageError, match="needs a line of code"):
         ip.run_line_magic("render", "  ")
+
+
+def test_bare_expression_shows_its_result(shell):
+    # #54: a cell (or a %render line) that is just an expression shows its result.
+    ip, _ = shell
+    assert render_cell(ip, "2 + 2\n")["text/markdown"] == (
+        "$$\\begin{aligned} 2 + 2 &= 4 \\end{aligned}$$\n"
+    )
+    _, outputs = run_cell(ip, "a = 2\n%render a * 3\n")
+    assert "a \\cdot 3 &= 2 \\cdot 3 = 6" in outputs[0]["text/markdown"]
