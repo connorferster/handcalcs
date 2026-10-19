@@ -11,6 +11,8 @@ from handcalcs.renderers.base import (
     BaseRenderContext,
 )
 
+from handcalcs.renderers.identifiers import GREEK_UNICODE, greek_identifier
+
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import HcNode, Name, Constant
 from handcalcs.parsing.operator_nodes import AddOp, HcBinOp, HcCompOp
@@ -480,75 +482,21 @@ def for_block_header(
     return f"{over_each}{_}{target}{_}{keyword('in')}{_}{iterable}:"
 
 
-GREEK = {
-    "alpha": "α",
-    "beta": "β",
-    "gamma": "γ",
-    "delta": "δ",
-    "epsilon": "ε",
-    "varepsilon": "ϵ",
-    "zeta": "ζ",
-    "eta": "η",
-    "theta": "θ",
-    "vartheta": "ϑ",
-    "iota": "ι",
-    "kappa": "κ",
-    "lamb": "λ",
-    "mu": "μ",
-    "nu": "ν",
-    "xi": "ξ",
-    "omicron": "ο",
-    "pi": "π",
-    "varpi": "ϖ",
-    "rho": "ρ",
-    "varrho": "ϱ",
-    "sigma": "σ",
-    "varsigma": "ς",
-    "tau": "τ",
-    "upsilon": "υ",
-    "phi": "φ",
-    "varphi": "ϕ",
-    "chi": "χ",
-    "psi": "ψ",
-    "omega": "ω",
-    "Alpha": "Α",
-    "Beta": "Β",
-    "Gamma": "Γ",
-    "Delta": "Δ",
-    "Epsilon": "Ε",
-    "Zeta": "Ζ",
-    "Eta": "Η",
-    "Theta": "Θ",
-    "Iota": "Ι",
-    "Kappa": "Κ",
-    "Lamb": "Λ",
-    "Mu": "Μ",
-    "Nu": "Ν",
-    "Xi": "Ξ",
-    "Omicron": "Ο",
-    "Pi": "Π",
-    "Rho": "Ρ",
-    "Sigma": "Σ",
-    "Tau": "Τ",
-    "Upsilon": "Υ",
-    "Phi": "Φ",
-    "Chi": "Χ",
-    "Psi": "Ψ",
-    "Omega": "Ω",
-}
+GREEK = GREEK_UNICODE
 
 
 @HTMLR.register("name:sym")
 def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
     """
-    Swap each ``_``-separated part of a Name's identifier that names a Greek
-    letter for the letter (``sigma_max`` -> ``σ_max``).
+    Swap the Greek names in a Name's identifier for the letters: each
+    ``_``-separated part and each ``__``-separated word of one (``sigma_max`` ->
+    ``σ_max``, ``Delta__H`` -> ``Δ__H``) and, with ``GREEK_PREFIXES``, a leading
+    Greek name before an uppercase letter or a digit (``DeltaH`` -> ``ΔH``).
 
     Registered as a 'sym' rule on the Name node: the identifier is only shown in
     symbolic mode (numeric mode renders the Name's value instead).
     """
-    parts = node.identifier.split("_")
-    node.identifier = "_".join(GREEK.get(part, part) for part in parts)
+    node.identifier = greek_identifier(node.identifier, renderer.GREEK_PREFIXES)
     return node
 
 

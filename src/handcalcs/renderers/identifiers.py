@@ -151,3 +151,19 @@ def unicode_greek(word: str, prefixes: bool = True) -> str:
         GREEK_UNICODE[text] if is_greek else text
         for is_greek, text in split_greek(word, prefixes)
     )
+
+
+def greek_identifier(identifier: str, prefixes: bool = True) -> str:
+    """
+    An identifier with the Greek names in each ``_``-separated component, and in
+    each ``__``-separated word of one, swapped for Unicode letters. The
+    underscores are kept for the renderer to interpret: ``sigma_max`` ->
+    ``σ_max``, ``Delta__H`` -> ``Δ__H``, ``DeltaT_max`` -> ``ΔT_max``.
+    """
+    # Placeholders for the double/triple underscores, which are not separators.
+    text = identifier.replace("___", "\0").replace("__", "\1")
+    components = [
+        "\1".join(unicode_greek(word, prefixes) for word in component.split("\1"))
+        for component in text.split("_")
+    ]
+    return "_".join(components).replace("\1", "__").replace("\0", "___")

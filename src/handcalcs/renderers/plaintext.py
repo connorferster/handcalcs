@@ -9,6 +9,8 @@ from handcalcs.renderers.base import (
     ContextValueError,
 )
 
+from handcalcs.renderers.identifiers import greek_identifier
+
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import (
     HcNode,
@@ -55,80 +57,19 @@ BRC = BaseRenderContext
 @PlainTextRenderer.register("name:sym")
 def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     """
-    Swaps out any greek substrings or unicode symbols in a Name's identifier.
+    Swap the Greek names in a Name's identifier for the letters: each
+    ``_``-separated component and each ``__``-separated word of one, plus (with
+    ``GREEK_PREFIXES``) a leading Greek name before an uppercase letter or a
+    digit (``sigma_max`` -> ``σ_max``, ``DeltaH`` -> ``ΔH``). A ``__`` is shown
+    as a space (``Delta__H`` -> ``Δ H``).
 
     Registered as a 'sym' rule on the Name node: the identifier is only shown in
     symbolic mode (numeric mode renders the Name's value instead).
     """
-    GREEK_LOWER = {
-        "alpha": "α",
-        "beta": "β",
-        "gamma": "γ",
-        "delta": "δ",
-        "epsilon": "ε",
-        "varepsilon": "ϵ",
-        "zeta": "ζ",
-        "theta": "θ",
-        "vartheta": "ϑ",
-        "iota": "ι",
-        "kappa": "κ",
-        "mu": "μ",
-        "nu": "ν",
-        "xi": "ξ",
-        "omicron": "ο",
-        "pi": "π",
-        "varpi": "ϖ",
-        "rho": "ρ",
-        "varrho": "ϱ",
-        "sigma": "σ",
-        "varsigma": "ς",
-        "tau": "τ",
-        "upsilon": "υ",
-        "phi": "φ",
-        "varphi": "ϕ",
-        "chi": "χ",
-        "omega": "ω",
-        "eta": "η",
-        "psi": "ψ",
-        "lamb": "λ",
-    }
-
-    GREEK_UPPER = {
-        "Alpha": "Α",
-        "Beta": "Β",
-        "Gamma": "Γ",
-        "Delta": "Δ",
-        "Epsilon": "Ε",
-        "Zeta": "Ζ",
-        "Theta": "Θ",
-        "Iota": "Ι",
-        "Kappa": "Κ",
-        "Mu": "Μ",
-        "Nu": "Ν",
-        "Xi": "Ξ",
-        "Omicron": "Ο",
-        "Pi": "Π",
-        "Rho": "Ρ",
-        "Sigma": "Σ",
-        "Tau": "Τ",
-        "Upsilon": "Υ",
-        "Phi": "Φ",
-        "Chi": "Χ",
-        "Omega": "Ω",
-        "Eta": "Η",
-        "Psi": "Ψ",
-        "Lamb": "Λ",
-    }
-
-    for name, unicode in (GREEK_LOWER | GREEK_UPPER).items():
-        id_components = node.identifier.split("_")
-        swapped_components = []
-        for comp in id_components:
-            if comp == name:
-                comp = unicode
-            swapped_components.append(comp)
-        swapped_id = "_".join(swapped_components)
-        node.identifier = swapped_id
+    identifier = greek_identifier(node.identifier, renderer.GREEK_PREFIXES)
+    # Spaces for double underscores; a triple underscore is left as it is.
+    words = identifier.split("___")
+    node.identifier = "___".join(word.replace("__", " ") for word in words)
     return node
 
 

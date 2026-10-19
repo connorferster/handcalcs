@@ -25,64 +25,10 @@ from handcalcs.renderers.base import (
     infix_binop,
     render_constant,
 )
+from handcalcs.renderers.identifiers import GREEK_UNICODE, unicode_greek
 from .rich_text import escape
 
-GREEK = {
-    "alpha": "α",
-    "beta": "β",
-    "gamma": "γ",
-    "delta": "δ",
-    "epsilon": "ε",
-    "varepsilon": "ϵ",
-    "zeta": "ζ",
-    "eta": "η",
-    "theta": "θ",
-    "vartheta": "ϑ",
-    "iota": "ι",
-    "kappa": "κ",
-    "lamb": "λ",
-    "mu": "μ",
-    "nu": "ν",
-    "xi": "ξ",
-    "omicron": "ο",
-    "pi": "π",
-    "varpi": "ϖ",
-    "rho": "ρ",
-    "varrho": "ϱ",
-    "sigma": "σ",
-    "varsigma": "ς",
-    "tau": "τ",
-    "upsilon": "υ",
-    "phi": "φ",
-    "varphi": "ϕ",
-    "chi": "χ",
-    "psi": "ψ",
-    "omega": "ω",
-    "Alpha": "Α",
-    "Beta": "Β",
-    "Gamma": "Γ",
-    "Delta": "Δ",
-    "Epsilon": "Ε",
-    "Zeta": "Ζ",
-    "Eta": "Η",
-    "Theta": "Θ",
-    "Iota": "Ι",
-    "Kappa": "Κ",
-    "Lamb": "Λ",
-    "Mu": "Μ",
-    "Nu": "Ν",
-    "Xi": "Ξ",
-    "Omicron": "Ο",
-    "Pi": "Π",
-    "Rho": "Ρ",
-    "Sigma": "Σ",
-    "Tau": "Τ",
-    "Upsilon": "Υ",
-    "Phi": "Φ",
-    "Chi": "Χ",
-    "Psi": "Ψ",
-    "Omega": "Ω",
-}
+GREEK = GREEK_UNICODE
 
 # Suffix components that decorate the component before them.
 ACCENTS = {
@@ -110,14 +56,16 @@ BINOP_SYMBOLS = {
 }
 
 
-def symbolic_identifier(identifier: str) -> str:
+def symbolic_identifier(identifier: str, greek_prefixes: bool = True) -> str:
     """
     A Python identifier as display markup.
 
     ``___`` is a literal underscore and ``__`` a space (as in the HTMLRenderer).
     Otherwise the first ``_``-separated component is the base and the rest form
     one subscript; Excel has a single subscript level, so ``a_b_c`` becomes
-    a<sub>b,c</sub>. Greek names become Greek letters; ``hat``, ``bar`` and
+    a<sub>b,c</sub>. Greek names become Greek letters, in each ``__`` word too
+    and, with ``greek_prefixes``, before an uppercase letter or a digit
+    (``DeltaH`` -> ΔH; see ``identifiers.py``); ``hat``, ``bar`` and
     ``prime`` decorate the component before them and ``star`` adds a
     superscript ``*``.
     """
@@ -134,7 +82,11 @@ def symbolic_identifier(identifier: str) -> str:
         elif comp == STAR and components:
             starred = True
         else:
-            components.append(GREEK.get(comp, comp))
+            components.append(
+                " ".join(
+                    unicode_greek(word, greek_prefixes) for word in comp.split(" ")
+                )
+            )
     components = [escape(c.replace("\x00", "_")) for c in components]
     if not components:
         return escape(identifier)
@@ -158,7 +110,9 @@ def _is_constant_exponent(node: Any) -> bool:
 
 def name_symbol(renderer, node: Name, base_context: BaseRenderContext) -> Name:
     """'name:sym': display form of the identifier, on a copy of the node."""
-    return replace(node, identifier=symbolic_identifier(node.identifier))
+    return replace(
+        node, identifier=symbolic_identifier(node.identifier, renderer.GREEK_PREFIXES)
+    )
 
 
 def attribute_symbol(renderer, node: Attribute, base_context: BaseRenderContext) -> Any:

@@ -264,7 +264,11 @@ class ConditionalRenderer:
 
     def piecewise(self, conditional: Conditional, variable: str) -> str:
         previous = self.before.get(variable)
-        fallback = symbolic_identifier(variable) if previous else escape(NA_DISPLAY)
+        fallback = (
+            symbolic_identifier(variable, self.renderer.GREEK_PREFIXES)
+            if previous
+            else escape(NA_DISPLAY)
+        )
         lines = []
         for value, condition in self.cases(conditional, variable, fallback):
             if condition:
@@ -344,7 +348,9 @@ class ConditionalRenderer:
             rows.append(
                 CalcRow(
                     name=self.new_names[variable],
-                    symbol=parse_markup(symbolic_identifier(variable)),
+                    symbol=parse_markup(
+                        symbolic_identifier(variable, self.renderer.GREEK_PREFIXES)
+                    ),
                     symbolic=parse_markup(self.piecewise(conditional, variable)),
                     formula=formulas[variable],
                     cached=unit.magnitude if unit is not None else values[variable],
