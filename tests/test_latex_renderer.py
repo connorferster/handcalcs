@@ -18,6 +18,7 @@ import subprocess
 import pytest
 
 from handcalcs import HandCalcs
+from handcalcs.renderers.identifiers import IdentifierOptions
 from handcalcs.renderers.latex import LatexRenderer, latex_identifier, latex_prose
 
 GOLDEN = pathlib.Path(__file__).parent / "golden" / "latex_demo.tex"
@@ -242,7 +243,7 @@ def test_scientific_notation(source, expected):  # 18
 @pytest.mark.parametrize("identifier, expected", [
     ("x", "x"),
     ("x_1", "x_{1}"),
-    ("x_a_b", "x_{a_{b}}"),
+    ("x_a_b", "x_{a,b}"),
     ("class_section", "\\mathrm{class}_{\\mathrm{section}}"),
     ("rate_12", "\\mathrm{rate}_{12}"),
     ("omega_2", "\\omega_{2}"),
@@ -259,8 +260,110 @@ def test_latex_identifier(identifier, expected):  # 8, 23
     assert latex_identifier(identifier) == expected
 
 
+@pytest.mark.parametrize("identifier, expected", [
+    # R1: Unicode Greek letters become commands.
+    ("ΔH", "\\Delta H"),
+    ("σ_R", "\\sigma_{R}"),
+    ("λ_2", "\\lambda_{2}"),
+    ("ΔT_max", "\\Delta T_{\\mathrm{max}}"),
+    ("Σρ", "\\Sigma \\rho"),
+    # R2: each word of a ``__`` label gets the Greek lookup.
+    ("Delta__H", "\\Delta\\ H"),
+    ("Delta__E_car", "\\Delta\\ E_{\\mathrm{car}}"),
+    ("Annual__Rate", "\\mathrm{Annual\\ Rate}"),
+    # R3: a Greek-name prefix before an uppercase letter or a digit.
+    ("DeltaH", "\\Delta H"),
+    ("DeltaT_max", "\\Delta T_{\\mathrm{max}}"),
+    ("gammaM0", "\\gamma \\mathrm{M0}"),
+    ("alpha2", "\\alpha 2"),
+    ("lambdaR", "\\lambda R"),
+    ("DeltaHvap", "\\Delta \\mathrm{Hvap}"),
+    ("N_DeltaH", "N_{\\Delta H}"),
+    ("metal", "\\mathrm{metal}"),
+    ("Pin", "\\mathrm{Pin}"),
+    ("xtheta", "\\mathrm{xtheta}"),
+])
+def test_latex_identifier_greek(identifier, expected):  # #117
+    assert latex_identifier(identifier) == expected
+
+
+@pytest.mark.parametrize("identifier, expected", [
+    ("DeltaH", "\\mathrm{DeltaH}"),
+    ("ΔH", "\\Delta H"),
+    ("Delta__H", "\\Delta\\ H"),
+])
+def test_latex_identifier_without_greek_prefixes(identifier, expected):  # #117
+    assert latex_identifier(identifier, IdentifierOptions(greek_prefixes=False)) == expected
+
+
+def test_greek_prefixes_class_attribute_turns_the_split_off():  # #117
+    class NoPrefixes(LatexRenderer):
+        GREEK_PREFIXES = False
+
+    assert "\\Delta H" in render("DeltaH = 2\n")
+    assert "\\mathrm{DeltaH}" in HandCalcs(renderer=NoPrefixes())("DeltaH = 2\n")
+
+
+@pytest.mark.parametrize("identifier, comma, nested", [
+    ("N_pl_Rd", "N_{\\mathrm{pl,Rd}}", "N_{\\mathrm{pl}_{\\mathrm{Rd}}}"),
+    ("f_y_k", "f_{y,k}", "f_{y_{k}}"),
+    ("M_Ed_y", "M_{\\mathrm{Ed},y}", "M_{\\mathrm{Ed}_{y}}"),
+    ("sigma_c_max", "\\sigma_{c,\\mathrm{max}}", "\\sigma_{c_{\\mathrm{max}}}"),
+    ("x_1", "x_{1}", "x_{1}"),
+])
+def test_latex_subscript_styles(identifier, comma, nested):  # #101
+    assert latex_identifier(identifier) == comma
+    assert latex_identifier(identifier, IdentifierOptions(subscripts="nested")) == nested
+
+
+@pytest.mark.parametrize("identifier, expected", [
+    ("x_hat", "\\hat{x}"),
+    ("x_bar_max", "\\bar{x}_{\\mathrm{max}}"),
+    ("M_star", "M^{*}"),
+    ("f_prime_c", "f'_{c}"),
+    ("x_prime_star", "x^{\\prime*}"),
+    ("alpha_hat", "\\hat{\\alpha}"),
+    ("hat", "\\mathrm{hat}"),
+])
+def test_latex_accents(identifier, expected):  # #101
+    assert latex_identifier(identifier) == expected
+
+
+@pytest.mark.parametrize("spec, expected", [
+    ("N_{pl,Rd}", "N_{\\mathrm{pl,Rd}}"),
+    ("N_Rd", "N_{\\mathrm{Rd}}"),
+    ("M^{*}_{Ed}", "M^{*}_{\\mathrm{Ed}}"),
+    ("x_{a_{b}}", "x_{a_{b}}"),
+    ("Delta H", "\\Delta\\ H"),
+    ("ΔH_{vap}", "\\Delta H_{\\mathrm{vap}}"),
+    ("f'_c", "f'_{c}"),
+])
+def test_latex_symbols_option(spec, expected):  # #101
+    options = IdentifierOptions(symbols={"name": spec})
+    assert latex_identifier("name", options) == expected
+
+
+def test_symbols_and_subscripts_context_fields():  # #101
+    source = (
+        '# hc: symbols = {"N_plRd": "N_{pl,Rd}"}\n'
+        "N_plRd = 2\n"
+        "M_Ed_y = N_plRd * 3\n"
+        '# hc: subscripts = "nested"\n'
+        "M_Ed_z = 4\n"
+    )
+    out = render(source)
+    assert "N_{\\mathrm{pl,Rd}} &= 2" in out
+    assert "M_{\\mathrm{Ed},y} &= N_{\\mathrm{pl,Rd}}" in out
+    assert "M_{\\mathrm{Ed}_{z}} &= 4" in out
+
+
+def test_bad_subscript_style_raises():  # #101
+    with pytest.raises(ValueError, match="subscripts"):
+        render('# hc: subscripts = "flat"\nx_a = 1\n')
+
+
 def test_latex_identifier_is_idempotent():
-    for identifier in ("x_1", "class_section", "omega_2", "Alpha"):
+    for identifier in ("x_1", "class_section", "omega_2", "Alpha", "DeltaH", "ΔH"):
         once = latex_identifier(identifier)
         assert latex_identifier(once) == once
 
