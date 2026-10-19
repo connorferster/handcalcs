@@ -213,8 +213,35 @@ shared identifier tree.
    Word branch still has.)
 4. **#117 defaults confirmed**: prefix split on, and a split before an uppercase letter or a digit.
 5. **Docs: update `docs/prerelease_docs_upa` now**, covering #117, #101 and the missing
-   #259/#179/#54. That happens in its own worktree.
+   #259/#179/#54. Done, see [Docs](#docs-done-2026-10-19).
 6. **PR #258: leave it open.** No GitHub action.
+
+PR: **#304** (`features/greek_identifiers` → `hc2/dev`), opened 2026-10-19.
+
+## Docs (done 2026-10-19)
+
+On `docs/prerelease_docs_upa`, in the worktree `/home/engineering/handcalcs-docs`, pushed:
+
+- `6756355`: merged `origin/hc2/dev` into the docs branch, so the `hc-example` blocks run the
+  #259/#179/#54 code. There was one `.gitignore` conflict; both entries were kept.
+- `d8c3447`: merged `features/greek_identifiers` (at `17cbbac`) for #117/#101. **If PR #304
+  changes before it merges, merge the branch into the docs branch again.** Once #304 is in
+  `hc2/dev`, a later `hc2/dev` merge brings nothing new from it.
+- `6d5b09b`: the docs.
+  - `writing-calculations.md`: "Naming variables" (table, nested subscripts, display
+    symbols with the spec syntax), "Long equations" (#259) and "Expressions" (#54).
+  - `interfaces/jupyter.md`: `%render` (#179).
+  - The `subscripts`, `symbols` and `greek_prefixes` fields in `customizing/render-context.md`,
+    `reference/configuration-options.md` and `reference/comment-commands.md`.
+  - `migrating-from-v1.md`: a "Names that render differently" table, plus what's new.
+  - The renderer pages (LaTeX, HTML, plain text, Excel), `how-it-works.md`, recipes,
+    `symbols-and-functions.md`, the changelog, `api.md` and `repository-layout.md`.
+  - The custom-symbols example now uses `\tilde{u}`/`\mathcal{F}`, since `V_dot`/`N_star`
+    are built in.
+- `d078b21`: `uv.lock` now includes the doc extra (`hc2/dev`'s lock didn't have it).
+- `sphinx-build -E -W` passes with zero warnings. While writing I checked the examples'
+  output by running them. That's how I found that a bracketed continuation is dropped, not
+  kept, so the docs say only `\` breaks between terms are kept.
 
 ### Remaining open item
 
@@ -255,6 +282,9 @@ because it's outward-facing.
   should become a formatter of `Symbol`. I asked it not to check out this branch in the shared
   directory.
 - **Message 4** (after the #101 code): the final API, and how a `Symbol` maps to OMML.
+- **Message 5** (after the decisions): merge order is Greek first via PR #304. The branch
+  was rebased onto `hc2/dev` without `8a07fb9`, there are new `dot`/`ddot` accents, and
+  single-letter subscripts stay italic. I asked it to wait for #304 to merge before rebasing.
 - Overlap check: this branch changes `base.py` by two class attributes, `GREEK_PREFIXES` and
   `SUBSCRIPT_STYLE`. It doesn't touch
   `word_renderer/`, `src/handcalcs/renderers/word/` or `pyproject.toml`. If the Word branch adds
