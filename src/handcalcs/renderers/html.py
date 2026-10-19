@@ -11,7 +11,13 @@ from handcalcs.renderers.base import (
     BaseRenderContext,
 )
 
-from handcalcs.renderers.identifiers import GREEK_UNICODE, greek_identifier
+from handcalcs.renderers.identifiers import (
+    GREEK_UNICODE,
+    Symbol,
+    identifier_options,
+    is_identifier,
+    parse_identifier,
+)
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import HcNode, Name, Constant
@@ -485,54 +491,48 @@ def for_block_header(
 GREEK = GREEK_UNICODE
 
 
+# What an accent component adds after the symbol it decorates.
+ACCENT_MARKS = {"hat": "\u0302", "bar": "\u0305"}
+PRIME_MARK = "\u2032"
+
+
+def html_symbol(symbol: Symbol, space: str = " ") -> str:
+    """A parsed ``Symbol`` as HTML: Greek letters, combining accents, primes,
+    ``<sup>`` and ``<sub>`` (sibling subscripts separated by commas)."""
+    markup = space.join(
+        "".join(GREEK[text] if is_greek else escape(text) for is_greek, text in pieces)
+        for pieces in symbol.words
+    )
+    markup += "".join(ACCENT_MARKS[accent] for accent in symbol.accents)
+    markup += PRIME_MARK * symbol.primes
+    if symbol.superscripts:
+        sups = ",".join(html_symbol(sup, space) for sup in symbol.superscripts)
+        markup += f"<sup>{sups}</sup>"
+    if symbol.subscripts:
+        subs = ",".join(html_symbol(sub, space) for sub in symbol.subscripts)
+        markup += f"<sub>{subs}</sub>"
+    return markup
+
+
 @HTMLR.register("name:sym")
-def swap_greeks(renderer: HTMLR, node: Name, base_context: BRC) -> HcNode:
+def swap_identifier(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     """
-    Swap the Greek names in a Name's identifier for the letters: each
-    ``_``-separated part and each ``__``-separated word of one (``sigma_max`` ->
-    ``σ_max``, ``Delta__H`` -> ``Δ__H``) and, with ``GREEK_PREFIXES``, a leading
-    Greek name before an uppercase letter or a digit (``DeltaH`` -> ``ΔH``).
+    Typeset a Name's identifier as HTML from its parsed ``Symbol`` (see
+    ``identifiers.parse_identifier``): ``sigma_max`` -> ``σ<sub>max</sub>``,
+    ``N_pl_Rd`` -> ``N<sub>pl,Rd</sub>`` (or nested, with the ``subscripts``
+    option), ``DeltaH`` -> ``ΔH``, ``x_hat`` -> x̂, ``M_star`` ->
+    ``M<sup>*</sup>``; ``__`` is a space and ``___`` an underscore. An identifier
+    in the ``symbols`` option is typeset from its spec.
 
-    Registered as a 'sym' rule on the Name node: the identifier is only shown in
-    symbolic mode (numeric mode renders the Name's value instead).
+    Text that isn't an identifier (markup from a ``name:pre`` rule) is left
+    alone. Registered as a 'sym' rule on the Name node: the identifier is only
+    shown in symbolic mode (numeric mode renders the Name's value instead).
     """
-    node.identifier = greek_identifier(node.identifier, renderer.GREEK_PREFIXES)
-    return node
-
-
-@HTMLR.register("name:sym")
-def swap_special_symbols(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
-    """
-    Swaps '_prime', '_star', '_bar' and '_hat' symbols
-    """
+    options = identifier_options(renderer, base_context)
     identifier = node.identifier
-    identifier = identifier.replace("_hat_", "\u0302_")
-    identifier = identifier.replace("_prime_", f"\u2032_")
-    identifier = identifier.replace("_star_", "<sup>*</sup>_")
-    identifier = identifier.replace("_bar_", "\u0305_")
-    node.identifier = identifier
-    return node
-
-
-@HTMLR.register("name:sym")
-def swap_subscripts(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
-    """
-    Interprets single underscores as subscripts, double underscores as spaces,
-    triple underscores as literal underscores
-    """
-    context = base_context.current
-    _ = context.space
-    identifier = node.identifier
-    # Replace all extra underscores with non-identifier characters for later
-    identifier = identifier.replace("___", "|")
-    identifier = identifier.replace("__", "^")
-    under_count = identifier.count("_")
-    identifier = identifier.replace("_", "<sub>")
-    closers = "</sub>" * under_count
-    identifier = f"{identifier}{closers}"
-    identifier = identifier.replace("^", _)
-    identifier = identifier.replace("|", "_")
-    node.identifier = identifier
+    if identifier in options.symbols or is_identifier(identifier):
+        symbol = parse_identifier(identifier, options)
+        node.identifier = html_symbol(symbol, base_context.current.space)
     return node
 
 
