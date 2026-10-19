@@ -1,6 +1,8 @@
 # Newly implemented: the remaining plan-doc issues
 
 Branch `features/greek_identifiers`, cut 2026-10-19 from `features/word_renderer` at `8a07fb9`.
+On 2026-10-19 it was rebased onto `hc2/dev` (`31b6837`) without that commit (the Word branch's
+`word` extra), so the PR to `hc2/dev` contains only #117/#101.
 This file covers what was implemented, the decisions taken on open questions, and the
 coordination with the Word renderer session.
 
@@ -206,7 +208,9 @@ shared identifier tree.
    - Breaking-change row: a name ending in `_dot`/`_ddot` meant literally (it used to show
      `V<sub>dot</sub>`). The fix is a `symbols` entry.
 3. **Merge order: this branch first.** It goes to `hc2/dev` in its own PR, and the Word branch
-   then rebases onto it and writes `word_identifier` on the `Symbol` tree.
+   then rebases onto it and writes `word_identifier` on the `Symbol` tree. (The trial merge with
+   Word's `2cae31b` was clean before the rebase; the rebase only dropped `8a07fb9`, which the
+   Word branch still has.)
 4. **#117 defaults confirmed**: prefix split on, and a split before an uppercase letter or a digit.
 5. **Docs: update `docs/prerelease_docs_upa` now**, covering #117, #101 and the missing
    #259/#179/#54. That happens in its own worktree.
