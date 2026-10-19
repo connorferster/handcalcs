@@ -109,6 +109,42 @@ OP_PRECEDENCE = {
 }
 
 
+# Marks a source line continuation inside a rendered column. ``infix_binop`` emits
+# it in place of the space beside an operator that is followed (or preceded) by a
+# ``\`` or bracketed line break in the source; ``render_calcline`` splits the
+# column on it. It never reaches the final output.
+CONTINUATION_MARK = "\x00"
+
+
+def breakable_ops(tree) -> frozenset[int]:
+    """
+    The ids of the operators in an expression tree whose source line break is
+    kept in the rendered output: the ``+``, ``-`` and ``*`` operators on the top
+    level of the expression, where a break cannot fall inside a fraction, a power,
+    a function call or brackets. A continuation anywhere else renders as one line.
+    """
+    found: set[int] = set()
+
+    def walk(node) -> None:
+        if not isinstance(node, (AddOp, SubOp, MultOp)):
+            return
+        if node.line_break:
+            found.add(id(node))
+        pre = OP_PRECEDENCE[type(node)]
+        for child, is_right in ((node.left, False), (node.right, True)):
+            child_pre = OP_PRECEDENCE.get(type(child), float("inf"))
+            # Skip an operand that ``infix_binop`` puts in brackets.
+            if child_pre < pre or (
+                is_right and child_pre == pre and type(node) is SubOp
+            ):
+                continue
+            walk(child)
+
+    if len(tree) == 1:
+        walk(tree[0])
+    return frozenset(found)
+
+
 def _reify(value):
     """
     Wrap a raw runtime Python value in the matching HcNode so it renders through
@@ -286,6 +322,9 @@ class BaseRenderer:
     # the 'header:{node_type}' block-header registration). The pseudo node type
     # 'root' carries the sequence-level pre/post renderers.
     rule_handlers: ClassVar[dict[str, dict[str, list[Callable]]]] = {}
+    # Leads the value of a continuation row (a line continued from the source) in
+    # a calc grid, indenting it past the start of the expression above.
+    CONTINUATION_INDENT: ClassVar[str] = "  "
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
@@ -599,7 +638,9 @@ class BaseRenderer:
         """
         Format a multi-line ("long") calc. ``rows`` are ``[id, eq, value]`` triples:
         the first carries the assignment target, the rest an empty id so every row
-        aligns on ``eq``.
+        aligns on ``eq``. A row with an empty ``eq`` continues the value of the row
+        above (a line continuation in the source) and is indented by
+        ``CONTINUATION_INDENT``.
 
         The base implementation is plain-text oriented: the id column is padded to a
         common width so the ``=`` signs line up, and rows are joined by the context
@@ -613,6 +654,9 @@ class BaseRenderer:
         lines = []
         for ident, eq, val in rows:
             padded_id = str(ident).ljust(id_width)
+            if not eq:
+                eq = " " * len(context.assign)
+                val = f"{self.CONTINUATION_INDENT}{val}"
             lines.append(f"{padded_id}{_}{eq}{_}{val}".rstrip())
         return nl.join(lines)
 
@@ -1150,6 +1194,7 @@ def render_calcline(
         return ""
 
     shown = mode_columns(context.mode)
+    base_context.line_context.break_nodes = breakable_ops(node.expression_tree)
     columns: deque = deque([])
     if "ass" in shown:
         base_context.line_context.current_mode = "sym"
@@ -1196,12 +1241,22 @@ def render_calcline(
     # with an expression to substitute qualify (a param line, or a line reduced to
     # a single column, stays a one-liner). The trailing comment rides the last
     # (result) row, which is typically the shortest.
+    #
+    # A line continuation in the source (``\`` or a bracketed break, #259) also
+    # lays the calc out as a grid: every column starts a row of its own and each
+    # continued segment of a column gets a continuation row (with no ``=``).
     multiline = getattr(context, "multiline", False)
-    if multiline and not param_line and len(columns) > 2:
+    broken = has_target and any(CONTINUATION_MARK in column for column in columns)
+    if not broken:
+        columns = deque(column.replace(CONTINUATION_MARK, _) for column in columns)
+    if (multiline and not param_line and len(columns) > 2) or broken:
         eq = context.assign
         target, *value_cols = columns
-        rows = [[target, eq, value_cols[0]]]
-        rows += [["", eq, col] for col in value_cols[1:]]
+        rows = []
+        for column in value_cols:
+            first, *rest = (seg.strip() for seg in column.split(CONTINUATION_MARK))
+            rows.append(["" if rows else target, eq, first])
+            rows += [["", "", seg] for seg in rest]
         if comment_render:
             rows[-1][2] = f"{rows[-1][2]}{_}{comment_render}"
         base_context.line_context = RenderContext.sparse()
@@ -1260,9 +1315,8 @@ def render_exprline(
     """
     Render a bare expression statement (an ExprLine).
 
-    An ExprLine has no assignment target, so there is no result column. Until a
-    value-capture pass exists, the three kinds of ExprLine are classified and
-    rendered honestly (no dangling equals, no fabricated result):
+    An ExprLine has no assignment target. The three kinds of ExprLine are
+    classified and rendered honestly (no dangling equals, no fabricated result):
 
     - *docstring / bare string*: the expression tree is a single ``str`` (built
       by the parser for a string-literal statement); render it as a plain line.
@@ -1270,10 +1324,11 @@ def render_exprline(
       definition whose names have no runtime value, so render the symbolic form
       only -- no numeric substitution.
     - *ordinary expression statement* (e.g. ``print(x)``, ``x + y``): render the
-      symbolic form and its numeric substitution joined by the equality, with no
-      trailing equals and no result.
+      symbolic form and its numeric substitution joined by the equality, then the
+      result if the parser could evaluate the expression (``node.value``, e.g.
+      ``x + y = 1 + 2 = 3``). A column that repeats the one before it is dropped,
+      as in a calc line (``2 + 2 = 4``).
     """
-    context = base_context.current
 
     # A bare string-literal statement (e.g. a module or block docstring) is a
     # single Constant holding a str; render it as a plain line, not a calc.
@@ -1290,6 +1345,13 @@ def render_exprline(
                 line.append(comment_render)
         return line
 
+    # The comment is rendered first because a command comment (e.g. ``# hc: -f``)
+    # mutates the context that the columns below are rendered under.
+    comment_render = None
+    if node.comment is not None:
+        comment_render = renderer.render(node.comment, base_context)
+    context = base_context.current
+
     def render_tree(mode: str) -> str:
         base_context.line_context.current_mode = mode
         return "".join(
@@ -1301,20 +1363,26 @@ def render_exprline(
     if "sym" in shown:
         columns.append(render_tree("sym"))
     # A return statement has no single runtime value; omit numeric substitution.
-    if not node.return_expr and "num" in shown:
+    # So does a line marked as a param line (``# hc: -p``), which shows its result.
+    param_line = getattr(context, "param_line", False)
+    if not node.return_expr and not param_line and "num" in shown:
         columns.append(render_tree("num"))
+    if not isinstance(node.value, NoValue) and "res" in shown:
+        base_context.line_context.current_mode = "num"
+        columns.append(renderer.render_node(node.value, base_context))
 
     components = deque([])
-    for idx, column in enumerate(columns):
-        if idx > 0:
+    for column in columns:
+        if components and column == components[-1]:
+            continue
+        if components:
             components.append(context.assign)
         components.append(column)
 
-    if node.comment is not None:
-        comment_render = renderer.render(node.comment, base_context)
-        if comment_render:
-            components.append(comment_render)
+    if comment_render:
+        components.append(comment_render)
 
+    base_context.line_context = RenderContext.sparse()
     return list(components)
 
 
@@ -1610,30 +1678,36 @@ def infix_binop(
         _ = ""
     render_left = renderer.render_node(left, base_context)
     render_right = renderer.render_node(right, base_context)
+    # A continuation inside an operand that gets brackets is dropped (see
+    # ``breakable_ops``); this one is kept, beside the operator, if it is marked.
+    brk = CONTINUATION_MARK if id(node) in getattr(context, "break_nodes", ()) else ""
+    before = brk if brk and node.line_break == "before" else _
+    after = brk if brk and node.line_break == "after" else _
     # A power's base that renders with a leading sign (e.g. b substituted as
     # -10.423) must be wrapped, otherwise -10.423² reads as -(10.423²).
     if lpre < pre or (
         node_type is PowOp and render_left.lstrip().startswith(("-", "+"))
     ):
-        left_portion = f"{lpar}{render_left}{rpar}"
+        left_portion = f"{lpar}{render_left.replace(CONTINUATION_MARK, _)}{rpar}"
     else:
         left_portion = render_left
 
     right_portion = render_right
     # A right operand that renders with a leading sign (a negative value
     # substituted in the numeric column) is wrapped: 7·(-3), not 7·-3.
+    wrapped_right = f"{lpar}{render_right.replace(CONTINUATION_MARK, _)}{rpar}"
     if render_right.lstrip().startswith(("-", "+")):
-        right_portion = f"{lpar}{render_right}{rpar}"
+        right_portion = wrapped_right
     elif rpre <= pre:
         if rpre < pre:
-            right_portion = f"{lpar}{render_right}{rpar}"
+            right_portion = wrapped_right
         elif rpre == pre and not commut:
-            right_portion = f"{lpar}{render_right}{rpar}"
+            right_portion = wrapped_right
     # An empty symbol means juxtaposition (e.g. a superscript power like b²), so
     # the operands butt together with no surrounding spaces.
     if symbol == "":
         return f"{left_portion}{right_portion}"
-    return f"{left_portion}{_}{symbol}{_}{right_portion}"
+    return f"{left_portion}{before}{symbol}{after}{right_portion}"
 
 
 # __init_subclass__ does not fire for BaseRenderer itself, so register it explicitly.

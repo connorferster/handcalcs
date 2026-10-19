@@ -1,7 +1,8 @@
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 from .nodes import HcNode, Name
+from .null_values import NoValue
 from .inline_nodes import InlineComment, InlineCommand
 from .commands import parse_commands
 from .comment_parser import (
@@ -30,10 +31,17 @@ class CalcLine(HcLineNode):
 
 @dataclass
 class ExprLine(HcLineNode):
+    """
+    A bare expression statement (``a * b``) or a ``return``. ``value`` holds the
+    expression's result when the parser could evaluate it without side effects
+    (see ``AST_Parser._evaluate_expr``), otherwise ``NoValue``.
+    """
+
     expression_tree: deque = field(default_factory=deque)
     comment: Optional[InlineComment | InlineCommand] = None
     return_expr: bool = False
     pars_nesting: bool = False
+    value: Any = field(default_factory=NoValue, compare=False)
     type: str = "expr_line"
 
 
