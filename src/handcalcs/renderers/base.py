@@ -594,6 +594,17 @@ class BaseRenderer:
     def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
         return str(node)
 
+    def leading_sign(self, rendered: str) -> bool:
+        """
+        True if a rendered operand starts with a ``-`` or ``+`` sign (e.g. a
+        negative value substituted in the numeric column), so the operator
+        handlers parenthesize it: ``7·(-3)``, ``(-10.423)²``, ``-(-3)``.
+
+        A renderer whose output wraps the text in markup (e.g. the Word
+        renderer's OMML runs) overrides this to look past the markup.
+        """
+        return rendered.lstrip().startswith(("-", "+"))
+
     def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
         """
         Format a params grid (``rows`` of cells, each cell already rendered to a
@@ -909,7 +920,7 @@ def render_unary_op(
     # no parens in the AST. Re-add them: `not a < b` reads as `(not a) < b`.
     if isinstance(node.operand, (Compare, HcBoolOp)):
         needs_parens = True
-    if node.symbol in ("-", "+") and rendered.lstrip().startswith(("-", "+")):
+    if node.symbol in ("-", "+") and renderer.leading_sign(rendered):
         needs_parens = True
     if needs_parens:
         rendered = f"{context.lpar}{rendered}{context.rpar}"
@@ -1692,9 +1703,7 @@ def infix_binop(
     after = brk if brk and node.line_break == "after" else _
     # A power's base that renders with a leading sign (e.g. b substituted as
     # -10.423) must be wrapped, otherwise -10.423² reads as -(10.423²).
-    if lpre < pre or (
-        node_type is PowOp and render_left.lstrip().startswith(("-", "+"))
-    ):
+    if lpre < pre or (node_type is PowOp and renderer.leading_sign(render_left)):
         left_portion = f"{lpar}{render_left.replace(CONTINUATION_MARK, _)}{rpar}"
     else:
         left_portion = render_left
@@ -1703,7 +1712,7 @@ def infix_binop(
     # A right operand that renders with a leading sign (a negative value
     # substituted in the numeric column) is wrapped: 7·(-3), not 7·-3.
     wrapped_right = f"{lpar}{render_right.replace(CONTINUATION_MARK, _)}{rpar}"
-    if render_right.lstrip().startswith(("-", "+")):
+    if renderer.leading_sign(render_right):
         right_portion = wrapped_right
     elif rpre <= pre:
         if rpre < pre:

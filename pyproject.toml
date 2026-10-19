@@ -35,6 +35,9 @@ doc = [
     "sphinx-design>=0.6",
     "sphinx-copybutton>=0.5",
 ]
+word = [
+    "python-docx>=1.1",
+]
 excel = [
     "xlsxwriter>=3.2",
 ]
@@ -59,6 +62,7 @@ test = [
     "markdown-it-py>=3.0",
     "openpyxl>=3.1.5",
     "xlsxwriter>=3.2",
+    "python-docx>=1.1",
 ]
 lint = [
     "black>=25.1.0",
