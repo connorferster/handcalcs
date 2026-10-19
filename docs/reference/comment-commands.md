@@ -31,4 +31,7 @@ Python; if that fails, it is parsed as flags.
 | `multiline`, `param_line`, `ignore` | `True` / `False` |
 | `param_cols` | integer |
 | `assign` | the symbol between steps (default `"="`) |
+| `subscripts` | `"comma"` or `"nested"` |
+| `symbols` | a dict of name → display spec, e.g. `{"N_plRd": "N_{pl,Rd}"}` |
+| `greek_prefixes` | `True` / `False` |
 | any other name | stored on the context for custom renderers |

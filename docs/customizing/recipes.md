@@ -87,11 +87,23 @@ handcalcs.set_option("indent", "  ")
 ## A different symbol for one variable
 
 ```python
+handcalcs.set_option("symbols", {"V_flow": "dot(V)", "N_plRd": "N_{pl,Rd}"})
+```
+
+For markup the spec syntax can't express, use a `name:pre` rule:
+
+```python
 @MyMarkdownRenderer.register("name:pre")
 def swap_symbols(renderer, node, base_context):
-    if node.identifier == "V_dot":
-        node.identifier = "\\dot{V}"
+    if node.identifier == "u_t":
+        node.identifier = "\\tilde{u}"
     return node
+```
+
+## v1-style nested subscripts
+
+```python
+handcalcs.set_option("subscripts", "nested")   # x_a_b -> x_{a_{b}}
 ```
 
 See [Symbols and functions](symbols-and-functions.md).

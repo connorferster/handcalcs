@@ -69,9 +69,12 @@ page.
 
 ## Conventions
 
-- Names: Greek letters as Unicode characters; `_` makes `<sub>` subscripts (nested);
-  `__` is a space, `___` a literal underscore. `_prime_`, `_star_`, `_bar_` and `_hat_`
-  inside a name add a prime, an asterisk, an overbar or a hat.
+- Names: Greek letters as Unicode characters; `_` makes a `<sub>` subscript, and further
+  subscripts follow after a comma (`N<sub>pl,Rd</sub>`; nested with the `subscripts`
+  option); `__` is a space, `___` a literal underscore. `hat`, `bar`, `dot`, `ddot`,
+  `prime` and `star` add a hat, an overbar, a dot, two dots, a prime or a superscript `*` to
+  the part before them. All of this is one `name:sym` rule, `swap_identifier`. See
+  [naming variables](../getting-started/writing-calculations.md#naming-variables).
 - Operators: `*` → `·`, `**` → `<sup>`, `sqrt` → `√`, `<=` → `≤`.
 - Numbers use the format code as-is (`1.2e+05` stays as written).
 

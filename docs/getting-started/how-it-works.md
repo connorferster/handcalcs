@@ -107,8 +107,10 @@ Markdown renderers:
 
 - Greek letter names (`alpha`, `beta`, `Gamma`, ...) become Greek letters; a lowercase
   name gives a lowercase letter, a capitalized name an uppercase letter.
-- `_` starts a subscript: `I_y` becomes *I*<sub>y</sub>; each further `_` nests another
-  level. (The plain-text renderer keeps the underscore.)
+- `_` starts a subscript: `I_y` becomes *I*<sub>y</sub>; each further `_` adds a subscript
+  after a comma (`N_pl_Rd` → N<sub>pl,Rd</sub>). (The plain-text renderer keeps the
+  underscore.) See [naming variables](writing-calculations.md#naming-variables) for Greek
+  letters joined to other letters, accents and display symbols.
 - `sqrt(...)` becomes a radical; `**` becomes a superscript; `/` becomes a fraction in
   LaTeX and Markdown.
 - Other function calls are shown by name, with their arguments.

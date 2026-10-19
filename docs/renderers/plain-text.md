@@ -32,7 +32,10 @@ if V_b <= 40:
 | `# hc: -m` | Following rows indented to line up under the first `=` |
 | `if` / `for` body | Indented four spaces |
 
-- Names: Greek letter names become Greek letters. Underscores are kept (`I_y`).
+- Names: Greek letter names become Greek letters, including a Greek name before an
+  uppercase letter or digit (`DeltaH` → `ΔH`). Underscores are kept (`I_y`, `N_pl_Rd`);
+  `__` is shown as a space. A name in the `symbols` option is shown from its spec
+  (`N_{pl,Rd}` → `N_pl,Rd`).
 - Operators: `**` with a number exponent → superscript digits (`b²`); `sqrt` → `√`;
   `*` and `/` stay as they are.
 

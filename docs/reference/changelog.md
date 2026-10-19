@@ -13,6 +13,13 @@ A rewrite of handcalcs around a node tree and pluggable renderers.
 - **Nested conditionals and `for` loops.**
 - **Configuration** reduced to `format_code`, `default_renderer` and
   `jupyter_renderer`, plus custom options for renderers.
+- **Names** ([naming variables](../getting-started/writing-calculations.md#naming-variables)):
+  comma subscripts by default (`N_pl_Rd` → N<sub>pl,Rd</sub>; #101), Greek letters joined
+  to other letters (`DeltaH`, `ΔH` → ΔH; #117), accents (`x_hat`, `V_dot`, `M_star`) and
+  the `symbols` option for display specs, all parsed once and shared by every renderer.
+- **Line continuations** (`\`) break a long equation at the same place (#259).
+- **`%render`** line magic renders a single line (#179).
+- **Bare expressions** (`2 * a`) show their result (#54).
 
 See [Coming from handcalcs v1](../getting-started/migrating-from-v1.md) for how to
 update notebooks.

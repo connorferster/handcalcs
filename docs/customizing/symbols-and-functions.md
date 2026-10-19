@@ -3,10 +3,36 @@
 Every built-in renderer translates names, operators and function calls as it renders
 them: `alpha` becomes α, `sqrt` a radical. You can add your own translations.
 
-## Custom symbols for names
+## Display symbols for names
 
-A rule registered as `name:pre` runs on every variable name before the renderer's own
-translation. Replace the identifier with the symbol you want:
+Most notation needs no code: name the variable as described in
+[naming variables](../getting-started/writing-calculations.md#naming-variables)
+(`N_pl_Rd`, `DeltaH`, `V_dot`, `M_star`), or give it a display spec with the `symbols`
+option, which every built-in renderer reads:
+
+```python
+import handcalcs
+handcalcs.set_option("symbols", {"N_plRd": "N_{pl,Rd}", "V_flow": "dot(V)"})
+```
+
+## Subscript style and Greek prefixes in a renderer
+
+Two class attributes set a renderer's defaults; the `subscripts` and `greek_prefixes`
+context fields still override them:
+
+```python
+from handcalcs.renderers import LatexRenderer
+
+class V1StyleLatexRenderer(LatexRenderer):
+    SUBSCRIPT_STYLE = "nested"   # x_a_b -> x_{a_{b}} (default "comma": x_{a,b})
+    GREEK_PREFIXES = False       # keep DeltaH as \mathrm{DeltaH} (default True: \Delta H)
+```
+
+## Custom symbols with a rule
+
+For markup the spec syntax can't express, a rule registered as `name:pre` runs on every
+variable name before the renderer's own translation. Replace the identifier with the
+symbol you want:
 
 ```{literalinclude} ../_examples/custom_symbols.py
 :language: python
@@ -16,19 +42,20 @@ translation. Replace the identifier with the symbol you want:
 :renderer-file: _examples/custom_symbols.py
 :renderer-class: SymbolMarkdownRenderer
 :setup: ceil_to = round
-V_dot = 2.5
-N_star = V_dot * 3
-M_r = ceil_to(N_star)
+u_t = 2.5
+F_cal = u_t * 3
+M_r = ceil_to(F_cal)
 ```
 
 Why `pre` and not `sym`? The LaTeX family translates names in a `name:sym` rule
 (`latex_identifier`), and a subclass's rules run **after** the inherited ones. A
-`pre` rule runs first, and `latex_identifier` leaves a name that already contains LaTeX
-(a backslash or a brace) alone. See
+`pre` rule runs first, and `latex_identifier` leaves anything that is no longer a Python
+identifier (it contains a backslash, a brace, ...) alone. See
 [rule order](../building-renderers/registration.md#order-of-execution).
 
 The same rule works for the HTML and plain-text renderers, using HTML markup or Unicode
-in the replacement: `{"V_dot": "V&#775;"}` for HTML, `{"V_dot": "V̇"}` for plain text.
+in the replacement: `{"u_t": "ũ"}`. The HTML renderer also leaves markup such as
+`u&#771;` alone.
 
 ## Function names
 
@@ -80,6 +107,8 @@ NoGreekTextRenderer.rule_handlers["name"]["sym"].remove(swap_greeks)
 ```
 
 Each subclass gets its own copy of the rule lists, so this doesn't affect
-`PlainTextRenderer` itself.
+`PlainTextRenderer` itself. In the HTML renderer, one rule, `swap_identifier` in
+`handcalcs.renderers.html`, does all the name typesetting (Greek letters, subscripts,
+accents); the LaTeX family's is `swap_identifier` in `handcalcs.renderers.latex`.
 
 **Next:** [Customizing one instance](per-instance-handlers.md).

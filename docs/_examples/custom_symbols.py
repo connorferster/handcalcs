@@ -1,10 +1,10 @@
 """Custom symbols and function names for the LaTeX family of renderers."""
 from handcalcs.renderers import MarkdownRenderer
 
+# Markup the ``symbols`` option can't express: a tilde, a calligraphic letter.
 SYMBOLS = {
-    "V_dot": "\\dot{V}",
-    "N_star": "N^{*}",
-    "M_r": "M_{r}",
+    "u_t": "\\tilde{u}",
+    "F_cal": "\\mathcal{F}",
 }
 
 

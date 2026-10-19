@@ -19,6 +19,9 @@ to change the output, and needs no subclass.
 | `newline` | `"\n"` | The line separator. |
 | `indent` | `"    "` | One level of indentation for block bodies. |
 | `lpar`, `rpar` | `"("`, `")"` | Parentheses added for operator precedence and around comments. |
+| `subscripts` | the renderer's `SUBSCRIPT_STYLE` (`"comma"`) | `"comma"` (`N_pl_Rd` → N<sub>pl,Rd</sub>) or `"nested"` (v1's x<sub>a<sub>b</sub></sub>). See [naming variables](../getting-started/writing-calculations.md#naming-variables). |
+| `symbols` | `{}` | Display specs for names, e.g. `{"N_plRd": "N_{pl,Rd}"}`. See [display symbols](../getting-started/writing-calculations.md#display-symbols). |
+| `greek_prefixes` | the renderer's `GREEK_PREFIXES` (`True`) | Split a Greek name before an uppercase letter or digit (`DeltaH` → ΔH). |
 
 The LaTeX and Markdown renderers set `space`, `newline`, `indent`, `lpar` and `rpar`
 themselves (for example `lpar` is `\left(`). The HTML renderer ignores `indent`; its

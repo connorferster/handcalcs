@@ -76,6 +76,11 @@ workbook.close()
   are merged across columns A–E. Heading sizes follow a type scale from the
   10 pt body: 16, 14, 12.5 and 11.5 pt.
 - A docstring becomes a comment paragraph.
+- The **symbol** and **symbolic** columns typeset names as the other renderers do
+  ([naming variables](../getting-started/writing-calculations.md#naming-variables)),
+  but Excel has one subscript level, so every subscript is shown after a comma
+  (`N_pl_Rd` → N<sub>pl,Rd</sub>) whatever the `subscripts` option says. The defined
+  names keep the Python identifier (`DeltaH` stays the name `DeltaH`).
 
 ## Options
 

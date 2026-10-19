@@ -64,10 +64,15 @@ notebooks.
 ## Math conventions
 
 - Names: Greek letter names become Greek letters (`alpha` → $\alpha$, `Gamma` → $\Gamma$;
-  `lamb` gives $\lambda$ since `lambda` is a Python keyword). `_` starts a subscript and
-  each further `_` nests another level. Multi-letter words are set upright
+  `lamb` or `lambda_` gives $\lambda$ since `lambda` is a Python keyword), and so do
+  Unicode letters (`ΔH` → $\Delta H$, which also compiles under pdflatex) and a Greek name
+  before an uppercase letter or digit (`DeltaH` → $\Delta H$). `_` starts a subscript and
+  each further `_` adds one after a comma (`N_pl_Rd` → $N_{\mathrm{pl,Rd}}$); neighbouring
+  upright words share one `\mathrm{}`. Multi-letter words are set upright
   (`class_section` → $\mathrm{class}_{\mathrm{section}}$). `__` is a space and `___` a
-  literal underscore.
+  literal underscore. `hat`, `bar`, `dot`, `ddot`, `prime` and `star` decorate the part
+  before them (`x_hat` → $\hat{x}$, `M_star` → $M^{*}$). See
+  [naming variables](../getting-started/writing-calculations.md#naming-variables).
 - Operators: `*` → $\cdot$, `/` → a fraction, `**` → a superscript, `//` → a fraction in
   floor brackets, `%` → $\bmod$, `<=` → $\le$.
 - Functions: `sqrt` → a radical; `floor`, `ceil` → brackets; `sin`, `cos`, `exp` and the

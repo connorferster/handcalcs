@@ -65,6 +65,12 @@ in [the Jupyter interface](../interfaces/jupyter.md).
 
 ```{eval-rst}
 .. autofunction:: handcalcs.renderers.latex.latex_identifier
+.. autofunction:: handcalcs.renderers.identifiers.parse_identifier
+.. autofunction:: handcalcs.renderers.identifiers.parse_spec
+.. autofunction:: handcalcs.renderers.identifiers.identifier_options
+.. autofunction:: handcalcs.renderers.identifiers.split_greek
+.. autoclass:: handcalcs.renderers.identifiers.Symbol
+.. autoclass:: handcalcs.renderers.identifiers.IdentifierOptions
 .. autofunction:: handcalcs.renderers.latex.latex_prose
 .. autofunction:: handcalcs.renderers.latex.format_latex_number
 .. autofunction:: handcalcs.renderers.base.infix_binop

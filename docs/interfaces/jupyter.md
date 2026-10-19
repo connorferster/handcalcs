@@ -6,12 +6,13 @@ The Jupyter interface renders a notebook cell in place.
 import handcalcs
 ```
 
-Importing handcalcs inside a running IPython kernel registers one cell magic and two
-line magics:
+Importing handcalcs inside a running IPython kernel registers the `render` magic (as a cell
+magic and a line magic) and two settings magics:
 
 | Magic | Does |
 |---|---|
 | `%%render` | Runs the cell, then displays it as a calculation. |
+| `%render LINE` | Runs one line, then displays it as a calculation. |
 | `%hc_default_renderer NAME` | Chooses the renderer `%%render` uses for this session. |
 | `%hc_format_code CODE` | Sets the default [number format](../getting-started/formatting-numbers.md) for this session. |
 
@@ -42,6 +43,23 @@ If the cell raises an exception, `%%render` displays nothing, and the traceback 
 shown. If a rendered cell comes up empty, remove `%%render` and run it again to see the
 error.
 ```
+
+## `%render`: one line
+
+`%render` runs the rest of its line in the notebook's namespace and renders just that
+line. Use it for the one equation that matters in a cell of ordinary code:
+
+```python
+b = 300
+h = 600
+%render I_x = b * h**3 / 12
+print(I_x)
+```
+
+The line can carry an inline comment or comment command
+(`%render M = w * L**2 / 8  # hc: -f .1f`). `%render` with no code is an error, and so is
+`%render` inside a function, because the line would run in the notebook's namespace
+instead of the function's; use [`@handcalc`](decorator.md) there.
 
 ## Choosing the renderer
 

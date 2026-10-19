@@ -36,6 +36,7 @@
 | Module | Contents |
 |---|---|
 | {src}`handcalcs.renderers.base` | `RenderContext`, `BaseRenderContext`, the registry, `BaseRenderer` and every base handler and rule. The core of the package. |
+| {src}`handcalcs.renderers.identifiers` | Identifier parsing shared by every renderer: the Greek table, `parse_identifier` (→ `Symbol` tree), `parse_spec` for the `symbols` option, `identifier_options`. |
 | {src}`handcalcs.renderers.plaintext` | `PlainTextRenderer`. |
 | {src}`handcalcs.renderers.latex` | `LatexRenderer`, `latex_identifier`, `latex_prose`, the symbol tables. |
 | {src}`handcalcs.renderers.markdown` | `MarkdownRenderer` (subclass of `LatexRenderer`). |
