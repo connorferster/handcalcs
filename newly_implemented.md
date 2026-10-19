@@ -192,18 +192,30 @@ shared identifier tree.
 - Naming section: comma subscripts, `subscripts = "nested"`, and accents.
 - A "Display symbols" section with the spec syntax. `customizing/symbols-and-functions.md`
   can replace its `name:pre` example (`SYMBOLS` with `V_dot`, `N_star`, `M_r`) with the
-  `symbols` option. `N_star` is built in now, and `\dot{V}` needs an accent the spec doesn't
-  have (see the open items).
+  `symbols` option (`{"V_dot": ...}` isn't even needed now: `V_dot` → V̇ is built in, and so is
+  `N_star`).
 - Migration guide: the first two rows of the table above.
 
-### Open items
+### Decisions (you answered these on 2026-10-19)
 
-1. Single-letter subscripts are italic (`f_{y,k}`). ISO 80000 / Eurocode set descriptive
-   subscripts upright. If you want that, it's a renderer option, e.g. `UPRIGHT_SUBSCRIPTS`.
-2. The spec syntax has no accents (`hat(x)`, `dot(V)`). Adding them is easy if the docs recipe
-   should move to `symbols` entirely.
-3. Merging upright words in LaTeX only covers neighbours (`\mathrm{pl,Rd}`); mixed cases stay
-   split (`\mathrm{Ed},y`).
+1. **Single-letter subscripts stay italic** (`f_{y,k}`). No `UPRIGHT_SUBSCRIPTS` option.
+2. **Accents in the spec syntax: added.** `hat(x)`, `bar(x)`, `dot(V)` and `ddot(x)`, with
+   primes after the `)`. A subscript inside the parentheses still goes outside the accent:
+   `bar(x_1)` → x̄₁. `_dot` and `_ddot` are now accent components in identifiers too
+   (`V_dot` → V̇), in LaTeX, HTML and Excel. An unknown accent raises `SpecError`.
+   - Breaking-change row: a name ending in `_dot`/`_ddot` meant literally (it used to show
+     `V<sub>dot</sub>`). The fix is a `symbols` entry.
+3. **Merge order: this branch first.** It goes to `hc2/dev` in its own PR, and the Word branch
+   then rebases onto it and writes `word_identifier` on the `Symbol` tree.
+4. **#117 defaults confirmed**: prefix split on, and a split before an uppercase letter or a digit.
+5. **Docs: update `docs/prerelease_docs_upa` now**, covering #117, #101 and the missing
+   #259/#179/#54. That happens in its own worktree.
+6. **PR #258: leave it open.** No GitHub action.
+
+### Remaining open item
+
+- Merging upright words in LaTeX only covers neighbours (`\mathrm{pl,Rd}`); mixed cases stay
+  split (`\mathrm{Ed},y`). That's acceptable with decision 1.
 
 ## #258: no code change
 
