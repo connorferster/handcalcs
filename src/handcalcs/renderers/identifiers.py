@@ -189,7 +189,7 @@ Pieces = list[tuple[bool, str]]
 
 SUBSCRIPT_STYLES = ("comma", "nested")
 # Identifier components that decorate the component before them.
-ACCENTS = ("hat", "bar")
+ACCENTS = ("hat", "bar", "dot", "ddot")
 PRIME = "prime"
 STAR = "star"
 
@@ -276,7 +276,8 @@ def parse_identifier(
 
     - ``___`` is a literal underscore and ``__`` a space between words;
     - ``_`` starts a subscript, in the ``options.subscripts`` style;
-    - ``hat`` and ``bar`` put an accent over the component before them,
+    - ``hat``, ``bar``, ``dot`` and ``ddot`` put an accent over the component
+      before them,
       ``prime`` adds a prime to it and ``star`` a superscript ``*``
       (``M_star`` -> M*, ``x_hat_max`` -> x̂ with subscript max);
     - every word is split into Greek and text pieces (``split_greek``).
@@ -322,7 +323,7 @@ class SpecError(ValueError):
     """A ``symbols`` spec that can't be parsed."""
 
 
-_SPEC_STOPS = "_^,{}"
+_SPEC_STOPS = "_^,{}()"
 
 
 def parse_spec(spec: str, greek_prefixes: bool = True) -> Symbol:
@@ -335,6 +336,8 @@ def parse_spec(spec: str, greek_prefixes: bool = True) -> Symbol:
     - ``M^{*}``, ``x^2``: superscripts, the same way;
     - ``x_{a_{b}}``: a subscript can have its own subscripts;
     - spaces separate words (``Delta H``); ``'`` after a base adds a prime;
+    - ``hat(x)``, ``bar(x)``, ``dot(V)``, ``ddot(x)`` put an accent over a base
+      (``bar(x)_{m}``: the subscript stays outside);
     - Greek letters as names or Unicode, as in identifiers (``Delta H``,
       ``ΔH``, ``sigma_{max}``).
     """
@@ -368,16 +371,34 @@ class _SpecParser:
 
     def symbol(self) -> Symbol:
         base = self.read(_SPEC_STOPS).strip()
-        primes = len(base) - len(base.rstrip("'"))
-        base = base.rstrip("'").strip()
-        if not base:
-            self.fail("expected a symbol")
-        words = [_word(word, self.prefixes) for word in base.split()]
-        symbol = Symbol(words=words, primes=primes)
+        if self.peek() == "(":
+            symbol = self.accented(base)
+        else:
+            primes = len(base) - len(base.rstrip("'"))
+            base = base.rstrip("'").strip()
+            if not base:
+                self.fail("expected a symbol")
+            words = [_word(word, self.prefixes) for word in base.split()]
+            symbol = Symbol(words=words, primes=primes)
         while self.peek() in ("_", "^") and self.peek():
             target = symbol.subscripts if self.peek() == "_" else symbol.superscripts
             self.pos += 1
             target.extend(self.group())
+        return symbol
+
+    def accented(self, accent: str) -> Symbol:
+        """``accent(symbol)``, then any primes after the ``)``."""
+        if accent not in ACCENTS:
+            self.fail(f"unknown accent {accent!r} (use one of {', '.join(ACCENTS)})")
+        self.pos += 1
+        symbol = self.symbol()
+        if self.peek() != ")":
+            self.fail("expected ')'")
+        self.pos += 1
+        symbol.accents.append(accent)
+        while self.peek() == "'":
+            symbol.primes += 1
+            self.pos += 1
         return symbol
 
     def group(self) -> list[Symbol]:

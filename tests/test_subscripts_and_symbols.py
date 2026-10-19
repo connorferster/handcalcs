@@ -222,3 +222,42 @@ def test_set_option(monkeypatch, tmp_path):
         handcalcs.reset_config()
     assert "N_{\\mathrm{pl}_{\\mathrm{Rd}}} &= 2" in out
     assert "V_{\\mathrm{dot}} &= 1" in out
+
+
+# --- accents (dot, ddot, and accent(...) in specs) ---------------------------
+
+ACCENT_SPECS = {"V_flow": "dot(V)", "x_m": "bar(x)_{m}", "s_c": "hat(sigma)'_{c}"}
+# identifier or spec key: (LaTeX, HTML, Excel display)
+ACCENT_TABLE = {
+    "V_dot": ("\\dot{V}", "V̇", "V̇"),
+    "x_ddot_1": ("\\ddot{x}_{1}", "ẍ<sub>1</sub>", "ẍ<sub>1</sub>"),
+    "V_flow": ("\\dot{V}", "V̇", "V̇"),
+    "x_m": ("\\bar{x}_{m}", "x̅<sub>m</sub>", "x̅<sub>m</sub>"),
+    "s_c": ("\\hat{\\sigma}'_{c}", "σ̂′<sub>c</sub>", "σ̂′<sub>c</sub>"),
+}
+
+
+@pytest.mark.parametrize("identifier", ACCENT_TABLE)
+def test_accents_latex_and_html(identifier):
+    source = f"# hc: symbols = {ACCENT_SPECS!r}\n{identifier} = 2\n"
+    latex, html, _ = ACCENT_TABLE[identifier]
+    assert f"{latex} &= 2" in render(LatexRenderer(), source)
+    assert f"{html} = 2" in render(HTMLRenderer(), source)
+
+
+@pytest.mark.parametrize("identifier", ACCENT_TABLE)
+def test_accents_excel(identifier):
+    options = IdentifierOptions(symbols=ACCENT_SPECS)
+    assert symbolic_identifier(identifier, options) == ACCENT_TABLE[identifier][2]
+
+
+def test_accent_spec_keeps_subscripts_outside():
+    symbol = parse_spec("bar(x_1)")
+    assert symbol.accents == ["bar"]
+    assert [sub.text() for sub in symbol.subscripts] == ["1"]
+
+
+@pytest.mark.parametrize("spec", ["tilde(x)", "dot(V", "dot()"])
+def test_accent_spec_errors(spec):
+    with pytest.raises(SpecError):
+        parse_spec(spec)

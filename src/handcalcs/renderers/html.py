@@ -492,7 +492,12 @@ GREEK = GREEK_UNICODE
 
 
 # What an accent component adds after the symbol it decorates.
-ACCENT_MARKS = {"hat": "\u0302", "bar": "\u0305"}
+ACCENT_MARKS = {
+    "hat": "\u0302",
+    "bar": "\u0305",
+    "dot": "\u0307",
+    "ddot": "\u0308",
+}
 PRIME_MARK = "\u2032"
 
 

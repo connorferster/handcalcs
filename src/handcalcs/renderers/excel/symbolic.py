@@ -40,6 +40,8 @@ GREEK = GREEK_UNICODE
 ACCENTS = {
     "hat": "̂",  # combining circumflex
     "bar": "̅",  # combining overline
+    "dot": "\u0307",  # combining dot above
+    "ddot": "\u0308",  # combining diaeresis
     "prime": "′",  # prime
 }
 
