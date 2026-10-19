@@ -50,6 +50,7 @@ from .names import SymbolTable
 from .number_formats import to_excel_number_format
 from .rich_text import escape, parse_markup
 from .rows import CalcRow, Row
+from handcalcs.renderers.identifiers import identifier_options
 from .symbolic import symbolic_identifier, symbolic_markup
 from .units import unit_value
 
@@ -264,7 +265,13 @@ class ConditionalRenderer:
 
     def piecewise(self, conditional: Conditional, variable: str) -> str:
         previous = self.before.get(variable)
-        fallback = symbolic_identifier(variable) if previous else escape(NA_DISPLAY)
+        fallback = (
+            symbolic_identifier(
+                variable, identifier_options(self.renderer, self.base_context)
+            )
+            if previous
+            else escape(NA_DISPLAY)
+        )
         lines = []
         for value, condition in self.cases(conditional, variable, fallback):
             if condition:
@@ -344,7 +351,12 @@ class ConditionalRenderer:
             rows.append(
                 CalcRow(
                     name=self.new_names[variable],
-                    symbol=parse_markup(symbolic_identifier(variable)),
+                    symbol=parse_markup(
+                        symbolic_identifier(
+                            variable,
+                            identifier_options(self.renderer, self.base_context),
+                        )
+                    ),
                     symbolic=parse_markup(self.piecewise(conditional, variable)),
                     formula=formulas[variable],
                     cached=unit.magnitude if unit is not None else values[variable],

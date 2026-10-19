@@ -325,6 +325,13 @@ class BaseRenderer:
     # Leads the value of a continuation row (a line continued from the source) in
     # a calc grid, indenting it past the start of the expression above.
     CONTINUATION_INDENT: ClassVar[str] = "  "
+    # Split a leading Greek name from an identifier component when an uppercase
+    # letter or digit follows it (``DeltaH`` -> ΔH); see ``identifiers.py``.
+    GREEK_PREFIXES: ClassVar[bool] = True
+    # How several ``_`` subscripts are shown: ``"comma"`` (``N_pl_Rd`` ->
+    # N with subscript "pl,Rd") or ``"nested"`` (``x_a_b`` -> x_{a_{b}}). The
+    # ``subscripts`` render-context field overrides it.
+    SUBSCRIPT_STYLE: ClassVar[str] = "comma"
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)

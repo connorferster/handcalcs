@@ -25,72 +25,25 @@ from handcalcs.renderers.base import (
     infix_binop,
     render_constant,
 )
+from handcalcs.renderers.identifiers import (
+    GREEK_UNICODE,
+    IdentifierOptions,
+    Symbol,
+    identifier_options,
+    parse_identifier,
+)
 from .rich_text import escape
 
-GREEK = {
-    "alpha": "α",
-    "beta": "β",
-    "gamma": "γ",
-    "delta": "δ",
-    "epsilon": "ε",
-    "varepsilon": "ϵ",
-    "zeta": "ζ",
-    "eta": "η",
-    "theta": "θ",
-    "vartheta": "ϑ",
-    "iota": "ι",
-    "kappa": "κ",
-    "lamb": "λ",
-    "mu": "μ",
-    "nu": "ν",
-    "xi": "ξ",
-    "omicron": "ο",
-    "pi": "π",
-    "varpi": "ϖ",
-    "rho": "ρ",
-    "varrho": "ϱ",
-    "sigma": "σ",
-    "varsigma": "ς",
-    "tau": "τ",
-    "upsilon": "υ",
-    "phi": "φ",
-    "varphi": "ϕ",
-    "chi": "χ",
-    "psi": "ψ",
-    "omega": "ω",
-    "Alpha": "Α",
-    "Beta": "Β",
-    "Gamma": "Γ",
-    "Delta": "Δ",
-    "Epsilon": "Ε",
-    "Zeta": "Ζ",
-    "Eta": "Η",
-    "Theta": "Θ",
-    "Iota": "Ι",
-    "Kappa": "Κ",
-    "Lamb": "Λ",
-    "Mu": "Μ",
-    "Nu": "Ν",
-    "Xi": "Ξ",
-    "Omicron": "Ο",
-    "Pi": "Π",
-    "Rho": "Ρ",
-    "Sigma": "Σ",
-    "Tau": "Τ",
-    "Upsilon": "Υ",
-    "Phi": "Φ",
-    "Chi": "Χ",
-    "Psi": "Ψ",
-    "Omega": "Ω",
-}
+GREEK = GREEK_UNICODE
 
-# Suffix components that decorate the component before them.
+# The marks the accent components (``x_hat``) and primes add after a symbol.
 ACCENTS = {
     "hat": "̂",  # combining circumflex
     "bar": "̅",  # combining overline
+    "dot": "\u0307",  # combining dot above
+    "ddot": "\u0308",  # combining diaeresis
     "prime": "′",  # prime
 }
-STAR = "star"
 
 COMPARISON_SYMBOLS = {
     "==": "=",
@@ -110,40 +63,53 @@ BINOP_SYMBOLS = {
 }
 
 
-def symbolic_identifier(identifier: str) -> str:
+def _symbol_text(symbol: Symbol) -> str:
+    """A symbol's base with its Greek letters, accents and primes, escaped."""
+    text = " ".join(
+        "".join(GREEK[t] if is_greek else t for is_greek, t in pieces)
+        for pieces in symbol.words
+    )
+    text += "".join(ACCENTS[accent] for accent in symbol.accents)
+    text += ACCENTS["prime"] * symbol.primes
+    return escape(text)
+
+
+def _flatten(symbol: Symbol) -> tuple[list[str], list[str]]:
+    """Every subscript and superscript below ``symbol``, in reading order."""
+    subs: list[str] = []
+    sups = [_symbol_text(sup) for sup in symbol.superscripts]
+    for sub in symbol.subscripts:
+        subs.append(_symbol_text(sub))
+        more_subs, more_sups = _flatten(sub)
+        subs += more_subs
+        sups += more_sups
+    return subs, sups
+
+
+def symbolic_identifier(
+    identifier: str, options: IdentifierOptions | None = None
+) -> str:
     """
-    A Python identifier as display markup.
+    A Python identifier as display markup, from its parsed ``Symbol`` (see
+    ``identifiers.parse_identifier``).
 
     ``___`` is a literal underscore and ``__`` a space (as in the HTMLRenderer).
     Otherwise the first ``_``-separated component is the base and the rest form
     one subscript; Excel has a single subscript level, so ``a_b_c`` becomes
-    a<sub>b,c</sub>. Greek names become Greek letters; ``hat``, ``bar`` and
+    a<sub>b,c</sub> in either subscript style. Greek names become Greek
+    letters, in each ``__`` word too and, with ``greek_prefixes``, before an
+    uppercase letter or a digit (``DeltaH`` -> ΔH); ``hat``, ``bar`` and
     ``prime`` decorate the component before them and ``star`` adds a
-    superscript ``*``.
+    superscript ``*``. An identifier in ``options.symbols`` is shown from its
+    spec.
     """
-    if not identifier or identifier.startswith("_"):
-        return escape(identifier)
-    text = identifier.replace("___", "\x00").replace("__", " ")
-    components: list[str] = []
-    starred = False
-    for comp in text.split("_"):
-        if not comp:
-            continue
-        if comp in ACCENTS and components:
-            components[-1] += ACCENTS[comp]
-        elif comp == STAR and components:
-            starred = True
-        else:
-            components.append(GREEK.get(comp, comp))
-    components = [escape(c.replace("\x00", "_")) for c in components]
-    if not components:
-        return escape(identifier)
-    base, subs = components[0], components[1:]
-    markup = base
+    symbol = parse_identifier(identifier, options or IdentifierOptions())
+    subs, sups = _flatten(symbol)
+    markup = _symbol_text(symbol)
     if subs:
         markup += f"<sub>{','.join(subs)}</sub>"
-    if starred:
-        markup += "<sup>*</sup>"
+    if sups:
+        markup += f"<sup>{','.join(sups)}</sup>"
     return markup
 
 
@@ -158,7 +124,12 @@ def _is_constant_exponent(node: Any) -> bool:
 
 def name_symbol(renderer, node: Name, base_context: BaseRenderContext) -> Name:
     """'name:sym': display form of the identifier, on a copy of the node."""
-    return replace(node, identifier=symbolic_identifier(node.identifier))
+    return replace(
+        node,
+        identifier=symbolic_identifier(
+            node.identifier, identifier_options(renderer, base_context)
+        ),
+    )
 
 
 def attribute_symbol(renderer, node: Attribute, base_context: BaseRenderContext) -> Any:
