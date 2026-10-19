@@ -12,7 +12,9 @@ docx = pytest.importorskip("docx")
 from docx.oxml.ns import qn
 
 from handcalcs import HandCalcs
+from handcalcs.renderers.base import BaseRenderer
 from handcalcs.renderers.word import WordRenderer, omml
+from handcalcs.renderers.word.document import Heading, ParamsTable
 
 M = f"{{{omml.M_NS}}}"
 
@@ -142,7 +144,7 @@ def test_heading_comment_and_import():
     assert (heading.style.name, heading.text) == ("Heading 1", "Loads")
     assert prose.text == "The dead load in kN"
     assert code.text == "import math"
-    assert code.runs[0].font.name == "Consolas"
+    assert code.runs[0].style.name == "HC Code"
 
 
 def test_line_break_is_an_empty_paragraph():
@@ -197,3 +199,105 @@ def test_demo_renders(layout, tmp_path):
     reopened = docx.Document(str(path))
     assert math_paragraphs(reopened)
     assert reopened.tables
+
+
+# --- styles, templates and documents ---------------------------------------------
+
+
+def test_renderer_styles():
+    document = render("import math\na = 2\n")
+    styles = document.styles
+    assert styles["HC Code"].font.name == "Consolas"
+    math_style = styles["HC Math"]
+    assert math_style.base_style.name == "Normal"
+    assert math_style.element.find(f".//{qn('w:contextualSpacing')}") is not None
+    (paragraph,) = [p for p in document.paragraphs if p._p in math_paragraphs(document)]
+    assert paragraph.style.name == "HC Math"
+
+
+def make_template(path, **styles):
+    """A template with a line of content and, optionally, its own HC Math style."""
+    from docx.enum.style import WD_STYLE_TYPE
+    from docx.shared import Pt
+
+    template = docx.Document()
+    template.add_paragraph("Company letterhead")
+    if "math_size" in styles:
+        style = template.styles.add_style("HC Math", WD_STYLE_TYPE.PARAGRAPH)
+        style.font.size = Pt(styles["math_size"])
+    template.save(str(path))
+    return path
+
+
+def test_template_content_and_styles_are_kept(tmp_path):
+    template = make_template(tmp_path / "company.docx", math_size=14)
+    renderer = WordRenderer(template=template)
+    first = HandCalcs(renderer=renderer)("a = 2\n")
+    second = HandCalcs(renderer=renderer)("b = 3\n")
+    for document in (first, second):
+        assert document.paragraphs[0].text == "Company letterhead"
+        assert document.styles["HC Math"].font.size.pt == 14
+        assert len(math_paragraphs(document)) == 1
+
+
+def test_document_option_appends_calcs():
+    report = docx.Document()
+    report.add_heading("Report", level=0)
+    calc = HandCalcs(renderer=WordRenderer(document=report))
+    assert calc("a = 2\n") is report
+    calc("b = 3\n")
+    assert [eq_rows(p) for p in math_paragraphs(report)] == [["a&=2"], ["b&=3"]]
+    assert report.paragraphs[0].text == "Report"
+
+
+def test_template_and_document_options_are_checked(tmp_path):
+    with pytest.raises(ValueError, match="not both"):
+        WordRenderer(
+            template=make_template(tmp_path / "t.docx"), document=docx.Document()
+        )
+    with pytest.raises(FileNotFoundError):
+        WordRenderer(template=tmp_path / "missing.docx")
+
+
+def test_missing_heading_style_falls_back_to_bold(tmp_path):
+    template = docx.Document()
+    heading = template.styles["Heading 1"].element
+    heading.getparent().remove(heading)
+    path = tmp_path / "plain.docx"
+    template.save(str(path))
+    with pytest.warns(UserWarning, match="Heading 1"):
+        document = HandCalcs(renderer=WordRenderer(template=path))("## Loads\na = 2\n")
+    paragraph = document.paragraphs[0]
+    assert paragraph.text == "Loads" and paragraph.runs[0].bold
+
+
+def demo_items(item_type) -> int:
+    class TreeWordRenderer(WordRenderer):
+        complete = BaseRenderer.complete
+
+    def count(item) -> int:
+        if isinstance(item, item_type):
+            return 1
+        if isinstance(item, list):
+            return sum(count(child) for child in item)
+        return 0
+
+    return count(HandCalcs(renderer=TreeWordRenderer()).demo())
+
+
+def test_demo_structure_matches_the_render_tree():
+    document = HandCalcs(renderer=WordRenderer()).demo()
+    headings = [p for p in document.paragraphs if p.style.name.startswith("Heading")]
+    assert len(headings) == demo_items(Heading)
+    assert len(document.tables) == demo_items(ParamsTable)
+    rows = document.element.body.findall(f".//{M}eqArr/{M}e")
+    assert len(rows) > 20
+    for row in rows:
+        marks = [run for run in row.findall(f"{M}r") if math_text(run) == "&"]
+        assert len(marks) == 1, math_text(row)
+
+
+def test_demo_lines_layout_has_no_alignment_marks():
+    document = HandCalcs(renderer=WordRenderer(layout="lines")).demo()
+    runs = document.element.body.findall(f".//{M}r")
+    assert runs and not [run for run in runs if math_text(run) == "&"]

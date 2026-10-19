@@ -11,6 +11,7 @@ document is built.
 from __future__ import annotations
 
 import re
+import warnings
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,6 +24,8 @@ LAYOUTS = ("aligned", "lines")
 INDENT = 720
 ROW_INDENT = 360
 
+MATH_STYLE = "HC Math"
+CODE_STYLE = "HC Code"
 CODE_FONT = "Consolas"
 
 
@@ -89,11 +92,64 @@ def inline_math(fragment: str) -> str:
     return omml.omath(fragment)
 
 
+# The w:pPr children that follow w:contextualSpacing, in schema order.
+_AFTER_CONTEXTUAL_SPACING = (
+    "w:mirrorIndents",
+    "w:suppressOverlap",
+    "w:jc",
+    "w:textDirection",
+    "w:textAlignment",
+    "w:textboxTightWrap",
+    "w:outlineLvl",
+    "w:divId",
+    "w:cnfStyle",
+    "w:rPr",
+    "w:sectPr",
+    "w:pPrChange",
+)
+
+
+def add_styles(document) -> None:
+    """
+    Add the renderer's own styles to a document that doesn't define them, so a
+    template can restyle equations and code by defining them itself:
+
+    - ``HC Math`` (paragraph, based on Normal): the paragraphs holding display
+      equations, 6 pt before and after a group of them. Equations take the
+      paragraph's font size.
+    - ``HC Code`` (character): the source of an import, in Consolas.
+    """
+    from docx.enum.style import WD_STYLE_TYPE
+    from docx.oxml import OxmlElement
+    from docx.shared import Pt
+
+    styles = document.styles
+    names = {style.name for style in styles}
+    if MATH_STYLE not in names:
+        style = styles.add_style(MATH_STYLE, WD_STYLE_TYPE.PARAGRAPH)
+        if "Normal" in names:
+            style.base_style = styles["Normal"]
+        style.paragraph_format.space_before = Pt(6)
+        style.paragraph_format.space_after = Pt(6)
+        # No space between consecutive equation paragraphs (the "lines" layout).
+        ppr = style.element.get_or_add_pPr()
+        ppr.insert_element_before(
+            OxmlElement("w:contextualSpacing"), *_AFTER_CONTEXTUAL_SPACING
+        )
+    if CODE_STYLE not in names:
+        style = styles.add_style(CODE_STYLE, WD_STYLE_TYPE.CHARACTER)
+        style.font.name = CODE_FONT
+
+
 @dataclass
 class DocumentWriter:
     """Appends paragraphs, equations and tables to a python-docx ``Document``."""
 
     document: Any
+
+    def __post_init__(self) -> None:
+        add_styles(self.document)
+        self.styles = {style.name for style in self.document.styles}
 
     def paragraph(self, depth: int = 0, style: str | None = None):
         from docx.shared import Twips
@@ -104,7 +160,20 @@ class DocumentWriter:
         return paragraph
 
     def heading(self, item: Heading) -> None:
-        self.document.add_heading(item.text, level=min(max(item.level, 1), 9))
+        """
+        A heading paragraph in the ``Heading N`` style. A template without that
+        style gets a bold paragraph instead, with a warning.
+        """
+        level = min(max(item.level, 1), 9)
+        style = f"Heading {level}"
+        if style in self.styles:
+            self.document.add_heading(item.text, level=level)
+            return
+        warnings.warn(
+            f"The Word document has no {style!r} style; the heading "
+            f"{item.text!r} is set as a bold paragraph."
+        )
+        self.paragraph().add_run(item.text).bold = True
 
     def prose(self, text: str, depth: int = 0) -> None:
         """
@@ -122,8 +191,7 @@ class DocumentWriter:
                 paragraph.add_run(piece)
 
     def code(self, item: Code, depth: int = 0) -> None:
-        run = self.paragraph(depth).add_run(item.text)
-        run.font.name = CODE_FONT
+        self.paragraph(depth).add_run(item.text, style=CODE_STYLE)
 
     def line_break(self, depth: int = 0) -> None:
         self.paragraph(depth)
@@ -133,7 +201,7 @@ class DocumentWriter:
         from docx.oxml import parse_xml
         from docx.shared import Twips
 
-        paragraph = self.paragraph(depth)
+        paragraph = self.paragraph(depth, style=MATH_STYLE)
         if extra:
             paragraph.paragraph_format.left_indent = Twips(INDENT * depth + extra)
         para = parse_xml(

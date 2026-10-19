@@ -38,10 +38,25 @@ class WordRenderer(BaseRenderer):
       equation of its own with no alignment; use it for Google Docs and
       LibreOffice, which don't show Word's equation arrays. A ``# hc: layout =
       "lines"`` comment changes it for the calcs that follow.
+    - ``template``: a .docx to start each new document from (a company
+      template: its styles, page setup and any content it already has).
+    - ``document``: a python-docx ``Document`` to append to instead, so several
+      calcs build one report. Give a template or a document, not both.
 
-    Example::
+    The renderer adds two styles when the document doesn't define them:
+    ``HC Math`` for equation paragraphs and ``HC Code`` for imports. Define
+    them in a template to restyle both. Equations take their paragraph's font
+    size.
+
+    Examples::
 
         HandCalcs(WordRenderer(filepath="calc.docx"))(source)
+
+        report = docx.Document("company.docx")
+        calc = HandCalcs(WordRenderer(document=report))
+        calc(beam_source)
+        calc(column_source)
+        report.save("report.docx")
     """
 
     name = "word"
@@ -59,10 +74,18 @@ class WordRenderer(BaseRenderer):
         self,
         filepath: Optional[str | pathlib.Path] = None,
         layout: str = "aligned",
+        template: Optional[str | pathlib.Path] = None,
+        document: Any = None,
     ) -> None:
         super().__init__()
+        if template is not None and document is not None:
+            raise ValueError("Give a template or a document, not both.")
         self.filepath = pathlib.Path(filepath) if filepath is not None else None
         self.layout = validate_layout(layout)
+        self.template = pathlib.Path(template) if template is not None else None
+        if self.template is not None and not self.template.is_file():
+            raise FileNotFoundError(f"No Word template at {self.template}")
+        self.document = document
 
     def __repr__(self) -> str:
         return f"WordRenderer(layout={self.layout!r})"
@@ -86,10 +109,17 @@ class WordRenderer(BaseRenderer):
         return omml.plain_text(rendered).lstrip().startswith(("-", "+", "−"))
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> Any:
-        """Write the render tree as a Word document; save it if ``filepath`` is set."""
-        from docx import Document
+        """
+        Write the render tree as a Word document and return it; save it if
+        ``filepath`` is set. The calc is appended to ``document`` if one was
+        given, or else to a new document (from ``template``, if given).
+        """
+        if self.document is not None:
+            document = self.document
+        else:
+            from docx import Document
 
-        document = Document()
+            document = Document(self.template) if self.template else Document()
         writer = DocumentWriter(document)
         self.write_items(writer, tree, 0, base_context)
         if self.filepath is not None:
