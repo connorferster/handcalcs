@@ -280,6 +280,10 @@ def typeset_number(formatted: str) -> str:
     return f"{sign}{omml.run(mantissa)}{omml.run('×')}{ten}"
 
 
+# The number at the start of a formatted quantity ("2.5e+03 kN/m").
+LEADING_NUMBER = re.compile(r"[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?")
+
+
 def format_number(value, format_code: str) -> str:
     try:
         formatted = f"{value:{format_code}}"
@@ -314,11 +318,21 @@ def render_constant(renderer: WR, node: Constant, base_context: BRC) -> str:
         return f"{format_number(value.real, fc)}{sign}{imag}"
     if isinstance(value, (int, float)):
         return format_number(value, fc)
-    # Anything else (e.g. a quantity with units) is shown as formatted text.
+    # A pint quantity: its magnitude takes the format code and its units the
+    # registry's format (a format spec of ".5g" would reset that to pint's
+    # long default, "millimeter ** 2").
+    magnitude, units = getattr(value, "magnitude", None), getattr(value, "units", None)
+    if isinstance(magnitude, (int, float)) and units is not None:
+        return format_number(magnitude, fc) + omml.text(f" {units}")
+    # Anything else is shown as formatted text. A quantity with units (e.g.
+    # forallpeople) keeps its number as math, followed by the units as text.
     try:
         formatted = f"{value:{fc}}"
     except (ValueError, TypeError):
         formatted = f"{value}"
+    number = LEADING_NUMBER.match(formatted)
+    if number and formatted[number.end() :].startswith(" "):
+        return typeset_number(number.group()) + omml.text(formatted[number.end() :])
     return omml.text(formatted)
 
 

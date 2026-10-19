@@ -282,16 +282,45 @@ def test_unit_like_values_are_text():
         def __format__(self, spec):
             return "3.000 kN"
 
-    # A value with no number form is shown as normal text.
+    class Text:
+        def __format__(self, spec):
+            return "n/a"
+
+    # A quantity keeps its number as math and its units as normal text; a value
+    # with no number form is all text.
     from handcalcs.renderers.word.handlers import render_constant
     from handcalcs.parsing.nodes import Constant
 
     renderer = WordRenderer()
+    context = renderer.create_context()
     node = Constant(value=Qty(), calculated=True)
-    assert (
-        linear(render_constant(renderer, node, renderer.create_context()))
-        == '"3.000 kN"'
+    assert linear(render_constant(renderer, node, context)) == '3.000" kN"'
+    node = Constant(value=Text(), calculated=True)
+    assert linear(render_constant(renderer, node, context)) == '"n/a"'
+
+
+def test_forallpeople_quantities():
+    pytest.importorskip("forallpeople")
+    source = (
+        "import forallpeople as si\n"
+        "si.environment('structural', top_level=False)\n"
+        "w = 2.5 * si.kN / si.m\n"
+        "L = 3 * si.m\n"
+        "M = w * L**2 / 8\n"
     )
+    assert last_line(source).endswith('= 2.8125" kN·m"')
+
+
+def test_pint_quantities_follow_the_registry_format():
+    pint = pytest.importorskip("pint")
+    ureg = pint.UnitRegistry()
+    ureg.formatter.default_format = "~P"
+    source = "L = 2500 * ureg.mm\nA = L**2\n"
+    namespace = {"ureg": ureg}
+    exec(source, namespace)
+    calcs = HandCalcs(renderer=TreeWordRenderer())(source, namespace)
+    line = " ".join(linear(part) for part in calcs[-1][-1][-1])
+    assert line.endswith('= 6.25×{10}^{6}" mm²"')
 
 
 # --- Operators --------------------------------------------------------------
