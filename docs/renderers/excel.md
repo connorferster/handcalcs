@@ -1,4 +1,4 @@
-# Excel Renderer
+# Excel renderer
 
 The `ExcelRenderer` turns a handcalcs cell into a **live Excel worksheet**.
 Every calculation becomes a real Excel formula that references the other rows
@@ -11,8 +11,8 @@ subscripts, superscripts and Greek letters, plus headings and comment paragraphs
 The renderer writes workbooks with [XlsxWriter](https://xlsxwriter.readthedocs.io),
 an optional dependency:
 
-```
-pip install "handcalcs[excel]"
+```console
+$ pip install "handcalcs[excel]"
 ```
 
 ## Usage
@@ -34,7 +34,8 @@ workbook = HandCalcs(renderer=ExcelRenderer(sheet_name="Quadratic"))(source)
 workbook.save("quadratic.xlsx")
 ```
 
-`complete()` (called for you by `HandCalcs`) returns an `ExcelWorkbook`:
+Unlike the text renderers, it returns an `ExcelWorkbook` object rather than a string
+(`complete()`, which `HandCalcs` calls for you, builds it):
 
 - `.save(path)` writes the `.xlsx` file and returns its `Path`;
 - `.to_bytes()` returns the file contents (e.g. for a web download);
@@ -75,6 +76,11 @@ workbook.close()
   are merged across columns A–E. Heading sizes follow a type scale from the
   10 pt body: 16, 14, 12.5 and 11.5 pt.
 - A docstring becomes a comment paragraph.
+- The **symbol** and **symbolic** columns typeset names as the other renderers do
+  ([naming variables](../getting-started/writing-calculations.md#naming-variables)),
+  but Excel has one subscript level, so every subscript is shown after a comma
+  (`N_pl_Rd` → N<sub>pl,Rd</sub>) whatever the `subscripts` option says. The defined
+  names keep the Python identifier (`DeltaH` stays the name `DeltaH`).
 
 ## Options
 
@@ -101,7 +107,7 @@ ExcelRenderer(
 
 | command    | effect in Excel |
 |------------|-----------------|
-| `-f <code>` | sets the Excel number format: `.3f` → `0.000`, `,.2f` → `#,##0.00`, `.2e` → `0.00E+00`, `.1%` → `0.0%` |
+| `-f CODE` | sets the Excel number format: `.3f` → `0.000`, `,.2f` → `#,##0.00`, `.2e` → `0.00E+00`, `.1%` → `0.0%` |
 | `-b`       | inserts a blank row |
 | `-i`       | writes the row but **hides** it, so formulas that use it still work |
 | `-p`       | forces the input layout; a calculation keeps its formula |
@@ -181,3 +187,13 @@ while Excel's `ROUND` rounds them away from zero.
 - `scripts/excel_demo.py` saves that demo to `excel_demo/excel_demo.xlsx`. Run
   it with `uv run --with formulas` to recalculate every formula independently
   and compare it with Python.
+
+## Source
+
+- {source}`src/handcalcs/renderers/excel/renderer.py`: the renderer and its node handlers
+- {source}`src/handcalcs/renderers/excel/formulas.py`: Python expressions to Excel formulas
+- {source}`src/handcalcs/renderers/excel/writer.py`: writing the workbook
+- {source}`src/handcalcs/renderers/excel/units.py`: unit handling
+
+The Excel renderer is a good example of a renderer whose output is not text; see
+[Example: a non-text renderer](../building-renderers/example-json.md).

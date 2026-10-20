@@ -156,3 +156,6 @@ latex_demo.pdf
 markdown_demo_build/
 excel_demo/
 html_demo/
+
+# Sphinx docs build
+docs/_build/
