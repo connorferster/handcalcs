@@ -489,7 +489,8 @@ def test_pint_units_follow_the_registry_default_format(
     assert f"= 22.5\\ {latex_units}" in latex
     assert "textbackslash" not in latex
     html = _units(HTMLRenderer(), source, u=ureg)
-    assert f'<span class="hc-result">22.5 {html_units}</span>' in html
+    # pint 0.25 (the last release for Python 3.11) joins units with "·", later ones with "⋅"
+    assert f'<span class="hc-result">22.5 {html_units}</span>' in html.replace("·", "⋅")
 
 
 def test_quantity_power_base_is_bracketed():
