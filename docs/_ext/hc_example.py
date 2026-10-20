@@ -128,8 +128,8 @@ def latex_to_myst(latex: str) -> str:
     for line in latex.split("\n"):
         stripped = line.strip()
         if in_math:
-            if stripped.endswith("$"):
-                math.append(stripped[:-1])
+            if stripped.endswith("$") or stripped == "\\]":
+                math.append(stripped.removesuffix("\\]").removesuffix("$"))
                 body = " ".join(part for part in math if part)
                 body = body.replace("\\begin{aligned}[t]", "\\begin{aligned}")
                 out.append("> " * depth + f"$${body}$$")
@@ -148,6 +148,9 @@ def latex_to_myst(latex: str) -> str:
         if stripped in ("\\medskip", "\\bigskip", "\\smallskip", "\\clearpage", "\\newpage"):
             continue
         stripped = stripped.removeprefix("\\noindent").strip()
+        if stripped == "\\[":
+            in_math = True
+            continue
         if stripped.startswith("$\\displaystyle"):
             in_math = True
             rest = stripped.removeprefix("$\\displaystyle").strip()

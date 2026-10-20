@@ -66,6 +66,8 @@ katex_options = "{throwOnError: false, strict: false}"
 # {source}`src/handcalcs/renderers/base.py` -> the file on GitHub at HC_SOURCE_REF.
 extlinks = {
     "source": (f"{HC_REPO_URL}/blob/{HC_SOURCE_REF}/%s", "%s"),
+    # {issue}`218` -> #218, linked to the GitHub issue.
+    "issue": (f"{HC_REPO_URL}/issues/%s", "#%s"),
 }
 
 intersphinx_mapping = {
