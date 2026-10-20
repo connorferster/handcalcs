@@ -12,6 +12,19 @@ $ uv run --extra doc sphinx-build -E -W -b html docs docs/_build/html   # clean,
 Use `-E` after changing anything in `docs/_ext/` or `docs/_examples/`; Sphinx only
 re-reads pages whose source changed.
 
+## Publishing
+
+The site is static HTML, served from bunny.net. A GitHub Actions workflow builds it
+with `-W` and uploads `docs/_build/html/` as it is; no server-side processing is needed.
+The KaTeX stylesheet and fonts load from jsDelivr, so math needs no extra files.
+
+Two environment variables affect a published build:
+
+| Variable | Effect |
+|---|---|
+| `HC_SOURCE_REF` | The git ref that source links point at (see [Source links](#source-links)). |
+| `HC_DOCS_URL` | The site's root URL (for example `https://…/`), used for canonical links. Empty by default. |
+
 ## Layout
 
 | Path | Contents |
