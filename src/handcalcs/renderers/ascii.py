@@ -99,7 +99,11 @@ class ASCIIRenderer(BaseRenderer):
     def join_item(self, item, depth: int, base_context: BaseRenderContext) -> list[str]:
         # A long calc is one multi-row string in a one-item line; join it as a
         # string so every row is indented to the line's depth, not just the first.
-        if isinstance(item, list) and len(item) == 1 and isinstance(item[0], AlignedText):
+        if (
+            isinstance(item, list)
+            and len(item) == 1
+            and isinstance(item[0], AlignedText)
+        ):
             item = item[0]
         return super().join_item(item, depth, base_context)
 
@@ -238,6 +242,8 @@ def render_heading(renderer: PTR, node: Heading, base_context: BRC) -> HeadingTe
     rule = char * len(content)
     lines = [rule, content, rule] if overline else [content, rule]
     return HeadingText(base_context.current.newline.join(lines))
+
+
 BRC = BaseRenderContext
 
 
