@@ -467,7 +467,7 @@ class AST_Parser:
         # --- Rule 1: Simplest case (e.g., variable names, constants) ---
         elif isinstance(node, ast.Name):
             node: ast.Name
-            val = Name(identifier=node.id, value=self.globals.get(node.id, NoValue()))
+            val = Name(identifier=node.id, value=self._name_value(node.id))
         elif isinstance(node, ast.Constant):
             source_text = ast.get_source_segment(self.source, node) or ""
             val = Constant(value=node.value, source_text=source_text)
@@ -839,6 +839,20 @@ class AST_Parser:
         elif comment_value:
             return InlineComment(content=comment_value)
         return None
+
+    def _name_value(self, identifier: str):
+        """
+        The value of the name 'identifier', looked up as Python does: in the
+        namespace, then in ``builtins``. The fallback is for forallpeople, whose
+        ``si.environment(..., top_level=True)`` puts its units (``m``, ``kN``)
+        in ``builtins`` rather than in the namespace; without it a bare unit
+        substitutes as nothing (``2 * `` instead of ``2 * 1.000 m``). Builtin
+        functions and types (``len``, ``max``) are left as NoValue, as before.
+        """
+        if identifier in self.globals:
+            return self.globals[identifier]
+        value = getattr(builtins, identifier, NoValue())
+        return NoValue() if callable(value) else value
 
     def _evaluate_expr(self, node: ast.AST):
         """
