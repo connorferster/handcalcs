@@ -65,6 +65,7 @@ from handcalcs.parsing.line_nodes import (
     CommentCommand,
     Heading,
     CommentLine,
+    IgnoredLine,
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -1258,6 +1259,27 @@ def render_inline_command(
     # argparse defaults for unset flags and must fall through to the global context.
     overrides = {k: v for k, v in node.commands.items() if v is not None}
     base_context.line_context = RenderContext.sparse(**overrides)
+    return ""
+
+
+@BaseRenderer.register("import:pre")
+@BaseRenderer.register("expr_line:pre")
+def skip_ignored_line(renderer: BR, node, base_context: BaseRenderContext):
+    """
+    Swap an import or bare expression hidden by ``# hc: -i`` (inline, or a
+    standalone command above it) for an IgnoredLine, which renders nothing. A
+    calc line handles ``-i`` itself.
+    """
+    comment = getattr(node, "comment", None)
+    commands = getattr(comment, "commands", {}) or {}
+    ignored = commands.get("ignore")
+    if not ignored and ignored is not False:
+        ignored = getattr(base_context.global_context, "ignore", False)
+    return IgnoredLine() if ignored else node
+
+
+@BaseRenderer.register("ignored_line")
+def render_ignored_line(renderer: BR, node, base_context: BaseRenderContext) -> str:
     return ""
 
 

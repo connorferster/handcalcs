@@ -501,13 +501,16 @@ class AST_Parser:
             for name in node.names:
                 acc.append(Name(identifier=name.name, value=name.asname))
             if isinstance(node, ast.Import):
-                val = Import(import_from=False, names=acc)
+                val = Import(
+                    import_from=False, names=acc, comment=self._inline_comment(node)
+                )
             elif isinstance(node, ast.ImportFrom):
                 val = Import(
                     import_from=True,
                     import_from_level=node.level,
                     import_from_module=node.module,
                     names=acc,
+                    comment=self._inline_comment(node),
                 )
 
         elif isinstance(node, ast.Call) and is_infinity_call(node):

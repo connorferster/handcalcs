@@ -417,3 +417,33 @@ def test_latex_unicode_identifiers(identifier, expected):
     from handcalcs.renderers.latex import latex_identifier
 
     assert latex_identifier(identifier) == expected
+
+
+# --- # hc: -i on imports and bare expressions ---
+
+IGNORED = (
+    "import math  # hc: -i\n"
+    "math.sqrt(4)  # hc: -i\n"
+    "a = 2\n"
+    "# hc: -i\n"
+    "import os\n"
+    "abs(a)\n"
+    "# hc: ignore = False\n"
+    "b = a + 1\n"
+    "abs(b)\n"
+)
+
+
+def test_ignore_hides_imports_and_expressions():
+    out = HandCalcs(PlainTextRenderer())(IGNORED)
+    assert out == "a = 2\nb = a + 1 = 2 + 1 = 3\nabs(b) = abs(3) = 3\n"
+
+
+def test_ignore_hides_imports_in_latex():
+    out = HandCalcs(LatexRenderer())(IGNORED)
+    assert "import" not in out and "sqrt" not in out
+
+
+def test_excel_ignored_import_is_skipped():
+    rows = HandCalcs(ExcelRenderer())("import os  # hc: -i\na = 2\n").rows
+    assert [row.name for row in rows] == ["a"]

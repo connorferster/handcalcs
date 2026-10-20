@@ -464,6 +464,11 @@ def _is_units_call(node: FunctionCall, state: ExcelState) -> bool:
     return function is not None and is_units_setup(function)
 
 
+@ER.register("ignored_line")
+def render_ignored_line(renderer: ER, node, base_context: BRC) -> list[Row]:
+    return []
+
+
 @ER.register("import")
 def render_import(renderer: ER, node, base_context: BRC) -> list[Row]:
     """
