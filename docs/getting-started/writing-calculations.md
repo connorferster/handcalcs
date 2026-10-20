@@ -30,6 +30,7 @@ on paper:
 | `ΔH`, `σ_R` | ΔH, σ<sub>R</sub> | Unicode Greek letters work too |
 | `DeltaH`, `gammaM0`, `alpha2` | ΔH, γM0, α2 | a Greek name followed by an uppercase letter or a digit |
 | `x_hat`, `x_bar`, `V_dot`, `x_ddot` | x̂, x̄, V̇, ẍ | accents over the part before them |
+| `x̄`, `ŷ_2`, `σ̂` | x̄, ŷ<sub>2</sub>, σ̂ | Unicode letters with a combining accent (hat, bar, dot, double dot) |
 | `f_prime_c`, `M_star` | f′<sub>c</sub>, M<sup>*</sup> | a prime, a superscript `*` |
 | `Annual__Rate` | Annual Rate | `__` is a space |
 | `a___b` | a_b | `___` is a literal underscore |

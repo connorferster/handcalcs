@@ -44,9 +44,8 @@ M = w * L**2 / 8
 
 ## Tips
 
-- **Set up the units in a cell you don't render.** The setup code is not part of the
-  calculation. (`# hc: -i` hides calculation lines, but not `import` lines or setup
-  calls in 2.0.)
+- **Set up the units in a cell you don't render**, or hide the setup lines with
+  `# hc: -i` at the end of each line. The setup code is not part of the calculation.
 - Unit-aware values are formatted by the units library. Whether the format code
   applies depends on the library's `__format__` support.
 - The [Excel renderer](../renderers/excel.md) converts pint and forallpeople

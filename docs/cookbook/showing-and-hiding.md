@@ -72,9 +72,17 @@ b = 2 * a
 
 ## Hide import lines
 
-Imports are shown as a line of code. `# hc: -i` does not hide them in 2.0; to leave
-them out, put them in a cell you don't render, or register a handler on your renderer
-that renders nothing for `import` nodes:
+Imports are shown as a line of code. To leave one out, end it with `# hc: -i`:
+
+```{hc-example}
+from math import sqrt  # hc: -i
+a = 3
+b = 4
+c = sqrt(a**2 + b**2)
+```
+
+To never show imports, register a handler on your renderer that renders nothing for
+`import` nodes:
 
 ```{literalinclude} ../_examples/hide_imports.py
 :language: python
