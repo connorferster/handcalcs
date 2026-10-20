@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.urls]
+Documentation = "https://handcalcs.structuralpython.com/"
 Source = "https://github.com/connorferster/handcalcs"
 
 

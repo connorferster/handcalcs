@@ -17,7 +17,7 @@
 
 The same calculation can go to different **renderers**: Markdown and LaTeX for Jupyter and documents, HTML for web pages, ASCII text for terminals and logs, a live, formula-based Excel worksheet and Word documents. You can restyle the built-in renderers or write your own.
 
-**[Read the documentation](DOCS_URL)**: getting started, every renderer, a cookbook of
+**[Read the documentation](https://handcalcs.structuralpython.com/)**: getting started, every renderer, a cookbook of
 recipes, and how to customize or write a renderer.
 
 > ### Engineers who use handcalcs
@@ -57,7 +57,7 @@ pip install handcalcs
 
 handcalcs needs Python 3.11 or newer. Extras add the Excel and Word renderers
 (`handcalcs[excel]`, `handcalcs[word]`) and Jupyter export options
-(`handcalcs[exporters]`). See [Installation](DOCS_URL/getting-started/installation.html).
+(`handcalcs[exporters]`). See [Installation](https://handcalcs.structuralpython.com/getting-started/installation.html).
 
 ## Quick start
 
@@ -90,14 +90,14 @@ On a function, `@handcalc(renderer)` returns the result and the rendered calcula
 
 Markdown (the Jupyter default), LaTeX, HTML, ASCII text, a live formula-based Excel
 workbook, and Word documents with native equations. Subclass one to change its look, or
-write your own. See [Renderers](DOCS_URL/renderers/index.html).
+write your own. See [Renderers](https://handcalcs.structuralpython.com/renderers/index.html).
 
 ## Upgrading from handcalcs 1.x
 
 handcalcs 2 is a rewrite around a parsed node tree and pluggable renderers. Most notebooks
 need only a few changes: `import handcalcs` instead of `import handcalcs.render`, and
 `# hc:` comment commands instead of `%%render` arguments. See
-[Coming from handcalcs v1](DOCS_URL/getting-started/migrating-from-v1.html).
+[Coming from handcalcs v1](https://handcalcs.structuralpython.com/getting-started/migrating-from-v1.html).
 
 ## Gotchas
 
