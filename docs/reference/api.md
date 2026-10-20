@@ -10,6 +10,8 @@ Every entry links to its source with `[source]`.
    :special-members: __call__
 
 .. autofunction:: handcalcs.handcalc
+
+.. autofunction:: handcalcs.find_inputs
 ```
 
 The Jupyter magics (`%%render`, `%hc_default_renderer`, `%hc_format_code`) are described

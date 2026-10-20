@@ -31,7 +31,7 @@ The global configuration is copied when the object is created, so set options fi
 
 ## Calling it
 
-`hc(source_or_path, supplied_globals=None, supplied_locals=None)`
+`hc(source_or_path, supplied_globals=None, supplied_locals=None, *, inputs=None, strict=True, allow_computed=False)`
 
 `source_or_path`
 : Either a **string of Python source**, or a **`pathlib.Path`** to a `.py` file.
@@ -64,10 +64,90 @@ If a name has no value in `supplied_globals`, it is shown as empty in the substi
 step. The exception is a name used in an `if` condition: the condition is evaluated to
 decide which branch to show, so a missing name raises `NameError`.
 
+`inputs`, `strict`, `allow_computed`
+: Render the source with different given values. See
+  [Rendering many input sets](#rendering-many-input-sets). `inputs` cannot be combined
+  with `supplied_globals`.
+
 ### Inspecting the parsed tree
 
 After a call, `hc.hc_ast` holds the parsed calculation (an `HcSequence`). This is
 mostly useful when [building a renderer](../building-renderers/nodes.md).
+
+## Rendering many input sets
+
+Write a calculation once, as an ordinary script with sample values, then render it
+with different inputs, one document per input set:
+
+```python
+import json
+import pathlib
+from handcalcs import HandCalcs
+from handcalcs.renderers import LatexRenderer
+
+hc = HandCalcs(LatexRenderer())
+for case in json.loads(pathlib.Path("beams.json").read_text()):  # [{"w": 6.2, "L": 8}, ...]
+    doc = hc(pathlib.Path("beam.py"), inputs=case)
+```
+
+`beam.py` stays a normal script that runs and renders on its own:
+
+```python
+import forallpeople as si
+si.environment("structural")
+from forallpeople import *
+
+w = 5 * kN/m  # load
+L = 6 * m
+M = w * L**2 / 8
+```
+
+With `inputs={"w": 7.5, "L": 8}`, the first assignment of each input name is given
+the input value and the script is then run and rendered as usual, so everything
+computed from the inputs is recomputed:
+
+```text
+w = 7.5 * kN / m = 7.5 * 1 kN / 1 m = 7.5 kN/m (load)
+L = 8 * m = 8 * 1 m = 8 m
+M = w * L² / 8 = 7.5 kN/m * 8 m² / 8 = 60 kN·m
+```
+
+**Units are kept.** When the input is a number and the script assigns a number times
+units (`L = 6 * m`), only the number is replaced, so the line becomes `L = 8 * m`. Any
+other input replaces the whole right-hand side.
+
+**Which assignment is bound.** The first top-level `name = value` assignment of each
+input name, including one statement of an `a = 1; b = 2` line. Later reassignments
+still run. A name assigned only inside a block or function, by `+=`, or by unpacking
+cannot be bound and raises `ValueError`.
+
+**Input values** must be writable as Python literals: numbers, strings, `True`/`False`,
+`None`, and lists, tuples and dicts of these. That is everything JSON can hold.
+Quantities and arrays are not supported yet; pass their numbers instead.
+
+### Checks
+
+`strict=True`
+: An input the script never assigns raises `KeyError`, which catches misspelled names.
+  With `strict=False` such inputs are ignored, so one input file can serve several
+  scripts.
+
+`allow_computed=False`
+: An input for a computed line (`M = w * L**2 / 8`) raises `ValueError`, so a
+  calculation is not replaced by accident. With `allow_computed=True` the line is
+  replaced by the input value.
+
+### Finding a script's inputs
+
+`find_inputs` lists the names whose first assignment is a literal or a number times
+units, with their values in the script (the number only, for a value with units). Use
+it as a template for an input file:
+
+```python
+from handcalcs import find_inputs
+
+find_inputs(pathlib.Path("beam.py"))  # {'w': 5, 'L': 6}
+```
 
 ## The demo
 
@@ -113,10 +193,14 @@ def beam_page(w: float, L: float) -> str:
 ### One calculation per row of a table
 
 ```python
-source = "M = w * L**2 / 8"
+source = """
+w = 5
+L = 6
+M = w * L**2 / 8
+"""
 hc = HandCalcs(PlainTextRenderer())
 for w, L in [(5, 6), (7.5, 4)]:
-    print(hc(source, {"w": w, "L": L, "M": w * L**2 / 8}))
+    print(hc(source, inputs={"w": w, "L": L}))
 ```
 
 ## Source
