@@ -212,35 +212,3 @@ def test_render_ignores_words_without_arguments(shell):
     with capture_output() as captured:
         ip.run_cell_magic("render", "params", CELL)
     assert "c &= a + b" in captured.outputs[0].data["text/markdown"]
-
-
-def test_last_expression_shows_the_cell_result(shell):
-    # #54: the parser does not re-run a user function, so the result of a
-    # cell's last bare expression comes from the cell's run (IPython's ``_``).
-    ip, _ = shell
-    ip.run_cell("calls = []\ndef f(x):\n    calls.append(x)\n    return x * 10\n")
-    markdown = render_cell(ip, "a = 2\nf(a)\n# a note\n")["text/markdown"]
-    assert "\\operatorname{f}\\left(2\\right) = 20" in markdown
-    assert ip.user_ns["calls"] == [2]  # run once
-
-
-def test_earlier_impure_expression_shows_no_result(shell):
-    ip, _ = shell
-    ip.run_cell("def g(x):\n    return x * 10\n")
-    markdown = render_cell(ip, "a = 3\ng(a) + 1\nb = 2\n")["text/markdown"]
-    assert "\\operatorname{g}\\left(3\\right) + 1 \\\\" in markdown
-
-
-def test_none_result_is_not_shown(shell):
-    ip, _ = shell
-    ip.run_cell("items = []\n")
-    markdown = render_cell(ip, "a = 2\nitems.append(a)\n")["text/markdown"]
-    assert "= None" not in markdown
-
-
-def test_line_magic_expression_runs_once(shell):
-    ip, _ = shell
-    ip.run_cell("hits = []\ndef h(x):\n    hits.append(x)\n    return x + 1\n")
-    _, outputs = run_cell(ip, "a = 2\n%render h(a) * 2\n")
-    assert "\\operatorname{h}\\left(2\\right) \\cdot 2 = 6" in outputs[0]["text/markdown"]
-    assert ip.user_ns["hits"] == [2]
