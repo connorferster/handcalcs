@@ -13,6 +13,7 @@ from .block_nodes import (
 from copy import deepcopy
 from typing import Any
 from .nodes import HcNode
+from .line_nodes import CommentCommand, CommentLine, ExprLine, Heading
 
 
 @dataclass
@@ -180,3 +181,24 @@ def flatten(items: Any, omit_parentheses: bool = False) -> deque:
             yield from flatten(item)  # recursion!
     else:
         yield items
+
+
+def last_expression(tree: deque):
+    """
+    The ExprLine that is the last statement of ``tree`` at the top level (the
+    statement whose value IPython shows as a cell's result), or None. Comment
+    lines after it do not count; a block (if, for) as the last statement means
+    there is none.
+    """
+    for node in reversed(tree):
+        if isinstance(node, (CommentsBlock, CommentLine, CommentCommand, Heading)):
+            continue
+        if isinstance(node, CalcsBlock):
+            lines = [
+                line
+                for line in node.lines
+                if not isinstance(line, (CommentLine, CommentCommand, Heading))
+            ]
+            return lines[-1] if lines and isinstance(lines[-1], ExprLine) else None
+        return node if isinstance(node, ExprLine) else None
+    return None

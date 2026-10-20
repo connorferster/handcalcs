@@ -1,7 +1,8 @@
 import pathlib
 import warnings
-from typing import Optional
-from ..parsing.sequence import HcSequence
+from typing import Any, Optional
+from ..parsing.null_values import NoValue
+from ..parsing.sequence import HcSequence, last_expression
 from ..parsing.inputs import InputBinding
 from ..renderers import BaseRenderer, get_renderer
 from ..renderers import demo
@@ -95,6 +96,20 @@ class HandCalcs:
         source = binding.parse_source(namespace)
         self.hc_ast = self.__parse(source, namespace)
         binding.place_objects(self.hc_ast)
+        return self.__render(namespace)
+
+    def render_cell(self, source: str, namespace: dict, result: Any = None) -> str:
+        """
+        Renders ``source`` once it has run in ``namespace``. ``result`` is the
+        value of its last statement when that is a bare expression (IPython's
+        ``_``), shown as that line's result when the parser could not evaluate
+        it without side effects (#54); None shows nothing. The ``%%render`` and
+        ``%render`` magics render with this.
+        """
+        self.hc_ast = self.__parse(source, namespace)
+        line = last_expression(self.hc_ast.sequence)
+        if line is not None and result is not None and isinstance(line.value, NoValue):
+            line.value = result
         return self.__render(namespace)
 
     def __render(self, passed_globals: dict) -> str:
