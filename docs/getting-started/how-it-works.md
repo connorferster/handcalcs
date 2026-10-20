@@ -63,14 +63,24 @@ e = a**2 + b**2
 
 ### Expressions
 
-A bare expression (no assignment) is shown as its symbolic and substituted forms, with
-no result:
+A bare expression (no assignment) is shown like a calculation without a target: its
+symbolic and substituted forms, then its result:
 
 ```{hc-example}
 :renderer: plain_text
 a = 2
 b = 3
 a + b
+```
+
+### Conditional expressions
+
+A conditional expression is shown with its keywords, and the substitution shows which
+branch the values pick:
+
+```{hc-example}
+a = 2
+b = 10 if a > 0 else -10
 ```
 
 ### Comments, headings and imports
@@ -97,8 +107,10 @@ See [Writing calculations](writing-calculations.md#conditionals) for examples.
 - Function and class definitions, `while` loops, `with` blocks and augmented
   assignments (`a += 1`) are not shown. Run them in a cell or script section that you
   don't render, then render the calculation that uses the result.
-- Conditional expressions (`x = 1 if a > 1 else 0`) are not supported; use an `if`
-  block.
+- `print(...)` calls are skipped, so a script can print progress without it showing up.
+  A comment line above one is kept.
+- Generator expressions (`sum(x**2 for x in xs)`) are not rendered. Use a list
+  comprehension instead: `sum([x**2 for x in xs])`.
 
 ## Function names and symbols
 

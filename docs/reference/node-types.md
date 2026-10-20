@@ -30,6 +30,7 @@ page explains what each node represents.
 | `function_call` | {src}`FunctionCall <handcalcs.parsing.inline_nodes.FunctionCall>` | `namespace`, `function_name`, `args` |
 | `keyword` | {src}`Keyword <handcalcs.parsing.inline_nodes.Keyword>` | `arg`, `value` |
 | `compare` | {src}`Compare <handcalcs.parsing.inline_nodes.Compare>` | `comparison` |
+| `if_exp` | {src}`IfExp <handcalcs.parsing.inline_nodes.IfExp>` | `test`, `body`, `orelse`, `is_true` |
 | `inline_comment` | {src}`InlineComment <handcalcs.parsing.inline_nodes.InlineComment>` | `content` |
 | `inline_command` | {src}`InlineCommand <handcalcs.parsing.inline_nodes.InlineCommand>` | `content`, `commands` |
 | `comprehension` | {src}`Comprehension <handcalcs.parsing.inline_nodes.Comprehension>` | `assigns`, `iterator`, `is_async` |
@@ -39,6 +40,7 @@ page explains what each node represents.
 | `floor_op` | {src}`FloorOp <handcalcs.parsing.operator_nodes.FloorOp>` | `left`, `right`, `symbol` |
 | `modulo_op` | {src}`ModuloOp <handcalcs.parsing.operator_nodes.ModuloOp>` | `left`, `right`, `symbol` |
 | `mult_op` | {src}`MultOp <handcalcs.parsing.operator_nodes.MultOp>` | `left`, `right`, `symbol` |
+| `mat_mult_op` | {src}`MatMultOp <handcalcs.parsing.operator_nodes.MatMultOp>` | `left`, `right`, `symbol` |
 | `add_op` | {src}`AddOp <handcalcs.parsing.operator_nodes.AddOp>` | `left`, `right`, `symbol` |
 | `sub_op` | {src}`SubOp <handcalcs.parsing.operator_nodes.SubOp>` | `left`, `right`, `symbol` |
 | `unary_op` | {src}`HcUnaryOp <handcalcs.parsing.operator_nodes.HcUnaryOp>` | `operand`, `symbol` |

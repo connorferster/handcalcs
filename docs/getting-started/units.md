@@ -44,8 +44,9 @@ M = w * L**2 / 8
 
 ## Tips
 
-- **Set up the units in a cell you don't render**, or hide the setup lines with
-  `# hc: -i` at the end of each line. The setup code is not part of the calculation.
+- **Set up the units in a cell you don't render.** The setup code is not part of the
+  calculation. (`# hc: -i` hides calculation lines, but not `import` lines or setup
+  calls in 2.0.)
 - Unit-aware values are formatted by the units library. Whether the format code
   applies depends on the library's `__format__` support.
 - The [Excel renderer](../renderers/excel.md) converts pint and forallpeople
@@ -55,8 +56,8 @@ M = w * L**2 / 8
 :class: caution
 - With forallpeople, a bare unit in a formula (the `m` in `6 * m`) shows an empty
   substituted value (`6 * m = 6 *  = 6 m`). The result is correct.
-- Calling a method on a parenthesized expression, such as `(w * L**2 / 8).to("kN*m")`,
-  is not parsed. Assign the expression first, then convert it on the next line.
+- An attribute of a parenthesized expression, such as `(w * L**2 / 8).magnitude`, is
+  not parsed. A method call is: `(w * L**2 / 8).to("kN*m")` works.
 ```
 
 **Next:** [Gotchas](gotchas.md).

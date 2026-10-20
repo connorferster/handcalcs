@@ -5,7 +5,7 @@ code of practice or textbook. The background is in
 [Naming variables](../getting-started/writing-calculations.md#naming-variables) and
 [Symbols and functions](../customizing/symbols-and-functions.md).
 
-## Eurocode-style subscripts: N<sub>pl,Rd</sub>
+## Eurocode-style subscripts
 
 *Asked in {issue}`101`.*
 
@@ -20,7 +20,7 @@ sigma_x_Ed = 185 # MPa
 
 For v1-style nested subscripts (x<sub>a<sub>b</sub></sub>), use `# hc: subscripts = "nested"`.
 
-## Greek letters joined to text: ΔH, γ<sub>M0</sub>
+## Greek letters joined to text
 
 *Asked in {issue}`117`.*
 
@@ -37,7 +37,7 @@ gammaM1 = 1.1
 `lamb` or `lambda_` gives λ (`lambda` is a Python keyword). To turn the prefix split
 off, use `# hc: greek_prefixes = False`.
 
-## Accents, primes and stars: V̇, x̄, f′<sub>c</sub>
+## Accents, primes and stars
 
 *Asked in {issue}`132`.*
 
@@ -70,7 +70,7 @@ For markup the spec syntax can't express (`\tilde{u}`, `\mathcal{F}`), register 
 `name:pre` rule. See
 [Custom symbols with a rule](../customizing/symbols-and-functions.md#custom-symbols-with-a-rule).
 
-## Keep a name as text: `psi` the unit, not ψ
+## Keep a name as text
 
 *Asked in {issue}`90`.*
 
@@ -115,7 +115,7 @@ load_case_1 = 3
 M_max = load_case_1 * 2
 ```
 
-## Σ for `sum`, and your own names for functions
+## Sigma for sum, and your own function names
 
 *Asked in {issue}`169` and {issue}`194`.*
 
@@ -138,7 +138,7 @@ k = interp_table(2.5)
 
 The same table gives `ln` for `log`: `MATH_FUNCS | {"log": "\\ln"}`.
 
-## × instead of · for multiplication
+## Times sign for multiplication
 
 *Asked in {issue}`163`.*
 
@@ -158,15 +158,23 @@ c = a * b
 Each operator has a key: `add_op`, `sub_op`, `mult_op`, `div_op`, `pow_op`, the
 comparisons and more. See [Operator symbols](../customizing/symbols-and-functions.md#operator-symbols).
 
-## Infinity
+## Cube roots, factorials and infinity
 
-*Asked in {issue}`166`.*
+*Asked in {issue}`225`, {issue}`96` and {issue}`166`.*
+
+`cbrt` is typeset as a cube root, `factorial` as `n!`, and an infinite value as ∞:
 
 ```{hc-example}
-:setup: import math
-x = math.inf
-y = -x
+:setup: from math import cbrt, factorial
+V = 27.0
+a = cbrt(V)
+n = 4
+ways = factorial(n)
+more = factorial(n + 1)
+limit = float('inf')
 ```
+
+`math.cbrt` needs Python 3.11 or later. `np.cbrt` works too.
 
 ## Functions from `math` and numpy
 
@@ -184,5 +192,24 @@ d = max(a, b, c)
 ```
 
 `np.sqrt`, `np.sin` and the other numpy functions are typeset the same way.
+
+## `:=` (or anything else) between the steps
+
+```python
+handcalcs.set_option("assign", ":=")   # plain-text and HTML renderers
+```
+
+The LaTeX and Markdown renderers also read `assign`, but it ends up inside math, so give
+it LaTeX: `handcalcs.set_option("assign", "\\coloneqq")` (needs the `mathtools`
+package in LaTeX documents).
+
+## A narrower indent in plain text
+
+```python
+handcalcs.set_option("indent", "  ")
+```
+
+This works for the plain-text and base renderers; see the
+[caution](../customizing/render-context.md#four-ways-to-set-a-field) for LaTeX and Markdown.
 
 **Next:** [Units](units.md).

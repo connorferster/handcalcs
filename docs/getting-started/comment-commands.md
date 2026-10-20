@@ -18,6 +18,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-h` | `--params` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
 | `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
+| | `--pagebreak` (`--page-break`) | Start a new page: before the next line when on its own line, after the line when inline. |
 | `-i` | `--ignore` | Run the line but leave it out of the output. |
 
 Flags can be combined: `# hc: -m -f .2f`.

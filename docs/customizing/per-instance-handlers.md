@@ -34,4 +34,4 @@ Each renderer instance copies its class's handler and rule tables when it is cre
 that node's handler; registering a rule (`"import:post"`) appends to that node's rule list.
 Instances created *before* a class-level `register` call keep the old tables.
 
-**Next:** [Recipes](recipes.md).
+**Next:** the [cookbook](../cookbook/index.md), for complete recipes.

@@ -130,6 +130,7 @@ html_theme_options = {
         {"title": "Get started", "url": "getting-started/index"},
         {"title": "Renderers", "url": "renderers/index"},
         {"title": "Interfaces", "url": "interfaces/index"},
+        {"title": "Cookbook", "url": "cookbook/index"},
         {
             "title": "Extend",
             "children": [

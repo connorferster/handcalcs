@@ -14,10 +14,29 @@ line; at the end of a line it applies to that line. See
 | `-h` | `--params-block`, `--params` | (opens a grid) | flag | Grid of the following assignments, with comments |
 | `-c N` | `--param-cols`, `--param_cols` | `param_cols` | integer | Columns in parameter grids (default 3) |
 | `-b` | `--line-break` | (one-shot) | flag | Vertical space |
+| | `--pagebreak`, `--page-break` | (one-shot) | flag | Page break (see below) |
 | `-i` | `--ignore` | `ignore` | flag | Leave lines out of the output |
 | `-w` | `--if-winner-only`, `--winner` | `if_winner_only` | flag | Accepted; no effect in 2.0 |
 
 Source: {src}`handcalcs.parsing.commands`.
+
+### Page breaks
+
+`# hc: --pagebreak` on its own line breaks the page before the next line; at the end of
+a line it breaks after that line. It is one-shot and never carried forward. It does
+nothing at the end of a block header (`if ...:`) or inside a `;` parameter line.
+
+| Renderer | Output (class attribute `PAGE_BREAK`) |
+|---|---|
+| Plain text | a line holding a form feed (`\f`) |
+| LaTeX | `\newpage` |
+| Markdown | `<div style="break-after: page;"></div>` (takes effect when printed or converted through HTML) |
+| HTML | `<div class="hc-page-break" style="break-after: page;"></div>` |
+| Word | a page break |
+| Excel | a horizontal print page break after the row |
+
+A custom renderer receives the break as the item `handcalcs.renderers.base.PAGE_BREAK`
+(`"\f"`) in `join_item`.
 
 ## Assignment form
 

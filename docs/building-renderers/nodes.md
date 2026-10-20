@@ -76,6 +76,7 @@ Defined in {src}`handcalcs.parsing.nodes`, {src}`handcalcs.parsing.inline_nodes`
 | `function_call` | `FunctionCall` | `function_name` (a `Name`), `namespace`, `args`, `pre`/`post` (the argument delimiters) |
 | `keyword` | `Keyword` | `arg` (`None` for `**mapping`), `value` |
 | `compare` | `Compare` | `comparison`: operands and comparison operators, in order |
+| `if_exp` | `IfExp` | `test`, `body`, `orelse`, `is_true` (the test's value, or `None`) |
 | `comprehension_chain` | `ComprehensionChain` | `comp_type` (`list`, `set`, `dict`, `generator`), `assign`, `key`, `value`, `comprehensions` |
 | `comprehension` | `Comprehension` | `assigns`, `iterator`, `is_async` |
 | `inline_comment` | `InlineComment` | `content` |
@@ -89,7 +90,7 @@ the built-in handlers place around the rendered operation.
 
 | `type` | Class | Attributes |
 |---|---|---|
-| `add_op`, `sub_op`, `mult_op`, `div_op`, `floor_op`, `modulo_op`, `pow_op` | `AddOp`, ... (`HcBinOp`) | `left`, `right` |
+| `add_op`, `sub_op`, `mult_op`, `mat_mult_op`, `div_op`, `floor_op`, `modulo_op`, `pow_op` | `AddOp`, ... (`HcBinOp`) | `left`, `right` |
 | `unary_op` | `HcUnaryOp` | `operand`, `symbol` (`-`, `+`, `not`, `~`) |
 | `and_op`, `or_op` | `AndOp`, `OrOp` (`HcBoolOp`) | `values` |
 | `lt_op`, `gt_op`, `lte_op`, `gte_op`, `eq_op`, `neq_op`, `is_op`, `is_not_op`, `in_op`, `not_in_op` | `LtOp`, ... (`HcCompOp`) | `symbol` only; they sit inside a `Compare` |

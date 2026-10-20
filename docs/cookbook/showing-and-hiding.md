@@ -72,9 +72,9 @@ b = 2 * a
 
 ## Hide import lines
 
-Imports are shown as a line of prose. To leave them out of a cell, put `# hc: -i` at the
-end of each one. To never show them, register a handler on your renderer that renders
-nothing for `import` nodes:
+Imports are shown as a line of code. `# hc: -i` does not hide them in 2.0; to leave
+them out, put them in a cell you don't render, or register a handler on your renderer
+that renders nothing for `import` nodes:
 
 ```{literalinclude} ../_examples/hide_imports.py
 :language: python

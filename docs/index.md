@@ -20,7 +20,7 @@ Excel worksheet, and a Word document with editable equations. You can restyle th
 
 ## Where do you want to go?
 
-::::{grid} 1 2 2 3
+::::{grid} 1 2 2 2
 :gutter: 3
 
 :::{grid-item-card} {octicon}`rocket` Get started
@@ -42,6 +42,13 @@ Markdown, LaTeX, HTML, plain text, Excel or Word: what each produces and when to
 :link-type: doc
 
 The `%%render` cell magic, the `HandCalcs` object, or the `@handcalc` decorator.
+:::
+
+:::{grid-item-card} {octicon}`book` Find a recipe
+:link: cookbook/index
+:link-type: doc
+
+Tested recipes: precision, checks, notation, equation numbers, Word and PDF reports, web apps.
 :::
 
 :::{grid-item-card} {octicon}`tools` Customize a renderer
@@ -76,6 +83,7 @@ Looking for a specific function, option or `# hc:` command? See the
 getting-started/index
 interfaces/index
 renderers/index
+cookbook/index
 customizing/index
 building-renderers/index
 developers/index

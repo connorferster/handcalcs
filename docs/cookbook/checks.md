@@ -23,6 +23,16 @@ Inline comments work the same way:
 eta = 0.83  # {{ "OK" if eta <= 1 else "NOT OK" }}
 ```
 
+## Pick a value with a conditional expression
+
+A one-line `if`/`else` keeps a simple choice on one line, and the substitution shows
+which branch the values pick:
+
+```{hc-example}
+t = 18           # mm
+f_y = 355 if t <= 16 else 345
+```
+
 ## Show the comparison
 
 *Asked in {issue}`251`.*

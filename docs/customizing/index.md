@@ -67,10 +67,10 @@ Add your own symbols, function names and operator symbols.
 Change a single renderer object without a subclass.
 :::
 
-:::{grid-item-card} Recipes
-:link: recipes
+:::{grid-item-card} Cookbook
+:link: ../cookbook/index
 :link-type: doc
-Short, tested snippets for common changes.
+Complete, tested recipes for common requests.
 :::
 ::::
 
@@ -86,5 +86,4 @@ html-styling
 latex-markdown-tokens
 symbols-and-functions
 per-instance-handlers
-recipes
 ```
