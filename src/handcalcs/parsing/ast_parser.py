@@ -401,8 +401,15 @@ class AST_Parser:
                     i += 1
                 out.append(ParamsBlock(lines=run))
             else:
-                out.append(self.ast_parse(stmt))
+                parsed = self.ast_parse(stmt)
+                out.append(parsed)
                 i += 1
+                # An inline ``# hc: --pagebreak`` breaks the page after its line.
+                comment = getattr(parsed, "comment", None)
+                if isinstance(comment, InlineCommand) and comment.commands.get(
+                    "page_break"
+                ):
+                    out.append(CommentCommand(commands={"page_break": True}))
         return out
 
     def ast_parse(self, node: ast.AST) -> deque:

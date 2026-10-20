@@ -12,6 +12,7 @@ from handcalcs.renderers.base import (
     OP_PRECEDENCE,
     is_source_number,
     literal_text,
+    PAGE_BREAK,
     math_call_name,
     postfix_factorial,
     receiver_needs_parens,
@@ -358,6 +359,7 @@ class LatexRenderer(BaseRenderer):
     PARAGRAPH = "\\noindent "
     ROW_SEP = " \\\\\n"
     LINE_BREAK = "\\medskip"
+    PAGE_BREAK = "\\newpage"
     CONTINUATION_INDENT = "\\quad"
     BLOCK_OPEN = "\\begin{list}{}{\\setlength{\\leftmargin}{1.5em}}\\item[]"
     BLOCK_CLOSE = "\\end{list}"
@@ -413,6 +415,8 @@ class LatexRenderer(BaseRenderer):
             return []
         context = base_context.current
         if isinstance(item, str):
+            if item == PAGE_BREAK:
+                return [f"{self.PAGE_BREAK}\n\n"]
             if not item.strip():
                 return [f"{self.LINE_BREAK}\n\n"]
             return [f"{self.paragraph(item)}\n\n"]

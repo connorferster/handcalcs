@@ -122,6 +122,15 @@ OP_PRECEDENCE = {
 # column on it. It never reaches the final output.
 CONTINUATION_MARK = "\x00"
 
+# The rendered form of a ``# hc: --pagebreak`` command: a form feed, which is a
+# page break in plain text. Each renderer's join step turns it into its own
+# page break (LaTeX ``\newpage``, a CSS ``break-after`` div, a Word page break).
+PAGE_BREAK = "\f"
+
+# Comment-command options that act once, where they appear, rather than
+# setting the render context for the lines that follow.
+ONE_SHOT_COMMANDS = ("line_break", "params_block", "page_break")
+
 
 def breakable_ops(tree) -> frozenset[int]:
     """
@@ -1214,9 +1223,11 @@ def render_comment_command(
     # unset flags (e.g. an unset -f) and must not clobber the current context.
     line_break = node.commands.get("line_break", False)
     for key, value in node.commands.items():
-        if key in ("line_break", "params_block") or value is None:
+        if key in ONE_SHOT_COMMANDS or value is None:
             continue
         setattr(base_context.global_context, key, value)
+    if node.commands.get("page_break", False):
+        return PAGE_BREAK
     if line_break:
         return f"{nl}"
     return ""

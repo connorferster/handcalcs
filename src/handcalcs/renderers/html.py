@@ -9,6 +9,7 @@ from handcalcs.renderers.base import (
     render_condition,
     infix_binop,
     BaseRenderContext,
+    PAGE_BREAK,
     ROOT_SYMBOLS,
     math_call_name,
     postfix_factorial,
@@ -102,6 +103,8 @@ class HTMLRenderer(BaseRenderer):
     """
 
     name = "html"
+    # A ``# hc: --pagebreak``: the printed page breaks after this empty div.
+    PAGE_BREAK = '<div class="hc-page-break" style="break-after: page;"></div>'
 
     def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
         super().__init__()
@@ -254,6 +257,8 @@ class HTMLRenderer(BaseRenderer):
             return []
         context = base_context.current
         if isinstance(item, str):
+            if item == PAGE_BREAK:
+                return [self.PAGE_BREAK]
             # A one-shot line-break directive is a bare newline; the CSS gap
             # already supplies vertical rhythm, so it emits nothing.
             if not item.strip("\n"):

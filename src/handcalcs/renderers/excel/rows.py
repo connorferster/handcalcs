@@ -67,4 +67,9 @@ class BlankRow:
     """A ``# hc: -b`` line break."""
 
 
-Row = CalcRow | ParamRow | HeadingRow | CommentRow | BlankRow
+@dataclass
+class PageBreakRow:
+    """A ``# hc: --pagebreak``: a printed page starts at the next row."""
+
+
+Row = CalcRow | ParamRow | HeadingRow | CommentRow | BlankRow | PageBreakRow
