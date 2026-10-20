@@ -31,6 +31,7 @@ from handcalcs.renderers.base import (
     is_source_number,
     is_atom,
     literal_text,
+    quantity_power_base,
     receiver_needs_parens,
     render_condition,
 )
@@ -438,7 +439,11 @@ def render_pow_op(renderer: WR, node: PowOp, base_context: BRC) -> str:
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
     base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
-    if base_pre <= OP_PRECEDENCE[PowOp] or renderer.leading_sign(base):
+    if (
+        base_pre <= OP_PRECEDENCE[PowOp]
+        or renderer.leading_sign(base)
+        or quantity_power_base(node, base_context)
+    ):
         base = omml.delim(base)
     return omml.sup(base, exponent)
 

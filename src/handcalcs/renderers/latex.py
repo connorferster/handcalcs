@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
@@ -12,6 +13,8 @@ from handcalcs.renderers.base import (
     OP_PRECEDENCE,
     is_source_number,
     literal_text,
+    pint_default_format,
+    quantity_power_base,
     PAGE_BREAK,
     math_call_name,
     postfix_factorial,
@@ -288,7 +291,36 @@ def latex_identifier(identifier: str, options: IdentifierOptions | None = None) 
     options = options or IdentifierOptions()
     if identifier not in options.symbols and not is_identifier(identifier):
         return identifier
-    return latex_symbol(parse_identifier(identifier, options))
+    return latex_symbol(parse_identifier(spell_accents(identifier), options))
+
+
+# Unicode combining accents and the identifier accent each one spells.
+COMBINING_ACCENTS = {
+    "\u0302": "hat",
+    "\u0304": "bar",
+    "\u0305": "bar",
+    "\u0307": "dot",
+    "\u0308": "ddot",
+}
+
+
+def spell_accents(identifier: str) -> str:
+    """
+    Spell a combining accent in an identifier as its ``_accent`` suffix
+    (``x̄`` -> ``x_bar``, ``ŷ_2`` -> ``y_hat_2``), so it is typeset with an
+    accent command rather than passed to LaTeX as raw Unicode.
+    """
+    if identifier.isascii():
+        return identifier
+    # Decompose precomposed letters (ŷ is one code point) to find the accents.
+    decomposed = unicodedata.normalize("NFD", identifier)
+    if not any(mark in decomposed for mark in COMBINING_ACCENTS):
+        return identifier
+    out = ""
+    for char in decomposed:
+        accent = COMBINING_ACCENTS.get(char)
+        out += f"_{accent}" if accent else char
+    return unicodedata.normalize("NFC", out)
 
 
 # The LaTeX symbol of each operator node type (see ``swap_operator_symbols``).
@@ -810,7 +842,7 @@ def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
     base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
-    if base_pre <= OP_PRECEDENCE[PowOp]:
+    if base_pre <= OP_PRECEDENCE[PowOp] or quantity_power_base(node, base_context):
         base = f"{context.lpar}{base}{context.rpar}"
     else:
         base = _wrap_signed(base, base_context)
@@ -895,7 +927,49 @@ def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
         return f"{real} {sign} {imag}j"
     if isinstance(value, (int, float)):
         return format_latex_number(value, fc)
+    quantity = format_latex_quantity(value, fc)
+    if quantity is not None:
+        return quantity
     return latex_escape(f"{value}")
+
+
+# The number at the start of a formatted quantity ("22.50 kN·m").
+LEADING_NUMBER = re.compile(r"[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?")
+
+
+def format_latex_quantity(value, format_code: str) -> Optional[str]:
+    """
+    A quantity with units in LaTeX, its number formatted with ``format_code``
+    and its units upright (``22.5\\ \\mathrm{kN} \\cdot \\mathrm{m}``), or
+    None for a value that is not a known quantity.
+
+    A pint quantity is formatted with pint's LaTeX format (``L``), abbreviated
+    (``~``) when its registry's default format is. Another object with a
+    ``_repr_latex_`` (a forallpeople Physical) keeps the units of that repr,
+    which ignores the format code, after the number formatted with it.
+    """
+    default_format = pint_default_format(value)
+    if default_format is not None:
+        abbreviate = "~" if "~" in default_format else ""
+        # A unit (ureg.m) has no number to format.
+        number = format_code if hasattr(value, "magnitude") else ""
+        try:
+            return f"{value:{number}{abbreviate}L}"
+        except (ValueError, TypeError):
+            return None
+    repr_latex = getattr(value, "_repr_latex_", None)
+    if not callable(repr_latex):
+        return None
+    try:
+        latex = str(repr_latex()).strip().strip("$")
+        formatted = f"{value:{format_code}}"
+    except (ValueError, TypeError):
+        return None
+    number = LEADING_NUMBER.match(formatted)
+    if number is None or "\\ " not in latex:
+        return None
+    units = latex.split("\\ ", 1)[1]
+    return f"{typeset_latex_number(number.group())}\\ {units}"
 
 
 def join_items(renderer: LR, items: list[str]) -> str:

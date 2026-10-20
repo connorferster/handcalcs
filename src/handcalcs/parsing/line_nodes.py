@@ -97,4 +97,15 @@ class Import(HcLineNode):
     names: deque[str] = field(default_factory=deque)
     import_from_module: Optional[str] = None
     import_from_level: Optional[int] = None
+    comment: Optional[InlineComment | InlineCommand] = None
     type: str = "import"
+
+
+@dataclass
+class IgnoredLine(HcLineNode):
+    """
+    A line hidden by ``# hc: -i`` that has no handling of its own (an import or a
+    bare expression), swapped in by a 'pre' rule; it renders nothing.
+    """
+
+    type: str = "ignored_line"

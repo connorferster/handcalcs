@@ -228,7 +228,7 @@ def test_render_with_inputs_recomputes_results():
     assert "w = 6.2 * kN / m" in out
     assert "L = 8" in out
     assert (
-        "M_f = w * L² / 8 = 6.2 kilonewton / meter * 8 meter² / 8 = 49.6 kilonewton * meter"
+        "M_f = w * L² / 8 = 6.2 kilonewton / meter * (8 meter)² / 8 = 49.6 kilonewton * meter"
         in out
     )
     assert "4.5" not in out

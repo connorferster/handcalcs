@@ -397,3 +397,98 @@ def test_excel_check_rows_are_coloured():
     sheet = openpyxl.load_workbook(io.BytesIO(workbook.to_bytes())).active
     ranges = [str(cf.sqref) for cf in sheet.conditional_formatting]
     assert ranges == ["E2", "E3"]
+
+
+# --- Unicode identifiers in LaTeX (#92, #93) ---
+
+
+@pytest.mark.parametrize(
+    "identifier, expected",
+    [
+        ("λ_2", "\\lambda_{2}"),
+        ("σ_R", "\\sigma_{R}"),
+        ("x̄", "\\bar{x}"),
+        ("ŷ_2", "\\hat{y}_{2}"),
+        ("σ̂", "\\hat{\\sigma}"),
+        ("M_x̄", "M_{\\bar{x}}"),
+    ],
+)
+def test_latex_unicode_identifiers(identifier, expected):
+    from handcalcs.renderers.latex import latex_identifier
+
+    assert latex_identifier(identifier) == expected
+
+
+# --- # hc: -i on imports and bare expressions ---
+
+IGNORED = (
+    "import math  # hc: -i\n"
+    "math.sqrt(4)  # hc: -i\n"
+    "a = 2\n"
+    "# hc: -i\n"
+    "import os\n"
+    "abs(a)\n"
+    "# hc: ignore = False\n"
+    "b = a + 1\n"
+    "abs(b)\n"
+)
+
+
+def test_ignore_hides_imports_and_expressions():
+    out = HandCalcs(PlainTextRenderer())(IGNORED)
+    assert out == "a = 2\nb = a + 1 = 2 + 1 = 3\nabs(b) = abs(3) = 3\n"
+
+
+def test_ignore_hides_imports_in_latex():
+    out = HandCalcs(LatexRenderer())(IGNORED)
+    assert "import" not in out and "sqrt" not in out
+
+
+def test_excel_ignored_import_is_skipped():
+    rows = HandCalcs(ExcelRenderer())("import os  # hc: -i\na = 2\n").rows
+    assert [row.name for row in rows] == ["a"]
+
+
+# --- quantities with units ---
+
+
+def _units(renderer, source, **names):
+    exec(source, names)
+    return HandCalcs(renderer)(source, names)
+
+
+def test_latex_forallpeople_uses_format_code_and_upright_units():
+    si = pytest.importorskip("forallpeople")
+    si.environment("structural", top_level=False)
+    source = "L = 6 * si.m\nw = 5 * si.kN / si.m\nM = w*L**2/8  # hc: -f .2f\n"
+    out = _units(LatexRenderer(), source, si=si)
+    assert "= 22.50\\ \\mathrm{kN} \\cdot \\mathrm{m}" in out
+    assert "\\left(6.00\\ \\mathrm{m}\\right)^{2}" in out
+
+
+@pytest.mark.parametrize(
+    "default_format, latex_units, html_units",
+    [
+        ("~P", "\\mathrm{kN} \\cdot \\mathrm{m}", "kN⋅m"),
+        ("~L", "\\mathrm{kN} \\cdot \\mathrm{m}", "kN⋅m"),
+        ("", "\\mathrm{kilonewton} \\cdot \\mathrm{meter}", "kilonewton * meter"),
+    ],
+)
+def test_pint_units_follow_the_registry_default_format(
+    default_format, latex_units, html_units
+):
+    ureg = pint.UnitRegistry()
+    ureg.formatter.default_format = default_format
+    source = "L = 6 * u.m\nw = 5 * u.kN / u.m\nM = w*L**2/8\n"
+    latex = _units(LatexRenderer(), source, u=ureg)
+    assert f"= 22.5\\ {latex_units}" in latex
+    assert "textbackslash" not in latex
+    html = _units(HTMLRenderer(), source, u=ureg)
+    assert f'<span class="hc-result">22.5 {html_units}</span>' in html
+
+
+def test_quantity_power_base_is_bracketed():
+    ureg = pint.UnitRegistry()
+    ureg.formatter.default_format = "~P"
+    out = _units(PlainTextRenderer(), "L = 6 * u.m\nA = L**2\n", u=ureg)
+    assert "A = L² = (6 m)² = 36 m²" in out
