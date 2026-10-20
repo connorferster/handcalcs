@@ -21,8 +21,11 @@ from handcalcs.parsing.inline_nodes import FunctionCall
 from handcalcs.parsing.operator_nodes import HcBinOp, HcCompOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
     OP_PRECEDENCE,
+    ROOT_SYMBOLS,
     BaseRenderContext,
     infix_binop,
+    math_call_name,
+    postfix_factorial,
     render_constant,
 )
 from handcalcs.renderers.identifiers import (
@@ -145,10 +148,18 @@ def attribute_symbol(renderer, node: Attribute, base_context: BaseRenderContext)
 def function_call_symbol(
     renderer, node: FunctionCall, base_context: BaseRenderContext
 ) -> FunctionCall:
-    """'function_call:pre': drop the module prefix; ``sqrt`` -> ``√``."""
+    """
+    'function_call:pre': drop the module prefix; ``sqrt`` -> ``√``, ``cbrt``
+    -> ``∛`` and ``factorial(n)`` -> ``n!``.
+    """
+    name = math_call_name(node)
+    if name == "":  # already set in its own notation
+        return node
+    if name == "factorial":
+        return postfix_factorial(replace(node), "(", ")")
     function_name = node.function_name
-    if getattr(function_name, "identifier", None) == "sqrt":
-        function_name = Name(identifier="√", value="√")
+    if name in ROOT_SYMBOLS:
+        function_name = Name(identifier=ROOT_SYMBOLS[name], value=ROOT_SYMBOLS[name])
     return replace(
         node, namespace=deque(), function_name=function_name, pre="(", post=")"
     )

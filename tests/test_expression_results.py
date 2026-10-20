@@ -46,7 +46,7 @@ def test_parser_evaluates_pure_expression(source, expected):
 @pytest.mark.parametrize(
     "source",
     [
-        "print(a)\n",  # a side effect: must not run twice
+        "show(a)\n",  # a side effect: must not run twice
         "items.append(a)\n",  # a method call
         "f(a)\n",  # a user function
         "(y := a)\n",  # an assignment expression
@@ -57,7 +57,7 @@ def test_parser_evaluates_pure_expression(source, expected):
 )
 def test_parser_leaves_impure_or_failing_expression_unevaluated(source):
     calls = []
-    names = {"a": 2, "items": [], "f": calls.append, "print": calls.append}
+    names = {"a": 2, "items": [], "f": calls.append, "show": calls.append}
     assert isinstance(_value(source, names), NoValue)
     assert calls == [] and names["items"] == []
 
@@ -73,8 +73,8 @@ def test_plaintext_expression_results():
 
 
 def test_impure_expression_has_no_result():
-    out = _render(PlainTextRenderer(), "a = 2\nprint(a)\n")
-    assert out.splitlines()[-1] == "print(a) = print(2)"
+    out = _render(PlainTextRenderer(), "a = 2\nitems = []\nitems.append(a)\n")
+    assert out.splitlines()[-1] == "items.append(a) = items.append(2)"
 
 
 def test_expression_inline_comment_and_format_command():

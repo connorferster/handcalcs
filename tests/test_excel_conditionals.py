@@ -138,7 +138,7 @@ def test_boolean_tests():
 @pytest.mark.parametrize("body, match", [
     ("    a = 1\n    a = 2\n", "more than once"),
     ("    for i in range(2):\n        a = i\n", "for loops|has no Excel equivalent"),
-    ("    print(1)\n", "has no Excel equivalent"),
+    ("    abs(g)\n", "has no Excel equivalent"),
     ("    a, b = 1, 2\n", "single-name"),
 ])
 def test_incompatible_branches_raise(body, match):

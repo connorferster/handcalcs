@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 import pathlib
 from collections import deque
 from dataclasses import dataclass
@@ -321,6 +322,10 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                     cached = unit.magnitude if unit is not None else value
             else:
                 value = cached = literal
+            if isinstance(cached, float) and not math.isfinite(cached):
+                raise incompatible(
+                    f"Excel has no number for {cached!r} (infinity or NaN)", node
+                )
         except ExcelRendererIncompatibleError as error:
             raise error.with_target(identifier) from None
 

@@ -27,7 +27,7 @@ from typing import Any, Callable, Optional
 
 from handcalcs.parsing.nodes import Attribute, Constant, Name
 from handcalcs.parsing.null_values import NoValue
-from handcalcs.parsing.inline_nodes import Compare, FunctionCall, Keyword
+from handcalcs.parsing.inline_nodes import Compare, FunctionCall, IfExp, Keyword
 from handcalcs.parsing.operator_nodes import (
     AddOp,
     AndOp,
@@ -131,6 +131,11 @@ def _hypot(args: list[str]) -> Formula:
     return Formula(f"SQRT(SUMSQ({','.join(args)}))")
 
 
+def _cbrt(args: list[str]) -> Formula:
+    # x^(1/3) is #NUM! for a negative x in Excel; math.cbrt is not.
+    return Formula(f"SIGN({args[0]})*ABS({args[0]})^(1/3)", MULTIPLICATIVE)
+
+
 def _round(args: list[str]) -> Formula:
     digits = args[1] if len(args) == 2 else "0"
     return Formula(f"ROUND({args[0]},{digits})")
@@ -165,6 +170,7 @@ DEFAULT_FUNCTIONS: dict[Any, ExcelFunction] = {
     math.trunc: _simple("TRUNC"),
     math.log10: _simple("LOG10"),
     math.factorial: _simple("FACT"),
+    math.cbrt: ExcelFunction("CBRT", (1,), build=_cbrt),
     math.log: ExcelFunction("LOG", (1, 2), build=_log),
     math.atan2: ExcelFunction("ATAN2", (2,), build=_atan2),
     math.pow: _simple("POWER", 2),
@@ -213,15 +219,21 @@ def resolve_function(node: FunctionCall, global_ns: dict) -> tuple[Any, str]:
     """
     function_name = node.function_name
     identifier = getattr(function_name, "identifier", str(function_name))
+    if node.namespace and not isinstance(node.namespace, Name):
+        # A method of an expression, (a * b).to("mm"): not a known function.
+        return None, f"(...).{identifier}"
     namespace = getattr(node.namespace, "identifier", "") or ""
     display = f"{namespace}.{identifier}" if namespace else identifier
     missing = object()
     if namespace:
-        module = global_ns.get(namespace, missing)
+        first, *rest = namespace.split(".")
+        module = global_ns.get(first, missing)
         if module is missing:
             if namespace == "math":
                 return getattr(math, identifier, None), display
             return None, display
+        for attr in rest:  # a dotted namespace, e.g. np.linalg
+            module = getattr(module, attr, None)
         return getattr(module, identifier, None), display
     obj = global_ns.get(identifier, missing)
     if obj is missing:
@@ -298,7 +310,7 @@ class FormulaBuilder:
         if isinstance(node, NoValue):
             raise incompatible(
                 "the expression uses Python syntax handcalcs does not parse "
-                "(e.g. a conditional expression or a lambda)",
+                "(e.g. a lambda or a subscript)",
                 node,
             )
         if isinstance(node, Constant):
@@ -325,6 +337,11 @@ class FormulaBuilder:
             return Formula(f"{function}({args})")
         if isinstance(node, FunctionCall):
             return self.function_call(node)
+        if isinstance(node, IfExp):
+            test = self.translate(node.test).text
+            body = self.translate(node.body).text
+            orelse = self.translate(node.orelse).text
+            return Formula(f"IF({test},{body},{orelse})")
         node_type = getattr(node, "type", type(node).__name__)
         raise incompatible(f"'{node_type}' has no Excel formula equivalent", node)
 
