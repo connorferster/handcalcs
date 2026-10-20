@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
@@ -288,7 +289,36 @@ def latex_identifier(identifier: str, options: IdentifierOptions | None = None) 
     options = options or IdentifierOptions()
     if identifier not in options.symbols and not is_identifier(identifier):
         return identifier
-    return latex_symbol(parse_identifier(identifier, options))
+    return latex_symbol(parse_identifier(spell_accents(identifier), options))
+
+
+# Unicode combining accents and the identifier accent each one spells.
+COMBINING_ACCENTS = {
+    "\u0302": "hat",
+    "\u0304": "bar",
+    "\u0305": "bar",
+    "\u0307": "dot",
+    "\u0308": "ddot",
+}
+
+
+def spell_accents(identifier: str) -> str:
+    """
+    Spell a combining accent in an identifier as its ``_accent`` suffix
+    (``x̄`` -> ``x_bar``, ``ŷ_2`` -> ``y_hat_2``), so it is typeset with an
+    accent command rather than passed to LaTeX as raw Unicode.
+    """
+    if identifier.isascii():
+        return identifier
+    # Decompose precomposed letters (ŷ is one code point) to find the accents.
+    decomposed = unicodedata.normalize("NFD", identifier)
+    if not any(mark in decomposed for mark in COMBINING_ACCENTS):
+        return identifier
+    out = ""
+    for char in decomposed:
+        accent = COMBINING_ACCENTS.get(char)
+        out += f"_{accent}" if accent else char
+    return unicodedata.normalize("NFC", out)
 
 
 # The LaTeX symbol of each operator node type (see ``swap_operator_symbols``).

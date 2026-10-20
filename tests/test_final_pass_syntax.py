@@ -397,3 +397,23 @@ def test_excel_check_rows_are_coloured():
     sheet = openpyxl.load_workbook(io.BytesIO(workbook.to_bytes())).active
     ranges = [str(cf.sqref) for cf in sheet.conditional_formatting]
     assert ranges == ["E2", "E3"]
+
+
+# --- Unicode identifiers in LaTeX (#92, #93) ---
+
+
+@pytest.mark.parametrize(
+    "identifier, expected",
+    [
+        ("λ_2", "\\lambda_{2}"),
+        ("σ_R", "\\sigma_{R}"),
+        ("x̄", "\\bar{x}"),
+        ("ŷ_2", "\\hat{y}_{2}"),
+        ("σ̂", "\\hat{\\sigma}"),
+        ("M_x̄", "M_{\\bar{x}}"),
+    ],
+)
+def test_latex_unicode_identifiers(identifier, expected):
+    from handcalcs.renderers.latex import latex_identifier
+
+    assert latex_identifier(identifier) == expected
