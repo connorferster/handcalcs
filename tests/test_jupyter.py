@@ -3,6 +3,7 @@ Tests for the Jupyter interface (``%%render``, ``%render`` and ``%hc_default_ren
 a real IPython ``InteractiveShell``. The interface registers its magics on the
 active shell at import, so the module is imported after the shell is created.
 """
+
 import importlib
 import sys
 
@@ -16,6 +17,7 @@ from handcalcs import config
 from handcalcs.renderers import LatexRenderer, MarkdownRenderer
 
 CELL = "a = 2\nb = 3\nif a < b:\n    c = a + b\n"
+INPUT_CELL = "a = 2\nb = 3\nc = a + b\n"
 
 
 @pytest.fixture(scope="module")
@@ -146,3 +148,67 @@ def test_bare_expression_shows_its_result(shell):
     )
     _, outputs = run_cell(ip, "a = 2\n%render a * 3\n")
     assert "a \\cdot 3 &= 2 \\cdot 3 = 6" in outputs[0]["text/markdown"]
+
+
+def render_cell_with(shell, line: str, cell: str) -> dict:
+    """Run ``%%render <line>`` on a cell and return the data of its one display output."""
+    with capture_output() as captured:
+        shell.run_cell_magic("render", line, cell)
+    assert len(captured.outputs) == 1
+    return captured.outputs[0].data
+
+
+def test_render_with_inputs(shell):
+    ip, _ = shell
+    ip.user_ns["case"] = {"a": 7}
+    markdown = render_cell_with(ip, "inputs=case", INPUT_CELL)["text/markdown"]
+    assert "a &= 7" in markdown
+    assert "c &= a + b = 7 + 3 = 10" in markdown
+    assert ip.user_ns["c"] == 10
+
+
+def test_render_with_inputs_expression_and_options(shell):
+    ip, _ = shell
+    ip.user_ns["cases"] = [{"a": 1}, {"a": 4, "unused": 0}]
+    markdown = render_cell_with(ip, "inputs=cases[1], strict=False", INPUT_CELL)[
+        "text/markdown"
+    ]
+    assert "c &= a + b = 4 + 3 = 7" in markdown
+    markdown = render_cell_with(
+        ip, "inputs={'b': 5}, allow_computed=True", "a = 2\nb = a * 3\nc = a + b\n"
+    )["text/markdown"]
+    assert "c &= a + b = 2 + 5 = 7" in markdown
+
+
+def test_render_with_quantity_input(shell):
+    ip, _ = shell
+    pint = pytest.importorskip("pint")
+    ip.user_ns["case"] = {"L": pint.UnitRegistry().Quantity(8000, "mm")}
+    cell = "import pint\nureg = pint.UnitRegistry()\nm = ureg.m\nL = 6 * m\nA = L**2\n"
+    markdown = render_cell_with(ip, "inputs=case", cell)["text/markdown"]
+    assert "L &= 8" in markdown
+    assert ip.user_ns["A"].magnitude == 64
+    assert "__hc_input__" not in ip.user_ns
+
+
+def test_render_with_inputs_errors(shell):
+    ip, jupyter = shell
+    ip.user_ns["case"] = {"z": 1}
+    with pytest.raises(KeyError, match="'z'"):
+        ip.run_cell_magic("render", "inputs=case", CELL)
+    with pytest.raises(jupyter.UsageError, match="does not take 'input'"):
+        ip.run_cell_magic("render", "input=case", CELL)
+    with pytest.raises(jupyter.UsageError, match="needs inputs="):
+        ip.run_cell_magic("render", "strict=False", CELL)
+    with pytest.raises(jupyter.UsageError, match="must be a dict"):
+        ip.run_cell_magic("render", "inputs=[1]", CELL)
+    with pytest.raises(jupyter.UsageError, match="keyword arguments"):
+        ip.run_cell_magic("render", "inputs=case strict=False", CELL)
+
+
+def test_render_ignores_words_without_arguments(shell):
+    # v1 options such as `%%render params` are ignored, as before.
+    ip, _ = shell
+    with capture_output() as captured:
+        ip.run_cell_magic("render", "params", CELL)
+    assert "c &= a + b" in captured.outputs[0].data["text/markdown"]
