@@ -17,8 +17,10 @@ M = w * L**2 / 8
 ```
 
 The return value is whatever the renderer produces: a string for the Markdown, LaTeX,
-HTML and ASCII renderers, a workbook for the Excel renderer, a nested list for the
-base renderer. One `HandCalcs` object can be called any number of times.
+HTML and ASCII renderers, a document for the Word renderer, a workbook for the Excel
+renderer, a nested list for the base renderer. Pass `destination=` to
+[write a file](#writing-a-file) instead. One `HandCalcs` object can be called any
+number of times.
 
 ## Creating it
 
@@ -31,7 +33,7 @@ The global configuration is copied when the object is created, so set options fi
 
 ## Calling it
 
-`hc(source_or_path, supplied_globals=None, supplied_locals=None, *, inputs=None, strict=True, allow_computed=False)`
+`hc(source_or_path, supplied_globals=None, supplied_locals=None, *, inputs=None, strict=True, allow_computed=False, destination=None)`
 
 `source_or_path`
 : Either a **string of Python source**, or a **`pathlib.Path`** to a `.py` file.
@@ -68,6 +70,58 @@ decide which branch to show, so a missing name raises `NameError`.
 : Render the source with different given values. See
   [Rendering many input sets](#rendering-many-input-sets). `inputs` cannot be combined
   with `supplied_globals`.
+
+`destination`
+: A file path (a string or a `pathlib.Path`). If given, the render is written to that
+  file and its `Path` is returned instead of the render. See
+  [Writing a file](#writing-a-file).
+
+## Writing a file
+
+Give a `destination` and handcalcs writes a file that is ready to open:
+
+```python
+import pathlib
+from handcalcs import HandCalcs
+from handcalcs.renderers import LatexRenderer, HTMLRenderer, WordRenderer
+
+calc = pathlib.Path("calcs/beam.py")
+HandCalcs(LatexRenderer())(calc, destination="report/beam.tex")
+HandCalcs(HTMLRenderer())(calc, destination="report/beam.html")
+HandCalcs(WordRenderer())(calc, destination="report/beam.docx")
+```
+
+| Renderer | The file |
+|---|---|
+| LaTeX | A complete document: `\documentclass{article}`, the packages the output needs (`amsmath`, `amssymb`, `xcolor`), then the calculation between `\begin{document}` and `\end{document}`. It compiles with `pdflatex` as it is. |
+| HTML | A complete page: `<!DOCTYPE html>`, a `<head>` with the character set and a title, and the calculation in the `<body>`. |
+| Markdown, ASCII | The output as it is: neither format needs anything around it. |
+| Word, Excel | The `.docx` or `.xlsx` file, saved. |
+
+Text is written as UTF-8. The parent folder must already exist, and an existing file is
+replaced.
+
+Without a `destination`, the LaTeX and HTML renderers return a **fragment**, ready to
+`\input` into your own document or insert into your own page. Use that when the
+calculation is one part of a larger document.
+
+The text before and after the output comes from the renderer's `preamble` and
+`postamble` attributes. Set them on a renderer to use your own document class or page
+template:
+
+```python
+renderer = LatexRenderer()
+renderer.preamble = (
+    "\\documentclass{report}\n"
+    "\\usepackage{amsmath,amssymb,xcolor}\n"
+    "\\begin{document}\n"
+)
+HandCalcs(renderer)(calc, destination="report/beam.tex")
+```
+
+The renderer's `to_file()` method does the writing; see
+{ref}`Overridable methods <to-file>` to change it
+in your own renderer.
 
 ### Inspecting the parsed tree
 
@@ -166,20 +220,21 @@ find_inputs(pathlib.Path("beam.py"))  # {'w': 5, 'L': 6}
 
 ## The demo
 
-`hc.demo()` renders a built-in example calculation (headings, prose, parameter grids,
+`hc.demo(destination=None)` renders a built-in example calculation (headings, prose, parameter grids,
 long equations and nested conditionals) with the object's renderer:
 
 ```python
 print(HandCalcs(ASCIIRenderer()).demo())
 ```
 
-It is a quick way to compare renderers, or to check a renderer you are writing. A
+It is a quick way to compare renderers, or to check a renderer you are writing; with a
+`destination`, it writes the demo to a file as above. A
 renderer that cannot render the general demo can supply its own source in a
 `demo_source` attribute (the Excel renderer does).
 
 ## Examples
 
-### Write a LaTeX file
+### Write a LaTeX fragment for `\input`
 
 ```python
 import pathlib
@@ -190,8 +245,8 @@ body = HandCalcs(LatexRenderer())(pathlib.Path("calcs/beam.py"))
 pathlib.Path("report/beam.tex").write_text(body)
 ```
 
-The output is a fragment for the body of a document; see
-[the LaTeX renderer](../renderers/latex.md) for the packages it needs.
+Without `destination=`, the output is a fragment for the body of your own document; see
+[the LaTeX renderer](../renderers/latex.md#using-the-output) for the packages it needs.
 
 ### Serve HTML from a web app
 

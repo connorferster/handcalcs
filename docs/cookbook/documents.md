@@ -8,7 +8,7 @@ Quarto report, with equation numbers, a title block and your colors.
 *Asked in {issue}`177`, {issue}`138`, {issue}`128` and {issue}`203`.*
 
 You don't need Jupyter or a notebook export. `HandCalcs` renders a `.py` file (or a
-string) with any renderer, and the result is a string you can save:
+string) with any renderer, and `destination=` writes the result to a file:
 
 ```python
 import pathlib
@@ -16,22 +16,33 @@ from handcalcs import HandCalcs
 from handcalcs.renderers import LatexRenderer, HTMLRenderer, MarkdownRenderer
 
 calc = pathlib.Path("calcs/beam.py")
-pathlib.Path("report/beam.tex").write_text(HandCalcs(LatexRenderer())(calc))
-pathlib.Path("report/beam.html").write_text(HandCalcs(HTMLRenderer())(calc))
-pathlib.Path("report/beam.md").write_text(HandCalcs(MarkdownRenderer())(calc))
+HandCalcs(LatexRenderer())(calc, destination="report/beam.tex")
+HandCalcs(HTMLRenderer())(calc, destination="report/beam.html")
+HandCalcs(MarkdownRenderer())(calc, destination="report/beam.md")
 ```
 
-The HTML output is self-contained: it needs no MathJax or other JavaScript.
-See [Python: `HandCalcs`](../interfaces/object-oriented.md).
+The `.tex` file is a complete document that compiles with `pdflatex`, and the `.html`
+file is a complete page that needs no MathJax or other JavaScript.
+See [Writing a file](../interfaces/object-oriented.md#writing-a-file).
 
 ## A PDF through LaTeX
 
-Write the LaTeX output to a file and `\input` it into your report. It needs only the
-`amsmath` package:
+For a PDF of one calculation, write it with `destination="beam.tex"` (above) and run
+`pdflatex beam.tex`.
+
+To put calculations into a larger report, render each one **without** a destination,
+save the fragment, and `\input` it. The fragments need `amsmath`, plus `amssymb` and
+`xcolor` for [`--check`](checks.md) marks:
+
+```python
+pathlib.Path("report/beam.tex").write_text(HandCalcs(LatexRenderer())(calc))
+```
 
 ```latex
 \documentclass{article}
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
 \begin{document}
 \input{beam.tex}
 \end{document}
@@ -50,7 +61,7 @@ import pathlib
 from handcalcs import HandCalcs
 from handcalcs.renderers import WordRenderer
 
-HandCalcs(WordRenderer(filepath="beam.docx"))(pathlib.Path("calcs/beam.py"))
+HandCalcs(WordRenderer())(pathlib.Path("calcs/beam.py"), destination="beam.docx")
 ```
 
 Install it with `pip install "handcalcs[word]"`. It can add to an existing document

@@ -10,6 +10,9 @@ A rewrite of handcalcs around a node tree and pluggable renderers.
   headings and calc lines aligned on `=`. It replaces the 2.0 pre-release
   `PlainTextRenderer` (`plain_text`), which has no alias.
 - **`HandCalcs` interface** for rendering source strings and files from Python.
+  `destination=` writes the render to a file ready to open: a complete LaTeX
+  document or HTML page (the renderer's `preamble` and `postamble`), or the saved
+  `.docx` or `.xlsx` ([details](../interfaces/object-oriented.md#writing-a-file)).
 - **`# hc:` comment commands**, per line or per section, replacing the v1 cell override
   tags.
 - **Headings, prose and Jinja templating** in comments.

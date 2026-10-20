@@ -27,17 +27,18 @@ a = 2; b = -7; c_0 = 3
 x_1 = (-b + sqrt(b**2 - 4*a*c_0)) / (2*a)  # larger root
 '''
 
-document = HandCalcs(renderer=WordRenderer(filepath="quadratic.docx"))(source)
+HandCalcs(WordRenderer())(source, destination="quadratic.docx")
 ```
 
-The renderer returns a python-docx
-[`Document`](https://python-docx.readthedocs.io/en/latest/api/document.html). With
-`filepath=`, every render is also saved there; without it, call `document.save(path)`
-yourself, or keep adding to the document with python-docx first.
+With `destination=`, the document is saved there and its `Path` is returned. Without it,
+the renderer returns a python-docx
+[`Document`](https://python-docx.readthedocs.io/en/latest/api/document.html): call
+`document.save(path)` yourself, or keep adding to it with python-docx first. The
+renderer's `filepath=` option saves every render it makes, wherever it is called from.
 
 This works from a plain `.py` script or any Python program, with no Jupyter or export
 step. Pass a `pathlib.Path` to render a whole file:
-`HandCalcs(WordRenderer(filepath="calc.docx"))(Path("calc.py"))`.
+`HandCalcs(WordRenderer())(Path("calc.py"), destination="calc.docx")`.
 
 ## Layout
 
