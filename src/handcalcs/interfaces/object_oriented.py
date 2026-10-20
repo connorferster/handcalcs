@@ -2,6 +2,7 @@ import pathlib
 import warnings
 from typing import Optional
 from ..parsing.sequence import HcSequence
+from ..parsing.inputs import bind_inputs
 from ..renderers import BaseRenderer, get_renderer
 from ..renderers import demo
 from .. import config
@@ -46,6 +47,10 @@ class HandCalcs:
         source_or_path: str | pathlib.Path,
         supplied_globals: Optional[dict] = None,
         supplied_locals: Optional[dict] = None,
+        *,
+        inputs: Optional[dict] = None,
+        strict: bool = True,
+        allow_computed: bool = False,
     ) -> str:
         """
         Parses the data from 'filepath' and creates a HandCalcs object.
@@ -53,8 +58,24 @@ class HandCalcs:
         If 'supplied_globals' and 'supplied_locals' are each None, then the source code will be executed to
         create the globals and locals dicts. If either dictionary are supplied, code execution will not occur.
         Empty dictionaries are acceptable but will produce numerical substitutions of 'NoValue()'.
+
+        'inputs' maps names to values that replace the values the source assigns them
+        (see handcalcs.parsing.inputs.bind_inputs, which also describes 'strict' and
+        'allow_computed'); the source is then executed with them. A number replaces only
+        the number of a value with units, so 'L = 6 * m' with inputs={"L": 8} renders
+        and runs as 'L = 8 * m'.
         """
         source = self.__read(source_or_path)
+        if inputs is not None:
+            if supplied_globals is not None:
+                raise TypeError(
+                    "'inputs' cannot be combined with 'supplied_globals': a supplied "
+                    "namespace is used without executing the source, and inputs only "
+                    "take effect when it is executed."
+                )
+            source = bind_inputs(
+                source, inputs, strict=strict, allow_computed=allow_computed
+            )
         passed_globals = supplied_globals
         if supplied_globals is None:
             passed_globals = self.__evaluate(source)
@@ -96,7 +117,7 @@ class HandCalcs:
         supplied_locals: Optional[dict] = None,
     ):
         if isinstance(source_or_path, pathlib.Path):
-            with open(source_or_path, "r") as file:
+            with open(source_or_path, "r", encoding="utf-8") as file:
                 source = file.read()
         elif isinstance(source_or_path, str):
             source = source_or_path
