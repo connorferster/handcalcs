@@ -186,8 +186,8 @@ with the other sessions: features/final_pass → features/ascii_renderer → thi
 | final_pass handoffs 1-3 | done | IfExp, `.to()` on expressions, cbrt/factorial/inf, print skip, `--pagebreak`, `--check` |
 | final_pass #54 via `_` | done | handoff 4; render_cell documented |
 | More live examples | done | formatting-numbers, comment-commands, migration guide, a fuller example per renderer page |
-| Units bugs (reported to final-pass agent) | waiting | fap/pint formatting in LaTeX/Markdown/HTML; then make cookbook/units.md examples live |
-| `-i` on import/expr lines (reported) | waiting | docs currently say it doesn't hide them |
+| Units bugs (reported to final-pass agent) | done | handoff 5; cookbook/units.md examples now live | fap/pint formatting in LaTeX/Markdown/HTML; then make cookbook/units.md examples live |
+| `-i` on import/expr lines (reported) | done | handoff 5 |
 | ASCIIRenderer rename (handcalcs-7f, PR #309) | waiting | no aliases; merge hc2/dev with `-X find-renames=40%`; rename PlainTextRenderer/plain_text across docs; plain-text.md → ascii.md |
 | PR into hc2/dev | todo | after the two feature PRs merge |
 
