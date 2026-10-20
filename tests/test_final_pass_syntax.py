@@ -16,7 +16,7 @@ from handcalcs.renderers.excel import ExcelRenderer
 from handcalcs.renderers.excel.rows import CalcRow
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
-from handcalcs.renderers.plaintext import PlainTextRenderer
+from handcalcs.renderers.ascii import ASCIIRenderer
 
 
 def _render(renderer, source):
@@ -45,18 +45,18 @@ def test_if_exp_test_that_cannot_be_evaluated():
 
 
 def test_plaintext_if_exp():
-    out = _last_line(PlainTextRenderer(), "a = 1\nb = 2 if a > 0 else 3\n")
+    out = _last_line(ASCIIRenderer(), "a = 1\nb = 2 if a > 0 else 3\n")
     assert out == "b = 2 if a>0 else 3 = 2 if 1>0 else 3 = 2"
 
 
 def test_if_exp_is_parenthesized_as_an_operand():
-    out = _last_line(PlainTextRenderer(), "a = 1\nb = 3 * (2 if a > 0 else 3)\n")
+    out = _last_line(ASCIIRenderer(), "a = 1\nb = 3 * (2 if a > 0 else 3)\n")
     assert out.startswith("b = 3 * (2 if a>0 else 3)")
 
 
 def test_chained_if_exp_needs_no_parentheses():
     out = _last_line(
-        PlainTextRenderer(), "a = 1\nb = 1 if a > 2 else 2 if a > 0 else 3\n"
+        ASCIIRenderer(), "a = 1\nb = 1 if a > 2 else 2 if a > 0 else 3\n"
     )
     assert out.startswith("b = 1 if a>2 else 2 if a>0 else 3 =")
     assert out.endswith("= 2")
@@ -109,7 +109,7 @@ SOURCE_TO = (
 
 
 def test_plaintext_method_on_expression():
-    out = _last_line(PlainTextRenderer(), SOURCE_TO)
+    out = _last_line(ASCIIRenderer(), SOURCE_TO)
     assert out == "b = (a * 3).to(mm) = (2 meter * 3).to(mm) = 6000 millimeter"
 
 
@@ -128,7 +128,7 @@ def test_numpy_dotted_namespace_renders():
     source = "import numpy as np\nx = np.array([3.0, 4.0])\nn = np.linalg.norm(x)\n"
     out = _render(LatexRenderer(), source)
     assert "\\mathrm{np}.\\mathrm{linalg}.\\mathrm{norm}\\left(x\\right)" in out
-    assert _last_line(PlainTextRenderer(), source).endswith("= 5")
+    assert _last_line(ASCIIRenderer(), source).endswith("= 5")
 
 
 def test_excel_method_on_expression_is_incompatible():
@@ -144,7 +144,7 @@ def test_excel_method_on_expression_is_incompatible():
 
 def test_print_statements_are_skipped():
     source = "J = 2\nprint(J)\nif J > 1:\n    print(f'ok {J}')\n    k = J + 1\n"
-    out = _render(PlainTextRenderer(), source)
+    out = _render(ASCIIRenderer(), source)
     assert "print" not in out
     assert "k = J + 1 = 2 + 1 = 3" in out
 
@@ -168,7 +168,7 @@ def test_latex_set_comprehension_braces_are_escaped():
 
 
 def test_plaintext_comprehension_unchanged():
-    out = _last_line(PlainTextRenderer(), "ts = [1, 2]\nsq = [t**2 for t in ts]\n")
+    out = _last_line(ASCIIRenderer(), "ts = [1, 2]\nsq = [t**2 for t in ts]\n")
     assert out == "sq = [t² for t in ts] = [1, 4]"
 
 
@@ -185,7 +185,7 @@ def test_numpy_arrays_render_without_truth_value_error():
         "if d > 3:\n"
         "    h = c + a\n"
     )
-    out = _render(PlainTextRenderer(), source)
+    out = _render(ASCIIRenderer(), source)
     assert "c = a * 2 = [1 2 3] * 2 = [2 4 6]" in out
     assert "h = c + a = [2 4 6] + [1 2 3] = [3 6 9]" in out
 
@@ -194,7 +194,7 @@ def test_matrix_multiplication():
     pytest.importorskip("numpy")
     source = "import numpy as np\na = np.array([1.0, 2.0])\nf = a @ a\n"
     assert (
-        _last_line(PlainTextRenderer(), source) == "f = a @ a = [1. 2.] @ [1. 2.] = 5"
+        _last_line(ASCIIRenderer(), source) == "f = a @ a = [1. 2.] @ [1. 2.] = 5"
     )
     assert "f &= a \\mathbin{@} a" in _render(LatexRenderer(), source)
 
@@ -216,7 +216,7 @@ FUNCTIONS = (
 
 
 def test_plaintext_cbrt_factorial_infinity():
-    out = _render(PlainTextRenderer(), FUNCTIONS)
+    out = _render(ASCIIRenderer(), FUNCTIONS)
     assert "y = ∛(x) = ∛(27) = 3" in out
     assert "f = n! = 4! = 24" in out
     assert "g = (n + 1)! / n! = (4 + 1)! / 4! = 5" in out
@@ -278,7 +278,7 @@ def test_method_named_factorial_is_not_swapped():
 
     source = "obj = 1\n"
     names = {"obj": types.SimpleNamespace(factorial=lambda n: n)}
-    out = HandCalcs(PlainTextRenderer())("y = obj.factorial(3)\n", names | {"y": 3})
+    out = HandCalcs(ASCIIRenderer())("y = obj.factorial(3)\n", names | {"y": 3})
     assert "obj.factorial(3)" in out
 
 
@@ -297,7 +297,7 @@ def test_pagebreak_command_parses():
 
 
 def test_plaintext_pagebreak_is_a_form_feed():
-    out = HandCalcs(PlainTextRenderer())(PAGE_BREAKS)
+    out = HandCalcs(ASCIIRenderer())(PAGE_BREAKS)
     assert out == "a = 1\n\f\nb = 2\n\f\nc = 3\n"
 
 
@@ -331,7 +331,7 @@ def test_excel_pagebreak():
 
 
 def test_pagebreak_does_not_persist():
-    out = HandCalcs(PlainTextRenderer())("# hc: --pagebreak\na = 1\nb = 2\n")
+    out = HandCalcs(ASCIIRenderer())("# hc: --pagebreak\na = 1\nb = 2\n")
     assert out.count("\f") == 1
 
 
@@ -346,25 +346,26 @@ CHECKS = (
 
 
 def test_plaintext_check_marks():
-    out = _render(PlainTextRenderer(), CHECKS).splitlines()
+    # Stripped: a text renderer may pad lines to align them on "=".
+    out = [line.strip() for line in _render(ASCIIRenderer(), CHECKS).splitlines()]
     assert out[1] == "ok = DoU<=1 = 0.85<=1 ✓"
     assert out[2] == "fail = DoU>1 = 0.85>1 ✗"
     assert out[3] == "plain = DoU>1 = 0.85>1 = False"
 
 
 def test_check_on_a_bare_comparison():
-    out = _last_line(PlainTextRenderer(), "S = 1.2\nS <= 1.5  # hc: --check\n")
+    out = _last_line(ASCIIRenderer(), "S = 1.2\nS <= 1.5  # hc: --check\n")
     assert out == "S<=1.5 = 1.2<=1.5 ✓"
 
 
 def test_standalone_check_applies_to_following_lines():
-    out = _render(PlainTextRenderer(), "a = 2\n# hc: --check\nb = a > 1\nc = a + 1\n")
+    out = _render(ASCIIRenderer(), "a = 2\n# hc: --check\nb = a > 1\nc = a + 1\n")
     assert "b = a>1 = 2>1 ✓" in out
     assert "c = a + 1 = 2 + 1 = 3" in out  # not a boolean: unchanged
 
 
 def test_check_with_kwarg_syntax():
-    out = _last_line(PlainTextRenderer(), "a = 2\nb = a > 1  # hc: check = True\n")
+    out = _last_line(ASCIIRenderer(), "a = 2\nb = a > 1  # hc: check = True\n")
     assert out == "b = a>1 = 2>1 ✓"
 
 
@@ -435,8 +436,12 @@ IGNORED = (
 
 
 def test_ignore_hides_imports_and_expressions():
-    out = HandCalcs(PlainTextRenderer())(IGNORED)
-    assert out == "a = 2\nb = a + 1 = 2 + 1 = 3\nabs(b) = abs(3) = 3\n"
+    out = HandCalcs(ASCIIRenderer())(IGNORED)
+    assert [line.strip() for line in out.splitlines()] == [
+        "a = 2",
+        "b = a + 1 = 2 + 1 = 3",
+        "abs(b) = abs(3) = 3",
+    ]
 
 
 def test_ignore_hides_imports_in_latex():
@@ -490,5 +495,5 @@ def test_pint_units_follow_the_registry_default_format(
 def test_quantity_power_base_is_bracketed():
     ureg = pint.UnitRegistry()
     ureg.formatter.default_format = "~P"
-    out = _units(PlainTextRenderer(), "L = 6 * u.m\nA = L**2\n", u=ureg)
+    out = _units(ASCIIRenderer(), "L = 6 * u.m\nA = L**2\n", u=ureg)
     assert "A = L² = (6 m)² = 36 m²" in out

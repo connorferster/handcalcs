@@ -11,7 +11,7 @@ import pint
 
 import pytest
 
-from handcalcs import HandCalcs, PlainTextRenderer, find_inputs
+from handcalcs import HandCalcs, ASCIIRenderer, find_inputs
 from handcalcs.parsing.inputs import RESOLVER, InputBinding, bind_inputs
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
@@ -211,7 +211,7 @@ BEAM = UNITS + (
 
 
 @pytest.mark.parametrize(
-    "renderer", [PlainTextRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
+    "renderer", [ASCIIRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
 )
 def test_render_with_inputs_matches_edited_source(renderer):
     # Rendering with inputs is the same as rendering the script with the numbers
@@ -224,7 +224,7 @@ def test_render_with_inputs_matches_edited_source(renderer):
 
 
 def test_render_with_inputs_recomputes_results():
-    out = HandCalcs(PlainTextRenderer())(BEAM, inputs={"w": 6.2, "L": 8})
+    out = HandCalcs(ASCIIRenderer())(BEAM, inputs={"w": 6.2, "L": 8})
     assert "w = 6.2 * kN / m" in out
     assert "L = 8" in out
     assert (
@@ -237,7 +237,7 @@ def test_render_with_inputs_recomputes_results():
 def test_render_with_inputs_from_path(tmp_path):
     path = tmp_path / "beam.py"
     path.write_text(BEAM, encoding="utf-8")
-    hc = HandCalcs(PlainTextRenderer())
+    hc = HandCalcs(ASCIIRenderer())
     assert without_addresses(hc(pathlib.Path(path), inputs={"L": 8})) == (
         without_addresses(hc(BEAM, inputs={"L": 8}))
     )
@@ -245,11 +245,11 @@ def test_render_with_inputs_from_path(tmp_path):
 
 def test_render_inputs_with_supplied_globals_raises():
     with pytest.raises(TypeError, match="supplied_globals"):
-        HandCalcs(PlainTextRenderer())("a = 1\n", {"a": 1}, inputs={"a": 2})
+        HandCalcs(ASCIIRenderer())("a = 1\n", {"a": 1}, inputs={"a": 2})
 
 
 def test_render_strict_and_allow_computed_pass_through():
-    hc = HandCalcs(PlainTextRenderer())
+    hc = HandCalcs(ASCIIRenderer())
     out = hc(
         "a = 1\nb = 2 * a\n", inputs={"b": 5, "q": 0}, strict=False, allow_computed=True
     )
@@ -297,7 +297,7 @@ def test_quantity_converted_to_the_line_units(line, value, expected):
 
 def test_quantity_in_incompatible_units_raises():
     with pytest.raises(ValueError, match="cannot be converted to the units of line 7"):
-        HandCalcs(PlainTextRenderer())(BEAM, inputs={"w": 6 * ureg.m})
+        HandCalcs(ASCIIRenderer())(BEAM, inputs={"w": 6 * ureg.m})
 
 
 def test_numbers_of_other_types_are_written_as_numbers():
@@ -316,24 +316,26 @@ def test_numbers_of_other_types_are_written_as_numbers():
     ],
 )
 def test_object_assigned_as_it_is(line, value, shown):
-    out = HandCalcs(PlainTextRenderer())(
+    out = HandCalcs(ASCIIRenderer())(
         UNITS + line + "\nB = A\n", inputs={"A": value}
     )
-    assert f"A = {shown}\nB = A = {shown}\n" in out
+    # The calc lines are aligned on '=' with the (wider) unit definitions above.
+    lines = [line.strip() for line in out.splitlines()]
+    assert lines[-2:] == [f"A = {shown}", f"B = A = {shown}"]
     assert "hc-input" not in out
 
 
 def test_object_reaches_the_calculation():
     source = "A = 100\nB = A.area * 2\n"
-    out = HandCalcs(PlainTextRenderer())(source, inputs={"A": Section(250)})
+    out = HandCalcs(ASCIIRenderer())(source, inputs={"A": Section(250)})
     assert "B = A.area * 2 = 250 * 2 = 500" in out
 
 
 def test_object_on_a_computed_line_needs_allow_computed():
     source = "a = 1\nb = 2 * a\n"
     with pytest.raises(ValueError, match="allow_computed"):
-        HandCalcs(PlainTextRenderer())(source, inputs={"b": Section(1)})
-    out = HandCalcs(PlainTextRenderer())(
+        HandCalcs(ASCIIRenderer())(source, inputs={"b": Section(1)})
+    out = HandCalcs(ASCIIRenderer())(
         source, inputs={"b": Section(1)}, allow_computed=True
     )
     assert "b = Section(1)" in out
@@ -362,7 +364,7 @@ def test_bind_inputs_refuses_objects():
 
 
 @pytest.mark.parametrize(
-    "renderer", [PlainTextRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
+    "renderer", [ASCIIRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
 )
 def test_render_with_quantities_matches_numbers(renderer):
     # A quantity renders as its number in the script's units would
@@ -374,7 +376,7 @@ def test_render_with_quantities_matches_numbers(renderer):
 
 
 @pytest.mark.parametrize(
-    "renderer", [PlainTextRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
+    "renderer", [ASCIIRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
 )
 def test_render_object_in_every_renderer(renderer):
     out = HandCalcs(renderer())("A = 100\nB = A\n", inputs={"A": Section(250)})

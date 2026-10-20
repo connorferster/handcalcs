@@ -21,8 +21,8 @@ def test_import_without_ipython():
         import sys
         sys.modules["IPython"] = None
         import handcalcs
-        from handcalcs import HandCalcs, PlainTextRenderer
-        print(HandCalcs(PlainTextRenderer())("a = 2\\nb = a * 3"))
+        from handcalcs import HandCalcs, ASCIIRenderer
+        print(HandCalcs(ASCIIRenderer())("a = 2\\nb = a * 3"))
         print(hasattr(handcalcs, "render"))
         """
     )
