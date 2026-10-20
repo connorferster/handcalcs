@@ -95,7 +95,7 @@ def find_inputs(source_or_path: str | pathlib.Path) -> dict:
     number, for a number times units). The result is a template for ``inputs``.
     """
     if isinstance(source_or_path, pathlib.Path):
-        source = source_or_path.read_text()
+        source = source_or_path.read_text(encoding="utf-8")
     else:
         source = source_or_path
     found = {}

@@ -117,7 +117,7 @@ class HandCalcs:
         supplied_locals: Optional[dict] = None,
     ):
         if isinstance(source_or_path, pathlib.Path):
-            with open(source_or_path, "r") as file:
+            with open(source_or_path, "r", encoding="utf-8") as file:
                 source = file.read()
         elif isinstance(source_or_path, str):
             source = source_or_path
