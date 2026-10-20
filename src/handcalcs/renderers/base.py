@@ -1,6 +1,8 @@
 from __future__ import annotations
 import datetime
 import math
+import os
+import pathlib
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
@@ -342,6 +344,11 @@ class BaseRenderer:
     # Leads the value of a continuation row (a line continued from the source) in
     # a calc grid, indenting it past the start of the expression above.
     CONTINUATION_INDENT: ClassVar[str] = "  "
+    # Written before and after the completed render by ``to_file``, so the file
+    # is a complete document on its own (e.g. LaTeX's \documentclass ... and
+    # \end{document}). Set either on an instance to change one renderer's files.
+    preamble: str = ""
+    postamble: str = ""
     # Split a leading Greek name from an identifier component when an uppercase
     # letter or digit follows it (``DeltaH`` -> ΔH); see ``identifiers.py``.
     GREEK_PREFIXES: ClassVar[bool] = True
@@ -429,6 +436,24 @@ class BaseRenderer:
         # BaseRenderer intentionally returns just `tree`; text renderers
         # (ASCIIRenderer, HTMLRenderer) override this to join into a str.
         return tree
+
+    def to_file(self, rendered: Any, path: str | os.PathLike) -> pathlib.Path:
+        """
+        Write ``rendered``, the result of ``complete()``, to the file at ``path``
+        and return the path. Text is written as UTF-8 between ``preamble`` and
+        ``postamble``. A renderer whose ``complete()`` returns another kind of
+        object (a workbook, a document) overrides this to save it.
+        """
+        if not isinstance(rendered, str):
+            raise TypeError(
+                f"{type(self).__name__} cannot write {type(rendered).__name__} to a "
+                "file; to_file() writes the text a renderer's complete() returns. "
+                "Override to_file() to save other kinds of output."
+            )
+        path = pathlib.Path(path)
+        with open(path, "w", encoding="utf-8", newline="") as file:
+            file.write(self.preamble + rendered + self.postamble)
+        return path
 
     def join(self, tree: list, base_context: Optional[BaseRenderContext] = None) -> str:
         """

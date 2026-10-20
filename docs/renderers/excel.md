@@ -30,18 +30,20 @@ b = -7; c_0 = 3
 x_1 = (-b + sqrt(b**2 - 4*a*c_0)) / (2*a)  # larger root
 '''
 
-workbook = HandCalcs(renderer=ExcelRenderer(sheet_name="Quadratic"))(source)
-workbook.save("quadratic.xlsx")
+HandCalcs(renderer=ExcelRenderer(sheet_name="Quadratic"))(
+    source, destination="quadratic.xlsx"
+)
 ```
 
-Unlike the text renderers, it returns an `ExcelWorkbook` object rather than a string
-(`complete()`, which `HandCalcs` calls for you, builds it):
+With `destination=`, the workbook is saved there and its `Path` is returned. Without
+it, the renderer returns an `ExcelWorkbook` object rather than a string (`complete()`,
+which `HandCalcs` calls for you, builds it):
 
 - `.save(path)` writes the `.xlsx` file and returns its `Path`;
 - `.to_bytes()` returns the file contents (e.g. for a web download);
 - `.rows` holds the row records the sheet was written from.
 
-Pass `filepath=` to the renderer to have every render saved automatically.
+Pass `filepath=` to the renderer to have every render it makes saved there.
 
 ### Several cells in one workbook
 

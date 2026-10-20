@@ -147,6 +147,9 @@ class MarkdownRenderer(LatexRenderer):
     LINE_BREAK = "&nbsp;"
     # Honoured when the Markdown is printed or converted to PDF through HTML.
     PAGE_BREAK = '<div style="break-after: page;"></div>'
+    # A Markdown file needs nothing around the output (not the LaTeX document).
+    preamble = ""
+    postamble = ""
     # The body of a nested block (if/for/def) is quoted once per level.
     BLOCK_PREFIX = ">"
     # A raw '<' before a letter in the Markdown source can be taken for an HTML

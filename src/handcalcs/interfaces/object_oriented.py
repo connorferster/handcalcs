@@ -1,6 +1,7 @@
+import os
 import pathlib
 import warnings
-from typing import Optional
+from typing import Any, Optional
 from ..parsing.sequence import HcSequence
 from ..parsing.inputs import InputBinding
 from ..renderers import BaseRenderer, get_renderer
@@ -51,9 +52,16 @@ class HandCalcs:
         inputs: Optional[dict] = None,
         strict: bool = True,
         allow_computed: bool = False,
-    ) -> str:
+        destination: Optional[str | os.PathLike] = None,
+    ) -> Any:
         """
-        Parses the data from 'filepath' and creates a HandCalcs object.
+        Renders 'source_or_path' and returns what the renderer produces: a str
+        for the text renderers, a document or workbook for the Word and Excel
+        renderers.
+
+        If 'destination' is given, the render is written to that file instead
+        (with the renderer's 'to_file': a complete LaTeX or HTML document, or the
+        saved .docx or .xlsx) and its path is returned as a pathlib.Path.
 
         If 'supplied_globals' and 'supplied_locals' are each None, then the source code will be executed to
         create the globals and locals dicts. If either dictionary are supplied, code execution will not occur.
@@ -79,12 +87,13 @@ class HandCalcs:
                 source, inputs, strict=strict, allow_computed=allow_computed
             )
             passed_globals = self.__evaluate(binding.exec_source, binding.namespace())
-            return self.render_bound(binding, passed_globals)
+            rendered = self.render_bound(binding, passed_globals)
+            return self.__output(rendered, destination)
         passed_globals = supplied_globals
         if supplied_globals is None:
             passed_globals = self.__evaluate(source)
         self.hc_ast = self.__parse(source, passed_globals)
-        return self.__render(passed_globals)
+        return self.__output(self.__render(passed_globals), destination)
 
     def render_bound(self, binding: InputBinding, namespace: dict) -> str:
         """
@@ -105,9 +114,16 @@ class HandCalcs:
         completed_render = self.renderer.complete(rendered_tree, base_context)
         return completed_render
 
-    def demo(self):
+    def __output(self, rendered: Any, destination: Optional[str | os.PathLike]) -> Any:
+        """'rendered' itself, or the path of the file it is written to."""
+        if destination is None:
+            return rendered
+        return self.renderer.to_file(rendered, destination)
+
+    def demo(self, destination: Optional[str | os.PathLike] = None):
         """
-        Renders the demo with the current renderer.
+        Renders the demo with the current renderer; with 'destination', writes it
+        to that file and returns the path, as calling the object does.
 
         A renderer that cannot render the general demo (e.g. the ExcelRenderer,
         which has no worksheet form for loops or collections) provides its own
@@ -123,7 +139,7 @@ class HandCalcs:
         completed_render = self.renderer.complete(rendered_tree, base_context)
         # demo() returns the completed render (renderer.complete()), matching
         # calculate(); for the ASCIIRenderer that is the joined text.
-        return completed_render
+        return self.__output(completed_render, destination)
 
     def __repr__(self):
         return f"HandCalcs(renderer={self.renderer}())"

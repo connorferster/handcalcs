@@ -168,7 +168,7 @@ import pathlib
 from handcalcs import HandCalcs
 from handcalcs.renderers import ExcelRenderer
 
-HandCalcs(ExcelRenderer(filepath="beam.xlsx"))(pathlib.Path("beam.py"))
+HandCalcs(ExcelRenderer())(pathlib.Path("beam.py"), destination="beam.xlsx")
 ```
 
 **Back to:** [the cookbook](index.md).

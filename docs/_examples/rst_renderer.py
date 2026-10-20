@@ -23,6 +23,9 @@ class RstRenderer(LatexRenderer):
     MATH_SKIP = ""
     PARAGRAPH = ""
     LINE_BREAK = "|"  # a reST line block with one empty line
+    # A .rst file needs nothing around the output (not LaTeX's document).
+    preamble = ""
+    postamble = ""
 
     def math_group(self, rows):
         body = self.ROW_SEP.join(rows)

@@ -414,6 +414,16 @@ class LatexRenderer(BaseRenderer):
     )
     IF_EXP_KEYWORDS = ("\\;\\mathrm{if}\\;", "\\;\\mathrm{else}\\;")
     COMPREHENSION_KEYWORDS = ("\\;\\mathrm{for}\\;", "\\;\\mathrm{in}\\;")
+    # A file written by ``to_file`` is a complete document; the output itself is
+    # a fragment for a document's body. amssymb and xcolor are for CHECK_MARKS.
+    preamble = (
+        "\\documentclass{article}\n"
+        "\\usepackage{amsmath}\n"
+        "\\usepackage{amssymb}\n"
+        "\\usepackage{xcolor}\n"
+        "\\begin{document}\n"
+    )
+    postamble = "\\end{document}\n"
 
     def create_context(self, **kwargs):
         # Spacing inside math mode is insignificant, so space/newline stay plain

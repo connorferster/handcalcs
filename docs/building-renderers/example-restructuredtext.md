@@ -50,6 +50,8 @@ operators, constants) are all inherited.
   the inherited `header:if_block` handler) to the `:math:` role. Every other item goes to
   `LatexRenderer.join_item`.
 - `complete` strips the surrounding blank lines.
+- `preamble` and `postamble` are emptied, so a file written with `destination=` holds
+  only the reST, not the LaTeX document the parent class {ref}`writes <to-file>`.
 
 ## Checking the output
 

@@ -62,6 +62,14 @@ fragment = HandCalcs(HTMLRenderer())(source)
 page = f"<html><body><main>{fragment}</main></body></html>"
 ```
 
+For a page of its own, give a `destination`. The file is a complete HTML page
+(`<!DOCTYPE html>`, a `<head>` with the character set and a title, the calculation in
+the `<body>`), from the renderer's `preamble` and `postamble`:
+
+```python
+HandCalcs(HTMLRenderer())(source, destination="beam.html")
+```
+
 In Jupyter, `%hc_default_renderer html` displays it with `IPython.display.HTML`.
 
 ## Output structure

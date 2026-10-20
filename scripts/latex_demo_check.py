@@ -1,6 +1,6 @@
 """
-Render the HandCalcs demo with LatexRenderer, wrap it in a minimal amsmath
-document and compile it with pdflatex. Prints the LaTeX, then any pdflatex
+Render the HandCalcs demo with LatexRenderer as a complete document (its
+``preamble`` and ``postamble``) and compile it with pdflatex. Prints the LaTeX, then any pdflatex
 errors and every overfull box (output wider than the text width), with the
 first line of the source it came from. The PDF is written to the output directory (default: ./latex_demo_build).
 
@@ -16,8 +16,6 @@ import sys
 from handcalcs import HandCalcs
 from handcalcs.renderers import LatexRenderer
 
-PREAMBLE = "\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\n"
-POSTAMBLE = "\\end{document}\n"
 OVERFULL = re.compile(r"^Overfull \\hbox \((?P<amount>[\d.]+)pt too wide\) .*at lines? (?P<start>\d+)")
 
 
@@ -52,10 +50,10 @@ def find_pdflatex() -> str | None:
 def main() -> int:
     out_dir = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "latex_demo_build")
     out_dir.mkdir(parents=True, exist_ok=True)
-    body = HandCalcs(renderer=LatexRenderer()).demo()
+    renderer = LatexRenderer()
+    body = HandCalcs(renderer=renderer).demo()
     print(body)
-    tex = out_dir / "demo.tex"
-    tex.write_text(PREAMBLE + body + POSTAMBLE)
+    tex = renderer.to_file(body, out_dir / "demo.tex")
     pdflatex = find_pdflatex()
     if pdflatex is None:
         print("pdflatex not found; skipped compilation")

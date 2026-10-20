@@ -48,11 +48,25 @@ M_f <= M_r     # hc: --check
 
 ## Using the output
 
-The fragment needs the `amsmath` package. A minimal document:
+To get a document you can compile straight away, give a `destination`:
+
+```python
+HandCalcs(LatexRenderer())(pathlib.Path("calcs/bolts.py"), destination="bolts.tex")
+```
+
+The file is the output wrapped in the renderer's `preamble` and `postamble`: an
+`article` that loads the packages below. Change them on the renderer for your own
+document class (see [Writing a file](../interfaces/object-oriented.md#writing-a-file)).
+
+Without a `destination`, the output is a fragment for the body of a document. It needs
+the `amsmath` package, plus `amssymb` and `xcolor` for the marks of
+[`--check`](../cookbook/checks.md) lines. A minimal document:
 
 ```latex
 \documentclass{article}
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
 \begin{document}
 % paste or \input the handcalcs output here
 \end{document}
