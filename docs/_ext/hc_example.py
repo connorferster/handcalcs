@@ -23,12 +23,17 @@ Options:
     renderer, and the class to use from it. Takes precedence over ``:renderer:``.
 ``:output:``
     How to show the output: ``code`` (a code block), ``markdown`` (parsed as
-    MyST, so math is typeset), ``html`` (embedded as raw HTML) or ``none``.
-    The default depends on the renderer.
+    MyST, so math is typeset by KaTeX), ``latex`` (LaTeX document markup
+    converted to MyST, so its math is typeset too), ``html`` (embedded as raw
+    HTML) or ``none``. The default depends on the renderer. Every typeset
+    output (``markdown``, ``latex``, ``html``) is shown in a "Rendered" tab
+    next to a tab with the renderer's raw output.
 ``:output-language:``
     The highlight language of a ``code`` output (default from the renderer).
 ``:hide-source:``
     Show only the output.
+``:hide-raw:``
+    Show a typeset output without the tab of raw renderer output.
 ``:setup:``
     Python run before the example but not shown (e.g. ``import math``).
 """
@@ -36,6 +41,7 @@ Options:
 import os
 import pathlib
 import pprint
+import re
 import runpy
 import tempfile
 
@@ -56,7 +62,7 @@ from handcalcs.renderers import get_renderer  # noqa: E402
 _DEFAULT_OUTPUT = {
     "markdown": ("markdown", "markdown"),
     "html": ("html", "html"),
-    "latex": ("code", "latex"),
+    "latex": ("latex", "latex"),
     "plain_text": ("code", "text"),
     "base": ("code", "python"),
 }
@@ -77,15 +83,99 @@ def _heading_to_bold(markdown: str) -> str:
     return "\n".join(lines)
 
 
+def _code_block(text: str, language: str) -> nodes.literal_block:
+    block = nodes.literal_block(text, text)
+    block["language"] = language
+    return block
+
+
+def _tab_set(tabs: list[tuple[str, nodes.Node]]) -> nodes.Node:
+    """A sphinx-design tab set built from (label, content) pairs."""
+    from sphinx_design.shared import create_component
+
+    tab_set = create_component("tab-set", classes=["sd-tab-set", "hc-example-tabs"])
+    for index, (label, content) in enumerate(tabs):
+        tab_item = create_component("tab-item", classes=["sd-tab-item"], selected=index == 0)
+        tab_item += nodes.rubric(label, label, classes=["sd-tab-label"])
+        tab_content = create_component("tab-content", classes=["sd-tab-content"])
+        tab_content += content
+        tab_item += tab_content
+        tab_set += tab_item
+    return tab_set
+
+
+_LATEX_TEXT = [
+    (re.compile(r"\\section\*\{(.*)\}"), r"**\1**"),
+    (re.compile(r"\\subsection\*\{(.*)\}"), r"**\1**"),
+    (re.compile(r"\\subsubsection\*\{(.*)\}"), r"**\1**"),
+    (re.compile(r"\\textbf\{([^{}]*)\}"), r"**\1**"),
+    (re.compile(r"\\(?:emph|textit)\{([^{}]*)\}"), r"*\1*"),
+]
+
+
+def latex_to_myst(latex: str) -> str:
+    """
+    Turn the LaTeX renderer's document markup into MyST, so the docs can show
+    it typeset. Only the markup the built-in renderer emits is handled: display
+    blocks become ``$$`` math, ``list`` environments (block bodies) become block
+    quotes, spacing commands are dropped and section headings become bold text.
+    The math itself is passed through unchanged.
+    """
+    out: list[str] = []
+    depth = 0
+    in_math = False
+    math: list[str] = []
+    for line in latex.split("\n"):
+        stripped = line.strip()
+        if in_math:
+            if stripped.endswith("$"):
+                math.append(stripped[:-1])
+                body = " ".join(part for part in math if part)
+                body = body.replace("\\begin{aligned}[t]", "\\begin{aligned}")
+                out.append("> " * depth + f"$${body}$$")
+                out.append("> " * depth)
+                in_math, math = False, []
+            else:
+                math.append(stripped)
+            continue
+        if stripped.startswith("\\begin{list}"):
+            depth += 1
+            continue
+        if stripped == "\\end{list}":
+            depth -= 1
+            out.append("> " * depth)
+            continue
+        if stripped in ("\\medskip", "\\bigskip", "\\smallskip", "\\clearpage", "\\newpage"):
+            continue
+        stripped = stripped.removeprefix("\\noindent").strip()
+        if stripped.startswith("$\\displaystyle"):
+            in_math = True
+            rest = stripped.removeprefix("$\\displaystyle").strip()
+            if rest.endswith("$") and rest:
+                in_math = False
+                out.append("> " * depth + f"$${rest[:-1]}$$")
+            elif rest:
+                math.append(rest)
+            continue
+        for pattern, replacement in _LATEX_TEXT:
+            stripped = pattern.sub(replacement, stripped)
+        stripped = re.sub(r"\\([%&#_])", r"\1", stripped)
+        out.append("> " * depth + stripped)
+    return "\n".join(out)
+
+
 class HcExampleDirective(SphinxDirective):
     has_content = True
     option_spec = {
         "renderer": directives.unchanged,
         "renderer-file": directives.unchanged,
         "renderer-class": directives.unchanged,
-        "output": lambda arg: directives.choice(arg, ("code", "markdown", "html", "none")),
+        "output": lambda arg: directives.choice(
+            arg, ("code", "markdown", "latex", "html", "none")
+        ),
         "output-language": directives.unchanged,
         "hide-source": directives.flag,
+        "hide-raw": directives.flag,
         "setup": directives.unchanged,
         "caption": directives.unchanged,
     }
@@ -144,17 +234,26 @@ class HcExampleDirective(SphinxDirective):
             return [container]
         output = nodes.container(classes=["hc-example-output", f"hc-output-{output_kind}"])
         if output_kind == "code":
-            block = nodes.literal_block(rendered, rendered)
-            block["language"] = language
-            output += block
-        elif output_kind == "html":
+            output += _code_block(rendered, language)
+            container += output
+            return [container]
+
+        if output_kind == "html":
             output += nodes.raw("", rendered, format="html")
         else:
-            text = _heading_to_bold(rendered)
+            text = rendered if output_kind == "markdown" else latex_to_myst(rendered)
             self.state.nested_parse(
-                StringList(text.split("\n"), source="hc-example-output"), self.content_offset, output
+                StringList(_heading_to_bold(text).split("\n"), source="hc-example-output"),
+                self.content_offset,
+                output,
             )
-        container += output
+        if "hide-raw" in self.options:
+            container += output
+            return [container]
+        raw_label = {"markdown": "Markdown", "latex": "LaTeX", "html": "HTML"}[output_kind]
+        container += _tab_set(
+            [("Rendered", output), (f"{raw_label} output", _code_block(rendered, language))]
+        )
         return [container]
 
 

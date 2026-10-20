@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
     "sphinx.ext.linkcode",
+    "sphinxcontrib.katex",
     "hc_example",
     "hc_source",
 ]
@@ -56,6 +57,11 @@ myst_enable_extensions = [
     "attrs_block",
 ]
 myst_heading_anchors = 3
+
+# Math is typeset by KaTeX in the browser (the Markdown and LaTeX renderers'
+# output, rendered live by hc-example, is KaTeX-compatible).
+katex_prerender = False
+katex_options = "{throwOnError: false, strict: false}"
 
 # {source}`src/handcalcs/renderers/base.py` -> the file on GitHub at HC_SOURCE_REF.
 extlinks = {

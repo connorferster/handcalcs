@@ -34,6 +34,7 @@ doc = [
     "myst-parser>=4.0",
     "sphinx-design>=0.6",
     "sphinx-copybutton>=0.5",
+    "sphinxcontrib-katex>=0.9",
 ]
 word = [
     "python-docx>=1.1",
