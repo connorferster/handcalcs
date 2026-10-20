@@ -311,7 +311,6 @@ def test_numbers_of_other_types_are_written_as_numbers():
     "line, value, shown",
     [
         ("A = 100", Section(250), "Section(250)"),  # no literal form
-        ("A = 100", Fraction(1, 3), "0.33333"),  # not exactly a float
         ("A = 100 * m", Section(250), "Section(250)"),  # cannot be divided by units
         ("A = 100", 0.5 * ureg.m, "0.5 meter"),  # a quantity on a line without units
     ],
@@ -338,6 +337,14 @@ def test_object_on_a_computed_line_needs_allow_computed():
         source, inputs={"b": Section(1)}, allow_computed=True
     )
     assert "b = Section(1)" in out
+
+
+def test_number_not_exactly_a_float_assigned_as_it_is():
+    # Shown with the number format (Fraction takes it from Python 3.12)
+    binding = InputBinding("A = 100\n", {"A": Fraction(1, 3)})
+    namespace = dict(binding.namespace())
+    exec(binding.exec_source, namespace)
+    assert namespace["A"] == Fraction(1, 3)
 
 
 def test_object_input_leaves_no_resolver_in_the_namespace():
