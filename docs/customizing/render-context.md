@@ -41,25 +41,8 @@ import handcalcs
 handcalcs.set_option("assign", ":=")
 ```
 
-**For part of one calculation**, with the assignment form of a comment command:
-
-```python
-# hc: assign = ":="
-x = a + b
-```
-
-**For one line**:
-
-```python
-x = a + b  # hc: format_code = ".2f"
-```
-
-**For every call of a decorated function**:
-
-```python
-@handcalc(ASCIIRenderer(), render_context={"format_code": ".2f"})
-def calc(a, b): ...
-```
+**For part of one calculation**, with the assignment form of a comment command. It
+applies to every line after it:
 
 ```{hc-example}
 :renderer: ascii
@@ -67,6 +50,25 @@ a = 2
 b = 3
 # hc: assign = ":="
 c = a + b
+d = c * 2
+```
+
+**For one line**, at the end of that line. Note that `format_code` applies to the
+substituted values as well as the result:
+
+```{hc-example}
+:renderer: ascii
+a = 85
+b = 110
+c = a / b  # hc: format_code = ".2f"
+d = a / b
+```
+
+**For every call of a decorated function**:
+
+```python
+@handcalc(ASCIIRenderer(), render_context={"format_code": ".2f"})
+def calc(a, b): ...
 ```
 
 ```{caution}
@@ -79,20 +81,26 @@ set those fields themselves. Change them in a subclass's `create_context` instea
 ## Your own fields
 
 Any name can be used. The built-in renderers ignore names they don't use, and a rule
-you write can read them from the context. This makes a rule switchable from a comment:
+you write can read them from the context. This makes a rule switchable from a comment.
+This renderer marks lines with a note given by a `flag` field:
 
-```python
-# hc: highlight = True
+```{literalinclude} ../_examples/flag_lines.py
+:language: python
 ```
 
-```python
-def highlight_result(renderer, rendered, node, base_context):
-    if not getattr(base_context.current, "highlight", False):
-        return rendered
-    ...
+```{hc-example}
+:renderer-file: _examples/flag_lines.py
+:renderer-class: FlagASCIIRenderer
+M_f = 85; M_r = 110; V_f = 40; V_r = 35
+u_M = M_f / M_r
+u_V = V_f / V_r  # hc: flag = "governs"
+# hc: flag = "check later"
+u_T = 0.4 * u_V
 ```
 
 Read optional fields with `getattr(context, name, default)`, since a field only exists
-once something has set it.
+once something has set it. A field set at the end of a line is in
+`base_context.current` while the line's parts render, but is reset before the line's
+`post` rules run; a `post` rule reads it from `node.comment.commands`, as above.
 
 **Next:** [Styling the HTML output](html-styling.md).

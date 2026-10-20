@@ -15,18 +15,32 @@ import handcalcs
 handcalcs.set_option("symbols", {"N_plRd": "N_{pl,Rd}", "V_flow": "dot(V)"})
 ```
 
+The same option works for one calculation as a comment command:
+
+```{hc-example}
+# hc: symbols = {"N_plRd": "N_{pl,Rd}", "V_flow": "dot(V)"}
+N_plRd = 1250
+V_flow = 2.5
+```
+
 ## Subscript style and Greek prefixes in a renderer
 
 Two class attributes set a renderer's defaults; the `subscripts` and `greek_prefixes`
 context fields still override them:
 
-```python
-from handcalcs.renderers import LatexRenderer
-
-class V1StyleLatexRenderer(LatexRenderer):
-    SUBSCRIPT_STYLE = "nested"   # x_a_b -> x_{a_{b}} (default "comma": x_{a,b})
-    GREEK_PREFIXES = False       # keep DeltaH as \mathrm{DeltaH} (default True: \Delta H)
+```{literalinclude} ../_examples/symbol_styles.py
+:language: python
+:pyobject: V1StyleMarkdownRenderer
 ```
+
+```{hc-example}
+:renderer-file: _examples/symbol_styles.py
+:renderer-class: V1StyleMarkdownRenderer
+N_pl_Rd = 1250
+DeltaH = 4.2
+```
+
+The same attributes work on `LatexRenderer`, `HTMLRenderer` and the others.
 
 ## Custom symbols with a rule
 
@@ -66,13 +80,17 @@ in the table is shown by name in `\operatorname{...}`.
 For other renderers, register a `function_call:pre` rule and change the function name's
 `identifier` (shown in the symbolic step) and `value` (shown in the substituted step):
 
-```python
-@MyHTMLRenderer.register("function_call:pre")
-def swap_ln(renderer, node, base_context):
-    if node.function_name.identifier == "log":
-        node.function_name.identifier = "ln"
-        node.function_name.value = "ln"
-    return node
+```{literalinclude} ../_examples/symbol_styles.py
+:language: python
+:lines: 13-22
+```
+
+```{hc-example}
+:renderer-file: _examples/symbol_styles.py
+:renderer-class: LnHTMLRenderer
+:setup: from math import log
+x = 10
+y = log(x)
 ```
 
 ## Operator symbols
@@ -89,7 +107,21 @@ The node types are `add_op`, `sub_op`, `mult_op`, `div_op`, `floor_op`, `modulo_
 `pow_op`, the comparisons `lt_op`, `gt_op`, `lte_op`, `gte_op`, `eq_op`, `neq_op`, `in_op`,
 `not_in_op`, `is_op`, `is_not_op`, and the boolean `and_op`, `or_op`. In the HTML and
 ASCII renderers, set `node.symbol` in a `{type}:pre` rule (as the built-in
-`swap_py_operators` rules do).
+`swap_py_operators` rules do). A subclass's rule runs after the inherited one, so it has
+the last word:
+
+```{literalinclude} ../_examples/symbol_styles.py
+:language: python
+:lines: 25-32
+```
+
+```{hc-example}
+:renderer-file: _examples/symbol_styles.py
+:renderer-class: TimesHTMLRenderer
+a = 2
+b = 3
+c = a * b
+```
 
 ## Turning off a built-in translation
 
@@ -104,6 +136,13 @@ class NoGreekTextRenderer(ASCIIRenderer):
     pass
 
 NoGreekTextRenderer.rule_handlers["name"]["sym"].remove(swap_greeks)
+```
+
+```{hc-example}
+:renderer-file: _examples/symbol_styles.py
+:renderer-class: NoGreekTextRenderer
+alpha = 2
+beta = alpha * 3
 ```
 
 Each subclass gets its own copy of the rule lists, so this doesn't affect
