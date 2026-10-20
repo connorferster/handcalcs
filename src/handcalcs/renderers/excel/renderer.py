@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 import pathlib
 from collections import deque
 from dataclasses import dataclass
@@ -9,7 +10,9 @@ from handcalcs.parsing.nodes import Constant, Name
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import HcUnaryOp
 from handcalcs.renderers.base import (
+    PAGE_BREAK,
     BaseRenderContext,
+    is_boolean,
     BaseRenderer,
     RenderContext,
     render_comment_command as base_render_comment_command,
@@ -29,7 +32,15 @@ from .options import (
     validate_sheet_name,
 )
 from .rich_text import parse_markup
-from .rows import BlankRow, CalcRow, CommentRow, HeadingRow, ParamRow, Row
+from .rows import (
+    BlankRow,
+    CalcRow,
+    CommentRow,
+    HeadingRow,
+    PageBreakRow,
+    ParamRow,
+    Row,
+)
 from .symbolic import register_symbolic_rules, symbolic_markup
 from .writer import ExcelWorkbook, build_workbook, write_sheet
 
@@ -321,6 +332,10 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                     cached = unit.magnitude if unit is not None else value
             else:
                 value = cached = literal
+            if isinstance(cached, float) and not math.isfinite(cached):
+                raise incompatible(
+                    f"Excel has no number for {cached!r} (infinity or NaN)", node
+                )
         except ExcelRendererIncompatibleError as error:
             raise error.with_target(identifier) from None
 
@@ -336,6 +351,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
         )
         symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
         hidden = bool(getattr(context, "ignore", False))
+        check = bool(getattr(context, "check", False)) and is_boolean(cached)
 
         if param_line or formula is None:
             row: Row = ParamRow(
@@ -347,6 +363,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 unit=unit_text,
                 comment=comment,
                 hidden=hidden,
+                check=check,
             )
         else:
             row = CalcRow(
@@ -361,6 +378,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 unit=unit_text,
                 comment=comment,
                 hidden=hidden,
+                check=check,
             )
         rows: list[Row] = [row]
         if getattr(context, "line_break", False):
@@ -411,8 +429,10 @@ def render_heading(renderer: ER, node, base_context: BRC) -> list[Row]:
 @ER.register("comment_command")
 def render_comment_command(renderer: ER, node, base_context: BRC) -> list[Row]:
     """Updates the global context (e.g. ``-f``); ``-b`` inserts a blank row."""
-    line_break = base_render_comment_command(renderer, node, base_context)
-    return [BlankRow()] if line_break else []
+    rendered = base_render_comment_command(renderer, node, base_context)
+    if rendered == PAGE_BREAK:
+        return [PageBreakRow()]
+    return [BlankRow()] if rendered else []
 
 
 @ER.register("expr_line")
@@ -442,6 +462,11 @@ def _is_units_call(node: FunctionCall, state: ExcelState) -> bool:
     """A call into a units library, e.g. ``si.environment('structural')``."""
     function, _ = state.builder.resolve_function(node)
     return function is not None and is_units_setup(function)
+
+
+@ER.register("ignored_line")
+def render_ignored_line(renderer: ER, node, base_context: BRC) -> list[Row]:
+    return []
 
 
 @ER.register("import")

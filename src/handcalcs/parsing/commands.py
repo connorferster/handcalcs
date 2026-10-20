@@ -33,7 +33,13 @@ command_parser.add_argument("-f", "--format-code")
 command_parser.add_argument("-w", "--if-winner-only", "--winner", action="store_false")
 command_parser.add_argument("-i", "--ignore", action="store_true")
 command_parser.add_argument("-p", "--param-line", action="store_true")
+# Show a boolean result as a pass/fail mark (#251): ``ok = DoU <= 1  # hc: --check``.
+command_parser.add_argument("--check", action="store_true", default=None)
 command_parser.add_argument("-b", "--line-break", action="store_true")
+# A page break before the next line (standalone) or after this one (inline).
+command_parser.add_argument(
+    "--pagebreak", "--page-break", dest="page_break", action="store_true"
+)
 command_parser.add_argument("-c", "--param-cols", "--param_cols", type=int)
 # The calc-line columns to show; see ``mode_columns`` in renderers/base.py
 # (e.g. ``--mode no_num``, ``--mode ass sym res``). ``-m`` is ``--multiline``.

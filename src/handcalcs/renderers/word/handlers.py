@@ -29,7 +29,10 @@ from handcalcs.renderers.base import (
     OP_PRECEDENCE,
     BaseRenderContext,
     is_source_number,
+    is_atom,
     literal_text,
+    quantity_power_base,
+    receiver_needs_parens,
     render_condition,
 )
 from handcalcs.renderers.identifiers import (
@@ -436,7 +439,11 @@ def render_pow_op(renderer: WR, node: PowOp, base_context: BRC) -> str:
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
     base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
-    if base_pre <= OP_PRECEDENCE[PowOp] or renderer.leading_sign(base):
+    if (
+        base_pre <= OP_PRECEDENCE[PowOp]
+        or renderer.leading_sign(base)
+        or quantity_power_base(node, base_context)
+    ):
         base = omml.delim(base)
     return omml.sup(base, exponent)
 
@@ -469,6 +476,15 @@ def render_function_call(renderer: WR, node: FunctionCall, base_context: BRC) ->
     """
     identifier = node.function_name.identifier
     namespace_node = node.namespace
+    if namespace_node and not isinstance(namespace_node, Name):
+        # A method of an expression, (a * b).to("mm"): the receiver is
+        # rendered like any operand, substituted in the numeric column.
+        args = [renderer.render(arg, base_context) for arg in node.args]
+        receiver = renderer.render(namespace_node, base_context)
+        if receiver_needs_parens(namespace_node):
+            receiver = omml.delim(receiver)
+        name = f"{receiver}{omml.run('.')}{omml.upright(identifier)}"
+        return f"{name}{omml.delim_items(args)}"
     namespace = getattr(namespace_node, "identifier", "") if namespace_node else ""
     if namespace == "__main__":
         namespace = ""
@@ -480,6 +496,10 @@ def render_function_call(renderer: WR, node: FunctionCall, base_context: BRC) ->
             return omml.rad(joined)
         if identifier == "cbrt":
             return omml.rad(joined, omml.run("3"))
+        if identifier == "factorial" and len(node.args) == 1:
+            if not is_atom(node.args[0]):
+                joined = omml.delim(joined)
+            return f"{joined}{omml.run('!')}"
         if identifier in BRACKET_FUNCS:
             return omml.delim(joined, *BRACKET_FUNCS[identifier])
         if identifier in MATH_FUNCS:

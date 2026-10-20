@@ -9,6 +9,10 @@ from handcalcs.renderers.base import (
     render_condition,
     infix_binop,
     BaseRenderContext,
+    PAGE_BREAK,
+    ROOT_SYMBOLS,
+    math_call_name,
+    postfix_factorial,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -99,6 +103,12 @@ class HTMLRenderer(BaseRenderer):
     """
 
     name = "html"
+    # A ``# hc: --pagebreak``: the printed page breaks after this empty div.
+    CHECK_MARKS = (
+        ' <span class="hc-check hc-pass">✓</span>',
+        ' <span class="hc-check hc-fail">✗</span>',
+    )
+    PAGE_BREAK = '<div class="hc-page-break" style="break-after: page;"></div>'
 
     def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
         super().__init__()
@@ -150,6 +160,10 @@ class HTMLRenderer(BaseRenderer):
         "padding:0 0.25em;border-radius:3px;"
         "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
         ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
+        # The pass/fail mark of a ``# hc: --check`` line.
+        ".handcalcs :where(.hc-check){font-weight:700;}"
+        ".handcalcs :where(.hc-pass){color:#1A7F37;}"
+        ".handcalcs :where(.hc-fail){color:#CF222E;}"
         # Imports are small, quiet monospace chips.
         ".handcalcs :where(.hc-import){"
         "align-self:start;font-family:var(--jp-code-font-family,"
@@ -251,6 +265,8 @@ class HTMLRenderer(BaseRenderer):
             return []
         context = base_context.current
         if isinstance(item, str):
+            if item == PAGE_BREAK:
+                return [self.PAGE_BREAK]
             # A one-shot line-break directive is a bare newline; the CSS gap
             # already supplies vertical rhythm, so it emits nothing.
             if not item.strip("\n"):
@@ -721,9 +737,14 @@ def swap_sqrt_symbol(
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
+    name = math_call_name(node)
+    if name == "":  # already set in its own notation
+        return node
     node.pre = "("
     node.post = ")"
-    if node.function_name.identifier == "sqrt":
-        node.function_name.identifier = "√"
-        node.function_name.value = "√"
+    if name == "factorial":
+        return postfix_factorial(node, "(", ")")
+    if name in ROOT_SYMBOLS:
+        node.function_name.identifier = ROOT_SYMBOLS[name]
+        node.function_name.value = ROOT_SYMBOLS[name]
     return node

@@ -196,6 +196,9 @@ class DocumentWriter:
     def line_break(self, depth: int = 0) -> None:
         self.paragraph(depth)
 
+    def page_break(self) -> None:
+        self.document.add_page_break()
+
     def display_math(self, fragment: str, depth: int = 0, extra: int = 0) -> None:
         """A paragraph holding one flush-left display equation (``m:oMathPara``)."""
         from docx.oxml import parse_xml

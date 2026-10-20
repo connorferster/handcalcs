@@ -3,7 +3,12 @@ from __future__ import annotations
 import pathlib
 from typing import Any, ClassVar, Optional
 
-from handcalcs.renderers.base import BaseRenderContext, BaseRenderer, RenderContext
+from handcalcs.renderers.base import (
+    PAGE_BREAK,
+    BaseRenderContext,
+    BaseRenderer,
+    RenderContext,
+)
 from . import omml
 from .document import (
     CalcGrid,
@@ -69,6 +74,20 @@ class WordRenderer(BaseRenderer):
     # EDGE_ITEMS items (an equation row cannot break).
     MAX_ITEMS: ClassVar[int] = 10
     EDGE_ITEMS: ClassVar[int] = 3
+    # A ``# hc: --check`` mark, after an em space.
+    CHECK_MARKS: ClassVar[tuple[str, str]] = (
+        omml.run(omml.EM_SPACE) + omml.text("✓"),
+        omml.run(omml.EM_SPACE) + omml.text("✗"),
+    )
+    # Keywords are upright words, like ``and``/``or``.
+    IF_EXP_KEYWORDS: ClassVar[tuple[str, str]] = (
+        omml.upright(" if "),
+        omml.upright(" else "),
+    )
+    COMPREHENSION_KEYWORDS: ClassVar[tuple[str, str]] = (
+        omml.upright(" for "),
+        omml.upright(" in "),
+    )
 
     def __init__(
         self,
@@ -159,7 +178,9 @@ class WordRenderer(BaseRenderer):
         elif isinstance(item, ParamsTable):
             writer.params_table(item, depth)
         elif isinstance(item, str):
-            if item.strip():
+            if item == PAGE_BREAK:
+                writer.page_break()
+            elif item.strip():
                 writer.prose(item, depth)
             else:
                 writer.line_break(depth)

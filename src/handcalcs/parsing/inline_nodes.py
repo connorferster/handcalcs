@@ -1,6 +1,6 @@
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 from .nodes import Attribute, Tuple, List, Dictionary, Set, HcNode, Constant, Name
 from .operator_nodes import EqOp, GtOp, GtEOp, LtOp, LtEOp, NeqOp, HcCompOp
 from .commands import parse_commands
@@ -93,3 +93,18 @@ class ComprehensionChain(HcInlineNode):
     value: deque[str] = field(default_factory=deque)
     comprehensions: deque[Comprehension] = field(default_factory=deque)
     type: str = "comprehension_chain"
+
+
+@dataclass
+class IfExp(HcInlineNode):
+    """
+    A conditional expression, ``body if test else orelse``. ``is_true`` is the
+    value of ``test`` in the namespace (None when it could not be evaluated),
+    so a renderer can show which branch was taken.
+    """
+
+    test: Any = None
+    body: Any = None
+    orelse: Any = None
+    is_true: Optional[bool] = None
+    type: str = "if_exp"

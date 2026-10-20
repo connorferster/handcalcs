@@ -27,6 +27,8 @@ class CalcRow:
     unit: Optional[str] = None
     comment: Optional[str] = None
     hidden: bool = False
+    # A ``# hc: --check`` row: its TRUE/FALSE value is shown green/red.
+    check: bool = False
 
 
 @dataclass
@@ -47,6 +49,7 @@ class ParamRow:
     unit: Optional[str] = None
     comment: Optional[str] = None
     hidden: bool = False
+    check: bool = False
 
 
 @dataclass
@@ -67,4 +70,9 @@ class BlankRow:
     """A ``# hc: -b`` line break."""
 
 
-Row = CalcRow | ParamRow | HeadingRow | CommentRow | BlankRow
+@dataclass
+class PageBreakRow:
+    """A ``# hc: --pagebreak``: a printed page starts at the next row."""
+
+
+Row = CalcRow | ParamRow | HeadingRow | CommentRow | BlankRow | PageBreakRow

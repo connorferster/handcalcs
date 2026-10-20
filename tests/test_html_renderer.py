@@ -96,7 +96,8 @@ def test_math_constants_show_as_symbols():
         "y = math.pi * math.e\nz = math.inf\n", {"math": math, "y": 0, "z": 0}
     )
     assert "y = π · e = 3.1416 · 2.7183" in out
-    assert "z = ∞ = inf" in out
+    # The substituted value (∞) repeats the symbol, so that column is dropped.
+    assert 'z = ∞ = <span class="hc-result">0</span>' in out
 
 
 def test_numpy_prefix_is_dropped_only_for_maths_functions():

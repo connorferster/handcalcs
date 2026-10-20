@@ -1,5 +1,6 @@
 from __future__ import annotations
 import datetime
+import math
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
@@ -27,6 +28,7 @@ from handcalcs.parsing.operator_nodes import (
     SubOp,
     DivOp,
     ModuloOp,
+    MatMultOp,
     FloorOp,
     PowOp,
     HcBinOp,
@@ -54,6 +56,7 @@ from handcalcs.parsing.inline_nodes import (
     InlineCommand,
     Comprehension,
     ComprehensionChain,
+    IfExp,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -62,6 +65,7 @@ from handcalcs.parsing.line_nodes import (
     CommentCommand,
     Heading,
     CommentLine,
+    IgnoredLine,
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -90,6 +94,9 @@ RULE_CATEGORIES = ("pre", "sym", "num", "post")
 # looser than exponentiation, hence the 2.5 slot between MultOp (2) and PowOp (3).
 UNARY_PRECEDENCE = 2.5
 OP_PRECEDENCE = {
+    # A conditional expression binds loosest of all, so it is parenthesized as
+    # the operand of any operator: ``2 * (a if c else b)``.
+    IfExp: -3,
     # Boolean operators bind looser than everything else, with ``or`` looser than
     # ``and`` (Python's precedence). An operand of a bool op is parenthesized only
     # when it binds *looser* than the op itself, so an ``or`` nested inside an
@@ -104,6 +111,7 @@ OP_PRECEDENCE = {
     DivOp: 2,
     FloorOp: 2,
     ModuloOp: 2,
+    MatMultOp: 2,
     HcUnaryOp: UNARY_PRECEDENCE,
     PowOp: 3,
 }
@@ -114,6 +122,15 @@ OP_PRECEDENCE = {
 # ``\`` or bracketed line break in the source; ``render_calcline`` splits the
 # column on it. It never reaches the final output.
 CONTINUATION_MARK = "\x00"
+
+# The rendered form of a ``# hc: --pagebreak`` command: a form feed, which is a
+# page break in plain text. Each renderer's join step turns it into its own
+# page break (LaTeX ``\newpage``, a CSS ``break-after`` div, a Word page break).
+PAGE_BREAK = "\f"
+
+# Comment-command options that act once, where they appear, rather than
+# setting the render context for the lines that follow.
+ONE_SHOT_COMMANDS = ("line_break", "params_block", "page_break")
 
 
 def breakable_ops(tree) -> frozenset[int]:
@@ -332,6 +349,15 @@ class BaseRenderer:
     # N with subscript "pl,Rd") or ``"nested"`` (``x_a_b`` -> x_{a_{b}}). The
     # ``subscripts`` render-context field overrides it.
     SUBSCRIPT_STYLE: ClassVar[str] = "comma"
+    # The keywords of a conditional expression (``a if test else b``), with
+    # their surrounding spaces; see ``render_if_exp``.
+    IF_EXP_KEYWORDS: ClassVar[tuple[str, str]] = (" if ", " else ")
+    # The keywords of a comprehension clause (``for t in ts``), with their
+    # surrounding spaces; see ``render_comprehension``.
+    COMPREHENSION_KEYWORDS: ClassVar[tuple[str, str]] = (" for ", " in ")
+    # The pass and fail marks a ``# hc: --check`` line shows in place of a
+    # boolean result, each with the gap before it; see ``check_mark``.
+    CHECK_MARKS: ClassVar[tuple[str, str]] = (" ✓", " ✗")
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
@@ -707,6 +733,51 @@ def literal_text(node: Constant) -> str:
     return node.source_text.replace("_", "")
 
 
+def pint_default_format(value) -> Optional[str]:
+    """
+    The registry's default format (e.g. ``"~P"``) of a pint quantity or unit,
+    ``""`` if none is set, or None if ``value`` is not from pint.
+    """
+    registry = getattr(value, "_REGISTRY", None)
+    if registry is None or isinstance(value, type):
+        return None
+    formatter = getattr(registry, "formatter", registry)
+    return getattr(formatter, "default_format", "") or ""
+
+
+def pint_text_format(default_format: str) -> str:
+    """
+    The unit part of a format spec for showing a pint quantity as text: the
+    registry default's abbreviation (``~``) and its text style (pretty,
+    compact or default), with pretty in place of a LaTeX or HTML style.
+    """
+    abbreviate = "~" if "~" in default_format else ""
+    style = next((c for c in default_format if c in "PCD"), "P")
+    return f"{abbreviate}{style}"
+
+
+def is_quantity(value) -> bool:
+    """True for a value with units: a pint quantity or a forallpeople Physical."""
+    if isinstance(value, (int, float, complex)):
+        return False
+    return pint_default_format(value) is not None or callable(
+        getattr(value, "_repr_latex_", None)
+    )
+
+
+def quantity_power_base(node, base_context: BaseRenderContext) -> bool:
+    """
+    True if the base of a power substitutes a quantity in the numeric column,
+    which must be bracketed: ``(6 m)²``, not ``6 m²``.
+    """
+    current_mode = getattr(base_context.current, "current_mode", None)
+    return (
+        current_mode == "num"
+        and isinstance(node.left, (Name, Attribute))
+        and is_quantity(node.left.value)
+    )
+
+
 @BaseRenderer.register("constant")
 def render_constant(
     renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext
@@ -725,6 +796,15 @@ def render_constant(
     # coefficients and exponents.
     if is_source_number(node):
         return literal_text(node)
+    if isinstance(node.value, float) and math.isinf(node.value):
+        return "-∞" if node.value < 0 else "∞"
+    # A format spec replaces a pint registry's default format, so its unit
+    # modifiers (e.g. "~P") are added back.
+    default_format = pint_default_format(node.value)
+    if default_format:
+        # A unit (ureg.m) has no number to format.
+        number = fc if hasattr(node.value, "magnitude") else ""
+        fc = f"{number}{pint_text_format(default_format)}"
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError):  # Format code not implemented / not a scalar
@@ -889,6 +969,7 @@ def render_floor_op(
     return f"{node.pre}{as_infix}{node.post}"
 
 
+@BaseRenderer.register("mat_mult_op")
 @BaseRenderer.register("modulo_op")
 def render_modulo_op(
     renderer: BR, node: ModuloOp, base_context: BaseRenderContext
@@ -1009,10 +1090,56 @@ def set_function_call_parens(
     something else (e.g. LaTeX's ``\\sqrt{...}``).
     """
     context = base_context.current
+    # An emptied function name marks a call a renderer rule has already set
+    # in its own notation (e.g. a postfix factorial, ``n!``, with no ``pre``).
+    if getattr(node.function_name, "identifier", None) == "":
+        return node
     if not node.pre:
         node.pre = context.lpar
     if not node.post:
         node.post = context.rpar
+    return node
+
+
+# The radical sign of each root function, for the text renderers.
+ROOT_SYMBOLS = {"sqrt": "√", "cbrt": "∛"}
+
+# The namespaces of a call whose function name is read as a maths function
+# (``cbrt``, ``factorial``): none, or a maths module.
+MATH_CALL_NAMESPACES = ("", "__main__", "math", "cmath", "numpy", "np", "scipy.special")
+
+
+def math_call_name(node: FunctionCall) -> Optional[str]:
+    """
+    The function name of a call to a bare or maths-module function
+    (``cbrt(x)``, ``math.factorial(n)``), or None for a method or another
+    module's function.
+    """
+    namespace = node.namespace
+    if namespace and not isinstance(namespace, Name):
+        return None
+    identifier = getattr(namespace, "identifier", "") if namespace else ""
+    if identifier not in MATH_CALL_NAMESPACES:
+        return None
+    return getattr(node.function_name, "identifier", None)
+
+
+def is_atom(node) -> bool:
+    """True if ``node`` needs no brackets before a postfix operator (``n!``)."""
+    return isinstance(node, (Name, Constant, Attribute, FunctionCall))
+
+
+def postfix_factorial(node: FunctionCall, lpar: str, rpar: str, bang: str = "!"):
+    """
+    Set a ``factorial(n)`` call as the postfix ``n!``, bracketing an argument
+    that is not an atom: ``(n + 1)!``. The function name and namespace are
+    emptied, which keeps the rule from applying twice.
+    """
+    wrap = not (len(node.args) == 1 and is_atom(node.args[0]))
+    node.namespace = deque()
+    node.function_name = Name(identifier="", value="")
+    node.pre = lpar if wrap else ""
+    node.post = f"{rpar}{bang}" if wrap else bang
     return node
 
 
@@ -1030,6 +1157,8 @@ def render_function_call(
         namespace = ""
     else:
         namespace = renderer.render(node.namespace, base_context)
+        if receiver_needs_parens(node.namespace):
+            namespace = f"{context.lpar}{namespace}{context.rpar}"
     args = [renderer.render(arg, base_context) for arg in node.args]
     arg_str = f",{context.space}".join(args)
     if namespace:
@@ -1037,6 +1166,38 @@ def render_function_call(
     else:
         rendered = f"{function_name}{node.pre}{arg_str}{node.post}"
     return rendered
+
+
+def receiver_needs_parens(namespace) -> bool:
+    """
+    True if the receiver of a method call is an expression that must be
+    parenthesized before the ``.``, as in ``(a * b).to("mm")``. A name, call or
+    collection is not.
+    """
+    return isinstance(namespace, (HcBinOp, HcBoolOp, HcUnaryOp, Compare, IfExp))
+
+
+@BaseRenderer.register("if_exp")
+def render_if_exp(renderer: BR, node: IfExp, base_context: BaseRenderContext) -> str:
+    """
+    A conditional expression, ``body if test else orelse``, with the keywords
+    from the renderer's ``IF_EXP_KEYWORDS``. A conditional expression as the
+    body or test is parenthesized; one as the ``orelse`` chains without them,
+    as in Python.
+    """
+    context = base_context.current
+    if_kw, else_kw = renderer.IF_EXP_KEYWORDS
+
+    def part(child, wrap: bool) -> str:
+        rendered = renderer.render_node(child, base_context)
+        if wrap and isinstance(child, IfExp):
+            return f"{context.lpar}{rendered}{context.rpar}"
+        return rendered
+
+    body = part(node.body, True)
+    test = part(node.test, True)
+    orelse = part(node.orelse, False)
+    return f"{body}{if_kw}{test}{else_kw}{orelse}"
 
 
 @BaseRenderer.register("keyword")
@@ -1053,14 +1214,17 @@ def render_comprehension(
     renderer: BR, node: Comprehension, base_context: BaseRenderContext
 ) -> str:
     """
-    Render a single ``for ... in ...`` clause of a comprehension (best-guess).
+    Render a single ``for ... in ...`` clause of a comprehension, with the
+    keywords (and their spaces) from the renderer's ``COMPREHENSION_KEYWORDS``.
     """
+    for_kw, in_kw = renderer.COMPREHENSION_KEYWORDS
     targets = ", ".join(
         renderer.render(target, base_context) for target in node.assigns
     )
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
-    prefix = "async for" if node.is_async else "for"
-    return f"{prefix} {targets} in {iterator}"
+    if node.is_async:
+        for_kw = for_kw.replace("for", "async for")
+    return f"{for_kw}{targets}{in_kw}{iterator}"
 
 
 @BaseRenderer.register("comprehension_chain")
@@ -1085,10 +1249,11 @@ def render_comprehension_chain(
             head = f"{key}: {value}"
         else:
             head = "".join(renderer.render(part, base_context) for part in node.assign)
-        clauses = f"{_}".join(
+        # Each clause starts with its own spaced ``for`` keyword.
+        clauses = "".join(
             renderer.render(comp, base_context) for comp in node.comprehensions
         )
-        inner = f"{head} {clauses}".strip()
+        inner = f"{head}{clauses}".strip()
     finally:
         base_context.line_context.current_mode = prev_mode
     brackets = {
@@ -1114,9 +1279,11 @@ def render_comment_command(
     # unset flags (e.g. an unset -f) and must not clobber the current context.
     line_break = node.commands.get("line_break", False)
     for key, value in node.commands.items():
-        if key in ("line_break", "params_block") or value is None:
+        if key in ONE_SHOT_COMMANDS or value is None:
             continue
         setattr(base_context.global_context, key, value)
+    if node.commands.get("page_break", False):
+        return PAGE_BREAK
     if line_break:
         return f"{nl}"
     return ""
@@ -1144,6 +1311,27 @@ def render_inline_command(
     # argparse defaults for unset flags and must fall through to the global context.
     overrides = {k: v for k, v in node.commands.items() if v is not None}
     base_context.line_context = RenderContext.sparse(**overrides)
+    return ""
+
+
+@BaseRenderer.register("import:pre")
+@BaseRenderer.register("expr_line:pre")
+def skip_ignored_line(renderer: BR, node, base_context: BaseRenderContext):
+    """
+    Swap an import or bare expression hidden by ``# hc: -i`` (inline, or a
+    standalone command above it) for an IgnoredLine, which renders nothing. A
+    calc line handles ``-i`` itself.
+    """
+    comment = getattr(node, "comment", None)
+    commands = getattr(comment, "commands", {}) or {}
+    ignored = commands.get("ignore")
+    if not ignored and ignored is not False:
+        ignored = getattr(base_context.global_context, "ignore", False)
+    return IgnoredLine() if ignored else node
+
+
+@BaseRenderer.register("ignored_line")
+def render_ignored_line(renderer: BR, node, base_context: BaseRenderContext) -> str:
     return ""
 
 
@@ -1235,12 +1423,16 @@ def render_calcline(
                 for subnode in node.expression_tree
             )
             columns.append(numeric)
+    mark = ""
     if "res" in shown:
-        base_context.line_context.current_mode = "num"
-        result_nodes = [
-            renderer.render(subnode, base_context) for subnode in node.assigns
-        ]
-        columns.append(f",{_}".join(result_nodes))
+        if len(node.assigns) == 1:
+            mark = check_mark(renderer, node.assigns[0].value, context)
+        if not mark:
+            base_context.line_context.current_mode = "num"
+            result_nodes = [
+                renderer.render(subnode, base_context) for subnode in node.assigns
+            ]
+            columns.append(f",{_}".join(result_nodes))
 
     # Drop a value column that repeats the one before it: a bare reference
     # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
@@ -1252,6 +1444,8 @@ def render_calcline(
         if not values or column != values[-1]:
             values.append(column)
     columns = deque(head + values)
+    if mark and columns:
+        columns[-1] = f"{columns[-1]}{mark}"
 
     # Multi-line ("long") mode: break the one-liner into a grid of rows that all
     # align on the equality sign -- ``target = symbolic`` on the first row, then
@@ -1292,6 +1486,23 @@ def render_calcline(
         RenderContext.sparse()
     )  # Clear any line-specific context
     return list(components)
+
+
+def is_boolean(value) -> bool:
+    """True for a ``bool`` or a numpy boolean scalar."""
+    return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+
+def check_mark(renderer: BaseRenderer, value, context: RenderContext) -> str:
+    """
+    The pass or fail mark (from ``renderer.CHECK_MARKS``) that a line under
+    ``# hc: --check`` shows in place of its boolean result (#251), or ``""``
+    when the line is not a check or its result is not a boolean.
+    """
+    if not getattr(context, "check", False) or not is_boolean(value):
+        return ""
+    passed, failed = renderer.CHECK_MARKS
+    return passed if value else failed
 
 
 @BaseRenderer.register("params_block")
@@ -1385,9 +1596,12 @@ def render_exprline(
     param_line = getattr(context, "param_line", False)
     if not node.return_expr and not param_line and "num" in shown:
         columns.append(render_tree("num"))
-    if not isinstance(node.value, NoValue) and "res" in shown:
+    mark = check_mark(renderer, node.value, context) if "res" in shown else ""
+    if not isinstance(node.value, NoValue) and "res" in shown and not mark:
         base_context.line_context.current_mode = "num"
         columns.append(renderer.render_node(node.value, base_context))
+    if mark and columns:
+        columns[-1] = f"{columns[-1]}{mark}"
 
     components = deque([])
     for column in columns:
@@ -1666,6 +1880,7 @@ def infix_binop(
         DivOp: "left",
         FloorOp: "left",
         ModuloOp: "left",
+        MatMultOp: "left",
         PowOp: "right",
     }
     commutativity = {
@@ -1675,6 +1890,7 @@ def infix_binop(
         DivOp: 0,
         FloorOp: 0,
         ModuloOp: 0,
+        MatMultOp: 0,
         PowOp: 0,
     }
     node_type = node.__class__
@@ -1703,7 +1919,13 @@ def infix_binop(
     after = brk if brk and node.line_break == "after" else _
     # A power's base that renders with a leading sign (e.g. b substituted as
     # -10.423) must be wrapped, otherwise -10.423² reads as -(10.423²).
-    if lpre < pre or (node_type is PowOp and renderer.leading_sign(render_left)):
+    if lpre < pre or (
+        node_type is PowOp
+        and (
+            renderer.leading_sign(render_left)
+            or quantity_power_base(node, base_context)
+        )
+    ):
         left_portion = f"{lpar}{render_left.replace(CONTINUATION_MARK, _)}{rpar}"
     else:
         left_portion = render_left

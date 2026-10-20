@@ -24,6 +24,7 @@ from .inline_nodes import (
     InlineCommand,
     Compare,
     Keyword,
+    IfExp,
 )
 from .null_values import HcNotImplemented, NoValue
 
@@ -34,6 +35,7 @@ from .operator_nodes import (
     DivOp,
     FloorOp,
     ModuloOp,
+    MatMultOp,
     PowOp,
     GtOp,
     GtEOp,
@@ -66,6 +68,7 @@ ARITHMETIC_OPS = {
     "FloorDiv": FloorOp,
     "Pow": PowOp,
     "Mod": ModuloOp,
+    "MatMult": MatMultOp,
 }
 
 UNARY_OPS = {
@@ -109,6 +112,33 @@ PURE_BUILTINS = (
     round,
     sum,
 )
+
+
+def is_print_statement(stmt: ast.AST) -> bool:
+    """True if ``stmt`` is a bare ``print(...)`` call statement."""
+    return (
+        isinstance(stmt, ast.Expr)
+        and isinstance(stmt.value, ast.Call)
+        and isinstance(stmt.value.func, ast.Name)
+        and stmt.value.func.id == "print"
+    )
+
+
+def is_infinity_call(node: ast.Call) -> bool:
+    """True if ``node`` is ``float("inf")`` (or ``"-inf"``, ``"infinity"``...)."""
+    if not (
+        isinstance(node.func, ast.Name)
+        and node.func.id == "float"
+        and len(node.args) == 1
+        and not node.keywords
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ):
+        return False
+    try:
+        return math.isinf(float(node.args[0].value))
+    except ValueError:
+        return False
 
 
 # HERE: ast_parse to parse block comments, block options, and blocks in order to val = a "hc_tree"
@@ -335,6 +365,12 @@ class AST_Parser:
             if hasattr(stmt, "lineno"):
                 flushed = self._flush_comment_lines(stmt.lineno)
                 out.extend(flushed)
+            # A print() statement is program output, not part of the calculation
+            # (its text is already printed when the source runs), so it is skipped.
+            if is_print_statement(stmt):
+                i += 1
+                continue
+            if hasattr(stmt, "lineno"):
                 # A ``# hc: -h`` command directly above opens a params block of
                 # the consecutive single assignments that follow it.
                 if (
@@ -365,8 +401,15 @@ class AST_Parser:
                     i += 1
                 out.append(ParamsBlock(lines=run))
             else:
-                out.append(self.ast_parse(stmt))
+                parsed = self.ast_parse(stmt)
+                out.append(parsed)
                 i += 1
+                # An inline ``# hc: --pagebreak`` breaks the page after its line.
+                comment = getattr(parsed, "comment", None)
+                if isinstance(comment, InlineCommand) and comment.commands.get(
+                    "page_break"
+                ):
+                    out.append(CommentCommand(commands={"page_break": True}))
         return out
 
     def ast_parse(self, node: ast.AST) -> deque:
@@ -458,14 +501,21 @@ class AST_Parser:
             for name in node.names:
                 acc.append(Name(identifier=name.name, value=name.asname))
             if isinstance(node, ast.Import):
-                val = Import(import_from=False, names=acc)
+                val = Import(
+                    import_from=False, names=acc, comment=self._inline_comment(node)
+                )
             elif isinstance(node, ast.ImportFrom):
                 val = Import(
                     import_from=True,
                     import_from_level=node.level,
                     import_from_module=node.module,
                     names=acc,
+                    comment=self._inline_comment(node),
                 )
+
+        elif isinstance(node, ast.Call) and is_infinity_call(node):
+            # float("inf") is infinity, shown as its symbol (#166).
+            val = Constant(value=float(node.args[0].value))
 
         elif isinstance(node, ast.Call):
             function_call = FunctionCall()
@@ -474,11 +524,13 @@ class AST_Parser:
                 func_name = node.func.id
                 module_name = ""
             elif isinstance(node.func, ast.Attribute):
-                # Example: module.external_func
+                # Example: module.external_func, np.linalg.norm, or a method of
+                # an expression, (a * b).to("mm"), whose receiver is parsed as
+                # an expression node and becomes the call's namespace.
                 func_name = node.func.attr
-                module_name = (
-                    node.func.value.id
-                )  # Assumes the module name is the attribute's value
+                module_name = self._dotted_name(node.func.value)
+                if module_name is None:
+                    module_name = self.ast_parse(node.func.value)
             else:
                 # Complex call, e.g., a function returned by another function
                 # Fall back to standard Rule 2
@@ -534,7 +586,12 @@ class AST_Parser:
             )
 
             # Create the main nested list for the function call
-            function_call.namespace = Name(identifier=module_name, value=module_name)
+            if isinstance(module_name, str):
+                function_call.namespace = Name(
+                    identifier=module_name, value=module_name
+                )
+            else:
+                function_call.namespace = module_name
             function_call.function_name = Name(identifier=func_name, value=func_name)
             function_call.args.extend(args_list)
 
@@ -687,15 +744,23 @@ class AST_Parser:
                 parsed_value = deque([parsed_value])
             val = ExprLine(expression_tree=parsed_value, return_expr=True)
 
-        elif isinstance(node, ast.Attribute):
-            namespace = node.value.id
+        elif isinstance(node, ast.Attribute) and (
+            self._dotted_name(node.value) is not None
+        ):
+            namespace = self._dotted_name(node.value)
             attribute = node.attr
             val = Attribute(
                 namespace=namespace,
                 identifier=attribute,
-                value=getattr(
-                    self.globals.get(namespace, NoValue()), attribute, NoValue()
-                ),
+                value=getattr(self._resolve_dotted(namespace), attribute, NoValue()),
+            )
+
+        elif isinstance(node, ast.IfExp):
+            val = IfExp(
+                test=self.ast_parse(node.test),
+                body=self.ast_parse(node.body),
+                orelse=self.ast_parse(node.orelse),
+                is_true=self._evaluate_test(node.test),
             )
 
         elif isinstance(node, ast.Module):
@@ -725,6 +790,44 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _dotted_name(self, node: ast.AST) -> Optional[str]:
+        """
+        The dotted name a chain of attribute lookups on a name spells
+        (``np.linalg`` for ``np.linalg``), or None for any other expression.
+        """
+        parts = []
+        while isinstance(node, ast.Attribute):
+            parts.append(node.attr)
+            node = node.value
+        if not isinstance(node, ast.Name):
+            return None
+        parts.append(node.id)
+        return ".".join(reversed(parts))
+
+    def _resolve_dotted(self, dotted: str):
+        """The object ``dotted`` (e.g. ``np.linalg``) names in the namespace, or NoValue."""
+        first, *rest = dotted.split(".")
+        obj = self.globals.get(first, NoValue())
+        for attr in rest:
+            obj = getattr(obj, attr, NoValue())
+        return obj
+
+    def _evaluate_test(self, node: ast.AST) -> Optional[bool]:
+        """
+        The truth of a conditional expression's test in the namespace, or None
+        if it cannot be evaluated (e.g. a name the namespace lacks).
+        """
+        try:
+            # A flattened copy of the namespace, as for an if test (see ast.If).
+            return bool(
+                eval(
+                    compile(py_ast.Expression(node), mode="eval", filename="<ast>"),
+                    dict(self.globals),
+                )
+            )
+        except Exception:
+            return None
 
     def _inline_comment(self, node: ast.AST) -> InlineComment | InlineCommand | None:
         """The trailing comment of a statement's line, as a comment or command node."""
