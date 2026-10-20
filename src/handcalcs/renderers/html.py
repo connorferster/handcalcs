@@ -104,6 +104,10 @@ class HTMLRenderer(BaseRenderer):
 
     name = "html"
     # A ``# hc: --pagebreak``: the printed page breaks after this empty div.
+    CHECK_MARKS = (
+        ' <span class="hc-check hc-pass">✓</span>',
+        ' <span class="hc-check hc-fail">✗</span>',
+    )
     PAGE_BREAK = '<div class="hc-page-break" style="break-after: page;"></div>'
 
     def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
@@ -156,6 +160,10 @@ class HTMLRenderer(BaseRenderer):
         "padding:0 0.25em;border-radius:3px;"
         "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
         ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
+        # The pass/fail mark of a ``# hc: --check`` line.
+        ".handcalcs :where(.hc-check){font-weight:700;}"
+        ".handcalcs :where(.hc-pass){color:#1A7F37;}"
+        ".handcalcs :where(.hc-fail){color:#CF222E;}"
         # Imports are small, quiet monospace chips.
         ".handcalcs :where(.hc-import){"
         "align-self:start;font-family:var(--jp-code-font-family,"

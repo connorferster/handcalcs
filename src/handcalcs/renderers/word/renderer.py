@@ -74,6 +74,11 @@ class WordRenderer(BaseRenderer):
     # EDGE_ITEMS items (an equation row cannot break).
     MAX_ITEMS: ClassVar[int] = 10
     EDGE_ITEMS: ClassVar[int] = 3
+    # A ``# hc: --check`` mark, after an em space.
+    CHECK_MARKS: ClassVar[tuple[str, str]] = (
+        omml.run(omml.EM_SPACE) + omml.text("✓"),
+        omml.run(omml.EM_SPACE) + omml.text("✗"),
+    )
     # Keywords are upright words, like ``and``/``or``.
     IF_EXP_KEYWORDS: ClassVar[tuple[str, str]] = (
         omml.upright(" if "),

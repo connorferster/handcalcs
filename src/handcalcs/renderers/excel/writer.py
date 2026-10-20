@@ -36,6 +36,8 @@ SYMBOL, EQ1, MIDDLE, EQ2, VALUE, UNIT, COMMENT = range(7)
 MERGE_LAST = VALUE  # headings and paragraphs span A–E
 
 BODY_SIZE = 10
+CHECK_PASS_COLOR = "#1A7F37"
+CHECK_FAIL_COLOR = "#CF222E"
 COMMENT_COLOR = "#808080"
 # Major-second scale from the 10 pt body, rounded to Excel's 0.5 pt steps.
 HEADING_SIZES = {1: 16, 2: 14, 3: 12.5, 4: 11.5}
@@ -239,6 +241,22 @@ class SheetWriter:
             self.sheet.write_string(row, COMMENT, record.comment, self.comment_format())
         self.define(row, record.name)
 
+    def write_check(self, row: int) -> None:
+        """Colour a ``# hc: --check`` value cell: green if TRUE, red if FALSE."""
+        for value, colour in (("TRUE", CHECK_PASS_COLOR), ("FALSE", CHECK_FAIL_COLOR)):
+            self.sheet.conditional_format(
+                row,
+                VALUE,
+                row,
+                VALUE,
+                {
+                    "type": "cell",
+                    "criteria": "==",
+                    "value": value,
+                    "format": self.formats.get(bold=True, font_color=colour),
+                },
+            )
+
     def write_param(self, row: int, record: ParamRow) -> None:
         self.write_rich(row, SYMBOL, record.symbol, self.text_format())
         self.write_equals(row)
@@ -297,6 +315,8 @@ class SheetWriter:
                 raise TypeError(f"Unknown row record: {record!r}")
             if getattr(record, "hidden", False):
                 hidden.append(r)
+            if getattr(record, "check", False):
+                self.write_check(r)
             r += 1
         widths = self.set_widths()
         merged = sum(widths[col] for col in range(SYMBOL, MERGE_LAST + 1))
