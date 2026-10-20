@@ -34,6 +34,10 @@ command_parser.add_argument("-w", "--if-winner-only", "--winner", action="store_
 command_parser.add_argument("-i", "--ignore", action="store_true")
 command_parser.add_argument("-p", "--param-line", action="store_true")
 command_parser.add_argument("-b", "--line-break", action="store_true")
+# A page break before the next line (standalone) or after this one (inline).
+command_parser.add_argument(
+    "--pagebreak", "--page-break", dest="page_break", action="store_true"
+)
 command_parser.add_argument("-c", "--param-cols", "--param_cols", type=int)
 # The calc-line columns to show; see ``mode_columns`` in renderers/base.py
 # (e.g. ``--mode no_num``, ``--mode ass sym res``). ``-m`` is ``--multiline``.

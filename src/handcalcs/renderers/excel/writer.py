@@ -22,7 +22,15 @@ from typing import Any, Optional
 
 from .names import quote_sheet_name, scoped_name
 from .rich_text import RichText, plain_text
-from .rows import BlankRow, CalcRow, CommentRow, HeadingRow, ParamRow, Row
+from .rows import (
+    BlankRow,
+    CalcRow,
+    CommentRow,
+    HeadingRow,
+    PageBreakRow,
+    ParamRow,
+    Row,
+)
 
 SYMBOL, EQ1, MIDDLE, EQ2, VALUE, UNIT, COMMENT = range(7)
 MERGE_LAST = VALUE  # headings and paragraphs span A–E
@@ -266,6 +274,7 @@ class SheetWriter:
         paragraphs: list[tuple[int, str]] = []
         wrapped: list[tuple[int, str]] = []
         hidden: list[int] = []
+        page_breaks: list[int] = []
         r = 0
         for record in rows:
             if isinstance(record, CalcRow):
@@ -281,6 +290,9 @@ class SheetWriter:
                 paragraphs.append((r, record.text))
             elif isinstance(record, BlankRow):
                 pass
+            elif isinstance(record, PageBreakRow):
+                page_breaks.append(r)
+                continue  # takes no row
             else:
                 raise TypeError(f"Unknown row record: {record!r}")
             if getattr(record, "hidden", False):
@@ -296,6 +308,8 @@ class SheetWriter:
             self.set_height(row, text, widths[MIDDLE])
         for row in hidden:
             self.sheet.set_row(row, None, None, {"hidden": True})
+        if page_breaks:
+            self.sheet.set_h_pagebreaks(page_breaks)
 
     def set_height(self, row: int, text: str, width: float) -> None:
         lines = sum(

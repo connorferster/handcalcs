@@ -280,3 +280,56 @@ def test_method_named_factorial_is_not_swapped():
     names = {"obj": types.SimpleNamespace(factorial=lambda n: n)}
     out = HandCalcs(PlainTextRenderer())("y = obj.factorial(3)\n", names | {"y": 3})
     assert "obj.factorial(3)" in out
+
+
+# --- page breaks (#233) ---
+
+PAGE_BREAKS = "a = 1\n# hc: --pagebreak\nb = 2  # hc: --pagebreak\nc = 3\n"
+
+
+def test_pagebreak_command_parses():
+    from handcalcs.parsing.line_nodes import CommentCommand
+
+    lines = AST_Parser(globals={})(PAGE_BREAKS)
+    breaks = [line for line in lines if isinstance(line, CommentCommand)]
+    assert len(breaks) == 2
+    assert all(line.commands["page_break"] for line in breaks)
+
+
+def test_plaintext_pagebreak_is_a_form_feed():
+    out = HandCalcs(PlainTextRenderer())(PAGE_BREAKS)
+    assert out == "a = 1\n\f\nb = 2\n\f\nc = 3\n"
+
+
+def test_latex_pagebreak():
+    out = HandCalcs(LatexRenderer())(PAGE_BREAKS)
+    assert out.count("\\newpage") == 2
+
+
+def test_markdown_and_html_pagebreak():
+    from handcalcs.renderers.markdown import MarkdownRenderer
+
+    assert HandCalcs(MarkdownRenderer())(PAGE_BREAKS).count("break-after: page") == 2
+    assert HandCalcs(HTMLRenderer())(PAGE_BREAKS).count('class="hc-page-break"') == 2
+
+
+def test_word_pagebreak():
+    pytest.importorskip("docx")
+    from handcalcs.renderers.word import WordRenderer
+
+    doc = HandCalcs(WordRenderer())(PAGE_BREAKS)
+    assert doc.element.xml.count('w:type="page"') == 2
+
+
+def test_excel_pagebreak():
+    openpyxl = pytest.importorskip("openpyxl")
+    import io
+
+    workbook = HandCalcs(ExcelRenderer())(PAGE_BREAKS)
+    sheet = openpyxl.load_workbook(io.BytesIO(workbook.to_bytes())).active
+    assert [brk.id for brk in sheet.row_breaks.brk] == [1, 2]
+
+
+def test_pagebreak_does_not_persist():
+    out = HandCalcs(PlainTextRenderer())("# hc: --pagebreak\na = 1\nb = 2\n")
+    assert out.count("\f") == 1

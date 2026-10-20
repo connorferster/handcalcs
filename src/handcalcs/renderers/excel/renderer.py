@@ -10,6 +10,7 @@ from handcalcs.parsing.nodes import Constant, Name
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import HcUnaryOp
 from handcalcs.renderers.base import (
+    PAGE_BREAK,
     BaseRenderContext,
     BaseRenderer,
     RenderContext,
@@ -30,7 +31,15 @@ from .options import (
     validate_sheet_name,
 )
 from .rich_text import parse_markup
-from .rows import BlankRow, CalcRow, CommentRow, HeadingRow, ParamRow, Row
+from .rows import (
+    BlankRow,
+    CalcRow,
+    CommentRow,
+    HeadingRow,
+    PageBreakRow,
+    ParamRow,
+    Row,
+)
 from .symbolic import register_symbolic_rules, symbolic_markup
 from .writer import ExcelWorkbook, build_workbook, write_sheet
 
@@ -416,8 +425,10 @@ def render_heading(renderer: ER, node, base_context: BRC) -> list[Row]:
 @ER.register("comment_command")
 def render_comment_command(renderer: ER, node, base_context: BRC) -> list[Row]:
     """Updates the global context (e.g. ``-f``); ``-b`` inserts a blank row."""
-    line_break = base_render_comment_command(renderer, node, base_context)
-    return [BlankRow()] if line_break else []
+    rendered = base_render_comment_command(renderer, node, base_context)
+    if rendered == PAGE_BREAK:
+        return [PageBreakRow()]
+    return [BlankRow()] if rendered else []
 
 
 @ER.register("expr_line")

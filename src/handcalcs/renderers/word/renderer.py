@@ -3,7 +3,12 @@ from __future__ import annotations
 import pathlib
 from typing import Any, ClassVar, Optional
 
-from handcalcs.renderers.base import BaseRenderContext, BaseRenderer, RenderContext
+from handcalcs.renderers.base import (
+    PAGE_BREAK,
+    BaseRenderContext,
+    BaseRenderer,
+    RenderContext,
+)
 from . import omml
 from .document import (
     CalcGrid,
@@ -168,7 +173,9 @@ class WordRenderer(BaseRenderer):
         elif isinstance(item, ParamsTable):
             writer.params_table(item, depth)
         elif isinstance(item, str):
-            if item.strip():
+            if item == PAGE_BREAK:
+                writer.page_break()
+            elif item.strip():
                 writer.prose(item, depth)
             else:
                 writer.line_break(depth)
