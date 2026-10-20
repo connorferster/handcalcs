@@ -160,6 +160,27 @@ x = 3
 x**2 > 5
 ```
 
+handcalcs evaluates such a line again to find its result, but only when that is safe:
+arithmetic, built-ins, and `math` and numpy functions. A call to your own function is
+never run twice, so its result is shown only when it is the **last line of a
+`%%render` cell** (or a `%render` line). There handcalcs takes the value from the cell's
+own run, IPython's `_`:
+
+```python
+def f(x):
+    return x * 10
+```
+
+```python
+%%render
+a = 2
+f(a)
+```
+
+shows `a = 2` and `f(a) = f(2) = 20`. A result of `None` (from
+`items.append(a)`, say) is not shown. Outside Jupyter, assign the value instead:
+`y = f(a)`.
+
 ## Add space between parts
 
 `# hc: -b` on its own line adds vertical space, to separate groups of results:

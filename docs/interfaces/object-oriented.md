@@ -69,6 +69,25 @@ decide which branch to show, so a missing name raises `NameError`.
   [Rendering many input sets](#rendering-many-input-sets). `inputs` cannot be combined
   with `supplied_globals`.
 
+### Rendering code that has already run
+
+`hc.render_cell(source, namespace, result=None)` renders `source` with the values in
+`namespace`, like passing `supplied_globals`. `result` is the value of the source's last
+line when that line is a bare expression, and is shown as that line's result. The
+`%%render` and `%render` magics pass IPython's `_` here, so a cell ending in a call to
+your own function shows its result without running the function twice:
+
+```python
+namespace = {}
+source = "a = 2\nf(a)"
+exec("def f(x):\n    return x * 10", namespace)
+exec("a = 2", namespace)
+result = eval("f(a)", namespace)
+print(HandCalcs(PlainTextRenderer()).render_cell(source, namespace, result))
+# a = 2
+# f(a) = f(2) = 20
+```
+
 ### Inspecting the parsed tree
 
 After a call, `hc.hc_ast` holds the parsed calculation (an `HcSequence`). This is

@@ -64,7 +64,9 @@ e = a**2 + b**2
 ### Expressions
 
 A bare expression (no assignment) is shown like a calculation without a target: its
-symbolic and substituted forms, then its result:
+symbolic and substituted forms, then its result. (The result of a call to your own
+function is shown only on the last line of a `%%render` cell; see
+[Show the result of an expression](../cookbook/showing-and-hiding.md#show-the-result-of-an-expression).)
 
 ```{hc-example}
 :renderer: plain_text
