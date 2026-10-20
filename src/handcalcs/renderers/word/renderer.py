@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pathlib
 from typing import Any, ClassVar, Optional
 
@@ -142,8 +143,14 @@ class WordRenderer(BaseRenderer):
         writer = DocumentWriter(document)
         self.write_items(writer, tree, 0, base_context)
         if self.filepath is not None:
-            document.save(self.filepath)
+            self.to_file(document, self.filepath)
         return document
+
+    def to_file(self, rendered: Any, path: str | os.PathLike) -> pathlib.Path:
+        """Save the document ``complete()`` returned to ``path`` (a .docx)."""
+        path = pathlib.Path(path)
+        rendered.save(path)
+        return path
 
     # --- Writing the tree ----------------------------------------------------
 

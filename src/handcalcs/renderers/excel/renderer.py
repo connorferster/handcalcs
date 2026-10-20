@@ -1,5 +1,6 @@
 from __future__ import annotations
 import math
+import os
 import pathlib
 from collections import deque
 from dataclasses import dataclass
@@ -175,8 +176,12 @@ class ExcelRenderer(BaseRenderer):
             tree, self.sheet_name, self.value_format, self.formula_format
         )
         if self.filepath is not None:
-            workbook.save(self.filepath)
+            self.to_file(workbook, self.filepath)
         return workbook
+
+    def to_file(self, rendered: ExcelWorkbook, path: str | os.PathLike) -> pathlib.Path:
+        """Save the workbook ``complete()`` returned to ``path`` (an .xlsx)."""
+        return rendered.save(path)
 
     def write_sheet(self, workbook, rows: list[Row], sheet_name: Optional[str] = None):
         """

@@ -109,6 +109,21 @@ class HTMLRenderer(BaseRenderer):
         ' <span class="hc-check hc-fail">✗</span>',
     )
     PAGE_BREAK = '<div class="hc-page-break" style="break-after: page;"></div>'
+    # A file written by ``to_file`` is a complete page around the output, which
+    # is otherwise a fragment for a host page (a notebook, a web app).
+    preamble = (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n'
+        "<head>\n"
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        "<title>Calculations</title>\n"
+        "<style>body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,"
+        "sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem;}</style>\n"
+        "</head>\n"
+        "<body>\n"
+    )
+    postamble = "\n</body>\n</html>\n"
 
     def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
         super().__init__()
