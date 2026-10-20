@@ -12,6 +12,7 @@ magic and a line magic) and two settings magics:
 | Magic | Does |
 |---|---|
 | `%%render` | Runs the cell, then displays it as a calculation. |
+| `%%render inputs=case` | Runs and displays the cell with the values in `case` ([inputs](#rendering-with-inputs)). |
 | `%render LINE` | Runs one line, then displays it as a calculation. |
 | `%hc_default_renderer NAME` | Chooses the renderer `%%render` uses for this session. |
 | `%hc_format_code CODE` | Sets the default [number format](../getting-started/formatting-numbers.md) for this session. |
@@ -35,14 +36,50 @@ What happens:
    from the notebook namespace.
 3. The output is displayed with the IPython display class that matches the renderer.
 
-Anything after `%%render` on the first line is ignored. Formatting is controlled with
-[comment commands](../getting-started/comment-commands.md) inside the cell.
+Formatting is controlled with [comment commands](../getting-started/comment-commands.md)
+inside the cell. The first line takes only the [inputs](#rendering-with-inputs) arguments;
+words without `=` after `%%render` (such as v1's `params`) are ignored.
 
 ```{warning}
 If the cell raises an exception, `%%render` displays nothing, and the traceback is not
 shown. If a rendered cell comes up empty, remove `%%render` and run it again to see the
 error.
 ```
+
+## Rendering with inputs
+
+`%%render inputs=case` renders the cell with the values in the dict `case` in place of
+the values the cell assigns them, the same way as
+[`HandCalcs(..., inputs=...)`](object-oriented.md#rendering-many-input-sets) does for
+a script:
+
+```python
+case = {"w": 6.2, "L": 8}
+```
+
+```python
+%%render inputs=case
+w = 4.5 * kN / m
+L = 6 * m
+M_f = w * L**2 / 8
+```
+
+This runs and renders as `w = 6.2 kN/m`, `L = 8 m`, and `M_f` is computed from them. A
+number keeps the cell's units; a quantity is converted to them. Later cells see the
+values the cell computed with the inputs.
+
+The arguments are keyword arguments, separated by commas, and are evaluated in the
+notebook's namespace, so any expression works: `%%render inputs=cases[2], strict=False`.
+
+| Argument | Does |
+|---|---|
+| `inputs` | A dict of names and values. Required when any argument is given. |
+| `strict=False` | Ignore inputs the cell never assigns, instead of raising a `KeyError`. |
+| `allow_computed=True` | Let an input replace a computed line (`b = 2 * a`), instead of raising a `ValueError`. |
+
+A misspelled input name or an input on a computed line raises its error before the
+cell runs, so its traceback is shown. A quantity whose units don't match the line's
+raises while the cell runs, so, as the warning above says, nothing is displayed.
 
 ## `%render`: one line
 

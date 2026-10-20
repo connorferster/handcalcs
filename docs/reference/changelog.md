@@ -23,7 +23,8 @@ A rewrite of handcalcs around a node tree and pluggable renderers.
 - **Many input sets from one script**: `HandCalcs(...)(script, inputs={...})` renders
   a script with different given values, keeping their units (quantities are
   converted to them); `find_inputs` lists a
-  script's inputs ([details](../interfaces/object-oriented.md#rendering-many-input-sets)).
+  script's inputs ([details](../interfaces/object-oriented.md#rendering-many-input-sets));
+  `%%render inputs=case` does the same for a notebook cell.
 
 See [Coming from handcalcs v1](../getting-started/migrating-from-v1.md) for how to
 update notebooks.

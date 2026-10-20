@@ -90,6 +90,10 @@ for case in json.loads(pathlib.Path("beams.json").read_text()):  # [{"w": 6.2, "
     doc = hc(pathlib.Path("beam.py"), inputs=case)
 ```
 
+In a notebook, [`%%render inputs=case`](jupyter.md#rendering-with-inputs) does the same
+for a cell. A [`@handcalc`](decorator.md) function needs nothing extra: its parameters
+are already its inputs.
+
 `beam.py` stays a normal script that runs and renders on its own:
 
 ```python
