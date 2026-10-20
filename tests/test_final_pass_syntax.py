@@ -170,3 +170,30 @@ def test_latex_set_comprehension_braces_are_escaped():
 def test_plaintext_comprehension_unchanged():
     out = _last_line(PlainTextRenderer(), "ts = [1, 2]\nsq = [t**2 for t in ts]\n")
     assert out == "sq = [t² for t in ts] = [1, 4]"
+
+
+# --- numpy (#187) ---
+
+
+def test_numpy_arrays_render_without_truth_value_error():
+    pytest.importorskip("numpy")
+    source = (
+        "import numpy as np\n"
+        "a = np.array([1, 2, 3])\n"
+        "c = a * 2\n"
+        "d = np.sum(a) + 1\n"
+        "if d > 3:\n"
+        "    h = c + a\n"
+    )
+    out = _render(PlainTextRenderer(), source)
+    assert "c = a * 2 = [1 2 3] * 2 = [2 4 6]" in out
+    assert "h = c + a = [2 4 6] + [1 2 3] = [3 6 9]" in out
+
+
+def test_matrix_multiplication():
+    pytest.importorskip("numpy")
+    source = "import numpy as np\na = np.array([1.0, 2.0])\nf = a @ a\n"
+    assert (
+        _last_line(PlainTextRenderer(), source) == "f = a @ a = [1. 2.] @ [1. 2.] = 5"
+    )
+    assert "f &= a \\mathbin{@} a" in _render(LatexRenderer(), source)

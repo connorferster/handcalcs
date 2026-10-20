@@ -27,6 +27,7 @@ from handcalcs.parsing.operator_nodes import (
     SubOp,
     DivOp,
     ModuloOp,
+    MatMultOp,
     FloorOp,
     PowOp,
     HcBinOp,
@@ -108,6 +109,7 @@ OP_PRECEDENCE = {
     DivOp: 2,
     FloorOp: 2,
     ModuloOp: 2,
+    MatMultOp: 2,
     HcUnaryOp: UNARY_PRECEDENCE,
     PowOp: 3,
 }
@@ -899,6 +901,7 @@ def render_floor_op(
     return f"{node.pre}{as_infix}{node.post}"
 
 
+@BaseRenderer.register("mat_mult_op")
 @BaseRenderer.register("modulo_op")
 def render_modulo_op(
     renderer: BR, node: ModuloOp, base_context: BaseRenderContext
@@ -1714,6 +1717,7 @@ def infix_binop(
         DivOp: "left",
         FloorOp: "left",
         ModuloOp: "left",
+        MatMultOp: "left",
         PowOp: "right",
     }
     commutativity = {
@@ -1723,6 +1727,7 @@ def infix_binop(
         DivOp: 0,
         FloorOp: 0,
         ModuloOp: 0,
+        MatMultOp: 0,
         PowOp: 0,
     }
     node_type = node.__class__

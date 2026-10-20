@@ -294,6 +294,7 @@ OPERATOR_SYMBOLS = {
     "add_op": "+",
     "sub_op": "-",
     "modulo_op": "\\bmod",
+    "mat_mult_op": "\\mathbin{@}",
     "lt_op": " < ",
     "gt_op": " > ",
     "lte_op": " \\le ",
@@ -745,6 +746,7 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
 @LR.register("add_op:pre")
 @LR.register("sub_op:pre")
 @LR.register("modulo_op:pre")
+@LR.register("mat_mult_op:pre")
 @LR.register("lt_op:pre")
 @LR.register("gt_op:pre")
 @LR.register("lte_op:pre")

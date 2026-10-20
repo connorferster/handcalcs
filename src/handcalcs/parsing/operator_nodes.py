@@ -50,6 +50,19 @@ class FloorOp(HcBinOp):
 
 
 @dataclass
+class MatMultOp(HcBinOp):
+    """Matrix multiplication, ``a @ b`` (numpy arrays)."""
+
+    left: deque
+    right: deque
+    symbol: str = "@"
+    pre: str = ""
+    post: str = ""
+    line_break: str = field(default="", compare=False)
+    type: str = "mat_mult_op"
+
+
+@dataclass
 class ModuloOp(HcBinOp):
     left: deque
     right: deque

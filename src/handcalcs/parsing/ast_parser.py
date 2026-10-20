@@ -35,6 +35,7 @@ from .operator_nodes import (
     DivOp,
     FloorOp,
     ModuloOp,
+    MatMultOp,
     PowOp,
     GtOp,
     GtEOp,
@@ -67,6 +68,7 @@ ARITHMETIC_OPS = {
     "FloorDiv": FloorOp,
     "Pow": PowOp,
     "Mod": ModuloOp,
+    "MatMult": MatMultOp,
 }
 
 UNARY_OPS = {
