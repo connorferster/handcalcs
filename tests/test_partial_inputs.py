@@ -180,7 +180,7 @@ def test_find_inputs():
 
 def test_find_inputs_from_path(tmp_path):
     path = tmp_path / "calc.py"
-    path.write_text("a = 1\nb = a * 2\n")
+    path.write_text("a = 1\nb = a * 2\n", encoding="utf-8")
     assert find_inputs(path) == {"a": 1}
 
 
@@ -195,7 +195,7 @@ def test_find_inputs_round_trip():
 
 def without_addresses(rendered: str) -> str:
     """The render with object addresses (the pint registry's repr) blanked out."""
-    return re.sub(r"0x[0-9a-f]+", "0x", rendered)
+    return re.sub(r"0x[0-9a-fA-F]+", "0x", rendered)
 
 
 BEAM = UNITS + (
@@ -233,7 +233,7 @@ def test_render_with_inputs_recomputes_results():
 
 def test_render_with_inputs_from_path(tmp_path):
     path = tmp_path / "beam.py"
-    path.write_text(BEAM)
+    path.write_text(BEAM, encoding="utf-8")
     hc = HandCalcs(PlainTextRenderer())
     assert without_addresses(hc(pathlib.Path(path), inputs={"L": 8})) == (
         without_addresses(hc(BEAM, inputs={"L": 8}))
