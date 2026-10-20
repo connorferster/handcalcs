@@ -114,7 +114,7 @@ html_title = "handcalcs"
 html_static_path = ["_static"]
 html_css_files = ["handcalcs-docs.css"]
 # The published site's root URL, for canonical links. Set by the deploy workflow.
-html_baseurl = os.environ.get("HC_DOCS_URL", "")
+html_baseurl = os.environ.get("HC_DOCS_URL", "https://handcalcs.structuralpython.com/")
 
 html_context = {
     "source_type": "github",

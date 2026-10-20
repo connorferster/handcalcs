@@ -23,7 +23,7 @@ Two environment variables affect a published build:
 | Variable | Effect |
 |---|---|
 | `HC_SOURCE_REF` | The git ref that source links point at (see [Source links](#source-links)). |
-| `HC_DOCS_URL` | The site's root URL (for example `https://…/`), used for canonical links. Empty by default. |
+| `HC_DOCS_URL` | The site's root URL, used for canonical links. Defaults to `https://handcalcs.structuralpython.com/`. |
 
 ## Layout
 
