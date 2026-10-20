@@ -2,7 +2,7 @@ import pathlib
 import warnings
 from typing import Optional
 from ..parsing.sequence import HcSequence
-from ..parsing.inputs import bind_inputs
+from ..parsing.inputs import InputBinding
 from ..renderers import BaseRenderer, get_renderer
 from ..renderers import demo
 from .. import config
@@ -63,7 +63,9 @@ class HandCalcs:
         (see handcalcs.parsing.inputs.bind_inputs, which also describes 'strict' and
         'allow_computed'); the source is then executed with them. A number replaces only
         the number of a value with units, so 'L = 6 * m' with inputs={"L": 8} renders
-        and runs as 'L = 8 * m'.
+        and runs as 'L = 8 * m'. A quantity is converted to the units of such a line,
+        so with inputs={"L": 8000 * mm} it runs and renders as 'L = 8 * m' too. Other
+        objects (arrays, quantities on a line without units) are used as they are.
         """
         source = self.__read(source_or_path)
         if inputs is not None:
@@ -73,13 +75,18 @@ class HandCalcs:
                     "namespace is used without executing the source, and inputs only "
                     "take effect when it is executed."
                 )
-            source = bind_inputs(
+            binding = InputBinding(
                 source, inputs, strict=strict, allow_computed=allow_computed
             )
-        passed_globals = supplied_globals
-        if supplied_globals is None:
-            passed_globals = self.__evaluate(source)
-        self.hc_ast = self.__parse(source, passed_globals)
+            passed_globals = self.__evaluate(binding.exec_source, binding.namespace())
+            source = binding.parse_source(passed_globals)
+            self.hc_ast = self.__parse(source, passed_globals)
+            binding.place_objects(self.hc_ast)
+        else:
+            passed_globals = supplied_globals
+            if supplied_globals is None:
+                passed_globals = self.__evaluate(source)
+            self.hc_ast = self.__parse(source, passed_globals)
         base_context = self.renderer.create_context(
             **(self._context_settings | {"global_ns": passed_globals})
         )
@@ -128,8 +135,8 @@ class HandCalcs:
             )
         return source
 
-    def __evaluate(self, source):
-        eval_globals = eval_locals = {}
+    def __evaluate(self, source, namespace: Optional[dict] = None):
+        eval_globals = eval_locals = dict(namespace or {})
         exec(source, eval_globals, eval_locals)
         return eval_globals
 
