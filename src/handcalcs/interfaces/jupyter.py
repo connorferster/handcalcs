@@ -2,6 +2,7 @@ import sys
 from string import Formatter
 from .object_oriented import HandCalcs
 from handcalcs import config
+from handcalcs.parsing.inputs import RESOLVER, InputBinding
 
 # Importing the package registers the built-in renderers by name.
 from handcalcs.renderers import BaseRenderer, get_renderer
@@ -93,14 +94,18 @@ def hc_default_renderer(line):
     config.set_option("jupyter_renderer", name)
 
 
-def render_and_display(source: str, namespace: dict) -> None:
-    """Render ``source`` with the session's Jupyter renderer and display it."""
+def jupyter_handcalcs() -> tuple[HandCalcs, type]:
+    """A HandCalcs with the session's Jupyter renderer, and its display class."""
     renderer_name = config.get_option(
         "jupyter_renderer", config.DEFAULTS["jupyter_renderer"]
     )
     renderer_cls = resolve_jupyter_renderer(renderer_name)
-    display_class = display_class_for(renderer_cls)
-    hc = HandCalcs(renderer=renderer_cls())
+    return HandCalcs(renderer=renderer_cls()), display_class_for(renderer_cls)
+
+
+def render_and_display(source: str, namespace: dict) -> None:
+    """Render ``source`` with the session's Jupyter renderer and display it."""
+    hc, display_class = jupyter_handcalcs()
     # Display, but not as an "output"
     display(display_class(hc(source, namespace)))
 
@@ -111,10 +116,16 @@ def render(line, cell=None, local_ns=None):
     """
     ``%%render`` runs its cell and renders all of it. ``%render <line>`` runs and
     renders just that one line (e.g. the one important equation in a longer cell),
-    leaving the rest of the cell unrendered.
+    leaving the rest of the cell unrendered. ``%%render inputs=case`` runs and
+    renders the cell with the values in the dict ``case`` in place of the values
+    the cell assigns them (``strict=`` and ``allow_computed=`` may follow, as for
+    ``HandCalcs(..., inputs=...)``).
     """
     if cell is None:
         return render_line(line, local_ns)
+    arguments = input_arguments(line, local_ns)
+    if arguments is not None:
+        return render_with_inputs(cell, **arguments)
     # if line_args["sympy"]:
     #     cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
 
@@ -127,6 +138,65 @@ def render(line, cell=None, local_ns=None):
 
     # Render against the updated variables (after .run_cell(cell))
     render_and_display(cell, ip.user_ns)
+
+
+INPUT_ARGUMENTS = ("inputs", "strict", "allow_computed")
+
+
+def input_arguments(line: str, local_ns: dict | None) -> dict | None:
+    """
+    The arguments of ``%%render inputs=case, strict=False``, written as keyword
+    arguments of a Python call and evaluated in the user namespace. None for a
+    line without arguments (or with only words, like v1's ``%%render params``,
+    which 2.0 ignores).
+    """
+    if "=" not in line:
+        return None
+    try:
+        arguments = eval(
+            f"__hc_arguments__({line.strip()})",
+            ip.user_ns,
+            {**(local_ns or {}), "__hc_arguments__": lambda **kwargs: kwargs},
+        )
+    except (SyntaxError, TypeError) as error:
+        raise UsageError(
+            f"%%render could not read its arguments '{line.strip()}' ({error}). "
+            "Write them as keyword arguments, e.g. %%render inputs=case, strict=False"
+        ) from None
+    unknown = [name for name in arguments if name not in INPUT_ARGUMENTS]
+    if unknown:
+        raise UsageError(
+            f"%%render does not take {', '.join(map(repr, unknown))}. Its arguments "
+            f"are {', '.join(INPUT_ARGUMENTS)}."
+        )
+    if "inputs" not in arguments:
+        raise UsageError(
+            "%%render needs inputs=... when it is given strict or allow_computed."
+        )
+    if not isinstance(arguments["inputs"], dict):
+        raise UsageError(
+            f"%%render inputs= must be a dict, not {type(arguments['inputs']).__name__}."
+        )
+    return arguments
+
+
+def render_with_inputs(
+    cell: str, inputs: dict, strict: bool = True, allow_computed: bool = False
+) -> None:
+    """
+    ``%%render inputs=case``: run and render the cell with the values in ``case``
+    in place of the values the cell assigns them, as ``HandCalcs(...,
+    inputs=case)`` does for a script.
+    """
+    binding = InputBinding(cell, inputs, strict=strict, allow_computed=allow_computed)
+    ip.user_ns.update(binding.namespace())
+    with cell_capture:
+        exec_result = ip.run_cell(binding.exec_source)
+    if not exec_result.success:
+        ip.user_ns.pop(RESOLVER, None)
+        return None
+    hc, display_class = jupyter_handcalcs()
+    display(display_class(hc.render_bound(binding, ip.user_ns)))
 
 
 def render_line(line: str, local_ns: dict | None) -> None:

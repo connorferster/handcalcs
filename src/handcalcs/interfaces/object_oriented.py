@@ -79,14 +79,25 @@ class HandCalcs:
                 source, inputs, strict=strict, allow_computed=allow_computed
             )
             passed_globals = self.__evaluate(binding.exec_source, binding.namespace())
-            source = binding.parse_source(passed_globals)
-            self.hc_ast = self.__parse(source, passed_globals)
-            binding.place_objects(self.hc_ast)
-        else:
-            passed_globals = supplied_globals
-            if supplied_globals is None:
-                passed_globals = self.__evaluate(source)
-            self.hc_ast = self.__parse(source, passed_globals)
+            return self.render_bound(binding, passed_globals)
+        passed_globals = supplied_globals
+        if supplied_globals is None:
+            passed_globals = self.__evaluate(source)
+        self.hc_ast = self.__parse(source, passed_globals)
+        return self.__render(passed_globals)
+
+    def render_bound(self, binding: InputBinding, namespace: dict) -> str:
+        """
+        Renders the source of 'binding' once its 'exec_source' has run in
+        'namespace' (which started as 'binding.namespace()'). The '%%render
+        inputs=...' magic runs the cell itself and renders it with this.
+        """
+        source = binding.parse_source(namespace)
+        self.hc_ast = self.__parse(source, namespace)
+        binding.place_objects(self.hc_ast)
+        return self.__render(namespace)
+
+    def __render(self, passed_globals: dict) -> str:
         base_context = self.renderer.create_context(
             **(self._context_settings | {"global_ns": passed_globals})
         )
