@@ -733,6 +733,51 @@ def literal_text(node: Constant) -> str:
     return node.source_text.replace("_", "")
 
 
+def pint_default_format(value) -> Optional[str]:
+    """
+    The registry's default format (e.g. ``"~P"``) of a pint quantity or unit,
+    ``""`` if none is set, or None if ``value`` is not from pint.
+    """
+    registry = getattr(value, "_REGISTRY", None)
+    if registry is None or isinstance(value, type):
+        return None
+    formatter = getattr(registry, "formatter", registry)
+    return getattr(formatter, "default_format", "") or ""
+
+
+def pint_text_format(default_format: str) -> str:
+    """
+    The unit part of a format spec for showing a pint quantity as text: the
+    registry default's abbreviation (``~``) and its text style (pretty,
+    compact or default), with pretty in place of a LaTeX or HTML style.
+    """
+    abbreviate = "~" if "~" in default_format else ""
+    style = next((c for c in default_format if c in "PCD"), "P")
+    return f"{abbreviate}{style}"
+
+
+def is_quantity(value) -> bool:
+    """True for a value with units: a pint quantity or a forallpeople Physical."""
+    if isinstance(value, (int, float, complex)):
+        return False
+    return pint_default_format(value) is not None or callable(
+        getattr(value, "_repr_latex_", None)
+    )
+
+
+def quantity_power_base(node, base_context: BaseRenderContext) -> bool:
+    """
+    True if the base of a power substitutes a quantity in the numeric column,
+    which must be bracketed: ``(6 m)²``, not ``6 m²``.
+    """
+    current_mode = getattr(base_context.current, "current_mode", None)
+    return (
+        current_mode == "num"
+        and isinstance(node.left, (Name, Attribute))
+        and is_quantity(node.left.value)
+    )
+
+
 @BaseRenderer.register("constant")
 def render_constant(
     renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext
@@ -753,6 +798,13 @@ def render_constant(
         return literal_text(node)
     if isinstance(node.value, float) and math.isinf(node.value):
         return "-∞" if node.value < 0 else "∞"
+    # A format spec replaces a pint registry's default format, so its unit
+    # modifiers (e.g. "~P") are added back.
+    default_format = pint_default_format(node.value)
+    if default_format:
+        # A unit (ureg.m) has no number to format.
+        number = fc if hasattr(node.value, "magnitude") else ""
+        fc = f"{number}{pint_text_format(default_format)}"
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError):  # Format code not implemented / not a scalar
@@ -1867,7 +1919,13 @@ def infix_binop(
     after = brk if brk and node.line_break == "after" else _
     # A power's base that renders with a leading sign (e.g. b substituted as
     # -10.423) must be wrapped, otherwise -10.423² reads as -(10.423²).
-    if lpre < pre or (node_type is PowOp and renderer.leading_sign(render_left)):
+    if lpre < pre or (
+        node_type is PowOp
+        and (
+            renderer.leading_sign(render_left)
+            or quantity_power_base(node, base_context)
+        )
+    ):
         left_portion = f"{lpar}{render_left.replace(CONTINUATION_MARK, _)}{rpar}"
     else:
         left_portion = render_left
