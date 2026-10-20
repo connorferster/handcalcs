@@ -238,3 +238,7 @@ with the other sessions: features/final_pass → features/ascii_renderer → thi
    (another session may still be alive — ask the user before continuing if so).
 2. Read the Status table; continue the first phase not marked done.
 3. Build: `uv run --extra doc sphinx-build -b html docs docs/_build/html` (foreground).
+
+### 2026-10-20 (after #309)
+- ASCII rename done in docs (`renderers/ascii.md`, HEADING_RULES, `=` alignment, changelog, migration note). final_pass 30b1d7d merged in.
+- PR #311 → hc2/dev opened; merge after #310.
