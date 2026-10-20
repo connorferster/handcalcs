@@ -21,7 +21,8 @@ A rewrite of handcalcs around a node tree and pluggable renderers.
 - **`%render`** line magic renders a single line (#179).
 - **Bare expressions** (`2 * a`) show their result (#54).
 - **Many input sets from one script**: `HandCalcs(...)(script, inputs={...})` renders
-  a script with different given values, keeping their units; `find_inputs` lists a
+  a script with different given values, keeping their units (quantities are
+  converted to them); `find_inputs` lists a
   script's inputs ([details](../interfaces/object-oriented.md#rendering-many-input-sets)).
 
 See [Coming from handcalcs v1](../getting-started/migrating-from-v1.md) for how to

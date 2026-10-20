@@ -121,9 +121,20 @@ input name, including one statement of an `a = 1; b = 2` line. Later reassignmen
 still run. A name assigned only inside a block or function, by `+=`, or by unpacking
 cannot be bound and raises `ValueError`.
 
-**Input values** must be writable as Python literals: numbers, strings, `True`/`False`,
-`None`, and lists, tuples and dicts of these. That is everything JSON can hold.
-Quantities and arrays are not supported yet; pass their numbers instead.
+**Input values** are usually what JSON holds: numbers, strings, `True`/`False`, `None`,
+and lists and dicts of these. They are written into the script as typed. Numbers of
+other types, such as `numpy.float64` from a pandas row, are written as plain numbers.
+
+**Quantities** are converted to the units of their line. With
+`inputs={"w": 6200 * ureg.N / ureg.m}`, the line `w = 4.5 * kN / m` runs and renders as
+`w = 6.2 * kN / m`, so the document keeps the script's units. A quantity whose units
+do not convert (a length for a load) raises `ValueError`. pint quantities from another
+`UnitRegistry` are converted into the script's registry.
+
+**Other objects**, such as arrays, sections or a quantity on a line with no units
+(`A = 100`), are assigned as they are and shown as the line's value. Keep pint
+quantities on such lines in the script's registry, since pint cannot calculate with
+quantities from two registries.
 
 ### Checks
 
