@@ -333,3 +333,67 @@ def test_excel_pagebreak():
 def test_pagebreak_does_not_persist():
     out = HandCalcs(PlainTextRenderer())("# hc: --pagebreak\na = 1\nb = 2\n")
     assert out.count("\f") == 1
+
+
+# --- check marks (#251) ---
+
+CHECKS = (
+    "DoU = 0.85\n"
+    "ok = DoU <= 1  # hc: --check\n"
+    "fail = DoU > 1  # hc: --check\n"
+    "plain = DoU > 1\n"
+)
+
+
+def test_plaintext_check_marks():
+    out = _render(PlainTextRenderer(), CHECKS).splitlines()
+    assert out[1] == "ok = DoU<=1 = 0.85<=1 ✓"
+    assert out[2] == "fail = DoU>1 = 0.85>1 ✗"
+    assert out[3] == "plain = DoU>1 = 0.85>1 = False"
+
+
+def test_check_on_a_bare_comparison():
+    out = _last_line(PlainTextRenderer(), "S = 1.2\nS <= 1.5  # hc: --check\n")
+    assert out == "S<=1.5 = 1.2<=1.5 ✓"
+
+
+def test_standalone_check_applies_to_following_lines():
+    out = _render(PlainTextRenderer(), "a = 2\n# hc: --check\nb = a > 1\nc = a + 1\n")
+    assert "b = a>1 = 2>1 ✓" in out
+    assert "c = a + 1 = 2 + 1 = 3" in out  # not a boolean: unchanged
+
+
+def test_check_with_kwarg_syntax():
+    out = _last_line(PlainTextRenderer(), "a = 2\nb = a > 1  # hc: check = True\n")
+    assert out == "b = a>1 = 2>1 ✓"
+
+
+def test_latex_check_marks():
+    out = _render(LatexRenderer(), CHECKS)
+    assert "0.85 \\le 1\\quad{\\color{green}\\checkmark}" in out
+    assert "0.85 > 1\\quad{\\color{red}\\boldsymbol{\\times}}" in out
+
+
+def test_html_check_marks():
+    out = _render(HTMLRenderer(), CHECKS)
+    assert '<span class="hc-check hc-pass">✓</span>' in out
+    assert '<span class="hc-check hc-fail">✗</span>' in out
+
+
+def test_word_check_marks():
+    pytest.importorskip("docx")
+    from handcalcs.renderers.word import WordRenderer
+
+    xml = _render(WordRenderer(), CHECKS).element.xml
+    assert "✓" in xml and "✗" in xml
+
+
+def test_excel_check_rows_are_coloured():
+    openpyxl = pytest.importorskip("openpyxl")
+    import io
+
+    workbook = HandCalcs(ExcelRenderer())(CHECKS)
+    assert [row.check for row in workbook.rows] == [False, True, True, False]
+    sheet = openpyxl.load_workbook(io.BytesIO(workbook.to_bytes())).active
+    ranges = [str(cf.sqref) for cf in sheet.conditional_formatting]
+    assert ranges == ["E2", "E3"]

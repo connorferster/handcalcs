@@ -27,6 +27,8 @@ class CalcRow:
     unit: Optional[str] = None
     comment: Optional[str] = None
     hidden: bool = False
+    # A ``# hc: --check`` row: its TRUE/FALSE value is shown green/red.
+    check: bool = False
 
 
 @dataclass
@@ -47,6 +49,7 @@ class ParamRow:
     unit: Optional[str] = None
     comment: Optional[str] = None
     hidden: bool = False
+    check: bool = False
 
 
 @dataclass

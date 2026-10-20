@@ -374,6 +374,12 @@ class LatexRenderer(BaseRenderer):
     # Symbol tables used by the swap rules; override in a subclass to change them.
     OPERATOR_SYMBOLS = OPERATOR_SYMBOLS
     MATH_FUNCS = MATH_FUNCS
+    # A ``# hc: --check`` mark; ``\\checkmark`` needs amssymb and ``\\color``
+    # xcolor (MathJax and KaTeX have both).
+    CHECK_MARKS = (
+        "\\quad{\\color{green}\\checkmark}",
+        "\\quad{\\color{red}\\boldsymbol{\\times}}",
+    )
     IF_EXP_KEYWORDS = ("\\;\\mathrm{if}\\;", "\\;\\mathrm{else}\\;")
     COMPREHENSION_KEYWORDS = ("\\;\\mathrm{for}\\;", "\\;\\mathrm{in}\\;")
 

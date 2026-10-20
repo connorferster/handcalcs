@@ -354,6 +354,9 @@ class BaseRenderer:
     # The keywords of a comprehension clause (``for t in ts``), with their
     # surrounding spaces; see ``render_comprehension``.
     COMPREHENSION_KEYWORDS: ClassVar[tuple[str, str]] = (" for ", " in ")
+    # The pass and fail marks a ``# hc: --check`` line shows in place of a
+    # boolean result, each with the gap before it; see ``check_mark``.
+    CHECK_MARKS: ClassVar[tuple[str, str]] = (" ✓", " ✗")
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
@@ -1346,12 +1349,16 @@ def render_calcline(
                 for subnode in node.expression_tree
             )
             columns.append(numeric)
+    mark = ""
     if "res" in shown:
-        base_context.line_context.current_mode = "num"
-        result_nodes = [
-            renderer.render(subnode, base_context) for subnode in node.assigns
-        ]
-        columns.append(f",{_}".join(result_nodes))
+        if len(node.assigns) == 1:
+            mark = check_mark(renderer, node.assigns[0].value, context)
+        if not mark:
+            base_context.line_context.current_mode = "num"
+            result_nodes = [
+                renderer.render(subnode, base_context) for subnode in node.assigns
+            ]
+            columns.append(f",{_}".join(result_nodes))
 
     # Drop a value column that repeats the one before it: a bare reference
     # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
@@ -1363,6 +1370,8 @@ def render_calcline(
         if not values or column != values[-1]:
             values.append(column)
     columns = deque(head + values)
+    if mark and columns:
+        columns[-1] = f"{columns[-1]}{mark}"
 
     # Multi-line ("long") mode: break the one-liner into a grid of rows that all
     # align on the equality sign -- ``target = symbolic`` on the first row, then
@@ -1403,6 +1412,23 @@ def render_calcline(
         RenderContext.sparse()
     )  # Clear any line-specific context
     return list(components)
+
+
+def is_boolean(value) -> bool:
+    """True for a ``bool`` or a numpy boolean scalar."""
+    return isinstance(value, bool) or type(value).__name__ == "bool_"
+
+
+def check_mark(renderer: BaseRenderer, value, context: RenderContext) -> str:
+    """
+    The pass or fail mark (from ``renderer.CHECK_MARKS``) that a line under
+    ``# hc: --check`` shows in place of its boolean result (#251), or ``""``
+    when the line is not a check or its result is not a boolean.
+    """
+    if not getattr(context, "check", False) or not is_boolean(value):
+        return ""
+    passed, failed = renderer.CHECK_MARKS
+    return passed if value else failed
 
 
 @BaseRenderer.register("params_block")
@@ -1496,9 +1522,12 @@ def render_exprline(
     param_line = getattr(context, "param_line", False)
     if not node.return_expr and not param_line and "num" in shown:
         columns.append(render_tree("num"))
-    if not isinstance(node.value, NoValue) and "res" in shown:
+    mark = check_mark(renderer, node.value, context) if "res" in shown else ""
+    if not isinstance(node.value, NoValue) and "res" in shown and not mark:
         base_context.line_context.current_mode = "num"
         columns.append(renderer.render_node(node.value, base_context))
+    if mark and columns:
+        columns[-1] = f"{columns[-1]}{mark}"
 
     components = deque([])
     for column in columns:

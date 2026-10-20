@@ -12,6 +12,7 @@ from handcalcs.parsing.operator_nodes import HcUnaryOp
 from handcalcs.renderers.base import (
     PAGE_BREAK,
     BaseRenderContext,
+    is_boolean,
     BaseRenderer,
     RenderContext,
     render_comment_command as base_render_comment_command,
@@ -350,6 +351,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
         )
         symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
         hidden = bool(getattr(context, "ignore", False))
+        check = bool(getattr(context, "check", False)) and is_boolean(cached)
 
         if param_line or formula is None:
             row: Row = ParamRow(
@@ -361,6 +363,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 unit=unit_text,
                 comment=comment,
                 hidden=hidden,
+                check=check,
             )
         else:
             row = CalcRow(
@@ -375,6 +378,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 unit=unit_text,
                 comment=comment,
                 hidden=hidden,
+                check=check,
             )
         rows: list[Row] = [row]
         if getattr(context, "line_break", False):
