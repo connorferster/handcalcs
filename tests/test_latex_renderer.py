@@ -88,11 +88,7 @@ KNOWN_OVERFULL = 5
 
 @pytest.mark.skipif(find_pdflatex() is None, reason="pdflatex is not installed")
 def test_demo_compiles_with_pdflatex(demo_output, tmp_path):
-    tex = tmp_path / "demo.tex"
-    tex.write_text(
-        "\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\n"
-        f"{demo_output}\\end{{document}}\n"
-    )
+    tex = LatexRenderer().to_file(demo_output, tmp_path / "demo.tex")
     result = subprocess.run(
         [find_pdflatex(), "-interaction=nonstopmode", "-halt-on-error", tex.name],
         cwd=tmp_path, capture_output=True, text=True, timeout=120,
