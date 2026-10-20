@@ -29,6 +29,7 @@ from handcalcs.renderers.base import (
     OP_PRECEDENCE,
     BaseRenderContext,
     is_source_number,
+    is_atom,
     literal_text,
     receiver_needs_parens,
     render_condition,
@@ -490,6 +491,10 @@ def render_function_call(renderer: WR, node: FunctionCall, base_context: BRC) ->
             return omml.rad(joined)
         if identifier == "cbrt":
             return omml.rad(joined, omml.run("3"))
+        if identifier == "factorial" and len(node.args) == 1:
+            if not is_atom(node.args[0]):
+                joined = omml.delim(joined)
+            return f"{joined}{omml.run('!')}"
         if identifier in BRACKET_FUNCS:
             return omml.delim(joined, *BRACKET_FUNCS[identifier])
         if identifier in MATH_FUNCS:

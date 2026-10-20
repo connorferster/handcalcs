@@ -197,3 +197,86 @@ def test_matrix_multiplication():
         _last_line(PlainTextRenderer(), source) == "f = a @ a = [1. 2.] @ [1. 2.] = 5"
     )
     assert "f &= a \\mathbin{@} a" in _render(LatexRenderer(), source)
+
+
+# --- cube root (#225), factorial (#96), infinity (#166) ---
+
+FUNCTIONS = (
+    "import math\n"
+    "from math import factorial, cbrt\n"
+    "x = 27\n"
+    "n = 4\n"
+    "y = math.cbrt(x)\n"
+    "f = math.factorial(n)\n"
+    "g = factorial(n + 1) / factorial(n)\n"
+    "i = float('inf')\n"
+    "k = -math.inf\n"
+    "l = 1 / (x + i)\n"
+)
+
+
+def test_plaintext_cbrt_factorial_infinity():
+    out = _render(PlainTextRenderer(), FUNCTIONS)
+    assert "y = ∛(x) = ∛(27) = 3" in out
+    assert "f = n! = 4! = 24" in out
+    assert "g = (n + 1)! / n! = (4 + 1)! / 4! = 5" in out
+    assert "i = ∞" in out
+    assert "k = -math.inf = -∞" in out
+    assert "l = 1 / (x + i) = 1 / (27 + ∞) = 0" in out
+
+
+def test_html_cbrt_factorial_infinity():
+    out = _render(HTMLRenderer(), FUNCTIONS)
+    assert "y = ∛(x) = ∛(27) =" in out
+    assert "g = (n + 1)! / n! = (4 + 1)! / 4! =" in out
+    assert '<div class="hc-line">i = ∞</div>' in out
+
+
+def test_latex_cbrt_factorial_infinity():
+    out = _render(LatexRenderer(), FUNCTIONS)
+    assert "y &= \\sqrt[3]{x} = \\sqrt[3]{27} = 3" in out
+    assert "f &= n! = 4! = 24" in out
+    assert "g &= \\frac{\\left(n + 1\\right)!}{n!}" in out
+    assert "i &= \\infty" in out
+    assert "k &= -\\infty" in out
+
+
+def test_word_cbrt_and_factorial():
+    pytest.importorskip("docx")
+    from handcalcs.renderers.word import WordRenderer
+
+    doc = _render(WordRenderer(), FUNCTIONS)
+    xml = doc.element.xml
+    assert "m:deg" in xml  # the cube root's degree
+    assert "!</m:t>" in xml
+
+
+def test_float_inf_is_a_constant():
+    line = AST_Parser(globals={})("i = float('-inf')\n")[0]
+    assert line.expression_tree[0].value == float("-inf")
+
+
+def test_excel_cbrt_and_factorial():
+    rows = HandCalcs(ExcelRenderer())(
+        "import math\nx = -27\nn = 4\ny = math.cbrt(x)\nf = math.factorial(n + 1)\n"
+    ).rows
+    calcs = {row.name: row for row in rows if isinstance(row, CalcRow)}
+    assert calcs["y"].formula == "=SIGN(x)*ABS(x)^(1/3)"
+    assert calcs["f"].formula == "=FACT(n+1)"
+    assert "(n + 1)!" in str(calcs["f"].symbolic)
+
+
+def test_excel_infinity_is_incompatible():
+    from handcalcs.renderers.excel import ExcelRendererIncompatibleError
+
+    with pytest.raises(ExcelRendererIncompatibleError, match="infinity"):
+        HandCalcs(ExcelRenderer())("i = float('inf')\n")
+
+
+def test_method_named_factorial_is_not_swapped():
+    import types
+
+    source = "obj = 1\n"
+    names = {"obj": types.SimpleNamespace(factorial=lambda n: n)}
+    out = HandCalcs(PlainTextRenderer())("y = obj.factorial(3)\n", names | {"y": 3})
+    assert "obj.factorial(3)" in out

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import datetime
+import math
 from collections import deque, ChainMap
 from dataclasses import dataclass, field
 from typing import ClassVar, Callable, Optional, Any
@@ -737,6 +738,8 @@ def render_constant(
     # coefficients and exponents.
     if is_source_number(node):
         return literal_text(node)
+    if isinstance(node.value, float) and math.isinf(node.value):
+        return "-∞" if node.value < 0 else "∞"
     try:
         return f"{node.value:{fc}}"
     except (ValueError, TypeError):  # Format code not implemented / not a scalar
@@ -1022,10 +1025,56 @@ def set_function_call_parens(
     something else (e.g. LaTeX's ``\\sqrt{...}``).
     """
     context = base_context.current
+    # An emptied function name marks a call a renderer rule has already set
+    # in its own notation (e.g. a postfix factorial, ``n!``, with no ``pre``).
+    if getattr(node.function_name, "identifier", None) == "":
+        return node
     if not node.pre:
         node.pre = context.lpar
     if not node.post:
         node.post = context.rpar
+    return node
+
+
+# The radical sign of each root function, for the text renderers.
+ROOT_SYMBOLS = {"sqrt": "√", "cbrt": "∛"}
+
+# The namespaces of a call whose function name is read as a maths function
+# (``cbrt``, ``factorial``): none, or a maths module.
+MATH_CALL_NAMESPACES = ("", "__main__", "math", "cmath", "numpy", "np", "scipy.special")
+
+
+def math_call_name(node: FunctionCall) -> Optional[str]:
+    """
+    The function name of a call to a bare or maths-module function
+    (``cbrt(x)``, ``math.factorial(n)``), or None for a method or another
+    module's function.
+    """
+    namespace = node.namespace
+    if namespace and not isinstance(namespace, Name):
+        return None
+    identifier = getattr(namespace, "identifier", "") if namespace else ""
+    if identifier not in MATH_CALL_NAMESPACES:
+        return None
+    return getattr(node.function_name, "identifier", None)
+
+
+def is_atom(node) -> bool:
+    """True if ``node`` needs no brackets before a postfix operator (``n!``)."""
+    return isinstance(node, (Name, Constant, Attribute, FunctionCall))
+
+
+def postfix_factorial(node: FunctionCall, lpar: str, rpar: str, bang: str = "!"):
+    """
+    Set a ``factorial(n)`` call as the postfix ``n!``, bracketing an argument
+    that is not an atom: ``(n + 1)!``. The function name and namespace are
+    emptied, which keeps the rule from applying twice.
+    """
+    wrap = not (len(node.args) == 1 and is_atom(node.args[0]))
+    node.namespace = deque()
+    node.function_name = Name(identifier="", value="")
+    node.pre = lpar if wrap else ""
+    node.post = f"{rpar}{bang}" if wrap else bang
     return node
 
 

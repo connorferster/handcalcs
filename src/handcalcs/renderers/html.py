@@ -9,6 +9,9 @@ from handcalcs.renderers.base import (
     render_condition,
     infix_binop,
     BaseRenderContext,
+    ROOT_SYMBOLS,
+    math_call_name,
+    postfix_factorial,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -721,9 +724,14 @@ def swap_sqrt_symbol(
     both symbolic and numeric columns, so the swap must be mode-independent. The
     mutation is idempotent across the two render passes.
     """
+    name = math_call_name(node)
+    if name == "":  # already set in its own notation
+        return node
     node.pre = "("
     node.post = ")"
-    if node.function_name.identifier == "sqrt":
-        node.function_name.identifier = "√"
-        node.function_name.value = "√"
+    if name == "factorial":
+        return postfix_factorial(node, "(", ")")
+    if name in ROOT_SYMBOLS:
+        node.function_name.identifier = ROOT_SYMBOLS[name]
+        node.function_name.value = ROOT_SYMBOLS[name]
     return node

@@ -131,6 +131,11 @@ def _hypot(args: list[str]) -> Formula:
     return Formula(f"SQRT(SUMSQ({','.join(args)}))")
 
 
+def _cbrt(args: list[str]) -> Formula:
+    # x^(1/3) is #NUM! for a negative x in Excel; math.cbrt is not.
+    return Formula(f"SIGN({args[0]})*ABS({args[0]})^(1/3)", MULTIPLICATIVE)
+
+
 def _round(args: list[str]) -> Formula:
     digits = args[1] if len(args) == 2 else "0"
     return Formula(f"ROUND({args[0]},{digits})")
@@ -165,6 +170,7 @@ DEFAULT_FUNCTIONS: dict[Any, ExcelFunction] = {
     math.trunc: _simple("TRUNC"),
     math.log10: _simple("LOG10"),
     math.factorial: _simple("FACT"),
+    math.cbrt: ExcelFunction("CBRT", (1,), build=_cbrt),
     math.log: ExcelFunction("LOG", (1, 2), build=_log),
     math.atan2: ExcelFunction("ATAN2", (2,), build=_atan2),
     math.pow: _simple("POWER", 2),

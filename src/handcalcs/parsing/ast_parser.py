@@ -124,6 +124,23 @@ def is_print_statement(stmt: ast.AST) -> bool:
     )
 
 
+def is_infinity_call(node: ast.Call) -> bool:
+    """True if ``node`` is ``float("inf")`` (or ``"-inf"``, ``"infinity"``...)."""
+    if not (
+        isinstance(node.func, ast.Name)
+        and node.func.id == "float"
+        and len(node.args) == 1
+        and not node.keywords
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ):
+        return False
+    try:
+        return math.isinf(float(node.args[0].value))
+    except ValueError:
+        return False
+
+
 # HERE: ast_parse to parse block comments, block options, and blocks in order to val = a "hc_tree"
 @dataclass
 class AST_Parser:
@@ -485,6 +502,10 @@ class AST_Parser:
                     import_from_module=node.module,
                     names=acc,
                 )
+
+        elif isinstance(node, ast.Call) and is_infinity_call(node):
+            # float("inf") is infinity, shown as its symbol (#166).
+            val = Constant(value=float(node.args[0].value))
 
         elif isinstance(node, ast.Call):
             function_call = FunctionCall()

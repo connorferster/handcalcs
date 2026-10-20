@@ -12,6 +12,8 @@ from handcalcs.renderers.base import (
     OP_PRECEDENCE,
     is_source_number,
     literal_text,
+    math_call_name,
+    postfix_factorial,
     receiver_needs_parens,
 )
 
@@ -978,11 +980,20 @@ def swap_func_symbols(
     # 'math.\\lfloor x\\rfloor'), so drop the namespace, as for attributes.
     if getattr(node.namespace, "identifier", None) in MATH_NAMESPACES:
         node.namespace = deque()
+    name = math_call_name(node)
     if node.function_name.identifier == "sqrt":
         node.function_name.identifier = "\\sqrt"
         node.function_name.value = "\\sqrt"
         node.pre = "{"
         node.post = "}"
+    elif name == "cbrt":
+        node.namespace = deque()
+        node.function_name.identifier = "\\sqrt[3]"
+        node.function_name.value = "\\sqrt[3]"
+        node.pre = "{"
+        node.post = "}"
+    elif name == "factorial":
+        postfix_factorial(node, "\\left(", "\\right)")
     elif node.function_name.identifier == "floor":
         node.function_name.identifier = ""
         node.function_name.value = ""
