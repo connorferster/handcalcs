@@ -53,8 +53,6 @@ M = w * L**2 / 8
 
 ```{admonition} Known limitations in 2.0
 :class: caution
-- With forallpeople, a bare unit in a formula (the `m` in `6 * m`) shows an empty
-  substituted value (`6 * m = 6 *  = 6 m`). The result is correct.
 - An attribute of a parenthesized expression, such as `(w * L**2 / 8).magnitude`, is
   not parsed. A method call is: `(w * L**2 / 8).to("kN*m")` works.
 ```

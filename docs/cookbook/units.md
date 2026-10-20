@@ -21,9 +21,7 @@ w = 5 * kN / m
 M = w * L**2 / 8
 ```
 
-Units are set upright, and a substituted quantity raised to a power is bracketed. A bare
-unit in a formula (the `m` in `6 * m`) shows an empty substituted value in 2.0; the
-result is correct.
+Units are set upright, and a substituted quantity raised to a power is bracketed.
 
 ## Calculate with pint
 
