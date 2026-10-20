@@ -5,7 +5,7 @@ applies only to calculated values (substitutions, results, parameter values).
 
 from collections import deque
 
-from handcalcs import HandCalcs, PlainTextRenderer
+from handcalcs import HandCalcs, ASCIIRenderer
 from handcalcs.parsing.ast_parser import AST_Parser
 from handcalcs.parsing.nodes import Constant
 from handcalcs.renderers import HTMLRenderer, LatexRenderer, MarkdownRenderer
@@ -45,14 +45,14 @@ def test_source_text_ignored_in_equality():
 
 
 def test_format_code_skips_literals():
-    rendered = HandCalcs(PlainTextRenderer())(
+    rendered = HandCalcs(ASCIIRenderer())(
         "a = 3.14159\nb = 2 * a**2 + 0.50  # hc: -f .3f"
     )
     assert "b = 2 * a² + 0.50 = 2 * 3.142² + 0.50 = 20.239" in rendered
 
 
 def test_format_code_applies_to_param_values():
-    rendered = HandCalcs(PlainTextRenderer())("a = 3.14159  # hc: -f .2f")
+    rendered = HandCalcs(ASCIIRenderer())("a = 3.14159  # hc: -f .2f")
     assert rendered.strip() == "a = 3.14"
 
 
@@ -63,13 +63,13 @@ def test_html_exponent_is_not_formatted():
 
 
 def test_non_numeric_literals_unchanged():
-    rendered = HandCalcs(PlainTextRenderer())("a = True\nb = 'text'")
+    rendered = HandCalcs(ASCIIRenderer())("a = True\nb = 'text'")
     assert "a = True" in rendered
     assert "b = text" in rendered
 
 
 def test_underscores_dropped():
-    rendered = HandCalcs(PlainTextRenderer())("a = 2.0\nb = 1_000 * a")
+    rendered = HandCalcs(ASCIIRenderer())("a = 2.0\nb = 1_000 * a")
     assert "b = 1000 * a = 1000 * 2 = 2000" in rendered
 
 

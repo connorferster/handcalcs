@@ -9,20 +9,20 @@ regress.
 """
 import pytest
 
-from handcalcs import HandCalcs, PlainTextRenderer
+from handcalcs import HandCalcs, ASCIIRenderer
 
 
 @pytest.fixture(scope="module")
 def demo_output():
     # demo() runs the render through renderer.complete(), so for the
-    # PlainTextRenderer it returns the finished joined text used by the
+    # ASCIIRenderer it returns the finished joined text used by the
     # substring assertions below.
-    return HandCalcs(PlainTextRenderer()).demo()
+    return HandCalcs(ASCIIRenderer()).demo()
 
 
 def test_demo_returns_completed_render(demo_output):
     # demo() returns the completed render (renderer.complete()); for the
-    # PlainTextRenderer that is the joined text, a non-empty str.
+    # ASCIIRenderer that is the joined text, a non-empty str.
     assert isinstance(demo_output, str) and demo_output
 
 
@@ -57,11 +57,13 @@ def test_demo_line_break_is_single_blank_line(demo_output):
 # --- #3 Heading levels ------------------------------------------------------
 
 def test_demo_heading_levels_exclude_comment_marker(demo_output):
-    # The top heading is level 1 (`# `), the section headings level 2 (`## `);
-    # the comment-marker '#' is no longer counted into the level.
-    assert "# HandCalcs v2.0 Demo\n" in demo_output
-    assert "## The quadratic formula\n" in demo_output
-    assert "### The quadratic formula\n" not in demo_output
+    # The top heading is level 1 (over- and underlined with '='), the section
+    # headings level 2 (underlined with '='); the comment-marker '#' is no
+    # longer counted into the level.
+    rule = "=" * len("HandCalcs v2.0 Demo")
+    assert demo_output.startswith(f"{rule}\nHandCalcs v2.0 Demo\n{rule}\n\n")
+    assert "\n\nThe quadratic formula\n=====================\n\n" in demo_output
+    assert "The quadratic formula\n---------------------\n" not in demo_output
 
 
 # --- #4 Collection assignments collapse to a param line ---------------------
