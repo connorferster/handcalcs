@@ -18,6 +18,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-h` | `--params` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
 | `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
+| | `--check` | On a comparison, show ✓ or ✗ instead of `True`/`False`. See [Checks](../cookbook/checks.md#mark-a-check-as-pass-or-fail). |
 | | `--pagebreak` (`--page-break`) | Start a new page: before the next line when on its own line, after the line when inline. |
 | `-i` | `--ignore` | Run the line but leave it out of the output. |
 

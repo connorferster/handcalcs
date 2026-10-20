@@ -3,6 +3,52 @@
 Design calculations end in a decision: does the member pass? Recipes for showing the
 check, the governing case, and a verdict in words.
 
+## Mark a check as pass or fail
+
+*Asked in {issue}`251` and {issue}`195`.*
+
+`--check` at the end of a comparison replaces its `True`/`False` result with a green ✓
+or a red ✗:
+
+```{hc-example}
+M_Ed = 120        # kN m
+M_Rd = 150        # kN m
+eta = M_Ed / M_Rd
+ok = eta <= 1.0   # hc: --check
+```
+
+A bare comparison works too, and a failing check is marked as clearly:
+
+```{hc-example}
+V_Ed = 210        # kN
+V_Rd = 180        # kN
+V_Ed <= V_Rd      # hc: --check
+```
+
+On its own line, `# hc: --check` marks every boolean result after it, until
+`# hc: check = False`. Lines that aren't comparisons are unaffected:
+
+```{hc-example}
+:renderer: html
+# hc: --check
+f_y = 355
+f_u = 510
+f_u / f_y >= 1.1
+f_y <= 460
+```
+
+The marks come from each renderer's `CHECK_MARKS` class attribute, a `(pass, fail)`
+pair that includes the gap before the mark. For example, words instead of symbols:
+
+```python
+class WordyMarkdownRenderer(MarkdownRenderer):
+    CHECK_MARKS = ("\\quad\\text{OK}", "\\quad\\text{NOT OK}")
+```
+
+In a LaTeX document, the default marks need the `amssymb` and `xcolor` packages. The
+HTML renderer colors them with the `hc-pass` and `hc-fail` classes, and the Excel
+renderer keeps the live `TRUE`/`FALSE` formula with green or red formatting.
+
 ## Write the verdict in a comment
 
 *Asked in {issue}`195` and {issue}`251`.*
@@ -33,12 +79,10 @@ t = 18           # mm
 f_y = 355 if t <= 16 else 345
 ```
 
-## Show the comparison
+## Show the comparison as True or False
 
-*Asked in {issue}`251`.*
-
-A comparison on its own line is shown with its result. Assign it to keep the result
-for later:
+Without `--check`, a comparison on its own line is shown with its result. Assign it to
+keep the result for later:
 
 ```{hc-example}
 M_Ed = 120

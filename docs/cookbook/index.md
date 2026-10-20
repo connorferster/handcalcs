@@ -21,6 +21,7 @@ GitHub issue that asked for it is linked where there is one.
 | render one line of a notebook cell | [`%render`](showing-and-hiding.md#render-one-line-in-a-notebook) |
 | lay out inputs in a grid | [Inputs in a grid](showing-and-hiding.md#lay-out-inputs-in-a-grid) |
 | **Checks** | |
+| mark a check with ✓ or ✗ | [Pass/fail marks](checks.md#mark-a-check-as-pass-or-fail) |
 | state pass or fail in words | [Verdict in a comment](checks.md#write-the-verdict-in-a-comment) |
 | show only the governing case | [Governing branch](checks.md#show-only-the-governing-branch) |
 | check several load cases | [Several cases at once](checks.md#check-several-load-cases-at-once) |

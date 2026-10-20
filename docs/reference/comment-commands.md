@@ -14,6 +14,7 @@ line; at the end of a line it applies to that line. See
 | `-h` | `--params-block`, `--params` | (opens a grid) | flag | Grid of the following assignments, with comments |
 | `-c N` | `--param-cols`, `--param_cols` | `param_cols` | integer | Columns in parameter grids (default 3) |
 | `-b` | `--line-break` | (one-shot) | flag | Vertical space |
+| | `--check` | `check` | flag | A boolean result is shown as a pass/fail mark (`CHECK_MARKS`) |
 | | `--pagebreak`, `--page-break` | (one-shot) | flag | Page break (see below) |
 | `-i` | `--ignore` | `ignore` | flag | Leave lines out of the output |
 | `-w` | `--if-winner-only`, `--winner` | `if_winner_only` | flag | Accepted; no effect in 2.0 |
@@ -53,4 +54,5 @@ Python; if that fails, it is parsed as flags.
 | `subscripts` | `"comma"` or `"nested"` |
 | `symbols` | a dict of name → display spec, e.g. `{"N_plRd": "N_{pl,Rd}"}` |
 | `greek_prefixes` | `True` / `False` |
+| `check` | `True` / `False` |
 | any other name | stored on the context for custom renderers |
