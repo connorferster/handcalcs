@@ -44,6 +44,43 @@ notebooks need only a few changes.
   expression line shows its result (see [writing calculations](writing-calculations.md)).
 - **`%render`**, a line magic that runs and renders one line (see
   [Jupyter](../interfaces/jupyter.md)).
+- **Checks and page breaks.** `# hc: --check` marks a comparison ✓ or ✗, and
+  `# hc: --pagebreak` starts a new page in exported output (see the
+  [cookbook](../cookbook/index.md)).
+- **More Python.** Conditional expressions (`a if test else b`), methods on expressions
+  (`(a * b).to("mm")`), `cbrt`, `factorial` and infinity.
+- **Word output** with native equations (see [the Word renderer](../renderers/word.md)).
+- **Many input sets.** Render one script for a table of inputs with
+  `HandCalcs(...)(path, inputs=...)` or `%%render inputs=case`.
+
+## Converting a cell
+
+A v1 cell with cell-wide overrides:
+
+```python
+%%render params 2
+b = 300
+h = 600
+```
+
+```python
+%%render long 2
+I_x = b * h**3 / 12
+S_x = I_x / (h / 2)
+```
+
+becomes one v2 cell, with each setting where it applies:
+
+```{hc-example}
+## Section properties
+# hc: -f .2f
+b = 300; h = 600
+I_x = b * h**3 / 12   # hc: -m
+S_x = I_x / (h / 2)
+```
+
+The heading and the `;` grid replace a separate `params` cell, and `-m` applies to the
+one long line rather than the whole cell.
 
 ## Names that render differently
 

@@ -77,6 +77,7 @@ renderer reads. The flags are shorthands for these fields:
 | `-p` | `param_line` |
 | `-c` | `param_cols` |
 | `-i` | `ignore` |
+| `--check` | `check` |
 
 Any other name is allowed too, and is passed to the renderer. A
 [customized](../customizing/render-context.md) or [custom](../building-renderers/render-context.md)
@@ -127,4 +128,42 @@ b = 3
 c = a**2 + b**2  # hc: -p
 ```
 
-See the [comment command reference](../reference/comment-commands.md) for a compact table.
+### A parameter grid, two columns wide
+
+```{hc-example}
+# hc: -h -c 2
+f_c = 30     # Concrete strength, MPa
+f_y = 400    # Rebar yield, MPa
+b = 300      # Width, mm
+d = 540      # Effective depth, mm
+```
+
+### Hide working lines
+
+```{hc-example}
+L_mm = 6000
+L = L_mm / 1000  # hc: -i
+w = 5
+M = w * L**2 / 8
+```
+
+### A pass/fail check
+
+```{hc-example}
+M_f = 180
+M_r = 240
+M_f <= M_r  # hc: --check
+```
+
+### Several settings at once
+
+```{hc-example}
+a = 2.0
+b = 7.0
+# hc: format_code = ".3f"; mode = "ass sym res"
+c = (a + b) / 3
+d = c**2
+```
+
+The [cookbook](../cookbook/index.md) has many more. See the
+[comment command reference](../reference/comment-commands.md) for a compact table.
