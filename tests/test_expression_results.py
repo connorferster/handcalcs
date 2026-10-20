@@ -13,7 +13,7 @@ from handcalcs.parsing.ast_parser import AST_Parser
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
-from handcalcs.renderers.plaintext import PlainTextRenderer
+from handcalcs.renderers.ascii import ASCIIRenderer
 
 
 def _value(source, names=None):
@@ -68,18 +68,18 @@ def test_return_has_no_value():
 
 
 def test_plaintext_expression_results():
-    out = _render(PlainTextRenderer(), "a = 2\nb = 3\n2 + 2\na * b\na\n")
-    assert out.splitlines()[2:] == ["2 + 2 = 4", "a * b = 2 * 3 = 6", "a = 2"]
+    out = _render(ASCIIRenderer(), "a = 2\nb = 3\n2 + 2\na * b\na\n")
+    assert out.splitlines()[2:] == ["2 + 2 = 4", "a * b = 2 * 3 = 6", "    a = 2"]
 
 
 def test_impure_expression_has_no_result():
-    out = _render(PlainTextRenderer(), "a = 2\nitems = []\nitems.append(a)\n")
+    out = _render(ASCIIRenderer(), "a = 2\nitems = []\nitems.append(a)\n")
     assert out.splitlines()[-1] == "items.append(a) = items.append(2)"
 
 
 def test_expression_inline_comment_and_format_command():
     out = _render(
-        PlainTextRenderer(), "a = 2\nb = 3\na / b  # hc: -f .3f\na * b  # area\n"
+        ASCIIRenderer(), "a = 2\nb = 3\na / b  # hc: -f .3f\na * b  # area\n"
     )
     assert out.splitlines()[2:] == [
         "a / b = 2.000 / 3.000 = 0.667",
@@ -98,5 +98,5 @@ def test_html_expression_result_is_highlighted():
 
 
 def test_param_command_hides_substitution():
-    out = _render(PlainTextRenderer(), "a = 2\nb = 3\na * b  # hc: -p\n")
+    out = _render(ASCIIRenderer(), "a = 2\nb = 3\na * b  # hc: -p\n")
     assert out.splitlines()[-1] == "a * b = 6"

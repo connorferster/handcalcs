@@ -427,7 +427,7 @@ class BaseRenderer:
         # completed = self.join(tree, base_context)
         # return completed
         # BaseRenderer intentionally returns just `tree`; text renderers
-        # (PlainTextRenderer, HTMLRenderer) override this to join into a str.
+        # (ASCIIRenderer, HTMLRenderer) override this to join into a str.
         return tree
 
     def join(self, tree: list, base_context: Optional[BaseRenderContext] = None) -> str:

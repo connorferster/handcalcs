@@ -1,4 +1,4 @@
-from .renderers import BaseRenderer, PlainTextRenderer, get_renderer
+from .renderers import BaseRenderer, ASCIIRenderer, get_renderer
 from .config import (
     set_option,
     save_config,
