@@ -143,7 +143,6 @@ def test_user_assigned_pi_shadows_math_pi():
     ("y = round(a, ndigits=2)", "keyword arguments"),
     ("y = min([a, b])", "argument"),
     ("y = math.inf * a", "attribute 'math.inf'"),
-    ("y = a if a > b else b", "does not parse"),
     ("y = [a, b]", "'list'"),
     ("y = a in (1, 2)", "'in' comparison"),
     ("y = a is b", "'is' comparison"),

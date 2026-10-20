@@ -30,6 +30,7 @@ from handcalcs.renderers.base import (
     BaseRenderContext,
     is_source_number,
     literal_text,
+    receiver_needs_parens,
     render_condition,
 )
 from handcalcs.renderers.identifiers import (
@@ -469,6 +470,15 @@ def render_function_call(renderer: WR, node: FunctionCall, base_context: BRC) ->
     """
     identifier = node.function_name.identifier
     namespace_node = node.namespace
+    if namespace_node and not isinstance(namespace_node, Name):
+        # A method of an expression, (a * b).to("mm"): the receiver is
+        # rendered like any operand, substituted in the numeric column.
+        args = [renderer.render(arg, base_context) for arg in node.args]
+        receiver = renderer.render(namespace_node, base_context)
+        if receiver_needs_parens(namespace_node):
+            receiver = omml.delim(receiver)
+        name = f"{receiver}{omml.run('.')}{omml.upright(identifier)}"
+        return f"{name}{omml.delim_items(args)}"
     namespace = getattr(namespace_node, "identifier", "") if namespace_node else ""
     if namespace == "__main__":
         namespace = ""

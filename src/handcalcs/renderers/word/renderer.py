@@ -69,6 +69,15 @@ class WordRenderer(BaseRenderer):
     # EDGE_ITEMS items (an equation row cannot break).
     MAX_ITEMS: ClassVar[int] = 10
     EDGE_ITEMS: ClassVar[int] = 3
+    # Keywords are upright words, like ``and``/``or``.
+    IF_EXP_KEYWORDS: ClassVar[tuple[str, str]] = (
+        omml.upright(" if "),
+        omml.upright(" else "),
+    )
+    COMPREHENSION_KEYWORDS: ClassVar[tuple[str, str]] = (
+        omml.upright(" for "),
+        omml.upright(" in "),
+    )
 
     def __init__(
         self,

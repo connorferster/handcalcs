@@ -220,13 +220,13 @@ a = 4
 b = 5
 if 2 <= a < 5:
     d = 4
-    print(d)
+    abs(d)
 elif a > b:
     d = 5
-    print(d)
+    abs(d)
 else:
     d = 6
-    print(d)
+    abs(d)
 """
     basic_parser = AST_Parser(
         ChainMap({}, {"a": 4, "b": 5}), global_exclusions=['collections', 'deque']
@@ -280,8 +280,8 @@ else:
                                 value=''
                             ),
                             function_name=Name(
-                                identifier='print',
-                                value='print'
+                                identifier='abs',
+                                value='abs'
                             ),
                             args=deque([
                                 Name(
@@ -331,8 +331,8 @@ else:
                                         value=''
                                     ),
                                     function_name=Name(
-                                        identifier='print',
-                                        value='print'
+                                        identifier='abs',
+                                        value='abs'
                                     ),
                                     args=deque([
                                         Name(
@@ -377,8 +377,8 @@ else:
                                         value=''
                                     ),
                                     function_name=Name(
-                                        identifier='print',
-                                        value='print'
+                                        identifier='abs',
+                                        value='abs'
                                     ),
                                     args=deque([
                                         Name(
@@ -970,20 +970,20 @@ b = 5
 if 2 <= a < 5:
     d = 4
     if d == 3:
-        print(d)
+        abs(d)
     elif d == 5:
-        print(d)
+        abs(d)
     elif d == 4:
-        print(d)
+        abs(d)
     else:
-        print("TWELVE")
-    print(d)
+        abs("TWELVE")
+    abs(d)
 elif a > b:
     d = 5
-    print(d)
+    abs(d)
 else:
     d = 6
-    print(d)
+    abs(d)
 """
     seq = HcSequence.from_source(source_1, {"a": 4, "b": 5, "d": 4}, {})
     assert seq.sequence == deque([
@@ -1058,8 +1058,8 @@ else:
                                                                     value=''
                                                                 ),
                                                                 function_name=Name(
-                                                                    identifier='print',
-                                                                    value='print'
+                                                                    identifier='abs',
+                                                                    value='abs'
                                                                 ),
                                                                 args=deque([
                                                                     Name(
@@ -1101,8 +1101,8 @@ else:
                                                                             value=''
                                                                         ),
                                                                         function_name=Name(
-                                                                            identifier='print',
-                                                                            value='print'
+                                                                            identifier='abs',
+                                                                            value='abs'
                                                                         ),
                                                                         args=deque([
                                                                             Name(
@@ -1144,8 +1144,8 @@ else:
                                                                                     value=''
                                                                                 ),
                                                                                 function_name=Name(
-                                                                                    identifier='print',
-                                                                                    value='print'
+                                                                                    identifier='abs',
+                                                                                    value='abs'
                                                                                 ),
                                                                                 args=deque([
                                                                                     Name(
@@ -1181,8 +1181,8 @@ else:
                                                                             value=''
                                                                         ),
                                                                         function_name=Name(
-                                                                            identifier='print',
-                                                                            value='print'
+                                                                            identifier='abs',
+                                                                            value='abs'
                                                                         ),
                                                                         args=deque([
                                                                             Constant(
@@ -1216,8 +1216,8 @@ else:
                                                                     value=''
                                                                 ),
                                                                 function_name=Name(
-                                                                    identifier='print',
-                                                                    value='print'
+                                                                    identifier='abs',
+                                                                    value='abs'
                                                                 ),
                                                                 args=deque([
                                                                     Name(
@@ -1259,8 +1259,8 @@ else:
                                                                             value=''
                                                                         ),
                                                                         function_name=Name(
-                                                                            identifier='print',
-                                                                            value='print'
+                                                                            identifier='abs',
+                                                                            value='abs'
                                                                         ),
                                                                         args=deque([
                                                                             Name(
@@ -1296,8 +1296,8 @@ else:
                                                                     value=''
                                                                 ),
                                                                 function_name=Name(
-                                                                    identifier='print',
-                                                                    value='print'
+                                                                    identifier='abs',
+                                                                    value='abs'
                                                                 ),
                                                                 args=deque([
                                                                     Constant(
@@ -1328,8 +1328,8 @@ else:
                                                                     value=''
                                                                 ),
                                                                 function_name=Name(
-                                                                    identifier='print',
-                                                                    value='print'
+                                                                    identifier='abs',
+                                                                    value='abs'
                                                                 ),
                                                                 args=deque([
                                                                     Name(
@@ -1365,8 +1365,8 @@ else:
                                                             value=''
                                                         ),
                                                         function_name=Name(
-                                                            identifier='print',
-                                                            value='print'
+                                                            identifier='abs',
+                                                            value='abs'
                                                         ),
                                                         args=deque([
                                                             Constant(
@@ -1394,8 +1394,8 @@ else:
                                                                     value=''
                                                                 ),
                                                                 function_name=Name(
-                                                                    identifier='print',
-                                                                    value='print'
+                                                                    identifier='abs',
+                                                                    value='abs'
                                                                 ),
                                                                 args=deque([
                                                                     Constant(
@@ -1423,8 +1423,8 @@ else:
                                                     value=''
                                                 ),
                                                 function_name=Name(
-                                                    identifier='print',
-                                                    value='print'
+                                                    identifier='abs',
+                                                    value='abs'
                                                 ),
                                                 args=deque([
                                                     Name(
@@ -1483,8 +1483,8 @@ else:
                                                             value=''
                                                         ),
                                                         function_name=Name(
-                                                            identifier='print',
-                                                            value='print'
+                                                            identifier='abs',
+                                                            value='abs'
                                                         ),
                                                         args=deque([
                                                             Name(
@@ -1535,8 +1535,8 @@ else:
                                                     value=''
                                                 ),
                                                 function_name=Name(
-                                                    identifier='print',
-                                                    value='print'
+                                                    identifier='abs',
+                                                    value='abs'
                                                 ),
                                                 args=deque([
                                                     Name(
@@ -1581,8 +1581,8 @@ else:
                                                     value=''
                                                 ),
                                                 function_name=Name(
-                                                    identifier='print',
-                                                    value='print'
+                                                    identifier='abs',
+                                                    value='abs'
                                                 ),
                                                 args=deque([
                                                     Name(
@@ -1633,8 +1633,8 @@ else:
                                             value=''
                                         ),
                                         function_name=Name(
-                                            identifier='print',
-                                            value='print'
+                                            identifier='abs',
+                                            value='abs'
                                         ),
                                         args=deque([
                                             Name(
@@ -1676,8 +1676,8 @@ else:
                                                     value=''
                                                 ),
                                                 function_name=Name(
-                                                    identifier='print',
-                                                    value='print'
+                                                    identifier='abs',
+                                                    value='abs'
                                                 ),
                                                 args=deque([
                                                     Name(

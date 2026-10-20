@@ -137,7 +137,7 @@ def test_rows_do_not_mutate_the_tree():
 @pytest.mark.parametrize("source, match", [
     ("for i in range(3):\n    a = i\n", "for loops"),
     ("def f(x):\n    return x\n", "function or class definition"),
-    ("print(1)\n", "expression statement"),
+    ("abs(1)\n", "expression statement"),
     ("a = 1\na + 1\n", "expression statement"),
     ("import os\n", "importing 'os'"),
     ("from os import path\n", "importing 'os'"),
@@ -147,7 +147,6 @@ def test_rows_do_not_mutate_the_tree():
     ("a = b = 1\n", "chained assignment"),
     ("a, b = 1, 2\n", "tuple unpacking"),
     ("a = [1, 2]\n", "'list'"),
-    ("a = 1\nb = a if a else 2\n", "does not parse"),
     ("a = len('ab')\n", r"'len\(\)'"),
 ])
 def test_incompatible(source, match):

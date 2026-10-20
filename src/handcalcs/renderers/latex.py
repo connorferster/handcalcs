@@ -12,6 +12,7 @@ from handcalcs.renderers.base import (
     OP_PRECEDENCE,
     is_source_number,
     literal_text,
+    receiver_needs_parens,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -52,7 +53,13 @@ from handcalcs.parsing.operator_nodes import (
     NeqOp,
     HcCompOp,
 )
-from handcalcs.parsing.inline_nodes import InlineComment, FunctionCall, Keyword, Compare
+from handcalcs.parsing.inline_nodes import (
+    InlineComment,
+    FunctionCall,
+    Keyword,
+    Compare,
+    ComprehensionChain,
+)
 from handcalcs.parsing.line_nodes import (
     CalcLine,
     ExprLine,
@@ -362,6 +369,8 @@ class LatexRenderer(BaseRenderer):
     # Symbol tables used by the swap rules; override in a subclass to change them.
     OPERATOR_SYMBOLS = OPERATOR_SYMBOLS
     MATH_FUNCS = MATH_FUNCS
+    IF_EXP_KEYWORDS = ("\\;\\mathrm{if}\\;", "\\;\\mathrm{else}\\;")
+    COMPREHENSION_KEYWORDS = ("\\;\\mathrm{for}\\;", "\\;\\mathrm{in}\\;")
 
     def create_context(self, **kwargs):
         # Spacing inside math mode is insignificant, so space/newline stay plain
@@ -638,6 +647,19 @@ def render_function_call(renderer: LR, node: FunctionCall, base_context: BRC) ->
     namespace_node = node.namespace
     if not namespace_node or getattr(namespace_node, "identifier", None) == "__main__":
         namespace = ""
+    elif not isinstance(namespace_node, Name):
+        # A method of an expression, (a * b).to("mm"): the receiver is
+        # rendered like any operand, substituted in the numeric column.
+        namespace = renderer.render(namespace_node, base_context)
+        if receiver_needs_parens(namespace_node):
+            namespace = f"{context.lpar}{namespace}{context.rpar}"
+    elif "." in namespace_node.identifier:
+        # A dotted namespace (np.linalg) is typeset part by part.
+        options = identifier_options(renderer, base_context)
+        namespace = ".".join(
+            latex_identifier(part, options)
+            for part in namespace_node.identifier.split(".")
+        )
     elif symbolic:
         namespace = renderer.render(namespace_node, base_context)
     else:
@@ -978,9 +1000,21 @@ def swap_func_symbols(
         # A method (one that keeps its namespace) is set upright with ordinary
         # spacing; \\operatorname would add an operator's gap after the '.'.
         new_func_name = node.function_name.identifier.replace("_", "\\_")
-        is_method = getattr(node.namespace, "identifier", "") not in ("", "__main__")
+        is_method = bool(node.namespace) and getattr(
+            node.namespace, "identifier", None
+        ) not in ("", "__main__")
         wrapper = "\\mathrm" if is_method else "\\operatorname"
         wrapped_func_name = f"{wrapper}{{{new_func_name}}}"
         node.function_name.identifier = wrapped_func_name
         node.function_name.value = wrapped_func_name
     return node
+
+
+@LR.register("comprehension_chain:post")
+def escape_comprehension_braces(
+    renderer: LR, rendered: str, node: ComprehensionChain, base_context: BRC
+) -> str:
+    """A set or dict comprehension's braces are escaped to show in math mode."""
+    if node.comp_type in ("set", "dict") and rendered.startswith("{"):
+        return f"\\{{{rendered[1:-1]}\\}}"
+    return rendered

@@ -27,7 +27,7 @@ from typing import Any, Callable, Optional
 
 from handcalcs.parsing.nodes import Attribute, Constant, Name
 from handcalcs.parsing.null_values import NoValue
-from handcalcs.parsing.inline_nodes import Compare, FunctionCall, Keyword
+from handcalcs.parsing.inline_nodes import Compare, FunctionCall, IfExp, Keyword
 from handcalcs.parsing.operator_nodes import (
     AddOp,
     AndOp,
@@ -213,15 +213,21 @@ def resolve_function(node: FunctionCall, global_ns: dict) -> tuple[Any, str]:
     """
     function_name = node.function_name
     identifier = getattr(function_name, "identifier", str(function_name))
+    if node.namespace and not isinstance(node.namespace, Name):
+        # A method of an expression, (a * b).to("mm"): not a known function.
+        return None, f"(...).{identifier}"
     namespace = getattr(node.namespace, "identifier", "") or ""
     display = f"{namespace}.{identifier}" if namespace else identifier
     missing = object()
     if namespace:
-        module = global_ns.get(namespace, missing)
+        first, *rest = namespace.split(".")
+        module = global_ns.get(first, missing)
         if module is missing:
             if namespace == "math":
                 return getattr(math, identifier, None), display
             return None, display
+        for attr in rest:  # a dotted namespace, e.g. np.linalg
+            module = getattr(module, attr, None)
         return getattr(module, identifier, None), display
     obj = global_ns.get(identifier, missing)
     if obj is missing:
@@ -298,7 +304,7 @@ class FormulaBuilder:
         if isinstance(node, NoValue):
             raise incompatible(
                 "the expression uses Python syntax handcalcs does not parse "
-                "(e.g. a conditional expression or a lambda)",
+                "(e.g. a lambda or a subscript)",
                 node,
             )
         if isinstance(node, Constant):
@@ -325,6 +331,11 @@ class FormulaBuilder:
             return Formula(f"{function}({args})")
         if isinstance(node, FunctionCall):
             return self.function_call(node)
+        if isinstance(node, IfExp):
+            test = self.translate(node.test).text
+            body = self.translate(node.body).text
+            orelse = self.translate(node.orelse).text
+            return Formula(f"IF({test},{body},{orelse})")
         node_type = getattr(node, "type", type(node).__name__)
         raise incompatible(f"'{node_type}' has no Excel formula equivalent", node)
 
