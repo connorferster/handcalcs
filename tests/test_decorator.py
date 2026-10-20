@@ -63,10 +63,10 @@ def test_html_renderer_returns_html_string():
 # -- rendered content ---------------------------------------------------------
 # The decorator renders the function *body*: not its decorators or def line.
 
-from handcalcs.renderers import LatexRenderer, PlainTextRenderer
+from handcalcs.renderers import LatexRenderer, ASCIIRenderer
 
 
-@handcalc(PlainTextRenderer())
+@handcalc(ASCIIRenderer())
 def calc_plain():
     a = 2
     b = 3
@@ -119,7 +119,7 @@ def test_nested_function_and_closure():
     # inspect.getsource returns a nested function indented; it used to raise
     # IndentationError.
     def outer(k):
-        @handcalc(PlainTextRenderer())
+        @handcalc(ASCIIRenderer())
         def inner(a):
             b = a * k
             return b
@@ -132,7 +132,7 @@ def test_nested_function_and_closure():
 
 def test_method():
     class Calc:
-        @handcalc(PlainTextRenderer())
+        @handcalc(ASCIIRenderer())
         def double(self, x):
             y = x * 2
             return y
@@ -143,7 +143,7 @@ def test_method():
 
 
 def test_multiline_signature_and_comment_commands():
-    @handcalc(PlainTextRenderer())
+    @handcalc(ASCIIRenderer())
     def calc(
         a,
         # a comment inside the signature is not part of the body
@@ -159,7 +159,7 @@ def test_multiline_signature_and_comment_commands():
 
 
 def test_one_line_function():
-    @handcalc(PlainTextRenderer())
+    @handcalc(ASCIIRenderer())
     def double(x): return x * 2
 
     value, rendered = double(3)
@@ -174,7 +174,7 @@ def test_a_return_that_only_names_values_is_not_rendered():
 
 
 def test_a_return_that_computes_is_rendered():
-    @handcalc(PlainTextRenderer())
+    @handcalc(ASCIIRenderer())
     def area(b, h):
         A = b * h
         return A / 2

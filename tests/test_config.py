@@ -11,7 +11,7 @@ import pytest
 
 from handcalcs import config
 from handcalcs import HandCalcs
-from handcalcs.renderers import BaseRenderer, PlainTextRenderer, get_renderer
+from handcalcs.renderers import BaseRenderer, ASCIIRenderer, get_renderer
 
 
 @pytest.fixture
@@ -90,7 +90,7 @@ def test_reset_option(isolated_config):
 
 def test_registry_resolves_builtins():
     assert get_renderer("base") is BaseRenderer
-    assert get_renderer("plain_text") is PlainTextRenderer
+    assert get_renderer("ascii") is ASCIIRenderer
     assert get_renderer("does_not_exist") is None
 
 
@@ -129,13 +129,13 @@ def test_explicit_renderer_ignores_default_renderer_option(isolated_config):
 
 def test_config_format_code_applies_to_output(isolated_config):
     config.set_option("format_code", ".2f")
-    out = HandCalcs(PlainTextRenderer())("x = 5.259323\n")
+    out = HandCalcs(ASCIIRenderer())("x = 5.259323\n")
     assert "5.26" in out
 
 
 def test_inline_command_overrides_config_format(isolated_config):
     config.set_option("format_code", ".2f")
-    out = HandCalcs(PlainTextRenderer())("x = 5.259323 # hc: -f .4g\n")
+    out = HandCalcs(ASCIIRenderer())("x = 5.259323 # hc: -f .4g\n")
     # The per-line -f wins for this line.
     assert "5.259" in out
     assert "5.26" not in out

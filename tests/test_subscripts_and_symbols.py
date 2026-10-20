@@ -19,7 +19,7 @@ from handcalcs.renderers.identifiers import (
 )
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.markdown import MarkdownRenderer
-from handcalcs.renderers.plaintext import PlainTextRenderer
+from handcalcs.renderers.ascii import ASCIIRenderer
 
 NESTED = IdentifierOptions(subscripts="nested")
 
@@ -146,7 +146,7 @@ SYMBOL_TABLE = {
 }
 
 RENDERERS = [
-    (PlainTextRenderer, 0, "{} = 2"),
+    (ASCIIRenderer, 0, "{} = 2"),
     (LatexRenderer, 1, "{} &= 2"),
     (MarkdownRenderer, 1, "{} &= 2"),
     (HTMLRenderer, 2, "{} = 2"),

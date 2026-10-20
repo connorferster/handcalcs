@@ -78,7 +78,7 @@ b = 3
 c = 2*a + b/3
 ```
 
-Switch the output format for the session with `%hc_default_renderer latex` (or `html`, `plain_text`, `markdown`).
+Switch the output format for the session with `%hc_default_renderer latex` (or `html`, `ascii`, `markdown`).
 
 ### 2. In a script: the `HandCalcs` object
 
@@ -98,9 +98,9 @@ latex = calc(pathlib.Path("beam.py"))         # ...or a .py file
 
 ```python
 from handcalcs import handcalc
-from handcalcs.renderers import PlainTextRenderer
+from handcalcs.renderers import ASCIIRenderer
 
-@handcalc(PlainTextRenderer())
+@handcalc(ASCIIRenderer())
 def moment(w, L):
     M = w * L**2 / 8  # kN m
     return M
@@ -119,7 +119,7 @@ The function runs normally and returns `(return_value, rendered)`. Its body is r
 | `MarkdownRenderer` | `markdown` | Markdown prose with LaTeX maths; the `%%render` default |
 | `LatexRenderer` | `latex` | A LaTeX fragment for your own documents |
 | `HTMLRenderer` | `html` | A self-contained, themeable HTML fragment (`HTMLRenderer(theme_color="#0B5F66")`) |
-| `PlainTextRenderer` | `plain_text` | Unicode text for terminals and logs |
+| `ASCIIRenderer` | `ascii` | Unicode text for terminals and logs |
 | `ExcelRenderer` | `excel` | A live `.xlsx` worksheet: every calculation is a real Excel formula, with named cells, units and `IF` formulas for conditionals |
 | `BaseRenderer` | `base` | The raw render tree, the starting point for your own renderer |
 

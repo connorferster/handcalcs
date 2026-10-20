@@ -1,6 +1,6 @@
 """
 End-to-end smoke tests for the full HandCalcs pipeline
-(source -> parser -> HcSequence -> default PlainTextRenderer).
+(source -> parser -> HcSequence -> default ASCIIRenderer).
 
 These guard the wiring between the layers and pin current rendered output.
 Node- and BaseRenderer-level behavior is covered in the dedicated unit
@@ -8,7 +8,7 @@ modules; here we only assert that a realistic script renders coherently.
 """
 import re
 
-from handcalcs import HandCalcs, PlainTextRenderer
+from handcalcs import HandCalcs, ASCIIRenderer
 
 
 def test_basic_arithmetic():
@@ -29,7 +29,7 @@ if e <= 3:
     else:
         f = 30
     """
-    out = HandCalcs(PlainTextRenderer())(source)
+    out = HandCalcs(ASCIIRenderer())(source)
 
     assert out == (
         "[Python import]: from math import sqrt, pi\n"
@@ -58,12 +58,12 @@ def circle_area(diam: float) -> float:
 radius = 5
 area = circle_area(2 * radius)
     """
-    out = HandCalcs(PlainTextRenderer())(source)
+    out = HandCalcs(ASCIIRenderer())(source)
 
     assert out == (
         "[Python import]: from math import sqrt, pi\n"
         "radius = 5\n"
-        "area = circle_area(2 * radius) = circle_area(2 * 5) = 78.54\n"
+        "  area = circle_area(2 * radius) = circle_area(2 * 5) = 78.54\n"
     )
 
 
@@ -71,7 +71,7 @@ import pytest
 from handcalcs.renderers import get_renderer
 
 
-@pytest.mark.parametrize("renderer", ["base", "plain_text", "html", "latex", "markdown"])
+@pytest.mark.parametrize("renderer", ["base", "ascii", "html", "latex", "markdown"])
 def test_non_numeric_values_ignore_format_code(renderer):
     # date.__format__ passes the spec to strftime, so applying the default
     # '.5g' format code would render the code itself instead of the date.
@@ -91,7 +91,7 @@ KWARGS_SOURCE = (
 )
 
 
-@pytest.mark.parametrize("renderer", ["plain_text", "html"])
+@pytest.mark.parametrize("renderer", ["ascii", "html"])
 def test_function_call_keyword_arguments_are_rendered(renderer):
     out = str(HandCalcs(renderer=get_renderer(renderer)())(KWARGS_SOURCE))
     # The HTML renderer wraps the result in a highlight span; compare the text.
@@ -110,7 +110,7 @@ def test_line_after_an_ignored_first_line_renders_whole():
     from handcalcs.renderers import HTMLRenderer, LatexRenderer, MarkdownRenderer
 
     source = "a = 1 # hc: -i\nb = 2\nc = b * 3"
-    assert HandCalcs(PlainTextRenderer())(source).splitlines() == ["b = 2", "c = b * 3 = 2 * 3 = 6"]
+    assert HandCalcs(ASCIIRenderer())(source).splitlines() == ["b = 2", "c = b * 3 = 2 * 3 = 6"]
     assert "b &= 2" in HandCalcs(LatexRenderer())(source)
     assert "b &= 2" in HandCalcs(MarkdownRenderer())(source)
     assert '<div class="hc-line">b = 2</div>' in HandCalcs(HTMLRenderer())(source)
@@ -129,7 +129,7 @@ def test_mode_drop_aliases_from_comment_commands():
         "# hc: mode='full'\n"
         "g = a + b\n"
     )
-    lines = HandCalcs(PlainTextRenderer())(source).splitlines()
+    lines = HandCalcs(ASCIIRenderer())(source).splitlines()
     assert "c = a + b = 5" in lines
     assert "d = 2 * 3 = 6" in lines
     assert "e = a - b = 2 - 3 = -1" in lines
@@ -149,7 +149,7 @@ def test_mode_flag_form_of_comment_commands():
         "# hc: --mode full\n"
         "g = a + b\n"
     )
-    lines = HandCalcs(PlainTextRenderer())(source).splitlines()
+    lines = HandCalcs(ASCIIRenderer())(source).splitlines()
     assert "c = a + b = 5" in lines
     assert "d = 2 * 3 = 6" in lines
     assert "e = -1" in lines
@@ -161,4 +161,4 @@ def test_bad_comment_command_raises_instead_of_exiting():
     from handcalcs.parsing.commands import CommentCommandError
 
     with pytest.raises(CommentCommandError, match="unrecognized arguments: --mdoe"):
-        HandCalcs(PlainTextRenderer())("a = 2\nb = a  # hc: --mdoe no_num")
+        HandCalcs(ASCIIRenderer())("a = 2\nb = a  # hc: --mdoe no_num")

@@ -1,17 +1,17 @@
 """
-End-to-end tests for PlainTextRenderer-specific rendering (symbol swaps):
+End-to-end tests for ASCIIRenderer-specific rendering (symbol swaps):
 superscript powers and division, which the base renderer leaves as ``**``/``/``.
 """
 import pytest
 
-from handcalcs import HandCalcs, PlainTextRenderer
+from handcalcs import HandCalcs, ASCIIRenderer
 
 
 @pytest.fixture
 def render_plain():
     def _render(source):
         # Return the last rendered (non-empty) line for a small snippet.
-        out = HandCalcs(PlainTextRenderer())(source)
+        out = HandCalcs(ASCIIRenderer())(source)
         return out.splitlines()[-1]
 
     return _render
@@ -49,7 +49,7 @@ def test_params_block_with_comments_aligns_columns():
     # ``# hc: -h`` keeps comments; ids right-align and ``=`` lines up per column,
     # with one space before a comment and a wider gap between cells.
     src = "# hc: -h\nx = 3 # one\nlonger = 4000\nz = 5 # last\nw = 6\nqq = 77 # c\nr = 1\n"
-    out = HandCalcs(PlainTextRenderer())(src).splitlines()
+    out = HandCalcs(ASCIIRenderer())(src).splitlines()
     assert out == [
         "x = 3 (one)    longer = 4000        z = 5 (last)",
         "w = 6              qq = 77   (c)    r = 1",

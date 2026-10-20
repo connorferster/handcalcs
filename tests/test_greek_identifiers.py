@@ -12,7 +12,7 @@ from handcalcs.renderers.excel.symbolic import symbolic_identifier
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.markdown import MarkdownRenderer
-from handcalcs.renderers.plaintext import PlainTextRenderer
+from handcalcs.renderers.ascii import ASCIIRenderer
 
 # identifier: (plain text, LaTeX and Markdown, HTML, Excel display markup)
 TABLE = {
@@ -50,7 +50,7 @@ def render(renderer, identifier: str) -> str:
 
 @pytest.mark.parametrize("identifier", TABLE)
 def test_plain_text(identifier):
-    assert f"{TABLE[identifier][0]} = 2" in render(PlainTextRenderer(), identifier)
+    assert f"{TABLE[identifier][0]} = 2" in render(ASCIIRenderer(), identifier)
 
 
 @pytest.mark.parametrize("identifier", TABLE)
@@ -76,7 +76,7 @@ def test_excel_display(identifier):
 @pytest.mark.parametrize(
     "renderer_class, expected",
     [
-        (PlainTextRenderer, "DeltaH = 2"),
+        (ASCIIRenderer, "DeltaH = 2"),
         (LatexRenderer, "\\mathrm{DeltaH} &= 2"),
         (MarkdownRenderer, "\\mathrm{DeltaH} &= 2"),
         (HTMLRenderer, "DeltaH = 2"),

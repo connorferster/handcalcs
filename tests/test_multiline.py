@@ -8,12 +8,12 @@ with any trailing comment riding the last (result) row.
 import pytest
 
 from handcalcs.parsing.sequence import HcSequence
-from handcalcs.renderers.plaintext import PlainTextRenderer
+from handcalcs.renderers.ascii import ASCIIRenderer
 from handcalcs.renderers.html import HTMLRenderer
 
 
 def _render_plain(source, names):
-    r = PlainTextRenderer()
+    r = ASCIIRenderer()
     ctx = r.create_context()
     tree = r.render(HcSequence.from_source(source, names, {}), ctx)
     return r.join(tree, ctx)

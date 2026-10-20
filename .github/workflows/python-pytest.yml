@@ -98,4 +98,4 @@ jobs:
         uv venv /tmp/bare
         uv pip install --python /tmp/bare dist/*.whl
         cd /tmp
-        /tmp/bare/bin/python -c "from handcalcs import HandCalcs, PlainTextRenderer; print(HandCalcs(PlainTextRenderer())('a = 2\nb = a * 3'))"
+        /tmp/bare/bin/python -c "from handcalcs import HandCalcs, ASCIIRenderer; print(HandCalcs(ASCIIRenderer())('a = 2\nb = a * 3'))"

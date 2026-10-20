@@ -32,7 +32,7 @@ try:
         "markdown": Markdown,
         "latex": Latex,
         "html": HTML,
-        "plain_text": Pretty,
+        "ascii": Pretty,
         "base": Pretty,
     }
 
