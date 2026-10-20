@@ -37,6 +37,34 @@ if V_b <= 40:
     status = "OK"
 ```
 
+## A fuller example
+
+Headings and prose, a parameter grid, a long equation broken with `-m`, a governing
+branch, and a pass/fail check, all in one calculation:
+
+```{hc-example}
+:renderer: markdown
+:setup: from math import pi, sqrt
+## Steel beam
+# Lateral-torsional buckling resistance of a simply supported span.
+# hc: -h -c 3
+E = 200000     # MPa
+G = 77000      # MPa
+L = 6000       # mm
+I_y = 160e6    # mm⁴
+J = 133e3      # mm⁴
+C_w = 200e9    # mm⁶
+### Elastic critical moment
+M_u = pi / L * sqrt(E * I_y * G * J + (pi * E / L)**2 * I_y * C_w)  # hc: -m
+M_p = 285e6    # N mm
+if M_u > 0.67 * M_p:
+    M_r = 1.15 * 0.9 * M_p * (1 - 0.28 * M_p / M_u)  # hc: -m
+else:
+    M_r = 0.9 * M_u
+M_f = 210e6    # N mm
+M_f <= M_r     # hc: --check
+```
+
 ## Where it works
 
 - **Jupyter** (Lab, Notebook, VS Code): `%%render` displays it with `IPython.display.Markdown`.

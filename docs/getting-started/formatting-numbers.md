@@ -24,7 +24,17 @@ c = a * b
 | `,.1f` | thousands separator, 1 decimal | `1,234.6` |
 
 The LaTeX and Markdown renderers typeset scientific notation as
-1.235 × 10<sup>3</sup> rather than `1.235e+03`.
+1.235 × 10<sup>3</sup> rather than `1.235e+03`. The same value with four codes:
+
+```{hc-example}
+x = 1234.56789 * 1         # hc: -f .5g
+x_3g = 1234.56789 * 1      # hc: -f .3g
+x_2f = 1234.56789 * 1      # hc: -f .2f
+x_3e = 1234.56789 * 1      # hc: -f .3e
+```
+
+Numbers you type inside a formula keep their digits as written (`1234.56789` above);
+the format code applies to calculated values and to the values of parameters.
 
 ## Where to set it
 
@@ -32,14 +42,21 @@ From the narrowest scope to the widest:
 
 **One line**: a command at the end of the line.
 
-```python
+```{hc-example}
+a = 2.0
+b = 1 / 3
 c = a * b  # hc: -f .2f
+d = a * b
 ```
 
 **The rest of the calculation**: a command on its own line.
 
-```python
+```{hc-example}
+a = 2.0
+b = 1 / 3
 # hc: -f .3e
+c = a * b
+d = c / 7
 ```
 
 **Every calculation in the session**: the `format_code` option.
@@ -68,7 +85,17 @@ See [Configuration](configuration.md) for how saved options are stored and reset
 
 - `True` and `False` are shown as words, not as `1` and `0`.
 - Dates and times are shown in their usual `str()` form.
-- Collections (`list`, `tuple`, `set`, `dict`) format each element.
+- Collections (`list`, `tuple`, `set`, `dict`) format each element; long ones are
+  shortened with an ellipsis.
+
+```{hc-example}
+:setup: import datetime
+ok = 3 > 2
+today = datetime.date(2026, 10, 20)
+xs = [1 / 3, 2 / 3, 1.0]           # hc: -f .2f
+long_list = list(range(20))
+```
+
 - Any other object is formatted with the format code if it supports one (as
   [forallpeople](units.md) quantities do); otherwise its `str()` is shown. An object
   whose `str()` looks like `<MyObject at 0x...>` will be shown that way, so give your
