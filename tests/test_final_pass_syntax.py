@@ -346,7 +346,8 @@ CHECKS = (
 
 
 def test_plaintext_check_marks():
-    out = _render(PlainTextRenderer(), CHECKS).splitlines()
+    # Stripped: a text renderer may pad lines to align them on "=".
+    out = [line.strip() for line in _render(PlainTextRenderer(), CHECKS).splitlines()]
     assert out[1] == "ok = DoU<=1 = 0.85<=1 ✓"
     assert out[2] == "fail = DoU>1 = 0.85>1 ✗"
     assert out[3] == "plain = DoU>1 = 0.85>1 = False"
@@ -436,7 +437,11 @@ IGNORED = (
 
 def test_ignore_hides_imports_and_expressions():
     out = HandCalcs(PlainTextRenderer())(IGNORED)
-    assert out == "a = 2\nb = a + 1 = 2 + 1 = 3\nabs(b) = abs(3) = 3\n"
+    assert [line.strip() for line in out.splitlines()] == [
+        "a = 2",
+        "b = a + 1 = 2 + 1 = 3",
+        "abs(b) = abs(3) = 3",
+    ]
 
 
 def test_ignore_hides_imports_in_latex():
