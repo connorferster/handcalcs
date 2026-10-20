@@ -9,15 +9,32 @@ the script needs no comment commands.
 
 When the input is a plain number and the assignment is a number times units
 (``w = 4.5 * kN / m``), only the number is replaced, so the script's units are kept.
+
+``InputBinding`` also takes inputs that cannot be written as source text, such as
+quantities and arrays. A quantity bound to a number times units is converted to the
+script's units while the script runs, and its number is written into the rendered
+source. Any other object is passed to the script unchanged and shown as the line's
+value.
 """
 
 import ast
+import dataclasses
+import numbers
 import pathlib
 import re
+from collections import deque
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
-__all__ = ["bind_inputs", "find_inputs"]
+from .nodes import Constant
+
+__all__ = ["bind_inputs", "find_inputs", "InputBinding"]
+
+# The function an object input's assignment calls while the script runs
+RESOLVER = "__hc_input__"
+# The text an object input's value is written as for parsing, before the object
+# itself is placed in the parsed tree
+PLACEHOLDER = "\x00hc-input:"
 
 
 @dataclass
@@ -50,42 +67,195 @@ def bind_inputs(
     False, then it is ignored), a ValueError for an input that is only assigned
     inside a block or function, by an augmented assignment or by unpacking, or
     whose assignment computes its value (unless ``allow_computed`` is True), and
-    a TypeError for a value that cannot be written as a Python literal.
+    a TypeError for a value that cannot be written as a Python literal. Use
+    ``InputBinding`` (or ``HandCalcs(..., inputs=...)``) for such values.
     """
-    tree = ast.parse(source)
-    bindings = first_bindings(tree)
-    edits = []
-    unknown = []
-    for name, value in inputs.items():
-        binding = bindings.get(name)
-        if binding is None:
-            line = other_binding_line(tree, name)
-            if line is not None:
-                raise ValueError(
-                    f"The input '{name}' cannot be bound: it is only assigned on line "
-                    f"{line} inside a block or function, by an augmented assignment "
-                    "or by unpacking. Inputs bind to a top-level 'name = value' "
-                    "assignment."
-                )
-            unknown.append(name)
-            continue
-        if not binding.is_given and not allow_computed:
-            raise ValueError(
-                f"'{name}' is computed on line {binding.value.lineno}; pass "
-                "allow_computed=True to replace the calculation with the input."
-            )
-        text = literal_text(name, value)
-        if binding.magnitude is not None and is_number(value):
-            edits.append((binding.magnitude, text))
-        else:
-            edits.append((binding.value, text))
-    if unknown and strict:
-        raise KeyError(
-            f"The source never assigns the input(s) {', '.join(map(repr, unknown))}. "
-            "Check the names, or pass strict=False to ignore inputs the source "
-            "does not use."
+    binding = InputBinding(source, inputs, strict=strict, allow_computed=allow_computed)
+    if binding.objects:
+        name, value = next(iter(binding.objects.items()))
+        raise TypeError(
+            f"The input '{name}' ({type(value).__name__}) cannot be written as a "
+            "Python literal. Inputs must be numbers, strings, booleans, None, or "
+            "lists, tuples and dicts of these. HandCalcs(..., inputs=...) also "
+            "takes quantities and other objects."
         )
-    return apply_edits(source, edits)
+    return binding.exec_source
+
+
+class InputBinding:
+    """
+    The inputs of one render of ``source``, in three steps:
+
+    1. Run ``exec_source`` in a namespace that starts as ``namespace()``.
+    2. Parse ``parse_source(namespace)``, the source as it is shown.
+    3. Call ``place_objects(tree)`` on the parsed tree.
+
+    Inputs that can be written as literals are bound as in ``bind_inputs``. An
+    object input (a quantity, an array) makes its assignment call the resolver.
+    If the assignment is a number times units and the object divided by those
+    units is a plain number, the object is converted to them (``6200 N/m``
+    against ``w = 4.5 * kN / m`` runs and renders as ``w = 6.2 * kN / m``);
+    if the division leaves units, a ValueError is raised. Otherwise the object
+    is assigned as it is, and shown as the line's value.
+    """
+
+    def __init__(
+        self,
+        source: str,
+        inputs: dict,
+        *,
+        strict: bool = True,
+        allow_computed: bool = False,
+    ):
+        tree = ast.parse(source)
+        bindings = first_bindings(tree)
+        self.source = source
+        self.objects = {}  # name -> an input that cannot be written as a literal
+        self.converted = {}  # name -> the number of a converted object input
+        self.literal_edits = []
+        self.object_bindings = {}  # name -> Binding
+        unknown = []
+        for name, value in inputs.items():
+            binding = bindings.get(name)
+            if binding is None:
+                line = other_binding_line(tree, name)
+                if line is not None:
+                    raise ValueError(
+                        f"The input '{name}' cannot be bound: it is only assigned on "
+                        f"line {line} inside a block or function, by an augmented "
+                        "assignment or by unpacking. Inputs bind to a top-level "
+                        "'name = value' assignment."
+                    )
+                unknown.append(name)
+                continue
+            if not binding.is_given and not allow_computed:
+                raise ValueError(
+                    f"'{name}' is computed on line {binding.value.lineno}; pass "
+                    "allow_computed=True to replace the calculation with the input."
+                )
+            value = plain_number(value)
+            text = literal_text(value)
+            if text is None:
+                self.objects[name] = value
+                self.object_bindings[name] = binding
+            elif binding.magnitude is not None and is_number(value):
+                self.literal_edits.append((binding.magnitude, text))
+            else:
+                self.literal_edits.append((binding.value, text))
+        if unknown and strict:
+            raise KeyError(
+                "The source never assigns the input(s) "
+                f"{', '.join(map(repr, unknown))}. Check the names, or pass "
+                "strict=False to ignore inputs the source does not use."
+            )
+        edits = list(self.literal_edits)
+        for name, binding in self.object_bindings.items():
+            if has_units(binding):
+                # The units are the value with its number replaced by 1
+                units = splice(source, binding.value, [(binding.magnitude, "1")])
+                call = f"{RESOLVER}({name!r}, {units})"
+            else:
+                call = f"{RESOLVER}({name!r})"
+            edits.append((binding.value, call))
+        self.exec_source = apply_edits(source, edits)
+
+    def namespace(self) -> dict:
+        """The namespace ``exec_source`` must start running in."""
+        return {RESOLVER: self._resolve} if self.objects else {}
+
+    def _resolve(self, name: str, units: Any = None) -> Any:
+        """The value an object input's assignment assigns, while the script runs."""
+        value = self.objects[name]
+        if units is None:
+            return value
+        try:
+            ratio = in_registry_of(units, value) / units
+        except Exception:
+            return value
+        if not is_number(ratio) and getattr(ratio, "dimensionless", None) is False:
+            raise ValueError(
+                f"The input '{name}' ({value}) cannot be converted to the units of "
+                f"line {self.object_bindings[name].value.lineno} ({units})."
+            )
+        try:
+            number = float(ratio)
+        except (TypeError, ValueError):
+            return value  # e.g. an array of quantities
+        number = float(f"{number:.15g}")  # without floating-point noise
+        source_number = ast.literal_eval(self.object_bindings[name].magnitude)
+        if isinstance(source_number, int) and number.is_integer():
+            number = int(number)
+        self.converted[name] = number
+        return number * units
+
+    def parse_source(self, namespace: dict) -> str:
+        """
+        The source to parse and show, once ``exec_source`` has run in
+        ``namespace`` (the resolver is removed from it).
+        """
+        namespace.pop(RESOLVER, None)
+        edits = list(self.literal_edits)
+        for name, binding in self.object_bindings.items():
+            if name in self.converted:
+                edits.append((binding.magnitude, repr(self.converted[name])))
+            else:
+                edits.append((binding.value, repr(PLACEHOLDER + name)))
+        return apply_edits(self.source, edits)
+
+    def place_objects(self, tree: Any) -> None:
+        """Puts each object input that was not converted in its line of ``tree``."""
+        placed = {
+            PLACEHOLDER + name: value
+            for name, value in self.objects.items()
+            if name not in self.converted
+        }
+        if not placed:
+            return
+        for node in walk(tree):
+            if (
+                isinstance(node, Constant)
+                and isinstance(node.value, str)
+                and node.value in placed
+            ):
+                node.value = placed[node.value]
+                node.source_text = ""
+
+
+def has_units(binding: Binding) -> bool:
+    """True if ``binding`` assigns a number times units (``6 * m``, not ``6``)."""
+    return binding.magnitude is not None and binding.magnitude is not binding.value
+
+
+def in_registry_of(units: Any, value: Any) -> Any:
+    """
+    A pint quantity ``value`` made again in the unit registry of ``units``, since
+    pint does not mix registries and a script usually makes its own; any other
+    value unchanged.
+    """
+    registry = getattr(units, "_REGISTRY", None)
+    if registry is None or getattr(value, "_REGISTRY", registry) is registry:
+        return value
+    return registry.Quantity(value.magnitude, str(value.units))
+
+
+def walk(node: Any, seen: Optional[set] = None):
+    """Every dataclass node in a parsed tree, through fields, deques and lists."""
+    if seen is None:
+        seen = set()
+    if id(node) in seen:
+        return
+    if isinstance(node, (deque, list, tuple)):
+        seen.add(id(node))
+        for item in node:
+            yield from walk(item, seen)
+    elif dataclasses.is_dataclass(node) and not isinstance(node, type):
+        seen.add(id(node))
+        yield node
+        for field in dataclasses.fields(node):
+            yield from walk(getattr(node, field.name), seen)
+    elif hasattr(node, "lines"):  # HcSequence
+        seen.add(id(node))
+        yield from walk(node.lines, seen)
 
 
 def find_inputs(source_or_path: str | pathlib.Path) -> dict:
@@ -259,26 +429,63 @@ def is_literal(node: ast.expr) -> bool:
     return True
 
 
-def literal_text(name: str, value) -> str:
-    """``value`` as Python source, checking that it reads back as the same value."""
+def plain_number(value: Any) -> Any:
+    """
+    A number of another type (``numpy.float64``, ``numpy.int64``) as an ``int``
+    or ``float``, if it converts exactly; any other value unchanged.
+    """
+    if isinstance(value, bool) or type(value) in (int, float):
+        return value
+    if isinstance(value, numbers.Integral):
+        return int(value)
+    if isinstance(value, numbers.Real):
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return value
+        if number == value:
+            return number
+    return value
+
+
+def literal_text(value: Any) -> Optional[str]:
+    """``value`` as Python source, or None if it does not read back as ``value``."""
     text = repr(value)
     try:
         round_trips = ast.literal_eval(text) == value
     except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
         round_trips = False
-    if not round_trips:
-        raise TypeError(
-            f"The input '{name}' ({type(value).__name__}) cannot be written as a "
-            "Python literal. Inputs must be numbers, strings, booleans, None, or "
-            "lists, tuples and dicts of these."
-        )
-    return text
+    return text if round_trips is True else None
 
 
-def apply_edits(source: str, edits: list[tuple[ast.expr, str]]) -> str:
+def splice(source: str, node: ast.expr, edits: list[tuple[ast.expr, str]]) -> str:
     """
-    Replaces the source span of each node with its text. Node offsets are UTF-8
-    byte offsets, so the edits are made on the encoded source, last edit first.
+    The source text of ``node``, in parentheses, with ``edits`` (of nodes within
+    it) applied.
+    """
+    encoded, offset = encode_with_offsets(source)
+    start = offset(node.lineno, node.col_offset)
+    end = offset(node.end_lineno, node.end_col_offset)
+    segment = encoded[start:end]
+    for inner_start, inner_end, text in sorted(
+        (
+            (
+                offset(inner.lineno, inner.col_offset) - start,
+                offset(inner.end_lineno, inner.end_col_offset) - start,
+                text,
+            )
+            for inner, text in edits
+        ),
+        reverse=True,
+    ):
+        segment = segment[:inner_start] + text.encode() + segment[inner_end:]
+    return "(" + segment.decode() + ")"
+
+
+def encode_with_offsets(source: str):
+    """
+    ``source`` as UTF-8, and a function from an AST (line, column) position to an
+    offset in it. AST columns are UTF-8 byte offsets.
     """
     encoded = source.encode()
     # Python ends lines at \n, \r\n or \r only (str.splitlines() splits at more)
@@ -287,6 +494,15 @@ def apply_edits(source: str, edits: list[tuple[ast.expr, str]]) -> str:
     def offset(lineno: int, col: int) -> int:
         return line_starts[lineno - 1] + col
 
+    return encoded, offset
+
+
+def apply_edits(source: str, edits: list[tuple[ast.expr, str]]) -> str:
+    """
+    Replaces the source span of each node with its text. Node offsets are UTF-8
+    byte offsets, so the edits are made on the encoded source, last edit first.
+    """
+    encoded, offset = encode_with_offsets(source)
     spans = [
         (
             offset(node.lineno, node.col_offset),

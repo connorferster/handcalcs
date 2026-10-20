@@ -5,11 +5,14 @@ Partial inputs: binding input values into a calculation script
 
 import pathlib
 import re
+from fractions import Fraction
+
+import pint
 
 import pytest
 
 from handcalcs import HandCalcs, PlainTextRenderer, find_inputs
-from handcalcs.parsing.inputs import bind_inputs
+from handcalcs.parsing.inputs import RESOLVER, InputBinding, bind_inputs
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.markdown import MarkdownRenderer
@@ -251,3 +254,122 @@ def test_render_strict_and_allow_computed_pass_through():
         "a = 1\nb = 2 * a\n", inputs={"b": 5, "q": 0}, strict=False, allow_computed=True
     )
     assert "b = 5" in out
+
+
+# --- Object inputs: quantities and other objects ------------------------------
+
+# A registry of the caller's, separate from the one each script makes
+ureg = pint.UnitRegistry()
+
+
+class Section:
+    """An object with no literal form, assigned to the script as it is."""
+
+    def __init__(self, area):
+        self.area = area
+
+    def __str__(self):
+        return f"Section({self.area})"
+
+
+def bound_source(source: str, inputs: dict, **kwargs) -> str:
+    """The source as it is shown, after running it with ``inputs``."""
+    binding = InputBinding(source, inputs, **kwargs)
+    namespace = dict(binding.namespace())
+    exec(binding.exec_source, namespace)
+    return binding.parse_source(namespace)
+
+
+@pytest.mark.parametrize(
+    "line, value, expected",
+    [
+        ("w = 4.5 * kN / m", 6200 * ureg.N / ureg.m, "w = 6.2 * kN / m"),
+        ("L = 6 * m", 8000 * ureg.mm, "L = 8 * m"),  # an int stays an int
+        ("p = -12 * kPa", -15000 * ureg.Pa, "p = -15 * kPa"),
+        ("A = 2.0 * m**2", 15000 * ureg.cm**2, "A = 1.5 * m**2"),
+        ("w = (4.5 * kN\n     / m)", 7 * ureg.kN / ureg.m, "w = (7.0 * kN\n     / m)"),
+    ],
+)
+def test_quantity_converted_to_the_line_units(line, value, expected):
+    name = line.split(" = ")[0]
+    assert bound_source(UNITS + line + "\n", {name: value}) == UNITS + expected + "\n"
+
+
+def test_quantity_in_incompatible_units_raises():
+    with pytest.raises(ValueError, match="cannot be converted to the units of line 7"):
+        HandCalcs(PlainTextRenderer())(BEAM, inputs={"w": 6 * ureg.m})
+
+
+def test_numbers_of_other_types_are_written_as_numbers():
+    # e.g. numpy.float64, or a value from a pandas row
+    assert bind_inputs("a = 1\nb = 2\n", {"a": Fraction(1, 2), "b": True}) == (
+        "a = 0.5\nb = True\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "line, value, shown",
+    [
+        ("A = 100", Section(250), "Section(250)"),  # no literal form
+        ("A = 100", Fraction(1, 3), "0.33333"),  # not exactly a float
+        ("A = 100 * m", Section(250), "Section(250)"),  # cannot be divided by units
+        ("A = 100", 0.5 * ureg.m, "0.5 meter"),  # a quantity on a line without units
+    ],
+)
+def test_object_assigned_as_it_is(line, value, shown):
+    out = HandCalcs(PlainTextRenderer())(
+        UNITS + line + "\nB = A\n", inputs={"A": value}
+    )
+    assert f"A = {shown}\nB = A = {shown}\n" in out
+    assert "hc-input" not in out
+
+
+def test_object_reaches_the_calculation():
+    source = "A = 100\nB = A.area * 2\n"
+    out = HandCalcs(PlainTextRenderer())(source, inputs={"A": Section(250)})
+    assert "B = A.area * 2 = 250 * 2 = 500" in out
+
+
+def test_object_on_a_computed_line_needs_allow_computed():
+    source = "a = 1\nb = 2 * a\n"
+    with pytest.raises(ValueError, match="allow_computed"):
+        HandCalcs(PlainTextRenderer())(source, inputs={"b": Section(1)})
+    out = HandCalcs(PlainTextRenderer())(
+        source, inputs={"b": Section(1)}, allow_computed=True
+    )
+    assert "b = Section(1)" in out
+
+
+def test_object_input_leaves_no_resolver_in_the_namespace():
+    binding = InputBinding("A = 100\n", {"A": Section(1)})
+    namespace = dict(binding.namespace())
+    exec(binding.exec_source, namespace)
+    binding.parse_source(namespace)
+    assert RESOLVER not in namespace
+    assert namespace["A"].area == 1
+
+
+def test_bind_inputs_refuses_objects():
+    with pytest.raises(TypeError, match="HandCalcs"):
+        bind_inputs(UNITS + "L = 6 * m\n", {"L": 8000 * ureg.mm})
+
+
+@pytest.mark.parametrize(
+    "renderer", [PlainTextRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
+)
+def test_render_with_quantities_matches_numbers(renderer):
+    # A quantity renders as its number in the script's units would
+    hc = HandCalcs(renderer())
+    quantities = {"w": 6200 * ureg.N / ureg.m, "L": 8000 * ureg.mm}
+    assert without_addresses(hc(BEAM, inputs=quantities)) == without_addresses(
+        hc(BEAM, inputs={"w": 6.2, "L": 8})
+    )
+
+
+@pytest.mark.parametrize(
+    "renderer", [PlainTextRenderer, LatexRenderer, MarkdownRenderer, HTMLRenderer]
+)
+def test_render_object_in_every_renderer(renderer):
+    out = HandCalcs(renderer())("A = 100\nB = A\n", inputs={"A": Section(250)})
+    assert "Section(250)" in out
+    assert "hc-input" not in out
