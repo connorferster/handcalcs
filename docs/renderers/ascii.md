@@ -55,16 +55,15 @@ class DashRenderer(ASCIIRenderer):
 ## Lined-up `=` signs
 
 The left-hand sides of the calculation lines between two headings are right-aligned,
-so the `=` signs form one column. Parameter grids (`# hc: -h`) and long calculations
-(`# hc: -m`) are shifted to line up with them:
+so the `=` signs form one column. Parameter grids (a `;` line, or `# hc: -h`) and long
+calculations (`# hc: -m`) are shifted to line up with them:
 
 ```{hc-example}
 :renderer: ascii
-b = 300  # mm
-d = 550  # mm
+b = 0.3; d = 0.55; phi = 0.9
 f_c = 30  # MPa
 A_gross = b * d
-M_r = 0.9 * f_c * b * d**2 / 6 / 1e6  # hc: -m
+M_r = phi * f_c * 1000 * b * d**2 / 6  # kN m
 ```
 
 ## Conventions
