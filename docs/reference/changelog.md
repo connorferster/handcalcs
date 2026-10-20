@@ -22,7 +22,8 @@ A rewrite of handcalcs around a node tree and pluggable renderers.
   the `symbols` option for display specs, all parsed once and shared by every renderer.
 - **Line continuations** (`\`) break a long equation at the same place (#259).
 - **`%render`** line magic renders a single line (#179).
-- **Bare expressions** (`2 * a`) show their result (#54).
+- **Bare expressions** (`2 * a`) show their result when they use only arithmetic,
+  built-ins, and `math` or numpy functions (#54).
 - **Many input sets from one script**: `HandCalcs(...)(script, inputs={...})` renders
   a script with different given values, keeping their units (quantities are
   converted to them); `find_inputs` lists a
