@@ -1,5 +1,6 @@
 import sys
 from string import Formatter
+from typing import Any
 from .object_oriented import HandCalcs
 from handcalcs import config
 from handcalcs.parsing.inputs import RESOLVER, InputBinding
@@ -103,11 +104,15 @@ def jupyter_handcalcs() -> tuple[HandCalcs, type]:
     return HandCalcs(renderer=renderer_cls()), display_class_for(renderer_cls)
 
 
-def render_and_display(source: str, namespace: dict) -> None:
-    """Render ``source`` with the session's Jupyter renderer and display it."""
+def render_and_display(source: str, namespace: dict, result: Any = None) -> None:
+    """
+    Render ``source``, which has run in ``namespace``, with the session's
+    Jupyter renderer and display it. ``result`` is the value of its last bare
+    expression, if any (see ``HandCalcs.render_cell``).
+    """
     hc, display_class = jupyter_handcalcs()
     # Display, but not as an "output"
-    display(display_class(hc(source, namespace)))
+    display(display_class(hc.render_cell(source, namespace, result)))
 
 
 @register_line_cell_magic
@@ -136,8 +141,10 @@ def render(line, cell=None, local_ns=None):
     if not exec_result.success:
         return None
 
-    # Render against the updated variables (after .run_cell(cell))
-    render_and_display(cell, ip.user_ns)
+    # Render against the updated variables (after .run_cell(cell)). The cell's
+    # result (what IPython stores in ``_``) is the value of a last bare
+    # expression, so it is shown without running the expression again.
+    render_and_display(cell, ip.user_ns, exec_result.result)
 
 
 INPUT_ARGUMENTS = ("inputs", "strict", "allow_computed")
@@ -217,8 +224,15 @@ def render_line(line: str, local_ns: dict | None) -> None:
             "not be the function's variables. Decorate the function with "
             "@handcalc to render it."
         )
-    exec(compile(source + "\n", "<%render>", "exec"), ip.user_ns)
-    render_and_display(source + "\n", ip.user_ns)
+    try:
+        # A bare expression is evaluated (once) for its result, as for ``_``.
+        code = compile(source + "\n", "<%render>", "eval")
+    except SyntaxError:
+        exec(compile(source + "\n", "<%render>", "exec"), ip.user_ns)
+        result = None
+    else:
+        result = eval(code, ip.user_ns)
+    render_and_display(source + "\n", ip.user_ns, result)
 
 
 def load_ipython_extension(ipython):
