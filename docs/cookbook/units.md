@@ -45,7 +45,7 @@ M = w * L**2 / 8
 ```
 
 The LaTeX and Markdown renderers typeset pint units in math, abbreviated when the
-registry's default format contains `~`; the HTML and plain-text renderers use the
+registry's default format contains `~`; the HTML and ASCII renderers use the
 registry's text format (`22.5 kN⋅m` with `~P`).
 
 Outside Jupyter, `HandCalcs(renderer)(source, globals())` renders the same code from a

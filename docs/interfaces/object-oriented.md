@@ -17,7 +17,7 @@ M = w * L**2 / 8
 ```
 
 The return value is whatever the renderer produces: a string for the Markdown, LaTeX,
-HTML and plain-text renderers, a workbook for the Excel renderer, a nested list for the
+HTML and ASCII renderers, a workbook for the Excel renderer, a nested list for the
 base renderer. One `HandCalcs` object can be called any number of times.
 
 ## Creating it
@@ -57,7 +57,7 @@ latex = HandCalcs(LatexRenderer())(pathlib.Path("beam.py"))
 
 # Render with values you already have (the code is not run)
 values = {"w": 5, "L": 6, "M": 22.5}
-text = HandCalcs(PlainTextRenderer())("M = w * L**2 / 8", values)
+text = HandCalcs(ASCIIRenderer())("M = w * L**2 / 8", values)
 ```
 
 If a name has no value in `supplied_globals`, it is shown as empty in the substituted
@@ -83,7 +83,7 @@ source = "a = 2\nf(a)"
 exec("def f(x):\n    return x * 10", namespace)
 exec("a = 2", namespace)
 result = eval("f(a)", namespace)
-print(HandCalcs(PlainTextRenderer()).render_cell(source, namespace, result))
+print(HandCalcs(ASCIIRenderer()).render_cell(source, namespace, result))
 # a = 2
 # f(a) = f(2) = 20
 ```
@@ -189,7 +189,7 @@ find_inputs(pathlib.Path("beam.py"))  # {'w': 5, 'L': 6}
 long equations and nested conditionals) with the object's renderer:
 
 ```python
-print(HandCalcs(PlainTextRenderer()).demo())
+print(HandCalcs(ASCIIRenderer()).demo())
 ```
 
 It is a quick way to compare renderers, or to check a renderer you are writing. A
@@ -232,7 +232,7 @@ w = 5
 L = 6
 M = w * L**2 / 8
 """
-hc = HandCalcs(PlainTextRenderer())
+hc = HandCalcs(ASCIIRenderer())
 for w, L in [(5, 6), (7.5, 4)]:
     print(hc(source, inputs={"w": w, "L": L}))
 ```

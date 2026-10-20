@@ -112,7 +112,7 @@ Jupyter typesets with MathJax. To switch:
 | `markdown` (default) | `IPython.display.Markdown` |
 | `latex` | `IPython.display.Latex` |
 | `html` | `IPython.display.HTML` |
-| `plain_text` | `IPython.display.Pretty` |
+| `ascii` | `IPython.display.Pretty` |
 
 The setting lasts for the session. To make it permanent, save it to the
 [configuration](../getting-started/configuration.md):

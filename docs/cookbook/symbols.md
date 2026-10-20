@@ -196,20 +196,20 @@ d = max(a, b, c)
 ## `:=` (or anything else) between the steps
 
 ```python
-handcalcs.set_option("assign", ":=")   # plain-text and HTML renderers
+handcalcs.set_option("assign", ":=")   # ASCII and HTML renderers
 ```
 
 The LaTeX and Markdown renderers also read `assign`, but it ends up inside math, so give
 it LaTeX: `handcalcs.set_option("assign", "\\coloneqq")` (needs the `mathtools`
 package in LaTeX documents).
 
-## A narrower indent in plain text
+## A narrower indent in ASCII output
 
 ```python
 handcalcs.set_option("indent", "  ")
 ```
 
-This works for the plain-text and base renderers; see the
+This works for the ASCII and base renderers; see the
 [caution](../customizing/render-context.md#four-ways-to-set-a-field) for LaTeX and Markdown.
 
 **Next:** [Units](units.md).

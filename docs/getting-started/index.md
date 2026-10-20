@@ -39,9 +39,9 @@ Create a `HandCalcs` object with a renderer and call it with your source code:
 
 ```python
 from handcalcs import HandCalcs
-from handcalcs.renderers import PlainTextRenderer
+from handcalcs.renderers import ASCIIRenderer
 
-calc = HandCalcs(renderer=PlainTextRenderer())
+calc = HandCalcs(renderer=ASCIIRenderer())
 print(calc("""
 a = 2
 b = 3

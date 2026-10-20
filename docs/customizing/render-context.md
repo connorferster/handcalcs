@@ -57,12 +57,12 @@ x = a + b  # hc: format_code = ".2f"
 **For every call of a decorated function**:
 
 ```python
-@handcalc(PlainTextRenderer(), render_context={"format_code": ".2f"})
+@handcalc(ASCIIRenderer(), render_context={"format_code": ".2f"})
 def calc(a, b): ...
 ```
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 b = 3
 # hc: assign = ":="

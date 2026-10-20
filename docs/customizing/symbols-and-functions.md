@@ -53,7 +53,7 @@ Why `pre` and not `sym`? The LaTeX family translates names in a `name:sym` rule
 identifier (it contains a backslash, a brace, ...) alone. See
 [rule order](../building-renderers/registration.md#order-of-execution).
 
-The same rule works for the HTML and plain-text renderers, using HTML markup or Unicode
+The same rule works for the HTML and ASCII renderers, using HTML markup or Unicode
 in the replacement: `{"u_t": "ũ"}`. The HTML renderer also leaves markup such as
 `u&#771;` alone.
 
@@ -88,26 +88,26 @@ class TimesMarkdownRenderer(MarkdownRenderer):
 The node types are `add_op`, `sub_op`, `mult_op`, `div_op`, `floor_op`, `modulo_op`,
 `pow_op`, the comparisons `lt_op`, `gt_op`, `lte_op`, `gte_op`, `eq_op`, `neq_op`, `in_op`,
 `not_in_op`, `is_op`, `is_not_op`, and the boolean `and_op`, `or_op`. In the HTML and
-plain-text renderers, set `node.symbol` in a `{type}:pre` rule (as the built-in
+ASCII renderers, set `node.symbol` in a `{type}:pre` rule (as the built-in
 `swap_py_operators` rules do).
 
 ## Turning off a built-in translation
 
 A subclass inherits its parent's rules. To stop, for example, Greek letter translation in
-the plain-text renderer, remove the rule from the subclass's rule list:
+the ASCII renderer, remove the rule from the subclass's rule list:
 
 ```python
-from handcalcs.renderers import PlainTextRenderer
-from handcalcs.renderers.plaintext import swap_greeks
+from handcalcs.renderers import ASCIIRenderer
+from handcalcs.renderers.ascii import swap_greeks
 
-class NoGreekTextRenderer(PlainTextRenderer):
+class NoGreekTextRenderer(ASCIIRenderer):
     pass
 
 NoGreekTextRenderer.rule_handlers["name"]["sym"].remove(swap_greeks)
 ```
 
 Each subclass gets its own copy of the rule lists, so this doesn't affect
-`PlainTextRenderer` itself. In the HTML renderer, one rule, `swap_identifier` in
+`ASCIIRenderer` itself. In the HTML renderer, one rule, `swap_identifier` in
 `handcalcs.renderers.html`, does all the name typesetting (Greek letters, subscripts,
 accents); the LaTeX family's is `swap_identifier` in `handcalcs.renderers.latex`.
 

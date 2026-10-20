@@ -4,8 +4,11 @@
 
 A rewrite of handcalcs around a node tree and pluggable renderers.
 
-- **Renderers**: Markdown (the Jupyter default), LaTeX, HTML, plain text, Excel, Word
+- **Renderers**: Markdown (the Jupyter default), LaTeX, HTML, ASCII text, Excel, Word
   (editable Word equations; #222) and the base renderer. Renderers can be subclassed and customized, or written from scratch.
+- **`ASCIIRenderer`** (`ascii`) for terminals, logs and docstrings: setext-underlined
+  headings and calc lines aligned on `=`. It replaces the 2.0 pre-release
+  `PlainTextRenderer` (`plain_text`), which has no alias.
 - **`HandCalcs` interface** for rendering source strings and files from Python.
 - **`# hc:` comment commands**, per line or per section, replacing the v1 cell override
   tags.

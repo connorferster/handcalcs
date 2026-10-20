@@ -26,9 +26,9 @@ everything else is inherited.
 ```{hc-registry} base
 ```
 
-### `PlainTextRenderer`
+### `ASCIIRenderer`
 
-```{hc-registry} plain_text
+```{hc-registry} ascii
 :own:
 ```
 

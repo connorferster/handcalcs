@@ -49,6 +49,10 @@ notebooks need only a few changes.
   [cookbook](../cookbook/index.md)).
 - **More Python.** Conditional expressions (`a if test else b`), methods on expressions
   (`(a * b).to("mm")`), `cbrt`, `factorial` and infinity.
+- **Text output** for terminals and logs from `ASCIIRenderer` (`ascii`), with underlined
+  headings and `=` signs lined up (see [the ASCII renderer](../renderers/ascii.md)). If
+  you tried a 2.0 pre-release, this is the renderer that was called `PlainTextRenderer`
+  (`plain_text`).
 - **Word output** with native equations (see [the Word renderer](../renderers/word.md)).
 - **Many input sets.** Render one script for a table of inputs with
   `HandCalcs(...)(path, inputs=...)` or `%%render inputs=case`.

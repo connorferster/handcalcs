@@ -37,7 +37,7 @@ the Word renderer writes its tree into a .docx
 and the [structured data example](example-json.md) flattens the tree into dicts.
 
 Built-in versions:
-{src}`PlainTextRenderer.complete <handcalcs.renderers.plaintext.PlainTextRenderer.complete>`,
+{src}`ASCIIRenderer.complete <handcalcs.renderers.ascii.ASCIIRenderer.complete>`,
 {src}`LatexRenderer.complete <handcalcs.renderers.latex.LatexRenderer.complete>`,
 {src}`HTMLRenderer.complete <handcalcs.renderers.html.HTMLRenderer.complete>`.
 

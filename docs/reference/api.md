@@ -37,7 +37,7 @@ in [the Jupyter interface](../interfaces/jupyter.md).
 .. autoclass:: handcalcs.renderers.BaseRenderer
    :members: name, create_context, render, render_root, render_node, render_header, complete, join, join_items, join_item, register, register_handler, format_param_grid, format_calc_grid
 
-.. autoclass:: handcalcs.renderers.PlainTextRenderer
+.. autoclass:: handcalcs.renderers.ASCIIRenderer
    :members: complete
 
 .. autoclass:: handcalcs.renderers.LatexRenderer

@@ -18,7 +18,7 @@ handcalcs.save_config()                      # and every session after
 | `default_renderer` | `"base"` | `HandCalcs()` with no renderer argument. The name of a [renderer](../renderers/index.md). |
 | `jupyter_renderer` | `"markdown"` | The `%%render` cell magic. Also set by `%hc_default_renderer`. |
 
-Renderer names are `base`, `plain_text`, `latex`, `markdown`, `html` and `excel`, plus the
+Renderer names are `base`, `ascii`, `latex`, `markdown`, `html` and `excel`, plus the
 name of any custom renderer that has been imported.
 
 ### Custom options

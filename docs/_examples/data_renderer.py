@@ -1,13 +1,13 @@
 """
 A renderer whose output is data, not text: a list of dicts that a web front-end
 (or a template) can lay out however it likes. It keeps the Unicode symbol rules
-of PlainTextRenderer and replaces the line handlers and complete().
+of ASCIIRenderer and replaces the line handlers and complete().
 """
-from handcalcs.renderers import PlainTextRenderer
+from handcalcs.renderers import ASCIIRenderer
 from handcalcs.renderers.base import RenderContext
 
 
-class DataRenderer(PlainTextRenderer):
+class DataRenderer(ASCIIRenderer):
     name = "data"
 
     def complete(self, tree, base_context):

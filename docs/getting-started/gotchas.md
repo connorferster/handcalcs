@@ -7,7 +7,7 @@ assigned more than once, every line shows the **final** value, so the substituti
 can disagree with the formula:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 b = a * 3
 a = 10

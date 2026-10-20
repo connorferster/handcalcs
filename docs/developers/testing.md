@@ -13,7 +13,7 @@ $ uv run pytest --cov=handcalcs       # with coverage
 | `test_parser.py`, `test_sequence.py` | Source → node tree, and the post-parse passes |
 | `test_nodes.py`, `test_line_nodes.py`, `test_block_nodes.py`, `test_inline_nodes.py`, `test_operator_nodes.py`, `test_null_values.py` | Node classes |
 | `test_render_nodes.py`, `test_base_renderer.py`, `test_infix.py`, `test_multiline.py` | `BaseRenderer` handlers on hand-built nodes |
-| `test_plain_text.py`, `test_latex_renderer.py`, `test_markdown_renderer.py`, `test_excel_*.py` | Each renderer, through the full pipeline |
+| `test_ascii.py`, `test_latex_renderer.py`, `test_markdown_renderer.py`, `test_excel_*.py` | Each renderer, through the full pipeline |
 | `test_handcalcs.py`, `test_demo.py`, `test_decorator.py`, `test_jupyter.py` | The interfaces |
 | `test_config.py` | Configuration |
 

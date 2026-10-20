@@ -72,7 +72,7 @@ using the `renderer` and `make_context` fixtures from `tests/conftest.py`.
 
 Decide how each format should show it, and register a handler or rule:
 
-- `PlainTextRenderer`: often the base handler is enough.
+- `ASCIIRenderer`: often the base handler is enough.
 - `LatexRenderer` (and so `MarkdownRenderer`): math notation. For `IfExp`, the LaTeX
   renderer only overrides `IF_EXP_KEYWORDS` with upright `\mathrm{if}` and `\mathrm{else}`.
 - `HTMLRenderer`: HTML markup.

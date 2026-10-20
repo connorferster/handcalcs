@@ -16,7 +16,7 @@ Usage (MyST)::
 Options:
 
 ``:renderer:``
-    The registered name of a built-in renderer (``plain_text``, ``latex``,
+    The registered name of a built-in renderer (``ascii``, ``latex``,
     ``markdown``, ``html``, ``base``). Default ``markdown``.
 ``:renderer-file:`` / ``:renderer-class:``
     A Python file (relative to the docs directory) that defines a custom
@@ -63,7 +63,7 @@ _DEFAULT_OUTPUT = {
     "markdown": ("markdown", "markdown"),
     "html": ("html", "html"),
     "latex": ("latex", "latex"),
-    "plain_text": ("code", "text"),
+    "ascii": ("code", "text"),
     "base": ("code", "python"),
 }
 

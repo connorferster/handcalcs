@@ -2,7 +2,7 @@
 A plain-text renderer with nicer Unicode math: Unicode subscripts, a centred dot
 for multiplication and proper comparison signs. Built from rules only.
 """
-from handcalcs.renderers import PlainTextRenderer
+from handcalcs.renderers import ASCIIRenderer
 
 SUBSCRIPTS = str.maketrans(
     "0123456789aehijklmnoprstuvx+-=()",
@@ -11,7 +11,7 @@ SUBSCRIPTS = str.maketrans(
 COMPARISONS = {"lte_op": " ≤ ", "gte_op": " ≥ ", "neq_op": " ≠ ", "lt_op": " < ", "gt_op": " > "}
 
 
-class UnicodeRenderer(PlainTextRenderer):
+class UnicodeRenderer(ASCIIRenderer):
     name = "unicode"
 
 

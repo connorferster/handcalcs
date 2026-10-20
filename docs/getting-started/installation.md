@@ -42,8 +42,8 @@ the notebook to PDF through LaTeX, or compile the output of the
 
 ```python
 >>> from handcalcs import HandCalcs
->>> from handcalcs.renderers import PlainTextRenderer
->>> print(HandCalcs(PlainTextRenderer()).demo()[:120])
+>>> from handcalcs.renderers import ASCIIRenderer
+>>> print(HandCalcs(ASCIIRenderer()).demo()[:120])
 ```
 
 `demo()` renders a built-in example calculation with whichever renderer you give it,

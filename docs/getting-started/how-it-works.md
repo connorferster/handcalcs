@@ -26,7 +26,7 @@ An assignment whose right-hand side uses variables, operators or function calls 
 **calculation**. It is shown as *target = symbolic = substituted = result*:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 b = 3
 c = 2*a + b/3
@@ -40,7 +40,7 @@ An assignment of a plain number, a negative number or a collection of literals
 (`[1, 2, 3]`) is a **parameter**. It is shown as *target = value*:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 L = 6.0
 loads = [1.2, 3.4, 5.6]
 ```
@@ -54,7 +54,7 @@ Wrap the right-hand side in parentheses to show only *target = result*. This is 
 for intermediate values that are not the focus of the calculation:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 b = 3
 d = (a**2 + b**2)
@@ -69,7 +69,7 @@ function is shown only on the last line of a `%%render` cell; see
 [Show the result of an expression](../cookbook/showing-and-hiding.md#show-the-result-of-an-expression).)
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 b = 3
 a + b
@@ -116,13 +116,13 @@ See [Writing calculations](writing-calculations.md#conditionals) for examples.
 
 ## Function names and symbols
 
-Renderers translate names as they render them. In the plain-text, HTML, LaTeX and
+Renderers translate names as they render them. In the ASCII, HTML, LaTeX and
 Markdown renderers:
 
 - Greek letter names (`alpha`, `beta`, `Gamma`, ...) become Greek letters; a lowercase
   name gives a lowercase letter, a capitalized name an uppercase letter.
 - `_` starts a subscript: `I_y` becomes *I*<sub>y</sub>; each further `_` adds a subscript
-  after a comma (`N_pl_Rd` → N<sub>pl,Rd</sub>). (The plain-text renderer keeps the
+  after a comma (`N_pl_Rd` → N<sub>pl,Rd</sub>). (The ASCII renderer keeps the
   underscore.) See [naming variables](writing-calculations.md#naming-variables) for Greek
   letters joined to other letters, accents and display symbols.
 - `sqrt(...)` becomes a radical; `**` becomes a superscript; `/` becomes a fraction in

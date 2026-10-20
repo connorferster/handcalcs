@@ -11,7 +11,7 @@ Excel workbook, a Word document, or anything else you write a renderer for.
 | [`MarkdownRenderer`](markdown.md) | `markdown` | Markdown text with `$$` LaTeX math | Jupyter (the default), MyST/Sphinx, Quarto, any Markdown + MathJax/KaTeX site |
 | [`LatexRenderer`](latex.md) | `latex` | A LaTeX fragment | `.tex` reports, PDF through LaTeX, Jupyter's LaTeX display |
 | [`HTMLRenderer`](html.md) | `html` | An HTML fragment with a scoped stylesheet, no math engine needed | Web apps, emails, HTML reports, Jupyter |
-| [`PlainTextRenderer`](plain-text.md) | `plain_text` | Unicode text | Terminals, logs, test snapshots, plain-text reports |
+| [`ASCIIRenderer`](ascii.md) | `ascii` | Unicode text | Terminals, logs, test snapshots, plain-text reports |
 | [`ExcelRenderer`](excel.md) | `excel` | A live `.xlsx` worksheet | Handing a calculation to someone who works in Excel |
 | [`WordRenderer`](word.md) | `word` | A `.docx` document with editable Word equations | Reports in Word (or Google Docs), from a script or a notebook |
 | [`BaseRenderer`](base.md) | `base` | A nested Python list | Building your own renderer, debugging |
@@ -73,9 +73,9 @@ x_1 = (-b + sqrt(b**2 - 4*a*c_0)) / (2*a)  # Larger root
 ```
 :::
 
-:::{tab-item} Plain text
+:::{tab-item} ASCII
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 :hide-source:
 :setup: from math import sqrt
 ## Roots
@@ -116,7 +116,7 @@ x_1 = (-b + sqrt(b**2 - 4*a*c_0)) / (2*a)  # Larger root
 markdown
 latex
 html
-plain-text
+ascii
 excel
 word
 base

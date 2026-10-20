@@ -2,7 +2,7 @@
 
 **Technique: rules only.** This renderer improves the plain-text output with Unicode
 subscripts, a centred dot for multiplication and proper comparison signs. It changes no
-handlers and no layout; it inherits everything from `PlainTextRenderer` and adds four
+handlers and no layout; it inherits everything from `ASCIIRenderer` and adds four
 rules.
 
 ## The code

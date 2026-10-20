@@ -29,7 +29,7 @@ nothing at the end of a block header (`if ...:`) or inside a `;` parameter line.
 
 | Renderer | Output (class attribute `PAGE_BREAK`) |
 |---|---|
-| Plain text | a line holding a form feed (`\f`) |
+| ASCII | a line holding a form feed (`\f`) |
 | LaTeX | `\newpage` |
 | Markdown | `<div style="break-after: page;"></div>` (takes effect when printed or converted through HTML) |
 | HTML | `<div class="hc-page-break" style="break-after: page;"></div>` |

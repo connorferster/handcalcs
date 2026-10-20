@@ -69,7 +69,7 @@ number formats) comes from `BaseRenderer`.
 | Start from | When your format is | You get |
 |---|---|---|
 | `BaseRenderer` | something new | the full pipeline; Python-style symbols; plain text from `join()` |
-| `PlainTextRenderer` | text with Unicode math | Greek letters, `√`, superscripts |
+| `ASCIIRenderer` | text with Unicode math | Greek letters, `√`, superscripts |
 | `LatexRenderer` | anything that embeds LaTeX math | Greek, subscripts, fractions, operators; math groups |
 | `MarkdownRenderer` | a Markdown dialect | the above, with Markdown structure |
 | `HTMLRenderer` | HTML | `<sub>`/`<sup>`, entities, a CSS layout |
@@ -127,7 +127,7 @@ The nested-list shapes `join()` understands.
 :::{grid-item-card} Unicode text
 :link: example-unicode
 :link-type: doc
-Rules only: Unicode subscripts and math signs on top of `PlainTextRenderer`.
+Rules only: Unicode subscripts and math signs on top of `ASCIIRenderer`.
 :::
 
 :::{grid-item-card} reStructuredText

@@ -28,7 +28,7 @@ imported, `HandCalcs()` warns and falls back to `BaseRenderer`. Import your rend
 module at the top of the notebook or script.
 ```
 
-Choose a name that won't collide with the built-in names (`base`, `plain_text`,
+Choose a name that won't collide with the built-in names (`base`, `ascii`,
 `latex`, `markdown`, `html`, `excel`) or other packages: a later class with the same name
 replaces the earlier one in the registry.
 
@@ -42,7 +42,7 @@ built-in ancestor ({src}`display_class_for <handcalcs.interfaces.jupyter.display
 | `MarkdownRenderer` | `Markdown` |
 | `LatexRenderer` | `Latex` |
 | `HTMLRenderer` | `HTML` |
-| `PlainTextRenderer`, `BaseRenderer` | `Pretty` |
+| `ASCIIRenderer`, `BaseRenderer` | `Pretty` |
 
 A renderer built directly on `BaseRenderer` that produces, say, HTML should still inherit
 from `HTMLRenderer` if it is meant for notebooks; or its users can display its output

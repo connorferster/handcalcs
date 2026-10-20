@@ -12,7 +12,7 @@ values from:
 
 ```python
 from handcalcs import HandCalcs
-from handcalcs.renderers import PlainTextRenderer
+from handcalcs.renderers import ASCIIRenderer
 
 source = """
 w = 5
@@ -21,7 +21,7 @@ M = w * L**2 / 8
 """
 namespace = {}
 exec(source, namespace)
-print(HandCalcs(PlainTextRenderer())(source, namespace))
+print(HandCalcs(ASCIIRenderer())(source, namespace))
 ```
 
 Pass a `pathlib.Path` instead of a string and handcalcs runs the file for you:

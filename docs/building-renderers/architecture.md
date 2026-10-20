@@ -82,7 +82,7 @@ decides its own layout in one place.
 | Parsing | {src}`handcalcs.parsing.ast_parser`, {src}`handcalcs.parsing.sequence` |
 | Nodes | {src}`handcalcs.parsing.nodes`, {src}`handcalcs.parsing.line_nodes`, {src}`handcalcs.parsing.block_nodes`, {src}`handcalcs.parsing.inline_nodes`, {src}`handcalcs.parsing.operator_nodes` |
 | Rendering core | {src}`handcalcs.renderers.base` |
-| Built-in renderers | {src}`handcalcs.renderers.plaintext`, {src}`handcalcs.renderers.latex`, {src}`handcalcs.renderers.markdown`, {src}`handcalcs.renderers.html`, {src}`handcalcs.renderers.excel` |
+| Built-in renderers | {src}`handcalcs.renderers.ascii`, {src}`handcalcs.renderers.latex`, {src}`handcalcs.renderers.markdown`, {src}`handcalcs.renderers.html`, {src}`handcalcs.renderers.excel` |
 | Configuration | {src}`handcalcs.config` |
 
 **Next:** [Nodes](nodes.md).

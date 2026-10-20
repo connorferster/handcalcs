@@ -6,7 +6,7 @@ the part after the colon in `f"{value:.2f}"`. The default is `.5g`: up to five
 significant figures, switching to scientific notation for very large or small values.
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 1234.56789
 b = 0.000012345
 c = a * b

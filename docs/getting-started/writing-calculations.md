@@ -103,7 +103,7 @@ templates. Put a variable name in `{{ }}` to insert its value, and use Jinja fil
 format it:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 F = 12.3456
 # The applied force is {{ F|round(1) }} kN.
 check = F < 15  # F = {{ "%.2f"|format(F) }} kN, below the 15 kN limit
@@ -155,7 +155,7 @@ with a `\`, before or after an operator, and each continued piece starts a new r
 indented under the expression above, in both the symbolic and the substituted step:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 1.5
 b = 2.25
 c = 3.125
@@ -175,7 +175,7 @@ To break between the steps of a calculation (symbolic, substituted, result) inst
 A line that is only an expression, such as `2 * a`, shows its result:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 3
 2 * a + 1
 ```
@@ -210,7 +210,7 @@ values are captured after the code runs, the body shows the values from the **la
 iteration:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 total = 0
 for load in (1.2, 3.4, 5.6):
     factored = 1.25 * load
@@ -225,7 +225,7 @@ case, or call a renderer once per case from a script (see
 `# hc: -b` inserts a blank line (vertical space) at that point:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 # hc: -b
 b = a * 3
@@ -237,7 +237,7 @@ Some lines are needed for the calculation but are not interesting to the reader,
 setting up a unit system. Add `# hc: -i` to run the line but leave it out of the output:
 
 ```{hc-example}
-:renderer: plain_text
+:renderer: ascii
 a = 2
 scale = 1000  # hc: -i
 b = a * scale

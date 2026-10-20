@@ -3,7 +3,7 @@
 **Technique: new handlers and a new `complete()`.** Not every renderer produces text. This
 one produces a list of dictionaries, one per heading, paragraph, calculation or block, so
 a web front-end (or a template engine, or a database) can lay the calculation out itself.
-It keeps the Unicode symbol rules of `PlainTextRenderer` for the strings inside each
+It keeps the Unicode symbol rules of `ASCIIRenderer` for the strings inside each
 entry.
 
 ## The code
