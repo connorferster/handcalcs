@@ -3,6 +3,7 @@ forallpeople's ``si.environment(..., top_level=True)`` puts its units in
 ``builtins``. A bare unit in a formula substitutes its value, found there as
 Python finds it, instead of rendering as nothing.
 """
+
 import builtins
 
 import pytest
@@ -44,9 +45,9 @@ def test_bare_units_substitute_in_ascii(restore_builtins):
 
 def test_bare_units_substitute_in_latex(restore_builtins):
     rendered = HandCalcs(LatexRenderer())(SOURCE)
-    assert r"b &= a \cdot m = 2 \cdot 1.000 m = 2.000 m" in rendered
-    assert r"d &= \mathrm{kN} = 1.000 kN" in rendered
+    assert r"b &= a \cdot m = 2 \cdot 1\ \mathrm{m} = 2\ \mathrm{m}" in rendered
+    assert r"d &= \mathrm{kN} = 1\ \mathrm{kN}" in rendered
     assert (
-        r"e &= \frac{a \cdot \mathrm{kN}}{m} = \frac{2 \cdot 1.000 kN}{1.000 m}"
-        r" = 2.000 kN/m"
+        r"e &= \frac{a \cdot \mathrm{kN}}{m}"
+        r" = \frac{2 \cdot 1\ \mathrm{kN}}{1\ \mathrm{m}} = 2\ \mathrm{kN/m}"
     ) in rendered
