@@ -178,7 +178,7 @@ class AST_Parser:
         """
         if self.line_values is None:
             return
-        before = self.line_values.before.get(node.lineno)
+        before = self.line_values.values_before(node.lineno)
         if before is None and isinstance(node, ast.If):
             return
         self.globals = self._values(before)
@@ -187,7 +187,7 @@ class AST_Parser:
         """
         The values for ``{{ }}`` in a standalone comment: a name the source has
         not assigned yet at that point is left undefined (not given its final
-        value); a name the source never uses keeps its value from the namespace.
+        value); a name the source never assigns keeps its value from the namespace.
         """
         unused = {
             name: value
@@ -205,7 +205,7 @@ class AST_Parser:
     def _leave_statement(self, node: ast.stmt) -> None:
         """Look names up in the values from just after the statement ran."""
         if self.line_values is not None:
-            self.globals = self._values(self.line_values.after.get(node.lineno))
+            self.globals = self._values(self.line_values.values_after(node.lineno))
 
     def __call__(self, source: str) -> deque:
         """
@@ -289,7 +289,7 @@ class AST_Parser:
             comment = self._make_comment_line(self.line_comments[row])
             if hasattr(comment, "namespace") and self.line_values is not None:
                 # The values at this point: just before the next statement ran.
-                before_next = self.line_values.before.get(before)
+                before_next = self.line_values.values_before(before)
                 if before_next is not None:
                     comment.namespace = self._comment_values(before_next)
             out.append(comment)

@@ -9,7 +9,7 @@ import pytest
 
 from handcalcs import HandCalcs, handcalc
 from handcalcs.parsing import line_values
-from handcalcs.parsing.line_values import LineValues, run
+from handcalcs.parsing.line_values import LineValues, StatementValues, run
 from handcalcs.renderers import ASCIIRenderer, LatexRenderer
 
 
@@ -47,25 +47,49 @@ def test_statements_by_line():
         1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 6, 7: 7, 8: 8, 9: 9
     }
     assert values.loop_headers == {6}
+    # The names a statement uses that the source assigns (an if: in its header)
+    assert values.statement_names[2] == {"a"}
+    assert values.statement_names[4] == {"a", "b"}
+    assert values.statement_names[6] == {"i"}
+    assert values.statement_names[8] == {"f"}
 
 
 def test_before_and_after_each_statement(backend):
     values = run("a = 2\nb = a * 3\na = 10\n", {})
-    assert values.before[2] == {"a": 2}
-    assert values.after[2] == {"a": 2, "b": 6}
-    assert values.after[3] == {"a": 10, "b": 6}
+    assert values.statements[2] == StatementValues(before={"a": 2}, after={"a": 2, "b": 6})
+    assert values.values_before(2) == {"a": 2}
+    assert values.values_after(3) == {"a": 10}
+    assert values.values_after(99) is None
 
 
 def test_loop_header_keeps_its_starting_values(backend):
     values = run("t = 0\nfor i in range(3):\n    t = t + i\n", {})
-    assert values.before[2] == {"t": 0}
-    assert values.before[3] == {"t": 1, "i": 2}  # the last pass
-    assert values.after[3] == {"t": 3, "i": 2}
+    assert values.values_before(2) == {"t": 0}
+    assert values.values_before(3) == {"t": 1, "i": 2}  # the last pass
+    assert values.values_after(3) == {"t": 3, "i": 2}
 
 
-def test_only_names_the_source_uses_are_recorded(backend):
-    values = run("a = 1\n", {"unrelated": 5})
-    assert values.after[1] == {"a": 1}
+def test_only_names_the_statements_use_are_recorded(backend):
+    values = run("a = 1\nb = 2\nc = a + b\n", {"unrelated": 5})
+    assert values.values_after(1) == {"a": 1}  # a (line 1) and b (line 2)
+    assert values.values_before(3) == {"a": 1, "b": 2}
+    assert "unrelated" not in values.values_after(3)
+
+
+def test_names_in_comments_are_recorded():
+    values = run("n = 1\nm = 2  # n is {{ n }}\n", {})
+    assert values.values_after(2) == {"m": 2, "n": 1}
+
+
+def test_a_statement_that_did_not_run_has_no_values(backend):
+    values = run("a = 1\nif a > 5:\n    b = 2\n", {})
+    assert 3 not in values.statements
+    assert values.values_before(3) is None
+
+
+def test_line_offset():
+    values = LineValues("a = 1\nb = 2\n", line_offset=10)
+    assert values.statement_of_line == {11: 1, 12: 2}
 
 
 def test_settrace_restores_an_earlier_trace_function(monkeypatch):

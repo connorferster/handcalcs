@@ -11,16 +11,20 @@ line's values from there (see ``AST_Parser``).
 
 The recording watches the lines of the source's own frames run (with
 ``sys.monitoring``, or ``sys.settrace`` before Python 3.12): a new line marks the
-end of one statement and the start of the next. Only the names
-the source refers to are recorded, and values are not copied: an object that is
+end of one statement and the start of the next. Only the names those two
+statements use are recorded, and values are not copied: an object that is
 changed in place later (``xs.append(4)``) shows its final state.
 """
 
 from __future__ import annotations
 
 import ast
+import io
+import re
 import sys
+import tokenize
 from contextlib import contextmanager
+from dataclasses import dataclass
 from types import FrameType
 from typing import Callable, Iterator, Optional
 
@@ -32,28 +36,71 @@ HEADER_END = {
     ast.AsyncFor: lambda node: node.iter,
 }
 
+# The parts of a compound statement whose names it uses itself (its body's
+# statements record their own).
+HEADER_PARTS = {
+    ast.If: ("test",),
+    ast.While: ("test",),
+    ast.For: ("target", "iter"),
+    ast.AsyncFor: ("target", "iter"),
+    ast.With: ("items",),
+    ast.AsyncWith: ("items",),
+}
+
+# ``{{ ... }}`` in a comment, and the names in it.
+JINJA_EXPRESSION = re.compile(r"{{(.*?)}}")
+IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+@dataclass(slots=True)
+class StatementValues:
+    """
+    The values of the names one statement uses, just ``before`` and just
+    ``after`` it ran (for a statement in a loop, in the last pass). None when
+    the statement did not run.
+    """
+
+    before: Optional[dict] = None
+    after: Optional[dict] = None
+
 
 class LineValues:
     """
-    The namespace just ``before`` and just ``after`` each statement of
-    ``source``, keyed by the statement's first line. ``line_offset`` is added to
-    the source's line numbers to give the line numbers of the running code (for
-    a function body taken from its file).
+    The values each statement of ``source`` ran with: ``statements`` maps the
+    first line of each statement to its ``StatementValues``. ``line_offset`` is
+    added to the source's line numbers to give the line numbers of the running
+    code (for a function body taken from its file).
     """
 
     def __init__(self, source: str, line_offset: int = 0):
         tree = ast.parse(source)
         self.line_offset = line_offset
-        self.names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+        # The names the source assigns. Only these can change while it runs, so
+        # only these are recorded: any other name has the same value on every
+        # line as after the run.
+        self.names = assigned_names(tree)
+        # The line of the running code -> the first line (in 'source') of the
+        # innermost statement on it.
         self.statement_of_line: dict[int, int] = {}
+        # The first line of each statement -> the names it uses.
+        self.statement_names: dict[int, frozenset] = {}
         self.loop_headers: set[int] = set()
         self._map_statements(tree.body)
-        self.before: dict[int, dict] = {}
-        self.after: dict[int, dict] = {}
-        self._current: Optional[int] = None
+        # Names in ``{{ }}`` in comments are recorded with every statement.
+        self.comment_names = comment_names(source) & self.names
+        self.statements: dict[int, StatementValues] = {}
+
+    def values_before(self, line: int) -> Optional[dict]:
+        """The values just before the statement starting on ``line`` ran."""
+        values = self.statements.get(line)
+        return values.before if values is not None else None
+
+    def values_after(self, line: int) -> Optional[dict]:
+        """The values just after the statement starting on ``line`` ran."""
+        values = self.statements.get(line)
+        return values.after if values is not None else None
 
     def _map_statements(self, body: list) -> None:
-        """Map each line to the first line of the innermost statement on it."""
         for stmt in body:
             # A compound statement owns its header lines only; its body's lines
             # belong to the statements in it.
@@ -67,7 +114,10 @@ class LineValues:
             if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
                 self.loop_headers.add(stmt.lineno)
             for line in range(stmt.lineno, last + 1):
-                self.statement_of_line.setdefault(line, stmt.lineno)
+                self.statement_of_line.setdefault(line + self.line_offset, stmt.lineno)
+            self.statement_names[stmt.lineno] = self.statement_names.get(
+                stmt.lineno, frozenset()
+            ) | (used_names(stmt) & self.names)
             for field in ("body", "orelse", "finalbody"):
                 inner = getattr(stmt, field, None)
                 if isinstance(inner, list) and inner and isinstance(inner[0], ast.stmt):
@@ -75,37 +125,140 @@ class LineValues:
             for handler in getattr(stmt, "handlers", []):
                 self._map_statements(handler.body)
 
-    def record(self, frame: FrameType) -> None:
-        """A line event: the statement that ran ends, the next one starts."""
-        statement = self.statement_of_line.get(frame.f_lineno - self.line_offset)
-        if statement is None or statement == self._current:
-            return
-        snapshot = self._snapshot(frame)
-        if self._current is not None:
-            self.after[self._current] = snapshot
-        if statement in self.loop_headers:
-            # A loop's header runs again on every pass; its values are the ones
-            # it started with.
-            self.before.setdefault(statement, snapshot)
-        else:
-            self.before[statement] = snapshot
-        self._current = statement
+    def recorder(self) -> tuple[Callable, Callable]:
+        """
+        The functions a recording calls, which run for every line of the source
+        (so they keep their state in local variables):
 
-    def finish(self, frame: FrameType) -> None:
-        """A traced frame returns: its last statement ends."""
-        if self._current is not None:
-            self.after[self._current] = self._snapshot(frame)
-        self._current = None
+        - ``on_line(code, line, frame=None)`` for a line event: a
+          ``sys.monitoring`` LINE callback as it is, or called with the frame
+          for a ``sys.settrace`` line event;
+        - ``finish(frame)``, when a recorded frame returns.
+        """
+        statement_of_line = self.statement_of_line
+        statement_names = self.statement_names
+        comment_names = self.comment_names
+        statements = self.statements
+        loop_headers = self.loop_headers
+        # The names recorded when one statement ends and the next starts: the
+        # names of both (one snapshot is the end of one and the start of the other).
+        transition_names: dict[tuple, tuple] = {}
+        current = [None]
 
-    def _snapshot(self, frame: FrameType) -> dict:
-        f_locals, f_globals = frame.f_locals, frame.f_globals
-        snapshot = {}
-        for name in self.names:
-            if name in f_locals:
-                snapshot[name] = f_locals[name]
-            elif name in f_globals:
+        def on_line(code, line: int, frame: Optional[FrameType] = None) -> None:
+            statement = statement_of_line.get(line)
+            previous = current[0]
+            if statement is None or statement == previous:
+                # A line within the statement that is running records nothing.
+                return
+            if frame is None:
+                # Called by sys.monitoring, from the source's frame.
+                frame = sys._getframe(1)
+            key = (previous, statement)
+            names = transition_names.get(key)
+            if names is None:
+                names = statement_names[statement] | comment_names
+                if previous is not None:
+                    names |= statement_names[previous]
+                names = transition_names[key] = tuple(names)
+            f_locals = frame.f_locals
+            snapshot = {name: f_locals[name] for name in names if name in f_locals}
+            if len(snapshot) < len(names):
+                # In a function, a name may be global; or it is not assigned yet.
+                snapshot = snapshot_of(frame, names)
+            if previous is not None:
+                statements[previous].after = snapshot
+            values = statements.get(statement)
+            if values is None:
+                statements[statement] = StatementValues(before=snapshot)
+            elif statement not in loop_headers:
+                # A loop's header runs again on every pass; it keeps the values
+                # it started with.
+                values.before = snapshot
+            current[0] = statement
+
+        def finish(frame: FrameType) -> None:
+            previous = current[0]
+            if previous is not None:
+                names = statement_names[previous] | comment_names
+                statements[previous].after = snapshot_of(frame, names)
+            current[0] = None
+
+        return on_line, finish
+
+
+def assigned_names(tree: ast.Module) -> frozenset:
+    """
+    The names ``tree`` assigns anywhere: assignment, loop and ``with`` targets,
+    imports, ``def`` and ``class`` names. After ``from module import *``, every
+    name it uses may be assigned.
+    """
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
+            names.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                if alias.name == "*":
+                    return frozenset(
+                        n.id for n in ast.walk(tree) if isinstance(n, ast.Name)
+                    )
+                names.add(alias.asname or alias.name.split(".")[0])
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.arg):
+            names.add(node.arg)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            names.add(node.name)
+    return frozenset(names)
+
+
+def used_names(stmt: ast.stmt) -> frozenset:
+    """The names a statement uses itself (a compound statement, in its header)."""
+    parts = HEADER_PARTS.get(type(stmt))
+    if parts is None:
+        if hasattr(stmt, "body"):
+            return frozenset()
+        nodes = [stmt]
+    else:
+        nodes = []
+        for part in parts:
+            value = getattr(stmt, part)
+            nodes.extend(value if isinstance(value, list) else [value])
+    return frozenset(
+        node.id
+        for root in nodes
+        for node in ast.walk(root)
+        if isinstance(node, ast.Name)
+    )
+
+
+def comment_names(source: str) -> set:
+    """The identifiers inside ``{{ }}`` in the source's comments."""
+    if "{{" not in source:
+        return set()
+    names = set()
+    tokens = tokenize.generate_tokens(io.StringIO(source).readline)
+    for token in tokens:
+        if token.type == tokenize.COMMENT:
+            for expression in JINJA_EXPRESSION.findall(token.string):
+                names.update(IDENTIFIER.findall(expression))
+    return names
+
+
+def snapshot_of(frame: FrameType, names: tuple) -> dict:
+    """The values of ``names`` in ``frame`` (a name not defined there is left out)."""
+    f_locals = frame.f_locals
+    snapshot = {name: f_locals[name] for name in names if name in f_locals}
+    if len(snapshot) < len(names):
+        # A function's frame: its globals (and a module's builtins) are elsewhere.
+        f_globals = frame.f_globals
+        for name in names:
+            if name not in snapshot and name in f_globals:
                 snapshot[name] = f_globals[name]
-        return snapshot
+    return snapshot
 
 
 @contextmanager
@@ -154,11 +307,10 @@ def _monitoring_recording(values, accept, monitoring, tool: int):
         # Not the source: this code is not reported again.
         return monitoring.DISABLE
 
-    def on_line(code, line):
-        values.record(sys._getframe(1))
+    on_line, finish = values.recorder()
 
     def on_return(code, offset, retval):
-        values.finish(sys._getframe(1))
+        finish(sys._getframe(1))
 
     monitoring.use_tool_id(tool, "handcalcs")
     # Code that an earlier recording left out may be the source this time.
@@ -180,11 +332,13 @@ def _monitoring_recording(values, accept, monitoring, tool: int):
 
 @contextmanager
 def _settrace_recording(values, accept):
+    on_line, finish = values.recorder()
+
     def trace_lines(frame: FrameType, event: str, arg) -> Callable:
         if event == "line":
-            values.record(frame)
+            on_line(frame.f_code, frame.f_lineno, frame)
         elif event == "return":
-            values.finish(frame)
+            finish(frame)
         return trace_lines
 
     def trace_calls(frame: FrameType, event: str, arg) -> Optional[Callable]:
