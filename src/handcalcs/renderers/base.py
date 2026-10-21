@@ -1729,19 +1729,7 @@ def render_exprline(
 def render_elifblock(
     renderer: BaseRenderer, node: ElifBlock, base_context: BaseRenderContext
 ) -> str:
-    clauses: deque = node.lines
-    context = base_context.current
-    try:
-        # Only IfBlock clauses carry ``is_true``; a trailing ElseBlock does not.
-        true_clause: IfBlock = next(
-            ib for ib in clauses if getattr(ib, "is_true", False)
-        )
-    except StopIteration:
-        if len(clauses) >= 1 and isinstance(clauses[-1], ElseBlock):
-            true_clause: ElseBlock = clauses[-1]
-        else:
-            true_clause = None
-
+    true_clause = node.taken_branch()
     if true_clause is None:
         return "No conditions were satisfied within the if-elif block"
     else:
