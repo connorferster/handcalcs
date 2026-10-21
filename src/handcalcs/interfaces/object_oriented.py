@@ -4,6 +4,7 @@ import warnings
 from typing import Any, Optional
 from ..parsing.sequence import HcSequence
 from ..parsing.inputs import InputBinding
+from ..parsing import line_values
 from ..renderers import BaseRenderer, get_renderer
 from ..renderers import demo
 from .. import config
@@ -86,23 +87,31 @@ class HandCalcs:
             binding = InputBinding(
                 source, inputs, strict=strict, allow_computed=allow_computed
             )
-            passed_globals = self.__evaluate(binding.exec_source, binding.namespace())
-            rendered = self.render_bound(binding, passed_globals)
+            passed_globals, values = self.__evaluate(
+                binding.exec_source, binding.namespace()
+            )
+            rendered = self.render_bound(binding, passed_globals, values)
             return self.__output(rendered, destination)
-        passed_globals = supplied_globals
+        passed_globals, values = supplied_globals, None
         if supplied_globals is None:
-            passed_globals = self.__evaluate(source)
-        self.hc_ast = self.__parse(source, passed_globals)
+            passed_globals, values = self.__evaluate(source)
+        self.hc_ast = self.__parse(source, passed_globals, line_values=values)
         return self.__output(self.__render(passed_globals), destination)
 
-    def render_bound(self, binding: InputBinding, namespace: dict) -> str:
+    def render_bound(
+        self,
+        binding: InputBinding,
+        namespace: dict,
+        values: Optional[line_values.LineValues] = None,
+    ) -> str:
         """
         Renders the source of 'binding' once its 'exec_source' has run in
-        'namespace' (which started as 'binding.namespace()'). The '%%render
-        inputs=...' magic runs the cell itself and renders it with this.
+        'namespace' (which started as 'binding.namespace()'), with the 'values'
+        recorded while it ran. The '%%render inputs=...' magic runs the cell
+        itself and renders it with this.
         """
         source = binding.parse_source(namespace)
-        self.hc_ast = self.__parse(source, namespace)
+        self.hc_ast = self.__parse(source, namespace, line_values=values)
         binding.place_objects(self.hc_ast)
         return self.__render(namespace)
 
@@ -130,8 +139,8 @@ class HandCalcs:
         source as a ``demo_source`` attribute, which is used instead.
         """
         source = self.__read(getattr(self.renderer, "demo_source", None) or demo.source)
-        eval_globals = self.__evaluate(source)
-        demo_ast = self.__parse(source, eval_globals)
+        eval_globals, values = self.__evaluate(source)
+        demo_ast = self.__parse(source, eval_globals, line_values=values)
         base_context = self.renderer.create_context(
             **(self._context_settings | {"global_ns": eval_globals})
         )
@@ -163,15 +172,20 @@ class HandCalcs:
         return source
 
     def __evaluate(self, source, namespace: Optional[dict] = None):
-        eval_globals = eval_locals = dict(namespace or {})
-        exec(source, eval_globals, eval_locals)
-        return eval_globals
+        """
+        Runs 'source' in a copy of 'namespace' and returns the namespace and the
+        values recorded line by line while it ran.
+        """
+        eval_globals = dict(namespace or {})
+        values = line_values.run(source, eval_globals)
+        return eval_globals, values
 
     def __parse(
         self,
         source: str,
         supplied_globals: Optional[dict] = None,
         supplied_locals: Optional[dict] = None,
+        line_values: Optional[line_values.LineValues] = None,
     ):
         if supplied_globals is None:
             supplied_globals = {}
@@ -179,6 +193,9 @@ class HandCalcs:
             supplied_locals = {}
 
         hc_ast = HcSequence.from_source(
-            source, hc_globals=supplied_globals, hc_locals=supplied_locals
+            source,
+            hc_globals=supplied_globals,
+            hc_locals=supplied_locals,
+            line_values=line_values,
         )
         return hc_ast
