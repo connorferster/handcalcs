@@ -21,8 +21,6 @@ $ uv run pytest --cov=handcalcs       # with coverage
 `BaseRenderContext` factory) for rendering a single hand-built node in isolation, so node
 tests don't depend on the parser.
 
-`submodule_1.py` and `submodule_2.py` are import targets for the parser tests.
-
 ## Golden files
 
 The LaTeX and Markdown renderers are tested against `tests/golden/latex_demo.tex` and

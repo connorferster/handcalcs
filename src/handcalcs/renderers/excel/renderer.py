@@ -234,7 +234,6 @@ BRC = BaseRenderContext
 # Python statements and blocks with no worksheet equivalent.
 INCOMPATIBLE_BLOCKS = {
     "for_block": "for loops have no Excel equivalent",
-    "function_block": "function definitions have no Excel equivalent",
     "if_block": "if blocks are only supported as complete if/elif/else trees",
     "else_block": "else blocks are only supported as part of an if/elif/else tree",
 }

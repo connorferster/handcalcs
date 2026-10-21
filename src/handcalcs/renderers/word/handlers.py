@@ -10,7 +10,7 @@ import datetime
 import re
 from html import unescape
 
-from handcalcs.parsing.block_nodes import CalcsBlock, ForBlock, FunctionBlock, IfBlock
+from handcalcs.parsing.block_nodes import CalcsBlock, ForBlock, IfBlock
 from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword
 from handcalcs.parsing.line_nodes import Heading as HeadingLine, Import
 from handcalcs.parsing.nodes import (
@@ -591,15 +591,3 @@ def for_block_header(renderer: WR, node: ForBlock, base_context: BRC) -> str:
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     return f"Iterating over each {inline_math(target)} in {inline_math(iterable)}:"
-
-
-@WR.register("header:function_block")
-def function_block_header(renderer: WR, node: FunctionBlock, base_context: BRC) -> str:
-    base_context.line_context.current_mode = "sym"
-    options = identifier_options(renderer, base_context)
-    name = "".join(
-        renderer.render(part, base_context) if hasattr(part, "type") else str(part)
-        for part in node.function_name
-    )
-    params = [word_identifier(str(param), options) for param in node.params]
-    return f"Evaluating {inline_math(name + omml.delim_items(params))}:"

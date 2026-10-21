@@ -1,18 +1,12 @@
-# import ast_comments as ast
-# import ast_comments as ast
 import fst as ast
 import ast as py_ast
 import builtins
-import importlib
 import io
 import math
-import pathlib
 from dataclasses import dataclass, field
-import inspect
 import tokenize
-from typing import List, Union, Optional, Callable
-from types import ModuleType
-from collections import deque, ChainMap, Counter
+from typing import Union, Optional
+from collections import deque, Counter
 from collections.abc import Mapping, Sequence
 from .nodes import (
     Attribute,
@@ -152,79 +146,16 @@ def is_infinity_call(node: ast.Call) -> bool:
         return False
 
 
-# HERE: ast_parse to parse block comments, block options, and blocks in order to val = a "hc_tree"
 @dataclass
 class AST_Parser:
     globals: dict = field(default_factory=dict)
-    global_exclusions: Optional[list[str]] = None
     current_line_number: int = 1
     prev_line_number: int = 0
     prev_node: Optional[ast.AST] = None
     new_block_from_comment: bool = False
     current_block: Optional[Union[ForBlock, IfBlock]] = None
-    function_recurse_exclusions: list[str] = field(
-        default_factory=lambda: dir(builtins)
-        + dir(math)
-        + ["builtins", "math", "exit", "quit"]
-    )
-    aliases_cache: dict = field(default_factory=dict)
-    module_cache: dict = field(default_factory=dict)
-    functions_cache: ChainMap = field(default_factory=ChainMap)
-    ast_cache: dict = field(default_factory=dict)
     show_notimplemented: bool = False
     source: str = ""
-
-    def __post_init__(self):
-        pass
-        # self.module_cache.update(self.globals)
-
-        # self.function_recurse_exclusions.append(f"{self.__class__.__name__}")
-        # if self.global_exclusions is not None:
-        #     self.function_recurse_exclusions.extend(self.global_exclusions)
-        # local_callables = {}
-        # for name, obj in self.globals.items():
-        #     if (
-        #         isinstance(obj, ModuleType)
-        #         and name not in self.function_recurse_exclusions
-        #         and not name.startswith("__")
-        #         and not name.startswith("@")
-        #     ):
-        #         source = inspect.getsource(obj)
-        #         source_tree = ast.parse(source)
-        #         module_callables = {}
-        #         for node in source_tree.body:
-        #             if isinstance(
-        #                 node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-        #             ):
-        #                 module_callables[node.name] = node
-        #         self.module_cache[name] = module_callables
-        #         self.functions_cache = self.functions_cache.new_child(module_callables)
-        #     elif (
-        #         isinstance(obj, Callable)
-        #         and name not in self.function_recurse_exclusions
-        #         and not isinstance(obj, self.__class__)
-        #     ):
-        #         try:
-        #             obj_tree = ast.parse(inspect.getsource(obj).lstrip())
-        #         except:
-        #             # I think it is okay to allow this to fail quietly
-        #             # because any missing source code either represents
-        #             # source code which should not be found (it is not part
-        #             # of the parsed source) or could not be found (we do not
-        #             # want it parsed anyway).
-        #             # Ultimately, it will lead to an unsubstituted function
-        #             # call.
-        #             pass
-        #         if isinstance(obj_tree, (ast.Module)):
-        #             obj_tree = obj_tree.body[
-        #                 0
-        #             ]  # First function def within the ast.module
-        #         local_callables.update({name: obj_tree})
-        #         self.functions_cache = self.functions_cache.new_child(local_callables)
-        #     else:
-        #         self.module_cache[name] = {}
-        #         self.functions_cache[name] = {}
-        # self.module_cache["__main__"] = local_callables
 
     def __call__(self, source: str) -> deque:
         """
@@ -444,30 +375,6 @@ class AST_Parser:
             hc_op.line_break = self._line_break(node)
             val = hc_op
 
-            # add_to_current_block = True
-            # # A Binary Operation (e.g., a + b). The structure is:
-            # # [left_side, operator, right_side]
-            # left = self._flatten_binop(node.left)
-            # op_name = type(node.op).__name__
-            # op = ARITHMETIC_OPS.get(
-            #     op_name, op_name
-            # )  # Get the operator name (e.g., 'Add', 'Mult')
-
-            # right = self.ast_parse(node.right)
-            # # When an expression inside parentheses is encountered, it is an expression
-            # # itself that will be processed recursively. For example, in (a + b) * c,
-            # # the (a + b) is the 'left' part of the outer BinOp, and its result
-            # # 'a + b' will be a nested list: ['a', 'Add', 'b'].
-
-            # # To strictly satisfy the 'whenever parentheses are included' rule,
-            # # we check if the sub-expression was an ast.Subscript or an ast.Call
-            # # as these often imply an operation that was enclosed. However, in AST,
-            # # explicit parentheses *do not* create a separate node unless they're
-            # # used for grouping in an expression, which results in recursive BinOps.
-            # # The recursive call `self.ast_parse` naturally handles the nesting.
-
-            # val = deque([left, op, right])
-
         # --- Unary operations (e.g. -b, -10.423, ~x, not x) ---
         elif isinstance(node, ast.UnaryOp):
             operand = self.ast_parse(node.operand)
@@ -507,7 +414,6 @@ class AST_Parser:
             val = op_class(values=values)
 
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            self.resolve_import_and_load(node)
             acc = deque([])
             for name in node.names:
                 acc.append(Name(identifier=name.name, value=name.asname))
@@ -551,42 +457,6 @@ class AST_Parser:
                 if isinstance(func_name, ast.Attribute):
                     module_name = func_name.module_name
                     func_name = func_name.attr_name
-
-                # Create the inner nested list for arguments
-            # args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
-
-            # Create the main nested list for the function call
-            # val = deque([func_name, deque([args_list])])
-
-            # # Check for a specific target function you want to recurse into
-            # if func_name == "external_func" and module_name == "some_module":
-
-            # TODO: COMMENT OUT FUNCTION RECURSION
-            # 1. Get the source code string for the external function
-            # function_ast = None
-            # if func_name not in self.function_recurse_exclusions:
-            #     function_ast = self.find_source(func_name, module_name)
-
-            # if function_ast and frl > 0:
-            #     frl = frl - 1
-            #     # 2. Recursively call the main conversion logic on the new source
-            #     function_defs = self.get_function_content(function_ast, frl)
-            #     # The result of the call node is replaced by the structure of the function's body
-            #     # Create the inner nested list for arguments
-            #     args_list = deque([self.ast_parse(arg, frl) for arg in node.args])
-            #     function_body = dict()
-            #     if function_defs is not None:
-            #         function_body = function_defs.get(func_name, dict())
-
-            #     function_block = FunctionBlock()
-            #     function_block.namespace = deque([module_name])
-            #     function_block.function_name = deque([func_name])
-            #     function_block.lines.extend(function_body.get("lines", deque()))
-            #     function_block.params.extend(function_body.get("params", deque()))
-            #     function_block.args.extend(args_list)
-            #     self.current_block = function_block
-            #     val = function_block
-            # else:
 
             # Create the inner nested list for arguments: the positional
             # arguments, then the keyword arguments (as Keyword nodes)
@@ -1026,143 +896,3 @@ class AST_Parser:
         if getattr(obj, "__module__", None) in ("math", "cmath"):
             return True
         return type(obj).__name__ == "ufunc"
-
-    def find_source(self, func_name: str, module_name: str) -> ast.AST:
-        """Finds the source code for a function within an imported module."""
-
-        confirmed_module_name = cmn = self.aliases_cache.get(module_name, module_name)
-        confirmed_func_name = cfn = self.aliases_cache.get(func_name, func_name)
-        module_definitions = self.module_cache.get(cmn, {})
-        function_tree = module_definitions.get(cfn, None)
-        if function_tree is None:
-            function_tree = self.functions_cache.get(cfn)
-        return function_tree
-
-    def get_function_content(
-        self, node: ast.FunctionDef
-    ) -> dict[str, dict[str, deque]] | None:
-        """
-        Returns a dictionary of functions
-        """
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            return {}
-        else:
-            acc = {}
-            if isinstance(node, ast.FunctionDef):
-                lines = deque([])
-                for n in node.body:
-                    parsed = self.ast_parse(n)
-                    if isinstance(parsed, ExprLine) and (  # not a docstring
-                        "Doc string" in parsed.expression_tree[0]
-                    ):
-                        continue
-                    else:
-
-                        lines.append(parsed)
-                acc.update(
-                    {
-                        node.name: {
-                            "lines": lines,
-                            "params": deque([arg.arg for arg in node.args.args]),
-                        }
-                    }
-                )
-            return acc
-
-    def resolve_import_and_load(self, import_node: ast.Import | ast.ImportFrom):
-        """Recursively resolves imported modules and loads them."""
-        if isinstance(import_node, ast.Import):
-            for alias in import_node.names:
-                module_name = alias.name
-                path = self._resolve_module_path(module_name)
-                if path:
-                    # Load the module, using the original name (e.g., 'my_module')
-                    self.load_module_by_path(module_name, path)
-
-    def _resolve_module_path(self, module_name: str) -> pathlib.Path | None:
-        """
-        Uses importlib to find the source file path for a module
-        without executing any code.
-        """
-        try:
-            # Look up the module specification
-            spec = importlib.util.find_spec(module_name)
-            if spec and spec.loader_state and spec.origin:
-                # Return the path to the source file
-                return pathlib.Path(spec.origin)
-        except (ValueError, AttributeError):
-            # Handle cases where the module isn't found or is a built-in
-            return None
-        return None
-
-    def load_module_by_path(self, module_name: str, file_path: pathlib.Path):
-        """Loads and parses a module's source code into the cache."""
-        if module_name in self.module_cache:
-            return
-        try:
-            source_code = file_path.read_text()
-            module_ast: ast.Module = ast.parse(source_code, filename=str(file_path))
-            self.ast_cache[module_name] = module_ast
-
-            # Build the symbol table (namespace) for this module
-            symbols = {}
-            for node in module_ast.body:
-                if isinstance(
-                    node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-                ):
-                    symbols[node.name] = node
-                elif isinstance(node, (ast.Import, ast.ImportFrom)):
-                    self.resolve_import_and_load(node)
-
-                    if isinstance(node, ast.Import):
-                        for alias in node.names:
-                            # Map the local alias (or module name) to the external module name
-                            local_name = alias.asname if alias.asname else alias.name
-                            self.aliases_cache[local_name] = {alias.name}
-                    else:
-                        # ast.ImportFrom: Currently does not handle fancy . or .. style imports
-                        # But this clause is where that would be implemented
-                        for alias in node.names:
-                            # Map the local alias (or module name) to the external module name
-                            level = node.level
-                            local_name = alias.asname if alias.asname else alias.name
-                            self.aliases_cache[local_name] = {alias.name}
-
-            self.module_cache[module_name] = symbols
-            self.functions_cache = self.functions_cache.new_child(symbols)
-
-        except FileNotFoundError:
-            print(f"Error: Source file not found for {module_name} at {file_path}")
-        except SyntaxError as e:
-            print(f"Error: Syntax error in {module_name}: {e}")
-
-    def _flatten_binop(self, node) -> deque:
-        """
-        Recursively flattens an ast.BinOp node into a list of operands and operators.
-
-        The structure will be: [operand, operator, operand, operator, operand, ...]
-        """
-        if not isinstance(node, ast.BinOp):
-            # Base case: The node is a simple operand (e.g., Name, Constant, Call, etc.)
-            return self.ast_parse(node)
-
-        left_side = self._flatten_binop(node.left)
-        if not isinstance(left_side, deque):
-            left_side = deque([left_side])
-        op_name = node.op.__class__.__name__
-        op = ARITHMETIC_OPS.get(op_name, op_name)
-        right_side = self.ast_parse(node.right)
-        result = left_side + deque([op, right_side])
-        return result
-
-    # def convert_source_to_custom_list(
-    #     self, source_code: str, function_recurse_limit: int = 3
-    # ) -> CustomStructure:
-    #     """rrfeget
-    #     Parses the source code and initiates the recursive conversion.
-    #     """
-    #     # 1. Parse the source code into an AST
-    #     tree = ast.parse(source_code)
-
-    #     # 2. Start the recursive conversion from the root (ast.Module)
-    #     val = ast_parse(tree, function_recurse_limit)

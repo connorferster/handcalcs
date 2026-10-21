@@ -59,7 +59,6 @@ Defined in {src}`handcalcs.parsing.block_nodes`. Every block has `lines` (its ch
 | `if_block` | `IfBlock` | `test`, `lines`, `is_true` (did this branch run) | one `if`/`elif` branch |
 | `else_block` | `ElseBlock` | `lines` | the `else` branch |
 | `for_block` | `ForBlock` | `assigns` (loop variables), `iterator`, `lines` | a `for` loop |
-| `function_block` | `FunctionBlock` | `function_name`, `params`, `lines` | a function definition (not rendered in 2.0) |
 
 ### Expressions
 
