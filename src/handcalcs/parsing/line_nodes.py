@@ -49,6 +49,10 @@ class ExprLine(HcLineNode):
 class CommentLine(HcLineNode):
     content: Optional[str] = None
     type: str = "comment_line"
+    # The values ``{{ }}`` in the comment are filled from (set by the parser
+    # when the values of each line were recorded); None for the namespace
+    # after the run.
+    namespace: Any = field(default=None, compare=False, repr=False)
 
     @classmethod
     def from_raw_comment(cls, comment: str):
@@ -62,6 +66,10 @@ class Heading(HcLineNode):
     # from ``HcLineNode.level``, which is the block-nesting/indent level.
     heading_level: int = 1
     type: str = "heading"
+    # The values ``{{ }}`` in the comment are filled from (set by the parser
+    # when the values of each line were recorded); None for the namespace
+    # after the run.
+    namespace: Any = field(default=None, compare=False, repr=False)
 
     @classmethod
     def from_raw_comment(cls, comment: str):

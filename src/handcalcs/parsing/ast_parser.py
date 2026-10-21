@@ -183,6 +183,25 @@ class AST_Parser:
             return
         self.globals = self._values(before)
 
+    def _comment_values(self, snapshot: dict):
+        """
+        The values for ``{{ }}`` in a standalone comment: a name the source has
+        not assigned yet at that point is left undefined (not given its final
+        value); a name the source never uses keeps its value from the namespace.
+        """
+        unused = {
+            name: value
+            for name, value in self.final_globals.items()
+            if name not in self.line_values.names
+        }
+        return ChainMap(snapshot, unused)
+
+    def _set_comment_values(self, comment):
+        """Fill ``{{ }}`` in an inline comment from the line's current values."""
+        if self.line_values is not None and hasattr(comment, "namespace"):
+            comment.namespace = self.globals
+        return comment
+
     def _leave_statement(self, node: ast.stmt) -> None:
         """Look names up in the values from just after the statement ran."""
         if self.line_values is not None:
@@ -267,7 +286,13 @@ class AST_Parser:
         pending = getattr(self, "_pending_comment_rows", deque())
         while pending and pending[0] < before:
             row = pending.popleft()
-            out.append(self._make_comment_line(self.line_comments[row]))
+            comment = self._make_comment_line(self.line_comments[row])
+            if hasattr(comment, "namespace") and self.line_values is not None:
+                # The values at this point: just before the next statement ran.
+                before_next = self.line_values.before.get(before)
+                if before_next is not None:
+                    comment.namespace = self._comment_values(before_next)
+            out.append(comment)
         return out
 
     def _has_pending_comment_before(self, before: int) -> bool:
@@ -627,8 +652,10 @@ class AST_Parser:
             )  # True if the expression tree is nested in parenths
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
-            # The targets show the values the assignment gave them.
+            # The targets (and the inline comment) show the values the
+            # assignment gave them.
             self._leave_statement(node)
+            self._set_comment_values(comment_content)
             calc_line = CalcLine(
                 assigns=deque([self._target(n) for n in node.targets]),
                 expression_tree=expression_tree,
@@ -703,7 +730,7 @@ class AST_Parser:
             parsed_node = self.ast_parse(node.value)
             val = ExprLine(
                 expression_tree=deque([parsed_node]),
-                comment=self._inline_comment(node),
+                comment=self._set_comment_values(self._inline_comment(node)),
             )
             if not isinstance(parsed_node, (NoValue, HcNotImplemented)) and not (
                 isinstance(parsed_node, Constant) and isinstance(parsed_node.value, str)
