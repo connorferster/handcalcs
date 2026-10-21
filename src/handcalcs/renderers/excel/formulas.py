@@ -25,7 +25,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from handcalcs.parsing.nodes import Attribute, Constant, Name
+from handcalcs.parsing.nodes import Attribute, Constant, Name, Subscript
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.inline_nodes import Compare, FunctionCall, IfExp, Keyword
 from handcalcs.parsing.operator_nodes import (
@@ -310,7 +310,7 @@ class FormulaBuilder:
         if isinstance(node, NoValue):
             raise incompatible(
                 "the expression uses Python syntax handcalcs does not parse "
-                "(e.g. a lambda or a subscript)",
+                "(e.g. a lambda)",
                 node,
             )
         if isinstance(node, Constant):
@@ -342,6 +342,11 @@ class FormulaBuilder:
             body = self.translate(node.body).text
             orelse = self.translate(node.orelse).text
             return Formula(f"IF({test},{body},{orelse})")
+        if isinstance(node, Subscript):
+            raise incompatible(
+                "an index or key lookup (e.g. xs[0]) has no Excel formula equivalent",
+                node,
+            )
         node_type = getattr(node, "type", type(node).__name__)
         raise incompatible(f"'{node_type}' has no Excel formula equivalent", node)
 

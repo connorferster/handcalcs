@@ -22,7 +22,7 @@ notebooks need only a few changes.
 | `handcalcs.set_option("display_precision", 3)` | `handcalcs.set_option("format_code", ".3f")` |
 | `latex_block_start`, `line_break`, `math_environment_start`, ... options | renderer class attributes (see [LaTeX and Markdown tokens](../customizing/latex-markdown-tokens.md)) |
 | `custom_symbols` option | the `symbols` option with renderer-neutral specs (see [display symbols](writing-calculations.md#display-symbols)), or a renderer rule for raw markup |
-| `greek_exclusions`, `underscore_subscripts` options | a renderer subclass (see [Customizing](../customizing/index.md)) |
+| `greek_exclusions`, `underscore_subscripts` options | the `greek_prefixes`/`subscripts` settings, or a renderer subclass (see [Customizing](../customizing/index.md)) |
 
 ## What's new
 
@@ -91,7 +91,7 @@ one long line rather than the whole cell.
 | v1 | v2 | To get the v1 output |
 |---|---|---|
 | `x_a_b` → x<sub>a<sub>b</sub></sub> (nested) | x<sub>a,b</sub> (comma) | `handcalcs.set_option("subscripts", "nested")` |
-| `PiD`, `phiM`, `eta2`, `chi2` shown as words | ΠD, φM, η2, χ2: a Greek name before an uppercase letter or digit is a letter | `GREEK_PREFIXES = False` in a renderer subclass, or `set_option("greek_prefixes", False)` |
+| `PiD`, `phiM`, `eta2`, `chi2` shown as words | ΠD, φM, η2, χ2: a Greek name before an uppercase letter or digit is a letter | `set_option("greek_prefixes", False)`, or `# hc: greek_prefixes = False` |
 | `x_hat`, `p_bar`, `V_dot`, `M_star` as subscripts | accents and `*` | a `symbols` entry, e.g. `{"p_bar": "p_{bar}"}` |
 | `ΔH` (Unicode) failed under pdflatex | `\Delta H` | — |
 

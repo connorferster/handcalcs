@@ -67,3 +67,35 @@ class Dictionary(HcNode):
     keys: deque[Any]
     values: deque[Any]
     type: str = "dictionary"
+
+
+@dataclass
+class Subscript(HcNode):
+    """
+    An index or key lookup: ``xs[0]``, ``loads["dead"]``, ``A[i, j]``. ``index``
+    holds one node per dimension (a ``Slice`` for ``a:b``).
+
+    ``labels`` is set when the container is a name and every index is an
+    integer, a short string or a name: the text of each index and whether it is
+    a name, so that a renderer can show the index as a subscript of the name
+    (``xs[0]`` -> xs with subscript 0). Otherwise it is None.
+
+    ``value`` is the element, looked up without evaluating code (see
+    ``AstParser._subscript_value``), or NoValue.
+    """
+
+    container: Any
+    index: deque[Any]
+    labels: Optional[list[tuple[str, bool]]] = None
+    value: Any = NoValue()
+    type: str = "subscript"
+
+
+@dataclass
+class Slice(HcNode):
+    """A slice in a subscript, ``a:b`` or ``a:b:c``; a missing part is None."""
+
+    lower: Any = None
+    upper: Any = None
+    step: Any = None
+    type: str = "slice"

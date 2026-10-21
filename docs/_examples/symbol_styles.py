@@ -1,13 +1,6 @@
 """Symbol and function translations for the "Symbols and functions" page."""
-from handcalcs.renderers import ASCIIRenderer, HTMLRenderer, MarkdownRenderer
+from handcalcs.renderers import ASCIIRenderer, HTMLRenderer
 from handcalcs.renderers.ascii import swap_greeks
-
-
-class V1StyleMarkdownRenderer(MarkdownRenderer):
-    """Nested subscripts and no Greek prefix splitting, as in handcalcs v1."""
-
-    SUBSCRIPT_STYLE = "nested"  # x_a_b -> x_{a_{b}} (default "comma": x_{a,b})
-    GREEK_PREFIXES = False  # keep DeltaH as written (default True: ΔH)
 
 
 class LnHTMLRenderer(HTMLRenderer):

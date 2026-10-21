@@ -5,6 +5,8 @@ from collections import deque
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     BaseRenderer,
+    render_subscript as render_bracketed_subscript,
+    subscript_value,
     RenderContext,
     render_condition,
     infix_binop,
@@ -19,12 +21,13 @@ from handcalcs.renderers.identifiers import (
     GREEK_UNICODE,
     Symbol,
     identifier_options,
+    indexed_symbol,
     is_identifier,
     parse_identifier,
 )
 
 # Node type imports only used for typing
-from handcalcs.parsing.nodes import HcNode, Name, Constant
+from handcalcs.parsing.nodes import HcNode, Name, Constant, Subscript
 from handcalcs.parsing.operator_nodes import AddOp, HcBinOp, HcCompOp
 from handcalcs.parsing.inline_nodes import Attribute, InlineComment, FunctionCall
 from handcalcs.parsing.line_nodes import Import, Heading, CommentLine
@@ -570,6 +573,23 @@ def swap_identifier(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
         symbol = parse_identifier(identifier, options)
         node.identifier = html_symbol(symbol, base_context.current.space)
     return node
+
+
+@HTMLR.register("subscript")
+def render_subscript(renderer: HTMLR, node: Subscript, base_context: BRC) -> str:
+    """
+    An index or key lookup. A name indexed by integers, short strings or names
+    shows each index as a subscript (``xs[0]`` -> ``xs<sub>0</sub>``); any
+    other lookup is shown in brackets. The numeric column shows the element.
+    """
+    value = subscript_value(renderer, node, base_context)
+    if value is not None:
+        return value
+    if node.labels is None:
+        return render_bracketed_subscript(renderer, node, base_context)
+    options = identifier_options(renderer, base_context)
+    symbol = indexed_symbol(node.container.identifier, node.labels, options)
+    return html_symbol(symbol, base_context.current.space)
 
 
 @HTMLR.register("pow_op")

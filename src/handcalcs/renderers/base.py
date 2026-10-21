@@ -22,6 +22,8 @@ from handcalcs.parsing.nodes import (
     Dictionary,
     Tuple,
     Set,
+    Subscript,
+    Slice,
 )
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
@@ -255,6 +257,10 @@ class RenderContext:
         param_line: bool = False,
         lpar="(",
         rpar=")",
+        greek_prefixes: bool = True,
+        subscripts: str = "comma",
+        max_items: Optional[int] = 10,
+        edge_items: int = 3,
         **kwargs,
     ):
         self.space = space
@@ -266,6 +272,13 @@ class RenderContext:
         self.param_line = param_line
         self.lpar = lpar
         self.rpar = rpar
+        # How identifiers are parsed (see ``identifiers.identifier_options``).
+        self.greek_prefixes = greek_prefixes
+        self.subscripts = subscripts
+        # A collection with more than ``max_items`` items shows only its first
+        # and last ``edge_items`` (see ``elide_items``); 0 shows every item.
+        self.max_items = max_items
+        self.edge_items = edge_items
 
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -349,13 +362,6 @@ class BaseRenderer:
     # \end{document}). Set either on an instance to change one renderer's files.
     preamble: str = ""
     postamble: str = ""
-    # Split a leading Greek name from an identifier component when an uppercase
-    # letter or digit follows it (``DeltaH`` -> ΔH); see ``identifiers.py``.
-    GREEK_PREFIXES: ClassVar[bool] = True
-    # How several ``_`` subscripts are shown: ``"comma"`` (``N_pl_Rd`` ->
-    # N with subscript "pl,Rd") or ``"nested"`` (``x_a_b`` -> x_{a_{b}}). The
-    # ``subscripts`` render-context field overrides it.
-    SUBSCRIPT_STYLE: ClassVar[str] = "comma"
     # The keywords of a conditional expression (``a if test else b``), with
     # their surrounding spaces; see ``render_if_exp``.
     IF_EXP_KEYWORDS: ClassVar[tuple[str, str]] = (" if ", " else ")
@@ -836,6 +842,20 @@ def render_constant(
         return f"{node.value}"
 
 
+def elide_items(items: list, base_context: BaseRenderContext, ellipsis: Any) -> list:
+    """
+    A collection's rendered items, shortened when there are more than the
+    ``max_items`` render-context field allows: the first and last ``edge_items``
+    around ``ellipsis``. ``max_items = 0`` (or None) keeps every item.
+    """
+    context = base_context.current
+    max_items = getattr(context, "max_items", None)
+    edge = getattr(context, "edge_items", 3)
+    if max_items and len(items) > max_items and 2 * edge < len(items):
+        return [*items[:edge], ellipsis, *items[-edge:]]
+    return items
+
+
 @BaseRenderer.register("list")
 def render_list(
     renderer: BaseRenderer, node: List, base_context: BaseRenderContext
@@ -843,6 +863,7 @@ def render_list(
     context = base_context.current
     _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    rendered_elems = elide_items(rendered_elems, base_context, "…")
     return f"[{f',{_}'.join(rendered_elems)}]"
 
 
@@ -853,6 +874,7 @@ def render_list(
     context = base_context.current
     _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    rendered_elems = elide_items(rendered_elems, base_context, "…")
     return f"{{{f',{_}'.join(rendered_elems)}}}"
 
 
@@ -865,7 +887,7 @@ def render_list(
     context = base_context.current
     _ = context.space
     rkv = zip(rendered_keys, rendered_values)
-    items = [f":{_}".join(item) for item in rkv]
+    items = elide_items([f":{_}".join(item) for item in rkv], base_context, "…")
     return f"{{{f',{_}'.join(items)}}}"
 
 
@@ -876,6 +898,7 @@ def render_list(
     context = base_context.current
     _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    rendered_elems = elide_items(rendered_elems, base_context, "…")
     return f"({f',{_}'.join(rendered_elems)})"
 
 
@@ -960,6 +983,63 @@ def render_attribute(
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
         )
+
+
+def render_symbolic(renderer: BR, node: Any, base_context: BaseRenderContext) -> Any:
+    """Render ``node`` in the symbolic mode, whatever the current mode is."""
+    prev_mode = getattr(base_context.line_context, "current_mode", None)
+    base_context.line_context.current_mode = "sym"
+    try:
+        return renderer.render(node, base_context)
+    finally:
+        base_context.line_context.current_mode = prev_mode
+
+
+def subscript_value(
+    renderer: BR, node: Subscript, base_context: BaseRenderContext
+) -> Optional[Any]:
+    """
+    The numeric column of a subscript: its element when one was looked up,
+    else None (the handler then shows the subscript itself).
+    """
+    if base_context.current.current_mode == "num" and not isinstance(
+        node.value, NoValue
+    ):
+        return renderer.render_node(node.value, base_context)
+    return None
+
+
+@BaseRenderer.register("subscript")
+def render_subscript(
+    renderer: BaseRenderer, node: Subscript, base_context: BaseRenderContext
+) -> str:
+    """
+    An index or key lookup. The symbolic column shows it as written,
+    ``xs[0]``; the numeric column shows the element. When there is no element
+    (see ``Subscript.value``), the numeric column keeps the container and
+    substitutes the index: ``xs[i + 1]`` -> ``xs[2 + 1]``.
+    """
+    value = subscript_value(renderer, node, base_context)
+    if value is not None:
+        return value
+    _ = base_context.current.space
+    container = render_symbolic(renderer, node.container, base_context)
+    index = f",{_}".join(renderer.render(item, base_context) for item in node.index)
+    return f"{container}[{index}]"
+
+
+@BaseRenderer.register("slice")
+def render_slice(
+    renderer: BaseRenderer, node: Slice, base_context: BaseRenderContext
+) -> str:
+    """A slice in a subscript: ``1:3``, ``:n``, ``::2``."""
+    parts = [
+        "" if part is None else renderer.render(part, base_context)
+        for part in (node.lower, node.upper, node.step)
+    ]
+    if node.step is None:
+        parts.pop()
+    return ":".join(parts)
 
 
 @BaseRenderer.register("add_op")

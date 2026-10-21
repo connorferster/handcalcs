@@ -83,10 +83,8 @@ def test_excel_display(identifier):
     ],
 )
 def test_greek_prefixes_off(renderer_class, expected):
-    class NoPrefixes(renderer_class):
-        GREEK_PREFIXES = False
-
-    assert expected in render(NoPrefixes(), "DeltaH")
+    source = "# hc: greek_prefixes = False\nDeltaH = 2\n"
+    assert expected in HandCalcs(renderer=renderer_class())(source)
 
 
 NO_PREFIXES = IdentifierOptions(greek_prefixes=False)

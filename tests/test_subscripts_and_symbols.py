@@ -1,5 +1,5 @@
 """
-#101: comma subscripts (``SUBSCRIPT_STYLE`` / the ``subscripts`` option) and
+#101: comma subscripts (the ``subscripts`` option) and
 display specs (the ``symbols`` option), parsed once in ``identifiers.py`` and
 formatted by every renderer.
 """
@@ -196,12 +196,16 @@ def test_excel_symbols(identifier):
     assert symbolic_identifier(identifier, options) == SYMBOL_TABLE[identifier][3]
 
 
-def test_subscript_style_class_attribute():
-    class NestedLatex(LatexRenderer):
-        SUBSCRIPT_STYLE = "nested"
-
-    out = render(NestedLatex(), "N_pl_Rd = 2\n")
+def test_subscripts_section_command():
+    out = render(LatexRenderer(), '# hc: subscripts = "nested"\nN_pl_Rd = 2\nf_y_k = 3\n')
     assert "N_{\\mathrm{pl}_{\\mathrm{Rd}}} &= 2" in out
+    assert "f_{y_{k}} &= 3" in out
+
+
+@pytest.mark.parametrize("attribute", ["SUBSCRIPT_STYLE", "GREEK_PREFIXES"])
+def test_behaviour_settings_are_not_class_attributes(attribute):
+    # Behaviour is set through the render context, the same way for every renderer.
+    assert not hasattr(LatexRenderer, attribute)
 
 
 def test_inline_comment_applies_to_its_line_only():

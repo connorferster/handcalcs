@@ -292,12 +292,9 @@ def test_latex_identifier_without_greek_prefixes(identifier, expected):  # #117
     assert latex_identifier(identifier, IdentifierOptions(greek_prefixes=False)) == expected
 
 
-def test_greek_prefixes_class_attribute_turns_the_split_off():  # #117
-    class NoPrefixes(LatexRenderer):
-        GREEK_PREFIXES = False
-
+def test_greek_prefixes_field_turns_the_split_off():  # #117
     assert "\\Delta H" in render("DeltaH = 2\n")
-    assert "\\mathrm{DeltaH}" in HandCalcs(renderer=NoPrefixes())("DeltaH = 2\n")
+    assert "\\mathrm{DeltaH}" in render("DeltaH = 2  # hc: greek_prefixes = False\n")
 
 
 @pytest.mark.parametrize("identifier, comma, nested", [

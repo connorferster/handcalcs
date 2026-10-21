@@ -23,24 +23,20 @@ N_plRd = 1250
 V_flow = 2.5
 ```
 
-## Subscript style and Greek prefixes in a renderer
+## Subscript style and Greek prefixes
 
-Two class attributes set a renderer's defaults; the `subscripts` and `greek_prefixes`
-context fields still override them:
-
-```{literalinclude} ../_examples/symbol_styles.py
-:language: python
-:pyobject: V1StyleMarkdownRenderer
-```
+Two render-context fields change how every renderer reads names: `subscripts`
+(`"comma"` or v1's `"nested"`) and `greek_prefixes` (`False` keeps `DeltaH` as written).
+Set them for a section with a comment command:
 
 ```{hc-example}
-:renderer-file: _examples/symbol_styles.py
-:renderer-class: V1StyleMarkdownRenderer
+# hc: subscripts = "nested"; greek_prefixes = False
 N_pl_Rd = 1250
 DeltaH = 4.2
 ```
 
-The same attributes work on `LatexRenderer`, `HTMLRenderer` and the others.
+or for the session with `handcalcs.set_option("subscripts", "nested")` (see
+[settings and the render context](render-context.md)).
 
 ## Custom symbols with a rule
 
@@ -91,6 +87,24 @@ For other renderers, register a `function_call:pre` rule and change the function
 :setup: from math import log
 x = 10
 y = log(x)
+```
+
+## Indexes in brackets
+
+The LaTeX, Markdown, HTML and Word renderers show `xs[0]` as xs with subscript 0. To keep
+the brackets as written in the code, clear the node's subscript labels in a
+`subscript:pre` rule:
+
+```{literalinclude} ../_examples/bracket_indexes.py
+:language: python
+:lines: 2-
+```
+
+```{hc-example}
+:renderer-file: _examples/bracket_indexes.py
+:renderer-class: BracketMarkdownRenderer
+M_Ed = [90, 120, 140]
+M_max = M_Ed[2]
 ```
 
 ## Operator symbols

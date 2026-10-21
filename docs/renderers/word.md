@@ -179,9 +179,10 @@ layout.
 
 ## Notes
 
-- An equation row can't break across lines, so a list or tuple longer than 10 items
-  shows its first and last 3 items around "…". Use a line continuation (`\`) to break
-  a long equation yourself.
+- A list or tuple longer than 10 items shows its first and last 3 items around "…", as
+  in every renderer (the `max_items` and `edge_items`
+  [settings](../customizing/render-context.md)). An equation row can't break across
+  lines, so use a line continuation (`\`) to break a long equation yourself.
 - `HandCalcs(renderer=WordRenderer()).demo()` renders the general handcalcs demo as a
   document.
 

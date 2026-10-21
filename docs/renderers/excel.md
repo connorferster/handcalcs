@@ -161,7 +161,8 @@ A worksheet can only hold assignments, so the renderer raises
 - `for`/`while` loops, function definitions, `with`/`try`, `x += 1`;
 - expression statements such as `print(...)`;
 - imports other than `math`, `pint` and `forallpeople`;
-- lists, tuples, dicts, sets, comprehensions, `in`/`is`, keyword arguments,
+- lists, tuples, dicts, sets, comprehensions, index or key lookups (`xs[0]`),
+  `in`/`is`, keyword arguments,
   `None` and complex numbers;
 - tuple unpacking (`a, b = 1, 2`) and chained assignment (`a = b = 1`);
 - functions with no Excel equivalent;
