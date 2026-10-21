@@ -12,8 +12,8 @@ from handcalcs.renderers import ASCIIRenderer, HTMLRenderer, LatexRenderer, Mark
 TEXT_RENDERERS = [ASCIIRenderer, HTMLRenderer, LatexRenderer, MarkdownRenderer]
 
 
-def ascii(source: str) -> str:
-    return HandCalcs(ASCIIRenderer())(source)
+def ascii(source: str, *args) -> str:
+    return HandCalcs(ASCIIRenderer())(source, *args)
 
 
 def latex(source: str) -> str:
@@ -315,3 +315,24 @@ def test_indented_comment_after_the_next_statement_is_not_moved():
     out = ascii("a = 1\nif a:\n    b = 2\nc = 3\n    # odd indent\n")
     assert out.rstrip().endswith("odd indent")
     assert "    odd indent" not in out
+
+
+# --- P10: an if test that cannot be evaluated --------------------------------------
+
+
+def test_if_test_with_a_name_the_namespace_lacks():
+    source = "if a > 3:\n    b = 2\nelse:\n    b = 1\n"
+    out = ascii(source, {"b": 2}, {})
+    assert out == "Which branch of the if-elif block ran is unknown: its test has no value\n"
+
+
+def test_unknown_test_after_the_branch_that_ran_is_ignored():
+    source = "if x > 3:\n    b = 2\nelif a > 1:\n    b = 1\n"
+    out = ascii(source, {"x": 5, "b": 2}, {})
+    assert "Since (x>3) -> (5>3) is True:" in out
+
+
+def test_unknown_test_does_not_change_the_namespace():
+    namespace = {"b": 2}
+    ascii("if a > 3:\n    b = 2\n", namespace, {})
+    assert namespace == {"b": 2}

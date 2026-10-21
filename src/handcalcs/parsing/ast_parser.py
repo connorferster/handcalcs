@@ -582,19 +582,9 @@ class AST_Parser:
             header_values = self.globals
             # "test": The condition (nested list via recursive call)
             if_block.test = self.ast_parse(node.test)
-            # Evaluate against a flattened *copy* of the namespace so that the
-            # `__builtins__` that eval injects lands in this throwaway dict
-            # rather than mutating the caller's globals. Works whether
-            # self.globals is a ChainMap or a plain dict.
-            # TODO: This eval raises NameError when a variable used in the test
-            # is absent from the supplied namespace (e.g. caller passes
-            # supplied_globals without every referenced name). Decide on the
-            # fallback: skip evaluation, treat as indeterminate, or surface a
-            # clearer error naming the missing variable.
-            if_block.is_true = eval(
-                compile(py_ast.Expression(node.test), mode="eval", filename="<ast>"),
-                dict(self.globals),
-            )
+            # None when the test cannot be evaluated (a supplied namespace that
+            # lacks a name it uses): which branch ran is then unknown.
+            if_block.is_true = self._evaluate_test(node.test)
             # "body": The block of code inside the if (nested list of statements)
             if_block.lines.extend(self._parse_body(node.body))
 
@@ -967,11 +957,13 @@ class AST_Parser:
 
     def _evaluate_test(self, node: ast.AST) -> Optional[bool]:
         """
-        The truth of a conditional expression's test in the namespace, or None
-        if it cannot be evaluated (e.g. a name the namespace lacks).
+        The truth of an ``if`` test or a conditional expression's test in the
+        namespace, or None if it cannot be evaluated (e.g. a name the namespace
+        lacks).
         """
         try:
-            # A flattened copy of the namespace, as for an if test (see ast.If).
+            # A flattened *copy* of the namespace, so that the ``__builtins__``
+            # eval adds lands in a throwaway dict, not in the caller's globals.
             return bool(
                 eval(
                     compile(py_ast.Expression(node), mode="eval", filename="<ast>"),

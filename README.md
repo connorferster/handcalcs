@@ -7,7 +7,7 @@
   <img src="https://static.pepy.tech/badge/handcalcs" alt="Downloads">
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/connorferster/handcalcs/main/docs/images/handcalcs.jpg" alt="handcalcs cover art"><br>
+  <img src="https://raw.githubusercontent.com/connorferster/handcalcs/main/docs/_static/handcalcs.jpg" alt="handcalcs cover art"><br>
   Cover art by <a href="https://www.copperkettlegameworks.ca/">Joshua Hoiberg</a>
 </p>
 

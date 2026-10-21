@@ -1,10 +1,8 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
+# Build handcalcs and upload it to PyPI when a GitHub release is published.
+#
+# Uploads use PyPI trusted publishing (no API token): the project's PyPI settings
+# list this repository, this workflow file (python-publish.yml) and the 'pypi'
+# environment as a trusted publisher.
 
 name: Upload Python Package
 
@@ -16,26 +14,42 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-
+  build:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v7
       with:
-        python-version: '3.x'
-    - name: Install dependencies
+        python-version: '3.13'
+    - uses: astral-sh/setup-uv@v10.3.0
+    - name: Build the wheel and sdist
+      run: uv build
+    - name: Check the version matches the release tag
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install flit
-        flit install
-    - name: Build package
-      run: |
-        flit build
-    - name: Publish package
-      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        version=$(ls dist/*.whl | sed -E 's|dist/handcalcs-([^-]+)-.*|\1|')
+        echo "wheel version: $version, release tag: $GITHUB_REF_NAME"
+        [ "$version" = "${GITHUB_REF_NAME#v}" ] || {
+          echo "::error::pyproject version $version does not match the tag $GITHUB_REF_NAME"
+          exit 1
+        }
+    - uses: actions/upload-artifact@v4
       with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+        name: dist
+        path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/handcalcs/
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: dist
+        path: dist/
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

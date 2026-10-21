@@ -1847,6 +1847,8 @@ def render_elifblock(
     renderer: BaseRenderer, node: ElifBlock, base_context: BaseRenderContext
 ) -> str:
     true_clause = node.taken_branch()
+    if node.branch_unknown():
+        return "Which branch of the if-elif block ran is unknown: its test has no value"
     if true_clause is None:
         return "No conditions were satisfied within the if-elif block"
     else:
