@@ -29,6 +29,7 @@ from handcalcs.parsing.nodes import (
 from handcalcs.parsing.operator_nodes import DivOp, FloorOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
     elide_items,
+    value_format_code,
     render_symbolic,
     subscript_value,
     OP_PRECEDENCE,
@@ -353,7 +354,7 @@ def format_number(value, format_code: str) -> str:
 @WR.register("constant")
 def render_constant(renderer: WR, node: Constant, base_context: BRC) -> str:
     value = node.value
-    fc = base_context.current.format_code
+    fc = value_format_code(value, base_context.current.format_code)
     if isinstance(value, bool) or value is None:
         return omml.upright(f"{value}")
     if isinstance(value, (datetime.date, datetime.time)):

@@ -4,6 +4,8 @@ Every number handcalcs shows goes through a Python
 [format code](https://docs.python.org/3/library/string.html#format-specification-mini-language),
 the part after the colon in `f"{value:.2f}"`. The default is `.5g`: up to five
 significant figures, switching to scientific notation for very large or small values.
+An integer keeps all its digits under a `g` format code (`E = 200000`, not `2e+05`);
+a code such as `.2f` or `.3e` applies to integers too.
 
 ```{hc-example}
 :renderer: ascii

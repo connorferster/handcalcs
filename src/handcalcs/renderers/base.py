@@ -1,6 +1,8 @@
 from __future__ import annotations
 import datetime
 import math
+import numbers
+import re
 import os
 import pathlib
 from collections import deque, ChainMap
@@ -809,12 +811,32 @@ def quantity_power_base(node, base_context: BaseRenderContext) -> bool:
     )
 
 
+# A general format code ('.5g', ',.3g', '>10g', 'n'): its precision and type.
+GENERAL_FORMAT = re.compile(r"(?P<head>[^.]*?)(?:\.\d+)?(?P<type>[gGn]?)")
+
+
+def value_format_code(value: Any, format_code: str) -> str:
+    """
+    The format code to show ``value`` with. Under a general format code (type
+    ``g``, ``n`` or none, such as the default ``.5g``), an integer, or a
+    quantity with an integer magnitude, keeps all its digits: ``200000``, not
+    ``2e+05``. Other format codes (``.2f``, ``.3e``) apply as they are.
+    """
+    magnitude = getattr(value, "magnitude", value)
+    if isinstance(magnitude, bool) or not isinstance(magnitude, numbers.Integral):
+        return format_code
+    match = GENERAL_FORMAT.fullmatch(format_code)
+    if match is None or (format_code and match["head"] == format_code):
+        return format_code
+    return f"{match['head']}{'n' if match['type'] == 'n' else 'd'}"
+
+
 @BaseRenderer.register("constant")
 def render_constant(
     renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext
 ) -> Any:
     context = base_context.current
-    fc = context.format_code
+    fc = value_format_code(node.value, context.format_code)
     # bool is an int subclass, so a numeric format code would render True as 1.
     if isinstance(node.value, bool):
         return f"{node.value}"

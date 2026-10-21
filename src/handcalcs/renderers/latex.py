@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     elide_items,
+    value_format_code,
     render_subscript as render_bracketed_subscript,
     subscript_value,
     BaseRenderer,
@@ -938,7 +939,7 @@ def typeset_latex_number(formatted: str) -> str:
 @LR.register("constant")
 def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
     value = node.value
-    fc = base_context.current.format_code
+    fc = value_format_code(value, base_context.current.format_code)
     if isinstance(value, bool) or value is None:
         return f"\\mathrm{{{value}}}"
     # A number literal from the source keeps its digits as written (the format

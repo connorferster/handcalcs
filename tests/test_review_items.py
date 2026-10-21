@@ -145,3 +145,51 @@ def test_lambda_with_starred_parameters():
 def test_lambda_in_latex_and_word():
     assert "f &= \\mathrm{lambda}\;x\\colon\;x \\cdot 2" in latex("f = lambda x: x * 2\n")
     assert "lambda" in word_xml("f = lambda x: x * 2\n")
+
+
+# --- S5: integers keep their digits under a general format code ---------------------
+
+
+def test_integers_keep_their_digits():
+    out = ascii("E = 200000\nN = 10**12\nn = 7 // 2\n")
+    assert "E = 200000" in out
+    assert "N = 10¹² = 1000000000000" in out
+    assert "n = 7 // 2 = 3" in out
+    assert "N &= 10^{12} = 1000000000000" in latex("N = 10**12\n")
+
+
+def test_floats_keep_the_general_format():
+    assert "P = 1.2346e+06" in ascii("P = 1234567.891\n")
+
+
+def test_explicit_format_codes_apply_to_integers():
+    assert "N = 10⁶ = 1.000e+06" in ascii("N = 10**6  # hc: -f .3e\n")
+    assert "N = 10⁶ = 1000000.00" in ascii("N = 10**6  # hc: -f .2f\n")
+    assert "N = 10⁶ = 1,000,000" in ascii("N = 10**6  # hc: -f ,.3g\n")
+
+
+@pytest.mark.parametrize(
+    "value, format_code, expected",
+    [
+        (200000, ".5g", "d"),
+        (200000, ",.3g", ",d"),
+        (200000, "n", "n"),
+        (200000, ".2f", ".2f"),
+        (2.5, ".5g", ".5g"),
+        (True, ".5g", ".5g"),
+    ],
+)
+def test_value_format_code(value, format_code, expected):
+    from handcalcs.renderers.base import value_format_code
+
+    assert value_format_code(value, format_code) == expected
+
+
+def test_numpy_and_pint_integers():
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("pint")
+    from handcalcs.renderers.base import value_format_code
+
+    assert value_format_code(np.int64(200000), ".5g") == "d"
+    out = ascii(UNITS.replace("L = 6 * ureg.m\n", "") + "F = 250000 * ureg.N\n")
+    assert "F = 250000 * ureg.N = 250000 * newton = 250000 newton" in out
