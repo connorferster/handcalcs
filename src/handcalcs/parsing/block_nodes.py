@@ -96,11 +96,26 @@ class ElifBlock(HcBlockNode):
     def taken_branch(self) -> "IfBlock | ElseBlock | None":
         """
         The branch that ran: the first ``if``/``elif`` whose test is true, else
-        the ``else`` branch, or None when no branch ran.
+        the ``else`` branch, or None when no branch ran or when it is unknown
+        (see ``branch_unknown``).
         """
         for branch in self.lines:
+            if isinstance(branch, IfBlock) and branch.is_true is None:
+                return None
             if getattr(branch, "is_true", False):
                 return branch
         if self.lines and isinstance(self.lines[-1], ElseBlock):
             return self.lines[-1]
         return None
+
+    def branch_unknown(self) -> bool:
+        """
+        True when a test before the branch that ran could not be evaluated, so
+        which branch ran is unknown.
+        """
+        for branch in self.lines:
+            if not isinstance(branch, IfBlock) or branch.is_true:
+                return False
+            if branch.is_true is None:
+                return True
+        return False
