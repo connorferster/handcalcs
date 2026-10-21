@@ -122,10 +122,6 @@ See [Writing calculations](writing-calculations.md#conditionals) for examples.
   don't render, then render the calculation that uses the result.
 - `print(...)` calls are skipped, so a script can print progress without it showing up.
   A comment line above one is kept.
-- So is a line that only calls a module's function for its effect, such as
-  `si.environment("structural")` or `np.random.seed(1)`: it sets something up. (A
-  side-effect-free function such as `math.sqrt(2)` shows its result. To show any other
-  call, assign its result: `n = np.linalg.norm(v)`.)
 
 ## Function names and symbols
 

@@ -195,50 +195,6 @@ def test_numpy_and_pint_integers():
     assert "F = 250000 * ureg.N = 250000 * newton = 250000 newton" in out
 
 
-# --- S7a: a call of a module's function made for its effect is skipped --------------
-
-
-def test_setup_calls_are_skipped():
-    pytest.importorskip("forallpeople")
-    out = ascii(
-        "import forallpeople as si\n"
-        "# Set up the units\n"
-        'si.environment("structural")\n'
-        "import numpy as np\n"
-        "np.random.seed(1)\n"
-        "L = 6 * si.m\n"
-    )
-    assert "environment" not in out and "seed" not in out
-    assert "Set up the units" in out  # the comment above is kept, as for print()
-    assert "L = 6 * si.m" in out
-
-
-def test_pure_module_calls_and_methods_and_user_functions_are_kept():
-    source = (
-        "import math\n"
-        "math.sqrt(4)\n"
-        "acc = []\n"
-        "acc.append(2)\n"
-        "def check(v):\n"
-        "    return v < 1\n"
-        "check(0.5)\n"
-    )
-    out = ascii(source)
-    assert "√(4) = 2" in out
-    assert "acc.append(2)" in out
-    assert "check(0.5)" in out
-
-
-def test_setup_calls_produce_no_excel_error():
-    pytest.importorskip("xlsxwriter")
-    pytest.importorskip("forallpeople")
-    from handcalcs.renderers.excel import ExcelRenderer
-
-    HandCalcs(ExcelRenderer())(
-        'import forallpeople as si\nsi.environment("structural")\nL = 6 * si.m\n'
-    )
-
-
 # --- S7b: strings in quotes ---------------------------------------------------------
 
 

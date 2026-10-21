@@ -7,7 +7,6 @@ import math
 from dataclasses import dataclass, field
 import tokenize
 from typing import Union, Optional
-from types import ModuleType
 from collections import deque, ChainMap, Counter
 from collections.abc import Mapping, Sequence
 from .nodes import (
@@ -377,9 +376,8 @@ class AST_Parser:
                 flushed = self._flush_comment_lines(stmt.lineno)
                 out.extend(flushed)
             # A print() statement is program output, not part of the calculation
-            # (its text is already printed when the source runs), so it is skipped,
-            # and so is a call made only for its effect (see is_effect_call).
-            if is_print_statement(stmt) or self._is_effect_call(stmt):
+            # (its text is already printed when the source runs), so it is skipped.
+            if is_print_statement(stmt):
                 i += 1
                 continue
             if hasattr(stmt, "lineno"):
@@ -1031,29 +1029,6 @@ class AST_Parser:
             )
         except Exception:
             return NoValue()
-
-    def _is_effect_call(self, stmt: ast.AST) -> bool:
-        """
-        True for a statement that only calls a module's function with side
-        effects, such as ``si.environment("structural")`` or
-        ``np.random.seed(1)``: it sets something up, it is not a step of the
-        calculation. A side-effect-free function (``math.sqrt(2)``) shows its
-        result; a method of an object (``acc.append(x)``) and a function called
-        by name (``check(x)``) are shown as usual.
-        """
-        if not (
-            isinstance(stmt, ast.Expr)
-            and isinstance(stmt.value, ast.Call)
-            and isinstance(stmt.value.func, ast.Attribute)
-        ):
-            return False
-        module = self._dotted_name(stmt.value.func.value)
-        if module is None:
-            return False
-        self._enter_statement(stmt)
-        if not isinstance(self._resolve_dotted(module), ModuleType):
-            return False
-        return not self._is_pure_callable(stmt.value.func)
 
     def _is_pure_callable(self, func: ast.AST) -> bool:
         """
