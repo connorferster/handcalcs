@@ -316,6 +316,27 @@ def parse_identifier(
     return base
 
 
+def indexed_symbol(
+    identifier: str, labels: list[tuple[str, bool]], options: IdentifierOptions
+) -> Symbol:
+    """
+    The ``Symbol`` of a name indexed by ``labels`` (see ``Subscript.labels``):
+    each index is one more subscript after the name's own, so ``xs[0]`` is xs
+    with subscript 0 and ``M_Ed[1]`` is M with subscripts "Ed,1". A name index
+    is parsed as an identifier (``A[i_max]``); an integer or string index is
+    text, with a space between words.
+    """
+    symbol = parse_identifier(identifier, options)
+    for text, is_name in labels:
+        if is_name:
+            symbol.subscripts.append(parse_identifier(text, options))
+        else:
+            symbol.subscripts.append(
+                Symbol(words=[[(False, word)] for word in text.split()])
+            )
+    return symbol
+
+
 class SpecError(ValueError):
     """A ``symbols`` spec that can't be parsed."""
 

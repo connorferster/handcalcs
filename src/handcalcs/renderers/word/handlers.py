@@ -22,11 +22,15 @@ from handcalcs.parsing.nodes import (
     Name,
     NoValue,
     Set,
+    Slice,
+    Subscript,
     Tuple,
 )
 from handcalcs.parsing.operator_nodes import DivOp, FloorOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
     elide_items,
+    render_symbolic,
+    subscript_value,
     OP_PRECEDENCE,
     BaseRenderContext,
     is_source_number,
@@ -41,6 +45,7 @@ from handcalcs.renderers.identifiers import (
     IdentifierOptions,
     Symbol,
     identifier_options,
+    indexed_symbol,
     is_identifier,
     parse_identifier,
 )
@@ -242,6 +247,40 @@ def render_attribute(renderer: WR, node: Attribute, base_context: BRC) -> str:
         return word_identifier(node.identifier, options)
     parts = [word_identifier(part, options) for part in namespace.split(".")]
     return omml.run(".").join([*parts, word_identifier(node.identifier, options)])
+
+
+@WR.register("subscript")
+def render_subscript(renderer: WR, node: Subscript, base_context: BRC) -> str:
+    """
+    An index or key lookup. A name indexed by integers, short strings or names
+    shows each index as a subscript (``xs[0]`` -> xs with subscript 0); any
+    other lookup is shown in brackets, with the index substituted in the
+    numeric column when there is no element. The numeric column shows the
+    element, as for a Name.
+    """
+    value = subscript_value(renderer, node, base_context)
+    if value is not None:
+        return value
+    if node.labels is not None:
+        options = identifier_options(renderer, base_context)
+        return word_symbol(
+            indexed_symbol(node.container.identifier, node.labels, options)
+        )
+    container = render_symbolic(renderer, node.container, base_context)
+    index = [renderer.render(item, base_context) for item in node.index]
+    return container + omml.delim_items(index, "[", "]")
+
+
+@WR.register("slice")
+def render_slice(renderer: WR, node: Slice, base_context: BRC) -> str:
+    """A slice in a subscript: ``1:3``, ``:n``, ``::2``."""
+    parts = [
+        "" if part is None else renderer.render(part, base_context)
+        for part in (node.lower, node.upper, node.step)
+    ]
+    if node.step is None:
+        parts.pop()
+    return omml.run(":").join(parts)
 
 
 @WR.register("keyword")

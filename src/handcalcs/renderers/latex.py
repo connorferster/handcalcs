@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     elide_items,
+    render_subscript as render_bracketed_subscript,
+    subscript_value,
     BaseRenderer,
     RenderContext,
     BaseRenderContext,
@@ -26,6 +28,7 @@ from handcalcs.renderers.identifiers import (
     IdentifierOptions,
     Symbol,
     identifier_options,
+    indexed_symbol,
     is_identifier,
     parse_identifier,
 )
@@ -35,6 +38,7 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Attribute,
+    Subscript,
     NoValue,
     Constant,
     List,
@@ -214,7 +218,7 @@ MATH_CONSTANTS = {"inf": "\\infty", "nan": "\\mathrm{NaN}"}
 def latex_word(text: str) -> str:
     """One character in math italic; a longer word (not a number) upright."""
     typeset = text.replace("_", "\\_").replace(" ", "\\ ")
-    if len(text) > 1 and not text.isdigit():
+    if len(text) > 1 and not text.removeprefix("-").isdigit():
         return f"\\mathrm{{{typeset}}}"
     return typeset
 
@@ -794,6 +798,23 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
         latex_identifier(part, options) for part in namespace.split(".")
     )
     return f"{namespace}.{identifier}"
+
+
+@LR.register("subscript")
+def render_subscript(renderer: LR, node: Subscript, base_context: BRC) -> str:
+    """
+    An index or key lookup. A name indexed by integers, short strings or names
+    shows each index as a subscript (``xs[0]`` -> ``\\mathrm{xs}_{0}``,
+    ``M_Ed[i]`` -> ``M_{\\mathrm{Ed},i}``); any other lookup is shown in
+    brackets. The numeric column shows the element, as for a Name.
+    """
+    value = subscript_value(renderer, node, base_context)
+    if value is not None:
+        return value
+    if node.labels is None:
+        return render_bracketed_subscript(renderer, node, base_context)
+    options = identifier_options(renderer, base_context)
+    return latex_symbol(indexed_symbol(node.container.identifier, node.labels, options))
 
 
 @LR.register("mult_op:pre")

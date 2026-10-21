@@ -13,7 +13,18 @@ import tokenize
 from typing import List, Union, Optional, Callable
 from types import ModuleType
 from collections import deque, ChainMap, Counter
-from .nodes import Attribute, List, Tuple, Set, Dictionary, Name, Constant
+from collections.abc import Mapping, Sequence
+from .nodes import (
+    Attribute,
+    List,
+    Tuple,
+    Set,
+    Dictionary,
+    Name,
+    Constant,
+    Subscript,
+    Slice,
+)
 from .block_nodes import ForBlock, IfBlock, ElifBlock, HcBlockNode, ParamsBlock
 from .line_nodes import CalcLine, ExprLine, CommentLine, CommentCommand, Heading, Import
 from .inline_nodes import (
@@ -755,6 +766,17 @@ class AST_Parser:
                 value=getattr(self._resolve_dotted(namespace), attribute, NoValue()),
             )
 
+        elif isinstance(node, ast.Subscript):
+            val = self._subscript(node)
+
+        elif isinstance(node, ast.Slice):
+            val = Slice(
+                *(
+                    None if part is None else self.ast_parse(part)
+                    for part in (node.lower, node.upper, node.step)
+                )
+            )
+
         elif isinstance(node, ast.IfExp):
             val = IfExp(
                 test=self.ast_parse(node.test),
@@ -790,6 +812,116 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _subscript(self, node: ast.Subscript) -> Subscript:
+        """An index or key lookup (``xs[0]``, ``A[i, j]``); see ``Subscript``."""
+        items = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+        labels = None
+        if isinstance(node.value, ast.Name):
+            labels = [self._index_label(item) for item in items]
+            if None in labels:
+                labels = None
+        return Subscript(
+            container=self.ast_parse(node.value),
+            index=deque(self.ast_parse(item) for item in items),
+            labels=labels,
+            value=self._subscript_value(node.value, node.slice),
+        )
+
+    @staticmethod
+    def _index_label(node: ast.AST) -> Optional[tuple[str, bool]]:
+        """
+        An index as subscript text: a name (``i``), an integer (``0``, ``-1``) or
+        a short string of letters, digits and spaces (``"dead"``), with whether
+        it is a name. None for any other index.
+        """
+        if isinstance(node, ast.Name):
+            return (node.id, True)
+        try:
+            key = py_ast.literal_eval(node)
+        except Exception:
+            return None
+        if isinstance(key, bool):
+            return None
+        if isinstance(key, int) or (
+            isinstance(key, str) and key.strip() and key.replace(" ", "").isalnum()
+        ):
+            return (str(key), False)
+        return None
+
+    def _subscript_value(self, container: ast.AST, index: ast.AST):
+        """
+        The element ``container[index]`` without evaluating any code: the
+        container is a name, a dotted name or another subscript, and each index
+        is a literal (``ast.literal_eval``), a name, a dotted name, or a slice or
+        tuple of those. The lookup itself runs only on containers whose
+        ``__getitem__`` has no side effects (see ``_pure_getitem``). NoValue if
+        any part cannot be resolved this way.
+        """
+        if isinstance(container, ast.Subscript):
+            obj = self._subscript_value(container.value, container.slice)
+        elif isinstance(container, ast.Name):
+            obj = self._name_value(container.id)
+        elif (dotted := self._dotted_name(container)) is not None:
+            obj = self._resolve_dotted(dotted)
+        else:
+            return NoValue()
+        key = self._index_key(index)
+        if isinstance(obj, NoValue) or isinstance(key, NoValue):
+            return NoValue()
+        if not self._pure_getitem(obj):
+            return NoValue()
+        try:
+            return obj[key]
+        except Exception:
+            return NoValue()
+
+    def _index_key(self, node: ast.AST):
+        """The value of an index (see ``_subscript_value``), or NoValue."""
+        if isinstance(node, ast.Slice):
+            parts = [
+                None if part is None else self._index_key(part)
+                for part in (node.lower, node.upper, node.step)
+            ]
+            if any(isinstance(part, NoValue) for part in parts):
+                return NoValue()
+            return slice(*parts)
+        if isinstance(node, ast.Tuple):
+            keys = tuple(self._index_key(elt) for elt in node.elts)
+            if any(isinstance(key, NoValue) for key in keys):
+                return NoValue()
+            return keys
+        if isinstance(node, ast.Name):
+            return self._name_value(node.id)
+        if (dotted := self._dotted_name(node)) is not None:
+            return self._resolve_dotted(dotted)
+        try:
+            return py_ast.literal_eval(node)
+        except Exception:
+            return NoValue()
+
+    # Libraries whose containers look items up without side effects.
+    PURE_GETITEM_MODULES = (
+        "numpy",
+        "pandas",
+        "pint",
+        "forallpeople",
+        "polars",
+        "xarray",
+    )
+
+    @classmethod
+    def _pure_getitem(cls, obj) -> bool:
+        """
+        True for a container whose ``__getitem__`` only looks an item up: a
+        sequence or mapping (lists, tuples, strings, dicts), or a numpy, pandas
+        or units-library object. A user object may run any code, so it is not
+        indexed again.
+        """
+        if isinstance(obj, (Sequence, Mapping)):
+            return True
+        module = type(obj).__module__.split(".")[0]
+        return module in cls.PURE_GETITEM_MODULES
 
     def _dotted_name(self, node: ast.AST) -> Optional[str]:
         """

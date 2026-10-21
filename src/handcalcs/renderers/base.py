@@ -22,6 +22,8 @@ from handcalcs.parsing.nodes import (
     Dictionary,
     Tuple,
     Set,
+    Subscript,
+    Slice,
 )
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
@@ -981,6 +983,63 @@ def render_attribute(
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
         )
+
+
+def render_symbolic(renderer: BR, node: Any, base_context: BaseRenderContext) -> Any:
+    """Render ``node`` in the symbolic mode, whatever the current mode is."""
+    prev_mode = getattr(base_context.line_context, "current_mode", None)
+    base_context.line_context.current_mode = "sym"
+    try:
+        return renderer.render(node, base_context)
+    finally:
+        base_context.line_context.current_mode = prev_mode
+
+
+def subscript_value(
+    renderer: BR, node: Subscript, base_context: BaseRenderContext
+) -> Optional[Any]:
+    """
+    The numeric column of a subscript: its element when one was looked up,
+    else None (the handler then shows the subscript itself).
+    """
+    if base_context.current.current_mode == "num" and not isinstance(
+        node.value, NoValue
+    ):
+        return renderer.render_node(node.value, base_context)
+    return None
+
+
+@BaseRenderer.register("subscript")
+def render_subscript(
+    renderer: BaseRenderer, node: Subscript, base_context: BaseRenderContext
+) -> str:
+    """
+    An index or key lookup. The symbolic column shows it as written,
+    ``xs[0]``; the numeric column shows the element. When there is no element
+    (see ``Subscript.value``), the numeric column keeps the container and
+    substitutes the index: ``xs[i + 1]`` -> ``xs[2 + 1]``.
+    """
+    value = subscript_value(renderer, node, base_context)
+    if value is not None:
+        return value
+    _ = base_context.current.space
+    container = render_symbolic(renderer, node.container, base_context)
+    index = f",{_}".join(renderer.render(item, base_context) for item in node.index)
+    return f"{container}[{index}]"
+
+
+@BaseRenderer.register("slice")
+def render_slice(
+    renderer: BaseRenderer, node: Slice, base_context: BaseRenderContext
+) -> str:
+    """A slice in a subscript: ``1:3``, ``:n``, ``::2``."""
+    parts = [
+        "" if part is None else renderer.render(part, base_context)
+        for part in (node.lower, node.upper, node.step)
+    ]
+    if node.step is None:
+        parts.pop()
+    return ":".join(parts)
 
 
 @BaseRenderer.register("add_op")
