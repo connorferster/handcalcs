@@ -77,6 +77,13 @@ ARITHMETIC_OPS = {
     "MatMult": MatMultOp,
 }
 
+COMPREHENSION_TYPES = {
+    "ListComp": "list",
+    "SetComp": "set",
+    "DictComp": "dict",
+    "GeneratorExp": "generator",
+}
+
 UNARY_OPS = {
     "USub": "-",
     "UAdd": "+",
@@ -519,6 +526,12 @@ class AST_Parser:
             # Create the inner nested list for arguments: the positional
             # arguments, then the keyword arguments (as Keyword nodes)
             args_list = deque([self.ast_parse(arg) for arg in node.args])
+            if (
+                len(node.args) == 1
+                and not node.keywords
+                and isinstance(node.args[0], ast.GeneratorExp)
+            ):
+                args_list[0].bare = True
             args_list.extend(
                 Keyword(arg=keyword.arg, value=self.ast_parse(keyword.value))
                 for keyword in node.keywords
@@ -591,9 +604,11 @@ class AST_Parser:
 
             val = self.current_block = for_block
 
-        elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+        elif isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
             comprehension_block = ComprehensionChain(
-                comp_type=node.__class__.__name__.replace("Comp", "").lower(),
+                comp_type=COMPREHENSION_TYPES[type(node).__name__],
             )
 
             assigns = deque([])
@@ -614,18 +629,18 @@ class AST_Parser:
                     assigns=generator["assigns"],
                     iterator=generator["iterator"],
                     is_async=generator["is_async"],
+                    conditions=generator["conditions"],
                 )
                 comp_blocks.append(comp_block)
             comprehension_block.comprehensions = comp_blocks
             val = comprehension_block
 
-            # TODO: HERE: PERHAPS I NEED SPECIAL COMPREHENSION BLOCK
-
         elif isinstance(node, ast.comprehension):
             comp = {
-                "assigns": deque([self.ast_parse(node.target)]),
+                "assigns": deque([self._target(node.target)]),
                 "iterator": deque([self.ast_parse(node.iter)]),
                 "is_async": bool(node.is_async),
+                "conditions": deque(self.ast_parse(test) for test in node.ifs),
             }
             val = comp
 

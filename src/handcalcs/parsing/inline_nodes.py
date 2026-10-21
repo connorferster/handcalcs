@@ -82,6 +82,8 @@ class Comprehension(HcInlineNode):
     assigns: deque[str | Tuple]
     iterator: deque[str | FunctionCall | List | Tuple | Dictionary | Set]
     is_async: bool
+    # The clause's ``if`` filters (``for x in xs if x > 0``), each an expression.
+    conditions: deque = field(default_factory=deque)
     pre: str = ""
     post: str = ""
     type: str = "comprehension"
@@ -96,6 +98,9 @@ class ComprehensionChain(HcInlineNode):
     key: deque[str] = field(default_factory=deque)
     value: deque[str] = field(default_factory=deque)
     comprehensions: deque[Comprehension] = field(default_factory=deque)
+    # A generator expression that is a call's only argument is written without
+    # its own brackets: ``sum(x**2 for x in xs)``.
+    bare: bool = False
     type: str = "comprehension_chain"
 
 

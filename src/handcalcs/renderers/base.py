@@ -1323,16 +1323,19 @@ def render_comprehension(
 ) -> str:
     """
     Render a single ``for ... in ...`` clause of a comprehension, with the
-    keywords (and their spaces) from the renderer's ``COMPREHENSION_KEYWORDS``.
+    keywords (and their spaces) from the renderer's ``COMPREHENSION_KEYWORDS``,
+    followed by its ``if`` filters (the ``if`` keyword of ``IF_EXP_KEYWORDS``).
     """
     for_kw, in_kw = renderer.COMPREHENSION_KEYWORDS
-    targets = ", ".join(
-        renderer.render(target, base_context) for target in node.assigns
-    )
+    if_kw = renderer.IF_EXP_KEYWORDS[0]
+    targets = "".join(renderer.render(target, base_context) for target in node.assigns)
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
     if node.is_async:
         for_kw = for_kw.replace("for", "async for")
-    return f"{for_kw}{targets}{in_kw}{iterator}"
+    conditions = "".join(
+        f"{if_kw}{renderer.render(test, base_context)}" for test in node.conditions
+    )
+    return f"{for_kw}{targets}{in_kw}{iterator}{conditions}"
 
 
 @BaseRenderer.register("comprehension_chain")
@@ -1370,6 +1373,8 @@ def render_comprehension_chain(
         "dict": ("{", "}"),
         "generator": ("(", ")"),
     }
+    if node.bare:
+        return inner
     opener, closer = brackets.get(node.comp_type, ("[", "]"))
     return f"{opener}{inner}{closer}"
 
