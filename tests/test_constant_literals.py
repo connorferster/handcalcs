@@ -65,7 +65,7 @@ def test_html_exponent_is_not_formatted():
 def test_non_numeric_literals_unchanged():
     rendered = HandCalcs(ASCIIRenderer())("a = True\nb = 'text'")
     assert "a = True" in rendered
-    assert "b = text" in rendered
+    assert 'b = "text"' in rendered
 
 
 def test_underscores_dropped():

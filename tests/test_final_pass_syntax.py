@@ -110,7 +110,7 @@ SOURCE_TO = (
 
 def test_plaintext_method_on_expression():
     out = _last_line(ASCIIRenderer(), SOURCE_TO)
-    assert out == "b = (a * 3).to(mm) = (2 meter * 3).to(mm) = 6000 millimeter"
+    assert out == 'b = (a * 3).to("mm") = (2 meter * 3).to("mm") = 6000 millimeter'
 
 
 def test_latex_method_on_expression():
@@ -120,7 +120,7 @@ def test_latex_method_on_expression():
 
 def test_html_method_on_expression():
     out = _render(HTMLRenderer(), SOURCE_TO)
-    assert "(a · 3).to(mm)" in out
+    assert '(a · 3).to(“mm”)' in out
 
 
 def test_numpy_dotted_namespace_renders():

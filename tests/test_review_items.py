@@ -84,7 +84,7 @@ def test_attribute_of_an_expression():
 
 def test_attribute_of_a_call():
     pytest.importorskip("pint")
-    assert "w = L.to(mm).magnitude + 1 = 6001" in ascii(UNITS + 'w = L.to("mm").magnitude + 1\n')
+    assert "w = L.to(\"mm\").magnitude + 1 = 6001" in ascii(UNITS + 'w = L.to("mm").magnitude + 1\n')
 
 
 def test_attribute_of_an_expression_in_word():
@@ -104,8 +104,8 @@ def test_attribute_of_an_expression_in_excel():
 
 
 def test_f_string_shows_its_value():
-    assert "s = a=3" in ascii('a = 3\ns = f"a={a}"\n')
-    assert "t = 3.00 kN" in ascii('a = 3\nt = f"{a:.2f} kN"\n')
+    assert 's = "a=3"' in ascii('a = 3\ns = f"a={a}"\n')
+    assert 't = "3.00 kN"' in ascii('a = 3\nt = f"{a:.2f} kN"\n')
     assert 's &= \\text{``a=3\'\'}' in latex('a = 3\ns = f"a={a}"\n')
 
 
@@ -121,7 +121,7 @@ def test_f_string_with_a_call_is_not_evaluated_again():
         "n = len(calls)\n"
     )
     out = ascii(source)
-    assert "s = 4 kN" in out
+    assert 's = "4 kN"' in out
     assert "n = len(calls) = len([2]) = 1" in out
 
 
@@ -237,3 +237,28 @@ def test_setup_calls_produce_no_excel_error():
     HandCalcs(ExcelRenderer())(
         'import forallpeople as si\nsi.environment("structural")\nL = 6 * si.m\n'
     )
+
+
+# --- S7b: strings in quotes ---------------------------------------------------------
+
+
+def test_strings_are_quoted_in_ascii():
+    out = ascii('name = "W310x39"\nloads = {"dead": 5}\nw = loads["dead"]\n')
+    assert 'name = "W310x39"' in out
+    assert 'loads = {"dead": 5}' in out
+    assert 'w = loads["dead"] = 5' in out
+
+
+def test_method_names_are_not_quoted():
+    pytest.importorskip("pint")
+    out = ascii(UNITS + 'M = (L * 2).to("mm")\n')
+    assert 'M = (L * 2).to("mm") = (6 meter * 2).to("mm") = 12000 millimeter' in out
+
+
+def test_strings_are_quoted_and_escaped_in_html():
+    out = HandCalcs(HTMLRenderer())('name = "<b>W310</b>"\n')
+    assert "name = “&lt;b&gt;W310&lt;/b&gt;”" in out
+
+
+def test_ascii_superscripts_are_not_quoted():
+    assert "y = b² = 3² = 9" in ascii("b = 3\ny = b**2\n")

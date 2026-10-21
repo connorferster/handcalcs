@@ -104,7 +104,7 @@ PREFIX = (
     ("y = a == b", "y = a = b"),
     ("y = a < b and b >= d", "y = a &lt; b and b ≥ d"),
     ("y = -a", "y = -a"),
-    ("s = '<sub>'", "s = &lt;sub&gt;"),
+    ("s = '<sub>'", 's = "&lt;sub&gt;"'),
 ])
 def test_expression_markup(source, expected):
     assert symbolic(PREFIX + source) == expected

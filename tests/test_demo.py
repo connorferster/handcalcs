@@ -72,8 +72,8 @@ def test_demo_heading_levels_exclude_comment_marker(demo_output):
     "line",
     [
         "vals_x = [1, 2, 3, 4, 5]\n",
-        "a_dictionary = {cat: 1, hat: 2, bat: 3.1416}\n",
-        "a_tuple = (string, 1, 42, 3+4j)\n",
+        'a_dictionary = {"cat": 1, "hat": 2, "bat": 3.1416}\n',
+        'a_tuple = ("string", 1, 42, 3+4j)\n',
     ],
     ids=["list", "dict", "tuple"],
 )

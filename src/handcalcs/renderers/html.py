@@ -5,6 +5,7 @@ from collections import deque
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     BaseRenderer,
+    render_constant as render_base_constant,
     render_subscript as render_bracketed_subscript,
     subscript_value,
     RenderContext,
@@ -573,6 +574,14 @@ def swap_identifier(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
         symbol = parse_identifier(identifier, options)
         node.identifier = html_symbol(symbol, base_context.current.space)
     return node
+
+
+@HTMLR.register("constant")
+def render_constant(renderer: HTMLR, node: Constant, base_context: BRC) -> str:
+    """A value; a string is escaped and shown in quotes, “W310x39”."""
+    if isinstance(node.value, str) and (node.calculated or node.source_text):
+        return f"“{escape(node.value)}”"
+    return render_base_constant(renderer, node, base_context)
 
 
 @HTMLR.register("subscript")

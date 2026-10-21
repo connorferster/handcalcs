@@ -844,6 +844,13 @@ def render_constant(
     # such as '.5g' would render literally instead of the value.
     if isinstance(node.value, (datetime.date, datetime.time)):
         return f"{node.value}"
+    # A string value (a literal from the source, or a calculated value) is shown
+    # in quotes, so it doesn't read as names or an expression: .to("kN*m"), not
+    # .to(kN*m). A string a renderer built as markup (neither) is shown as it is.
+    if isinstance(node.value, str):
+        if node.calculated or node.source_text:
+            return f'"{node.value}"'
+        return node.value
     # A number literal from the source is shown as written: the format code is
     # for calculated values (substitutions and results), not the formula's own
     # coefficients and exponents.
@@ -1281,17 +1288,20 @@ def render_function_call(
     renderer: BR, node: FunctionCall, base_context: BaseRenderContext
 ) -> str:
     context = base_context.current
-    function_name = renderer.render(node.function_name, base_context)
+    # A function's name, and a module or object it is called on, are symbols,
+    # not values: they render symbolically in both columns.
+    function_name = render_symbolic(renderer, node.function_name, base_context)
     # Check for the '__main__' namespace before rendering it: a renderer's
     # 'name:sym' rules (e.g. subscript swaps) would otherwise mangle the
     # identifier and the suppression would never match. An empty namespace
     # (e.g. one a renderer rule has cleared) also renders nothing.
     if not node.namespace or getattr(node.namespace, "identifier", None) == "__main__":
         namespace = ""
+    elif isinstance(node.namespace, Name):
+        namespace = render_symbolic(renderer, node.namespace, base_context)
     else:
-        namespace = renderer.render(node.namespace, base_context)
-        if receiver_needs_parens(node.namespace):
-            namespace = f"{context.lpar}{namespace}{context.rpar}"
+        # A method of an expression: the receiver is substituted like an operand.
+        namespace = render_receiver(renderer, node.namespace, base_context)
     args = [renderer.render(arg, base_context) for arg in node.args]
     arg_str = f",{context.space}".join(args)
     if namespace:

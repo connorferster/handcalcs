@@ -207,7 +207,7 @@ def test_name_value_raw_list_of_floats_formats_each_element(render):
 
 def test_name_value_raw_dict_of_floats_formats_each_element(render):
     value = {"a": 3.14159, "b": 2.0}
-    assert render(Name("d", value), current_mode="num", format_code=".3g") == "{a: 3.14, b: 2}"
+    assert render(Name("d", value), current_mode="num", format_code=".3g") == '{"a": 3.14, "b": 2}'
 
 
 def test_name_value_raw_nested_collection_formats_elements(render):
