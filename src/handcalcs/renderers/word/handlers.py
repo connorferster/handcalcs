@@ -26,6 +26,7 @@ from handcalcs.parsing.nodes import (
 )
 from handcalcs.parsing.operator_nodes import DivOp, FloorOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
+    elide_items,
     OP_PRECEDENCE,
     BaseRenderContext,
     is_source_number,
@@ -339,33 +340,30 @@ def render_constant(renderer: WR, node: Constant, base_context: BRC) -> str:
     return omml.text(formatted)
 
 
-def join_items(renderer: WR, items: list[str]) -> list[str]:
+def join_items(renderer: WR, items: list[str], base_context: BRC) -> list[str]:
     """
-    A collection's rendered items. An equation row cannot break, so more than
-    MAX_ITEMS items are elided to the first and last EDGE_ITEMS around "…".
+    A collection's rendered items, shortened around "…" by the ``max_items``
+    and ``edge_items`` render-context fields (an equation row cannot break).
     """
-    edge = renderer.EDGE_ITEMS
-    if len(items) > renderer.MAX_ITEMS:
-        items = [*items[:edge], omml.run("…"), *items[-edge:]]
-    return items
+    return elide_items(items, base_context, omml.run("…"))
 
 
 @WR.register("list")
 def render_list(renderer: WR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return omml.delim_items(join_items(renderer, elems), "[", "]")
+    return omml.delim_items(join_items(renderer, elems, base_context), "[", "]")
 
 
 @WR.register("tuple")
 def render_tuple(renderer: WR, node: Tuple, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return omml.delim_items(join_items(renderer, elems), "(", ")")
+    return omml.delim_items(join_items(renderer, elems, base_context), "(", ")")
 
 
 @WR.register("set")
 def render_set(renderer: WR, node: Set, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return omml.delim_items(join_items(renderer, elems), "{", "}")
+    return omml.delim_items(join_items(renderer, elems, base_context), "{", "}")
 
 
 @WR.register("dictionary")
@@ -373,7 +371,7 @@ def render_dictionary(renderer: WR, node: Dictionary, base_context: BRC) -> str:
     keys = [renderer.render(elem, base_context) for elem in node.keys]
     values = [renderer.render(elem, base_context) for elem in node.values]
     items = [f"{key}{omml.run(':')}{value}" for key, value in zip(keys, values)]
-    return omml.delim_items(join_items(renderer, items), "{", "}")
+    return omml.delim_items(join_items(renderer, items, base_context), "{", "}")
 
 
 @WR.register("inline_comment")

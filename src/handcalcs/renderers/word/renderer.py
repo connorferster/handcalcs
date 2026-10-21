@@ -71,10 +71,6 @@ class WordRenderer(BaseRenderer):
     CONTINUATION_INDENT: ClassVar[str] = omml.run(omml.EM_SPACE)
     # An inline comment starts with COMMENT_OPEN (see ``render_inline_comment``).
     COMMENT_OPEN: ClassVar[str] = omml.run(omml.EM_SPACE)
-    # Collections longer than MAX_ITEMS show only their first and last
-    # EDGE_ITEMS items (an equation row cannot break).
-    MAX_ITEMS: ClassVar[int] = 10
-    EDGE_ITEMS: ClassVar[int] = 3
     # A ``# hc: --check`` mark, after an em space.
     CHECK_MARKS: ClassVar[tuple[str, str]] = (
         omml.run(omml.EM_SPACE) + omml.text("✓"),

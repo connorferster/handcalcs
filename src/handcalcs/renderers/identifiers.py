@@ -17,7 +17,7 @@ between single underscores), or in a word of one (the text between ``__``):
 - as a whole name: ``sigma`` in ``sigma_max``;
 - as a Unicode letter anywhere: ``ΔH``, ``σ``;
 - as a name prefix followed by an uppercase letter or a digit: ``DeltaH``,
-  ``gammaM0``, ``alpha2`` (renderers turn this off with ``GREEK_PREFIXES``).
+  ``gammaM0``, ``alpha2`` (turned off with the ``greek_prefixes`` render-context field).
 
 ``split_greek`` finds them and returns the word as pieces; each renderer keeps
 its own output table and formatting, so only the recognition lives here.
@@ -237,15 +237,12 @@ def identifier_options(renderer: Any, base_context: Any = None) -> IdentifierOpt
     """
     The identifier options in effect: the ``greek_prefixes``, ``subscripts`` and
     ``symbols`` render-context fields (set with ``set_option`` or a ``# hc:``
-    comment), defaulting to the renderer's ``GREEK_PREFIXES`` and
-    ``SUBSCRIPT_STYLE`` class attributes and no symbols.
+    comment), defaulting to Greek prefixes on, comma subscripts and no symbols.
     """
     context = base_context.current if base_context is not None else None
     options = IdentifierOptions(
-        greek_prefixes=bool(
-            getattr(context, "greek_prefixes", renderer.GREEK_PREFIXES)
-        ),
-        subscripts=getattr(context, "subscripts", renderer.SUBSCRIPT_STYLE),
+        greek_prefixes=bool(getattr(context, "greek_prefixes", True)),
+        subscripts=getattr(context, "subscripts", "comma"),
         symbols=getattr(context, "symbols", None) or {},
     )
     if options.subscripts not in SUBSCRIPT_STYLES:

@@ -19,7 +19,6 @@ own subclass.
 | `BLOCK_PREFIX` | not used | `>` | Each line of an `if`/`for` body (blockquote) |
 | `HEADINGS` | `section*`, `subsection*`, `subsubsection*`, `paragraph*` | not used (`#` headings) | Headings by level |
 | `COMMENT_OPEN`, `COMMENT_CLOSE` | `\quad\text{(`, `)}` | inherited | Around an inline comment |
-| `MAX_ITEMS`, `EDGE_ITEMS` | `10`, `3` | inherited | Collections longer than `MAX_ITEMS` show `EDGE_ITEMS` at each end |
 | `OPERATOR_SYMBOLS` | `{"mult_op": "\\cdot", ...}` | adds `\lt`, `\gt` | The symbol for each operator node type |
 | `MATH_FUNCS` | `{"sin": "\\sin", ...}` | inherited | Function names typeset as operators |
 

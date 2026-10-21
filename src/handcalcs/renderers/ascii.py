@@ -285,7 +285,7 @@ def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     """
     Swap the Greek names in a Name's identifier for the letters: each
     ``_``-separated component and each ``__``-separated word of one, plus (with
-    ``GREEK_PREFIXES``) a leading Greek name before an uppercase letter or a
+    ``greek_prefixes``) a leading Greek name before an uppercase letter or a
     digit (``sigma_max`` -> ``σ_max``, ``DeltaH`` -> ``ΔH``). A ``__`` is shown
     as a space (``Delta__H`` -> ``Δ H``).
 

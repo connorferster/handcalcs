@@ -4,6 +4,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Optional, Any
 from handcalcs.renderers.base import (
+    elide_items,
     BaseRenderer,
     RenderContext,
     BaseRenderContext,
@@ -401,7 +402,6 @@ class LatexRenderer(BaseRenderer):
     # An inline comment renders as COMMENT_OPEN + text + COMMENT_CLOSE.
     COMMENT_OPEN = "\\quad\\text{("
     COMMENT_CLOSE = ")}"
-    EDGE_ITEMS = 3
     HEADINGS = ("section*", "subsection*", "subsubsection*", "paragraph*")
     # Symbol tables used by the swap rules; override in a subclass to change them.
     OPERATOR_SYMBOLS = OPERATOR_SYMBOLS
@@ -982,34 +982,31 @@ def format_latex_quantity(value, format_code: str) -> Optional[str]:
     return f"{typeset_latex_number(number.group())}\\ {units}"
 
 
-def join_items(renderer: LR, items: list[str]) -> str:
+def join_items(renderer: LR, items: list[str], base_context: BRC) -> str:
     """
-    Comma-join a collection's rendered items. An ``aligned`` row cannot
-    break, so a collection with more than MAX_ITEMS items is elided to its
-    first and last EDGE_ITEMS items around ``\\ldots``.
+    Comma-join a collection's rendered items, shortened around ``\\ldots``
+    by the ``max_items`` and ``edge_items`` render-context fields (an
+    ``aligned`` row cannot break).
     """
-    edge = renderer.EDGE_ITEMS
-    if len(items) > renderer.MAX_ITEMS:
-        items = [*items[:edge], "\\ldots", *items[-edge:]]
-    return ", ".join(items)
+    return ", ".join(elide_items(items, base_context, "\\ldots"))
 
 
 @LR.register("list")
 def render_list(renderer: LR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"[{join_items(renderer, elems)}]"
+    return f"[{join_items(renderer, elems, base_context)}]"
 
 
 @LR.register("tuple")
 def render_tuple(renderer: LR, node: Tuple, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"({join_items(renderer, elems)})"
+    return f"({join_items(renderer, elems, base_context)})"
 
 
 @LR.register("set")
 def render_set(renderer: LR, node: Set, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
-    return f"\\{{{join_items(renderer, elems)}\\}}"
+    return f"\\{{{join_items(renderer, elems, base_context)}\\}}"
 
 
 @LR.register("dictionary")
@@ -1017,7 +1014,7 @@ def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
     keys = [renderer.render(elem, base_context) for elem in node.keys]
     values = [renderer.render(elem, base_context) for elem in node.values]
     items = [f"{key}\\colon {value}" for key, value in zip(keys, values)]
-    return f"\\{{{join_items(renderer, items)}\\}}"
+    return f"\\{{{join_items(renderer, items, base_context)}\\}}"
 
 
 @LR.register("inline_comment")
