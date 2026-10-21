@@ -19,6 +19,7 @@
 
 | Module | Contents |
 |---|---|
+| {src}`handcalcs.parsing.line_values` | Records each statement's values while the source runs. |
 | {src}`handcalcs.parsing.ast_parser` | `AST_Parser`: Python `ast` → handcalcs nodes, comment classification, parameter grids. The largest module. |
 | {src}`handcalcs.parsing.sequence` | `HcSequence` (the root) and the post-parse passes: `convert_if_tree`, `group_lines`, `set_levels`. |
 | {src}`handcalcs.parsing.nodes` | Value nodes: `Name`, `Attribute`, `Constant`, collections. |

@@ -6,13 +6,17 @@ bare ``HandCalcs()`` behaves the way they prefer. The configuration is a JSON fi
 stored in the per-user config location for the operating system (resolved by
 ``platformdirs``), e.g. ``~/.config/handcalcs/hc_config.json`` on Linux.
 
-Three base options are recognised:
+Four base options are recognised:
 
 - ``default_renderer``: the ``name`` of the renderer a bare ``HandCalcs()`` uses.
 - ``jupyter_renderer``: the ``name`` of the renderer the ``%%render`` cell magic
   uses (set it for the session with ``%hc_default_renderer``).
 - ``format_code``: the default float format code used for all values, unless a
   comment command (e.g. ``# hc: -f .3g``) overrides it for a line/block.
+- ``line_values``: record each line's values while the source runs (the
+  default), so a line shows the values it ran with. ``False`` runs the source
+  with a single ``exec``, as before 2.0: faster for loops with many passes, but
+  every line shows the values after the run (see ``parsing.line_values``).
 
 In addition, arbitrary extra fields may be set. These are ignored by the base
 renderer but are threaded onto the render context when rendering, so a custom
@@ -41,6 +45,7 @@ DEFAULTS: dict[str, Any] = {
     "default_renderer": "base",
     "jupyter_renderer": "markdown",
     "format_code": ".5g",
+    "line_values": True,
 }
 
 # The base options whose value type is validated by set_option (all strings).
@@ -50,11 +55,17 @@ _BASE_OPTION_TYPES: dict[str, type] = {
     "default_renderer": str,
     "jupyter_renderer": str,
     "format_code": str,
+    "line_values": bool,
 }
 
 # The options that choose a renderer (rather than configure rendering); they are
 # not threaded onto the render context.
 RENDERER_OPTIONS = frozenset({"default_renderer", "jupyter_renderer"})
+
+# The options that change how the source runs; they are not threaded onto the
+# render context either.
+RUN_OPTIONS = frozenset({"line_values"})
+NON_CONTEXT_OPTIONS = RENDERER_OPTIONS | RUN_OPTIONS
 
 # Environment variable that overrides the config file location (used by tests and
 # power users who want a project-local config).

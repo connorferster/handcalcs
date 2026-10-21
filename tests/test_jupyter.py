@@ -249,3 +249,46 @@ def test_error_with_inputs_is_raised(shell):
     with pytest.raises(ZeroDivisionError):
         ip.run_cell_magic("render", "inputs=case", "a = 2\nc = 1 / a\n")
     assert "__hc_input__" not in ip.user_ns
+
+
+# -- each line's own values (B2, B3) ------------------------------------------
+
+
+def test_cell_lines_show_their_own_values(shell):
+    ip, _ = shell
+    markdown = render_cell(ip, "a = 2\nb = a * 3\na = 10\n")["text/markdown"]
+    assert "a &= 2" in markdown
+    assert "b &= a \\cdot 3 = 2 \\cdot 3 = 6" in markdown
+
+
+def test_cell_shows_the_branch_that_ran(shell):
+    ip, _ = shell
+    cell = "x = 5\nif x > 3:\n    x = 1\n    y = 2\nelse:\n    y = 3\n"
+    markdown = render_cell(ip, cell)["text/markdown"]
+    assert "y &= 2" in markdown
+    assert "Otherwise" not in markdown
+
+
+def test_cell_calling_a_function_defined_in_it(shell):
+    ip, _ = shell
+    cell = "def f(v):\n    w = v * 100\n    return w\nr = f(2)\nr = r + 1\n"
+    markdown = render_cell(ip, cell)["text/markdown"]
+    assert "r &= \\operatorname{f}\\left(2\\right) = 200" in markdown
+    assert "r &= r + 1 = 200 + 1 = 201" in markdown
+
+
+def test_cell_with_inputs_shows_its_own_values(shell):
+    ip, _ = shell
+    ip.user_ns["case"] = {"a": 7}
+    markdown = render_cell_with(ip, "inputs=case", "a = 2\nb = a + 1\na = 0\n")[
+        "text/markdown"
+    ]
+    assert "a &= 7" in markdown
+    assert "b &= a + 1 = 7 + 1 = 8" in markdown
+
+
+def test_cell_without_line_values(shell):
+    ip, _ = shell
+    config.set_option("line_values", False)
+    markdown = render_cell(ip, "a = 2\nb = a * 3\na = 10\n")["text/markdown"]
+    assert "b &= a \\cdot 3 = 10 \\cdot 3 = 6" in markdown

@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass, field
 import tokenize
 from typing import Union, Optional
-from collections import deque, Counter
+from collections import deque, ChainMap, Counter
 from collections.abc import Mapping, Sequence
 from .nodes import (
     Attribute,
@@ -19,6 +19,7 @@ from .nodes import (
     Subscript,
     Slice,
 )
+from .line_values import LineValues
 from .block_nodes import ForBlock, IfBlock, ElifBlock, HcBlockNode, ParamsBlock
 from .line_nodes import CalcLine, ExprLine, CommentLine, CommentCommand, Heading, Import
 from .inline_nodes import (
@@ -156,6 +157,55 @@ class AST_Parser:
     current_block: Optional[Union[ForBlock, IfBlock]] = None
     show_notimplemented: bool = False
     source: str = ""
+    # The values each statement ran with (see ``line_values``). Without them,
+    # every name takes its value from 'globals', the namespace after the run.
+    line_values: Optional[LineValues] = None
+
+    def __post_init__(self):
+        self.final_globals = self.globals
+
+    def _values(self, snapshot: Optional[dict]):
+        """The namespace for a statement: its snapshot over the final namespace."""
+        if snapshot is None:
+            return self.final_globals
+        return ChainMap(snapshot, self.final_globals)
+
+    def _enter_statement(self, node: ast.stmt) -> None:
+        """
+        Look names up in the values from just before the statement ran: the
+        values its expression and an if test or loop header were evaluated with.
+        An ``elif`` that was not reached keeps the values of the ``if`` above.
+        """
+        if self.line_values is None:
+            return
+        before = self.line_values.values_before(node.lineno)
+        if before is None and isinstance(node, ast.If):
+            return
+        self.globals = self._values(before)
+
+    def _comment_values(self, snapshot: dict):
+        """
+        The values for ``{{ }}`` in a standalone comment: a name the source has
+        not assigned yet at that point is left undefined (not given its final
+        value); a name the source never assigns keeps its value from the namespace.
+        """
+        unused = {
+            name: value
+            for name, value in self.final_globals.items()
+            if name not in self.line_values.names
+        }
+        return ChainMap(snapshot, unused)
+
+    def _set_comment_values(self, comment):
+        """Fill ``{{ }}`` in an inline comment from the line's current values."""
+        if self.line_values is not None and hasattr(comment, "namespace"):
+            comment.namespace = self.globals
+        return comment
+
+    def _leave_statement(self, node: ast.stmt) -> None:
+        """Look names up in the values from just after the statement ran."""
+        if self.line_values is not None:
+            self.globals = self._values(self.line_values.values_after(node.lineno))
 
     def __call__(self, source: str) -> deque:
         """
@@ -236,7 +286,13 @@ class AST_Parser:
         pending = getattr(self, "_pending_comment_rows", deque())
         while pending and pending[0] < before:
             row = pending.popleft()
-            out.append(self._make_comment_line(self.line_comments[row]))
+            comment = self._make_comment_line(self.line_comments[row])
+            if hasattr(comment, "namespace") and self.line_values is not None:
+                # The values at this point: just before the next statement ran.
+                before_next = self.line_values.values_before(before)
+                if before_next is not None:
+                    comment.namespace = self._comment_values(before_next)
+            out.append(comment)
         return out
 
     def _has_pending_comment_before(self, before: int) -> bool:
@@ -359,6 +415,8 @@ class AST_Parser:
         Recursively converts an AST node into the custom nested list/dict structure.
         """
         new_line = True
+        if isinstance(node, ast.stmt):
+            self._enter_statement(node)
         if hasattr(node, "lineno"):
             self.current_line_number = node.lineno
         else:
@@ -482,6 +540,7 @@ class AST_Parser:
         elif isinstance(node, ast.If):
             if_block = IfBlock()
 
+            header_values = self.globals
             # "test": The condition (nested list via recursive call)
             if_block.test = self.ast_parse(node.test)
             # Evaluate against a flattened *copy* of the namespace so that the
@@ -501,6 +560,7 @@ class AST_Parser:
             if_block.lines.extend(self._parse_body(node.body))
 
             # "orelse": The block of code inside the else/elif (nested list)
+            self.globals = header_values
             if node.orelse:
                 # If `orelse` contains another `ast.If` (an `elif`), we recursively
                 # call self.ast_parse on that one.
@@ -521,13 +581,13 @@ class AST_Parser:
             # "target": the loop variable, or several (``for i, x in ...``)
             for_block.assigns.append(self._target(node.target))
 
-            # "body": nested list of the for loop's body
-            for_block.lines.extend(self._parse_body(node.body))
-
             # "iter": the iterable as a one-element deque, whatever its kind
             # (a Name, a call such as range(3), or a literal collection), so
             # renderers can always read ``iterator[0]``.
             for_block.iterator = deque([self.ast_parse(node.iter)])
+
+            # "body": nested list of the for loop's body
+            for_block.lines.extend(self._parse_body(node.body))
 
             val = self.current_block = for_block
 
@@ -592,6 +652,10 @@ class AST_Parser:
             )  # True if the expression tree is nested in parenths
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
+            # The targets (and the inline comment) show the values the
+            # assignment gave them.
+            self._leave_statement(node)
+            self._set_comment_values(comment_content)
             calc_line = CalcLine(
                 assigns=deque([self._target(n) for n in node.targets]),
                 expression_tree=expression_tree,
@@ -666,7 +730,7 @@ class AST_Parser:
             parsed_node = self.ast_parse(node.value)
             val = ExprLine(
                 expression_tree=deque([parsed_node]),
-                comment=self._inline_comment(node),
+                comment=self._set_comment_values(self._inline_comment(node)),
             )
             if not isinstance(parsed_node, (NoValue, HcNotImplemented)) and not (
                 isinstance(parsed_node, Constant) and isinstance(parsed_node.value, str)

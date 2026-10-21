@@ -37,10 +37,26 @@ statement of a body has no statement to attach to.
 
 ### Values
 
-A `Name` gets its value with `self.globals.get(identifier, NoValue())`; an `Attribute`
-looks up its namespace and then the attribute. Values are looked up once, at parse time,
-from the namespace after the code has run. There is no tracking of reassignment, which is
-why a reassigned name shows its final value everywhere.
+A `Name` gets its value from `self.globals`; an `Attribute` looks up its namespace and
+then the attribute.
+
+While the source runs, {src}`LineValues <handcalcs.parsing.line_values.LineValues>`
+records a {src}`StatementValues <handcalcs.parsing.line_values.StatementValues>`
+(`before`, `after`) for each statement, keyed by the statement's first line (for a
+statement in a loop, during the last pass). It watches the line events of the source's
+own frames only: `sys.monitoring` on Python 3.12+ (so library code runs untraced),
+`sys.settrace` on 3.11. A new statement starting is the one moment anything is recorded:
+one snapshot is both the `after` of the statement that ended and the `before` of the one
+that starts. Only names the source assigns can change while it runs, so a snapshot holds
+only those that the two statements use (plus names in `{{ }}` in comments). Values are
+not copied. With the `line_values` option off, the source runs with a single `exec` and
+nothing is recorded.
+
+The parser switches `self.globals` as it goes: before parsing a statement, to the values
+from just before it ran (an expression's operands, an `if` test, a loop's iterable);
+before parsing an assignment's targets, to the values from just after it. A statement
+with no recorded values (a branch that did not run, or a namespace supplied without
+running the source) uses the namespace after the run.
 
 ### Unsupported syntax
 
@@ -72,6 +88,6 @@ runs three passes over the tree:
 
 ## Which branch ran
 
-An `IfBlock` records `is_true`: whether its test was true, evaluated against the
-namespace at parse time. The base `elif_block` handler renders only the first true branch
+An `IfBlock` records `is_true`: whether its test was true, evaluated with the values from
+just before the `if` ran (see [Values](#values)). The base `elif_block` handler renders only the first true branch
 (or the `else`), which is how the output shows only the reasoning that applies.

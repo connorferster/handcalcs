@@ -53,6 +53,10 @@ class Compare(HcNode):
 class InlineComment(HcInlineNode):
     content: str
     type: str = "inline_comment"
+    # The values ``{{ }}`` in the comment are filled from (set by the parser
+    # when the values of each line were recorded); None for the namespace
+    # after the run.
+    namespace: Any = field(default=None, compare=False, repr=False)
 
 
 @dataclass

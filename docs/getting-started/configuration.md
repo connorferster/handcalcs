@@ -17,6 +17,7 @@ handcalcs.save_config()                      # and every session after
 | `format_code` | `".5g"` | Every renderer: the default [number format](formatting-numbers.md). |
 | `default_renderer` | `"base"` | `HandCalcs()` with no renderer argument. The name of a [renderer](../renderers/index.md). |
 | `jupyter_renderer` | `"markdown"` | The `%%render` cell magic. Also set by `%hc_default_renderer`. |
+| `line_values` | `True` | `HandCalcs`, `%%render` and `@handcalc`: record each line's values while the code runs. See [line values](#line-values). |
 
 Renderer names are `base`, `ascii`, `latex`, `markdown`, `html` and `excel`, plus the
 name of any custom renderer that has been imported.
@@ -29,10 +30,28 @@ Any other option name is accepted, with any value:
 handcalcs.set_option("highlight_results", True)
 ```
 
-Every option except `default_renderer` and `jupyter_renderer` is copied onto the
+Every option except `default_renderer`, `jupyter_renderer` and `line_values` is copied onto the
 **render context** of every render. Built-in renderers ignore names they don't know; a
 [custom renderer](../building-renderers/render-context.md) can read them. This is how a
 renderer gets settings that differ per user or per project.
+
+### Line values
+
+While your code runs, handcalcs records the values of its variables at each line, so a
+line shows the values it ran with even when a name is assigned again later (see
+[How handcalcs reads your code](how-it-works.md)). Recording costs a little time for every
+line of your code that runs: a fraction of a millisecond for a typical calculation, but a
+loop that runs thousands of times takes several times longer. Code in the libraries you
+call (numpy, pint) is not slowed down on Python 3.12 and later.
+
+To trade that for speed, turn it off:
+
+```python
+handcalcs.set_option("line_values", False)
+```
+
+The code then runs with a single `exec`, and every line shows the values from **after**
+the code has run, so a name assigned more than once shows its final value everywhere.
 
 ## Functions
 

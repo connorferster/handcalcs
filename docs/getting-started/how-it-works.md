@@ -7,15 +7,26 @@ of line turns into.
 ## What happens when you render
 
 1. **Your code runs** as ordinary Python (in the notebook, or with `exec` for a
-   script), producing a namespace of variable values.
+   script). While it runs, handcalcs records the values of its variables just before
+   and just after each statement.
 2. **handcalcs parses the source**, statement by statement, into a tree of nodes.
-   Each variable in the tree is paired with its value from the namespace.
+   Each variable in the tree is paired with the value it had on that line: a
+   calculation substitutes the values its operands had when it ran, and its result is
+   the value it produced.
 3. **A renderer turns the tree into output**: the symbolic form uses the variable
    names, the numeric form uses their values.
 
-```{important}
-Values are looked up **after the code has run**. If a name is assigned twice, every line
-shows its *final* value. Give each quantity its own name (see [Gotchas](gotchas.md)).
+So a name can be reassigned: each line shows the value it had there, and an `if` shows
+the branch that ran with the values its test was evaluated with:
+
+```{hc-example}
+:renderer: ascii
+a = 2
+b = a * 3
+a = a + 8
+if a > 5:
+    a = 1
+    c = b + a
 ```
 
 ## Kinds of line
@@ -100,7 +111,7 @@ b = 10 if a > 0 else -10
 | Source | Becomes |
 |---|---|
 | `if` / `elif` / `else` | The condition that was true, symbolically and with values, followed by that branch's lines. Branches that did not run are not shown. |
-| `for` | A line describing the loop, followed by its body. The body shows the values from the **last** iteration. |
+| `for` | A line describing the loop, followed by its body. The body shows the values of the **last** pass through the loop. |
 
 See [Writing calculations](writing-calculations.md#conditionals) for examples.
 

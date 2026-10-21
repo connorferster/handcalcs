@@ -912,10 +912,12 @@ def interpolate_jinja_strings(
     base_context: BaseRenderContext,
 ) -> str:
     context = base_context.current
-    if hasattr(context, "global_ns"):
+    namespace = getattr(node, "namespace", None)
+    if namespace is None:
+        namespace = getattr(context, "global_ns", None)
+    if namespace is not None:
         template = jinja_env.from_string(node.content)
-        jinja_rendered = template.render(context.global_ns)
-        node.content = jinja_rendered
+        node.content = template.render(dict(namespace))
     return node
 
 

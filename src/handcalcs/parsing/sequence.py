@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from collections import deque, ChainMap
 from typing import Callable, Optional
 from .ast_parser import AST_Parser
+from .line_values import LineValues
 from .block_nodes import (
     ElifBlock,
     IfBlock,
@@ -24,12 +25,20 @@ class HcSequence(HcNode):
     hc_locals: Optional[dict] = None
 
     @classmethod
-    def from_source(cls, source_code: str, hc_globals: dict, hc_locals: dict):
+    def from_source(
+        cls,
+        source_code: str,
+        hc_globals: dict,
+        hc_locals: dict,
+        line_values: Optional[LineValues] = None,
+    ):
         """
-        Builds an HcSequence tree from Python source code.
+        Builds an HcSequence tree from Python source code. With 'line_values'
+        (recorded while the source ran), each line shows the values it ran
+        with; otherwise every value comes from the namespace after the run.
         """
         context = ChainMap(hc_locals, hc_globals)
-        parser = AST_Parser(context)
+        parser = AST_Parser(context, line_values=line_values)
         tree = parser(source_code)
 
         tree = HcSequence.apply_blocks(tree, convert_if_tree)
