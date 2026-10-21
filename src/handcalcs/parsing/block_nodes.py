@@ -1,8 +1,8 @@
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional, Callable
-from .nodes import Attribute, List, Tuple, Dictionary, Set, HcNode
-from .line_nodes import CalcLine, ExprLine, Heading, CommentCommand, CommentLine
+from .nodes import List, Tuple, Dictionary, Set, HcNode
+from .line_nodes import CalcLine, ExprLine, CommentLine
 
 
 @dataclass
@@ -42,26 +42,14 @@ class CalcsBlock(HcBlockNode):
     type: str = "calcs_block"
 
 
-@dataclass
-class FunctionBlock(HcBlockNode):
-    lines: deque[
-        HcBlockNode | CalcLine | ExprLine | Heading | CommentCommand | CommentLine
-    ] = field(default_factory=deque)
-    namespace: deque[str] = field(default_factory=deque)
-    function_name: deque[Attribute | str] = field(default_factory=deque)
-    args: deque[Any] = field(default_factory=deque)
-    params: deque[str] = field(default_factory=deque)
-    type: str = "function_block"
-
-
 # Use leading underscores for attribute
 @dataclass
 class ForBlock(HcBlockNode):
     lines: deque[HcBlockNode | CalcLine | ExprLine] = field(default_factory=deque)
     assigns: deque[str] = field(default_factory=deque)
-    iterator: deque[
-        HcBlockNode | FunctionBlock | ExprLine | List | Tuple | Dictionary | str
-    ] = field(default_factory=deque)
+    iterator: deque[HcBlockNode | ExprLine | List | Tuple | Dictionary | str] = field(
+        default_factory=deque
+    )
     type: str = "for_block"
 
 

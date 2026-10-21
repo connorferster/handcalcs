@@ -15,7 +15,6 @@ page explains what each node represents.
 | `params_block` | {src}`ParamsBlock <handcalcs.parsing.block_nodes.ParamsBlock>` | `lines`, `with_comments` |
 | `comments_block` | {src}`CommentsBlock <handcalcs.parsing.block_nodes.CommentsBlock>` | `lines` |
 | `calcs_block` | {src}`CalcsBlock <handcalcs.parsing.block_nodes.CalcsBlock>` | `lines` |
-| `function_block` | {src}`FunctionBlock <handcalcs.parsing.block_nodes.FunctionBlock>` | `lines`, `namespace`, `function_name`, `args`, `params` |
 | `for_block` | {src}`ForBlock <handcalcs.parsing.block_nodes.ForBlock>` | `lines`, `assigns`, `iterator` |
 | `if_block` | {src}`IfBlock <handcalcs.parsing.block_nodes.IfBlock>` | `lines`, `test`, `orelse`, `is_true` |
 | `else_block` | {src}`ElseBlock <handcalcs.parsing.block_nodes.ElseBlock>` | `lines` |

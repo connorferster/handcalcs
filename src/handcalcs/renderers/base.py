@@ -76,7 +76,6 @@ from handcalcs.parsing.block_nodes import (
     ElseBlock,
     ElifBlock,
     ForBlock,
-    FunctionBlock,
     ParamsBlock,
     CommentsBlock,
     CalcsBlock,
@@ -1799,7 +1798,6 @@ def render_block_body(
 @BaseRenderer.register("if_block")
 @BaseRenderer.register("for_block")
 @BaseRenderer.register("else_block")
-@BaseRenderer.register("function_block")
 def render_generic_block(
     renderer: BaseRenderer, node: CommentsBlock, base_context: BaseRenderContext
 ) -> str:
@@ -1825,23 +1823,6 @@ def else_block_header(
     renderer: BaseRenderer, node: ElseBlock, base_context: BaseRenderContext
 ) -> str:
     return "Otherwise:"
-
-
-@BaseRenderer.register("header:function_block")
-def function_block_header(
-    renderer: BaseRenderer, node: FunctionBlock, base_context: BaseRenderContext
-) -> str:
-    """Best-guess header for a symbolic function definition block."""
-    context = base_context.current
-    _ = context.space
-    base_context.line_context.current_mode = "sym"
-    name_parts = [
-        renderer.render(part, base_context) if hasattr(part, "type") else str(part)
-        for part in node.function_name
-    ]
-    name = "".join(name_parts)
-    params = f",{_}".join(str(param) for param in node.params)
-    return f"Evaluating{_}{name}({params}):"
 
 
 @BaseRenderer.register("header:if_block")

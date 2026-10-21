@@ -75,8 +75,3 @@ runs three passes over the tree:
 An `IfBlock` records `is_true`: whether its test was true, evaluated against the
 namespace at parse time. The base `elif_block` handler renders only the first true branch
 (or the `else`), which is how the output shows only the reasoning that applies.
-
-## Experimental: function recursion
-
-{src}`handcalcs.parsing.function_recursion.source_expander` is groundwork for expanding
-calls to user functions into their bodies. It is not used by the parser yet.

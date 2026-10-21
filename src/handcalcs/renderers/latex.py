@@ -84,7 +84,6 @@ from handcalcs.parsing.block_nodes import (
     ElifBlock,
     CalcsBlock,
     ForBlock,
-    FunctionBlock,
 )
 
 BRC = BaseRenderContext
@@ -679,17 +678,6 @@ def for_block_header(renderer: LR, node: ForBlock, base_context: BRC) -> str:
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     return f"Iterating over each ${target}$ in ${iterable}$:"
-
-
-@LR.register("header:function_block")
-def function_block_header(renderer: LR, node: FunctionBlock, base_context: BRC) -> str:
-    base_context.line_context.current_mode = "sym"
-    name = "".join(
-        renderer.render(part, base_context) if hasattr(part, "type") else str(part)
-        for part in node.function_name
-    )
-    params = ", ".join(str(param) for param in node.params)
-    return f"Evaluating ${name}\\left({params}\\right)$:"
 
 
 @LR.register("function_call")

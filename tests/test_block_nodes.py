@@ -9,7 +9,6 @@ import pytest
 from handcalcs.parsing.nodes import Name, Constant
 from handcalcs.parsing.line_nodes import CalcLine
 from handcalcs.parsing.block_nodes import (
-    FunctionBlock,
     ForBlock,
     IfBlock,
     ElseBlock,
@@ -24,8 +23,6 @@ def _calc(identifier, value):
 
 
 def test_block_defaults():
-    assert FunctionBlock().type == "function_block"
-    assert FunctionBlock().level == 0
     assert ForBlock().type == "for_block"
     assert IfBlock().type == "if_block"
     assert IfBlock().is_true is None

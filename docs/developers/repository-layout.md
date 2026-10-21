@@ -23,13 +23,12 @@
 | {src}`handcalcs.parsing.sequence` | `HcSequence` (the root) and the post-parse passes: `convert_if_tree`, `group_lines`, `set_levels`. |
 | {src}`handcalcs.parsing.nodes` | Value nodes: `Name`, `Attribute`, `Constant`, collections. |
 | {src}`handcalcs.parsing.line_nodes` | `CalcLine`, `ExprLine`, `CommentLine`, `Heading`, `CommentCommand`, `Import`. |
-| {src}`handcalcs.parsing.block_nodes` | `IfBlock`, `ElifBlock`, `ElseBlock`, `ForBlock`, `FunctionBlock`, `ParamsBlock`, `CalcsBlock`, `CommentsBlock`. |
+| {src}`handcalcs.parsing.block_nodes` | `IfBlock`, `ElifBlock`, `ElseBlock`, `ForBlock`, `ParamsBlock`, `CalcsBlock`, `CommentsBlock`. |
 | {src}`handcalcs.parsing.inline_nodes` | `FunctionCall`, `Keyword`, `Compare`, `InlineComment`, `InlineCommand`, comprehensions. |
 | {src}`handcalcs.parsing.operator_nodes` | Binary, unary, comparison and boolean operators. |
 | {src}`handcalcs.parsing.comment_parser` | Is a comment a heading, a command? Splitting and executing command text. |
 | {src}`handcalcs.parsing.commands` | The `argparse` parser for `# hc:` flags. |
 | {src}`handcalcs.parsing.null_values` | `NoValue`, `HcNotImplemented`. |
-| {src}`handcalcs.parsing.function_recursion.source_expander` | Experimental: expanding calls into user functions. Not wired into the parser yet. |
 
 ### `renderers/`
 

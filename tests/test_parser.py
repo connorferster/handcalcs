@@ -66,12 +66,9 @@ import math
 import pytest
 from collections import deque, ChainMap
 
-import submodule_1 as sub1
-import submodule_2 as sub2
-
 @pytest.fixture
 def basic_parser():
-    parser = AST_Parser(globals(), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(globals())
     return parser
 
 def test_calc_lines(basic_parser):
@@ -207,11 +204,6 @@ def test_calc_lines(basic_parser):
             ])
 
 
-# def test_function_recursion(basic_parser):
-#     source_1 = "a = sub1.my_calc(2, 3)"
-#     ...  # (left commented out; predates the operator-node AST)
-
-
 def test_if_blocks():
     # The if/elif/else evaluation needs `a` and `b` resolvable, so build a
     # parser whose context (locals, globals) is a ChainMap like HcSequence does.
@@ -229,7 +221,7 @@ else:
     abs(d)
 """
     basic_parser = AST_Parser(
-        ChainMap({}, {"a": 4, "b": 5}), global_exclusions=['collections', 'deque']
+        ChainMap({}, {"a": 4, "b": 5})
     )
     assert basic_parser(source_1) == deque([
         CalcLine(
@@ -413,7 +405,7 @@ values = [elem + b for elem in a]
 """
     source_1_locals = {}
     exec(source_1, source_1_locals)
-    basic_parser = AST_Parser(globals() | source_1_locals, global_exclusions=['collections', 'deque'])
+    basic_parser = AST_Parser(globals() | source_1_locals)
     assert basic_parser(source_1) == deque([
         Import(
             names=deque([
@@ -562,7 +554,7 @@ values = [elem + b for elem in a]
 
     source_2_locals = {}
     exec(source_2, source_2_locals)
-    basic_parser = AST_Parser(globals() | source_2_locals, global_exclusions=['collections', 'deque'])
+    basic_parser = AST_Parser(globals() | source_2_locals)
     assert basic_parser(source_2) == deque([
         CalcLine(
             assigns=deque([
@@ -1712,7 +1704,7 @@ a = 2  # an inline note
 b = a + 12321  # hc: precision=3
 c = b + 1.6578468413515 # hc: -f 5E
 """
-    basic_parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    basic_parser = AST_Parser(ChainMap({}, {}))
     assert basic_parser(source) == deque([
             Heading(
                 content='A heading',
@@ -1795,7 +1787,7 @@ def test_comment_interleaving_in_block():
     c = i + 1  # hc: decimals=2
 """
     basic_parser = AST_Parser(
-        ChainMap({}, {"x": [1, 2, 3]}), global_exclusions=['collections', 'deque']
+        ChainMap({}, {"x": [1, 2, 3]})
     )
     assert basic_parser(source) == deque([
             ForBlock(
@@ -1847,7 +1839,7 @@ def test_comment_interleaving_in_block():
 def test_unary_operator_parsing():
     # Unary operators (e.g. -10.423, -b) are parsed into HcUnaryOp nodes rather
     # than falling through to NoValue/HcNotImplemented.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
 
     assert parser("b = -10.423") == deque([
         CalcLine(
@@ -1872,7 +1864,7 @@ def test_unary_operator_parsing():
 def test_boolean_operator_parsing():
     # ``and`` / ``or`` parse into AndOp / OrOp nodes holding an n-ary ``values``
     # deque (not a left/right pair).
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
 
     assert parser("r = a and b") == deque([
         CalcLine(
@@ -1899,7 +1891,7 @@ def test_boolean_operator_parsing():
 
 def test_nested_boolean_operator_parsing():
     # ``a and (b or c)`` nests an OrOp inside an AndOp's values.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     assert parser("r = a and (b or c)") == deque([
         CalcLine(
             assigns=deque([Name(identifier='r')]),
@@ -1919,7 +1911,7 @@ def test_nested_boolean_operator_parsing():
 def test_not_operator_parsing():
     # ``not`` is a unary operator (ast.UnaryOp), parsed into an HcUnaryOp whose
     # symbol carries a trailing space so it reads as ``not a``.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     result = parser("r = not a")
     assert result == deque([
         CalcLine(
@@ -1950,7 +1942,7 @@ def test_not_operator_parsing():
 def test_comparison_operator_parsing(source, op_cls):
     # Relational, identity and membership ops are all comparison ops: they land
     # in a Compare deque as operator instances between the two operands.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     assert parser(source) == deque([
         CalcLine(
             assigns=deque([Name(identifier='r')]),
@@ -1968,7 +1960,7 @@ def test_comparison_operator_parsing(source, op_cls):
 def test_boolean_operator_in_if_test():
     # A boolean operator used as an if-condition parses into the IfBlock's
     # ``test`` as an AndOp (not a Compare).
-    parser = AST_Parser(ChainMap({}, {"a": 4, "b": 5}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {"a": 4, "b": 5}))
     result = parser("if a > 1 and b < 10:\n    d = 1\n")
     assert len(result) == 1
     if_block = result[0]
@@ -1982,7 +1974,7 @@ def test_boolean_operator_in_if_test():
 
 def test_set_literal_parsing():
     # Set literals ({1, 2, 3}) are parsed into a Set node.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     assert parser("s = {1, 2, 3}") == deque([
         CalcLine(
             assigns=deque([Name(identifier='s')]),
@@ -1995,7 +1987,7 @@ def test_set_literal_parsing():
 
 def test_line_break_comment_command_parsing():
     # A standalone `# hc: -b` parses to a CommentCommand carrying line_break=True.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     result = parser("# hc: -b\n")
     assert len(result) == 1
     node = result[0]
@@ -2006,7 +1998,7 @@ def test_line_break_comment_command_parsing():
 def test_params_block_groups_semicolon_line():
     # Two or more assignments on one physical line (';') group into a
     # ParamsBlock; a lone assignment on its own line does not.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     result = parser("a = 1; b = 2; c = 3\nd = 4\n")
     assert len(result) == 2
     block, lone = result
@@ -2018,7 +2010,7 @@ def test_params_block_groups_semicolon_line():
 
 def test_params_block_merges_consecutive_semicolon_lines():
     # Consecutive multi-assignment lines merge into a single ParamsBlock.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     result = parser("a = 1; b = 2\nc = 3; d = 4\n")
     assert len(result) == 1
     assert isinstance(result[0], ParamsBlock)
@@ -2027,7 +2019,7 @@ def test_params_block_merges_consecutive_semicolon_lines():
 
 def test_lone_assignments_are_not_grouped():
     # A run of single-assignment lines is left as individual CalcLines.
-    parser = AST_Parser(ChainMap({}, {}), global_exclusions=['collections', 'deque'])
+    parser = AST_Parser(ChainMap({}, {}))
     result = parser("a = 1\nb = 2\nc = 3\n")
     assert len(result) == 3
     assert all(isinstance(node, CalcLine) for node in result)
