@@ -39,16 +39,16 @@ from typing import Any
 import platformdirs
 
 # Built-in defaults. These mirror the implicit v2 defaults: a bare HandCalcs() uses
-# the 'base' renderer and RenderContext's format_code defaults to '.5g'. In Jupyter,
+# the 'ascii' renderer and RenderContext's format_code defaults to '.5g'. In Jupyter,
 # %%render shows Markdown prose with LaTeX math, which the front-end typesets.
 DEFAULTS: dict[str, Any] = {
-    "default_renderer": "base",
+    "default_renderer": "ascii",
     "jupyter_renderer": "markdown",
     "format_code": ".5g",
     "line_values": True,
 }
 
-# The base options whose value type is validated by set_option (all strings).
+# The base options whose value type is validated by set_option.
 # Any other option name is accepted with any value so that custom renderers can
 # store arbitrary session-dependent settings.
 _BASE_OPTION_TYPES: dict[str, type] = {

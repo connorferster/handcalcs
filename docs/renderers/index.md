@@ -34,7 +34,7 @@ In Jupyter, choose by **name**:
 ```
 
 Or set the default for each interface in the [configuration](../getting-started/configuration.md):
-`default_renderer` for a bare `HandCalcs()`, `jupyter_renderer` for `%%render`.
+`default_renderer` for a bare `HandCalcs()` and `@handcalc()` (default `ascii`), `jupyter_renderer` for `%%render`.
 
 ## The same calculation, five ways
 

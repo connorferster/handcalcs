@@ -297,3 +297,46 @@ def test_numpy_scalars_and_indexing():
     out = ascii(NP + "M = np.array([[1, 2], [3, 4]])\nr = M[0]\ns = np.float64(2.5) * 2\n")
     assert "r = M[0] = [1, 2]" in out
     assert "s = np.float64(2.5) * 2 = 5" in out
+
+
+# --- S11: defaults --------------------------------------------------------------------
+
+
+def test_bare_handcalcs_renders_ascii(tmp_path, monkeypatch):
+    import handcalcs
+
+    monkeypatch.setenv("HANDCALCS_CONFIG", str(tmp_path / "hc_config.json"))
+    handcalcs.reset_config()
+    assert HandCalcs()("a = 1\nb = a * 2\n") == "a = 1\nb = a * 2 = 1 * 2 = 2\n"
+
+
+def test_decorator_without_a_renderer(tmp_path, monkeypatch):
+    import handcalcs
+    from handcalcs import handcalc
+
+    monkeypatch.setenv("HANDCALCS_CONFIG", str(tmp_path / "hc_config.json"))
+    handcalcs.reset_config()
+
+    @handcalc
+    def bare(a):
+        b = a * 2
+        return b
+
+    @handcalc()
+    def called(a):
+        b = a * 3
+        return b
+
+    assert bare(2) == (4, "b = a * 2 = 2 * 2 = 4\n")
+    assert called(2) == (6, "b = a * 3 = 2 * 3 = 6\n")
+
+    handcalcs.set_option("default_renderer", "latex")
+    try:
+        @handcalc()
+        def latex_calc(a):
+            b = a * 3
+            return b
+
+        assert "\\begin{aligned}" in latex_calc(2)[1]
+    finally:
+        handcalcs.reset_config()

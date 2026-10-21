@@ -61,7 +61,7 @@ def test_hc_default_renderer_sets_jupyter_renderer_only(shell):
     ip, _ = shell
     ip.run_line_magic("hc_default_renderer", "latex")
     assert config.get_option("jupyter_renderer") == "latex"
-    assert config.get_option("default_renderer") == "base"
+    assert config.get_option("default_renderer") == "ascii"
     data = render_cell(ip)
     assert "text/latex" in data
     assert "\\begin{list}" in data["text/latex"]

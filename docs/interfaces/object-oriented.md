@@ -26,7 +26,7 @@ number of times.
 
 `HandCalcs(renderer=None)`
 : `renderer` is a renderer **instance**. If it is omitted, the renderer named by the
-  `default_renderer` [option](../getting-started/configuration.md) is used (the base
+  `default_renderer` [option](../getting-started/configuration.md) is used (the ASCII
   renderer unless you change it).
 
 The global configuration is copied when the object is created, so set options first.

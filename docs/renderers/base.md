@@ -16,7 +16,8 @@ if b > 5:
     c = b - 5
 ```
 
-It is the renderer a bare `HandCalcs()` uses unless you set `default_renderer`.
+Pass it explicitly, `HandCalcs(BaseRenderer())`, to get the render tree; a bare
+`HandCalcs()` uses the ASCII renderer unless you set `default_renderer`.
 
 ## When you would use it
 

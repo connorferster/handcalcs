@@ -22,10 +22,13 @@ those values.
 
 ## Signature
 
-`handcalc(renderer, render_context=None)`
+`handcalc(renderer=None, render_context=None)`
 
 `renderer`
-: A renderer **instance**. Required: unlike `HandCalcs`, the decorator has no default.
+: A renderer **instance**. If it is omitted, the renderer named by the
+  `default_renderer` [option](../getting-started/configuration.md) is used (the ASCII
+  renderer unless you change it), as for `HandCalcs`. `@handcalc()` and a bare
+  `@handcalc` both work.
 
 `render_context`
 : A dictionary of [render context](../customizing/render-context.md) fields for every

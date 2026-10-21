@@ -101,8 +101,8 @@ The v1 options `decimal_separator`, `latex_block_start`, `latex_block_end`,
 `math_environment_start`, `math_environment_end`, `line_break`,
 `use_scientific_notation`, `display_precision`, `underscore_subscripts`,
 `greek_exclusions`, `param_columns`, `preferred_string_formatter` and `custom_symbols`
-no longer exist. v2 has three options (`format_code`, `default_renderer`,
-`jupyter_renderer`) plus any [custom options](configuration.md#custom-options); the rest
+no longer exist. v2 has four options (`format_code`, `default_renderer`,
+`jupyter_renderer`, `line_values`) plus any [custom options](configuration.md#custom-options); the rest
 is controlled by the renderer.
 
 An old `config.json` from v1 is not read; v2 stores its configuration in a new location
