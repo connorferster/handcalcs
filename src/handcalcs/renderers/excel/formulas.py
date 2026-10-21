@@ -387,6 +387,12 @@ class FormulaBuilder:
         return Formula(self.symbols.lookup(identifier, node))
 
     def attribute(self, node: Attribute) -> Formula:
+        if node.receiver is not None:
+            raise incompatible(
+                f"the attribute '.{node.identifier}' of an expression has no Excel "
+                "equivalent",
+                node,
+            )
         module = self.global_ns.get(node.namespace)
         if module is math or (module is None and node.namespace == "math"):
             value = getattr(math, node.identifier, None)

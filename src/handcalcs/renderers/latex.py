@@ -22,6 +22,7 @@ from handcalcs.renderers.base import (
     math_call_name,
     postfix_factorial,
     receiver_needs_parens,
+    render_receiver,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -773,9 +774,12 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     column shows the captured value, as for a Name.
     """
     context = base_context.current
+    options = identifier_options(renderer, base_context)
+    if node.receiver is not None:
+        receiver = render_receiver(renderer, node.receiver, base_context)
+        return f"{receiver}.{latex_identifier(node.identifier, options)}"
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
-    options = identifier_options(renderer, base_context)
     identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(
         node.identifier, options
     )

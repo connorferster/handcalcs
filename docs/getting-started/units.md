@@ -51,10 +51,4 @@ M = w * L**2 / 8
 - The [Excel renderer](../renderers/excel.md) converts pint and forallpeople
   quantities into unit columns and SI-scaled formulas.
 
-```{admonition} Known limitations in 2.0
-:class: caution
-- An attribute of a parenthesized expression, such as `(w * L**2 / 8).magnitude`, is
-  not parsed. A method call is: `(w * L**2 / 8).to("kN*m")` works.
-```
-
 **Next:** [Gotchas](gotchas.md).

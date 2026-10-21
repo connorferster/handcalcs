@@ -237,9 +237,14 @@ def render_attribute(renderer: WR, node: Attribute, base_context: BRC) -> str:
     like a Name. The numeric column shows the captured value, as for a Name.
     """
     context = base_context.current
+    options = identifier_options(renderer, base_context)
+    if node.receiver is not None:
+        receiver = renderer.render(node.receiver, base_context)
+        if receiver_needs_parens(node.receiver):
+            receiver = omml.delim(receiver)
+        return f"{receiver}{omml.run('.')}{word_identifier(node.identifier, options)}"
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
-    options = identifier_options(renderer, base_context)
     namespace = node.namespace
     if namespace in ("", "__main__", None) or namespace in MATH_NAMESPACES:
         if namespace in MATH_NAMESPACES and node.identifier in MATH_CONSTANTS:

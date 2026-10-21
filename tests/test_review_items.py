@@ -67,3 +67,34 @@ def test_generator_expression_renders(renderer_class):
 
 def test_generator_expression_in_word():
     assert ">for<" in word_xml(XS + "s = sum(x**2 for x in xs)\n").replace(" ", "")
+
+
+# --- S3: an attribute of an expression ---------------------------------------------
+
+UNITS = "import pint  # hc: -i\nureg = pint.UnitRegistry()  # hc: -i\nL = 6 * ureg.m\n"
+
+
+def test_attribute_of_an_expression():
+    pytest.importorskip("pint")
+    out = ascii(UNITS + "v = (L * 2).magnitude\n")
+    assert "v = (L * 2).magnitude = (6 meter * 2).magnitude = 12" in out
+    out = latex(UNITS + "v = (L * 2).magnitude\n")
+    assert "v &= \\left(L \\cdot 2\\right).\\mathrm{magnitude}" in out
+
+
+def test_attribute_of_a_call():
+    pytest.importorskip("pint")
+    assert "w = L.to(mm).magnitude + 1 = 6001" in ascii(UNITS + 'w = L.to("mm").magnitude + 1\n')
+
+
+def test_attribute_of_an_expression_in_word():
+    pytest.importorskip("pint")
+    assert "magnitude" in word_xml(UNITS + "v = (L * 2).magnitude\n")
+
+
+def test_attribute_of_an_expression_in_excel():
+    pytest.importorskip("xlsxwriter")
+    from handcalcs.renderers.excel import ExcelRenderer, ExcelRendererIncompatibleError
+
+    with pytest.raises(ExcelRendererIncompatibleError, match="of an expression"):
+        HandCalcs(ExcelRenderer())("a = 2.5\nb = (a * 2).real\n")

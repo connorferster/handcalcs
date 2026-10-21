@@ -711,6 +711,13 @@ class AST_Parser:
                 value=getattr(self._resolve_dotted(namespace), attribute, NoValue()),
             )
 
+        elif isinstance(node, ast.Attribute):
+            # An attribute of an expression, (L * 2).magnitude: the expression
+            # is shown, substituted in the numeric column, before the ``.``.
+            val = Attribute(
+                namespace="", identifier=node.attr, receiver=self.ast_parse(node.value)
+            )
+
         elif isinstance(node, ast.Starred):
             # ``*rest`` in an unpacking target or a call.
             val = HcUnaryOp(operand=self.ast_parse(node.value), symbol="*")

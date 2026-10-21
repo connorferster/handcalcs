@@ -968,6 +968,8 @@ def render_attribute(
             f"Attempting to render the Attribute node while context does not have a 'current_mode' key.\n"
             f"{context=}"
         )
+    if node.receiver is not None:
+        return f"{render_receiver(renderer, node.receiver, base_context)}.{node.identifier}"
     namespace = node.namespace
     if namespace in ("", "__main__", None):
         symbolic = node.identifier
@@ -1273,6 +1275,21 @@ def render_function_call(
         rendered = f"{namespace}.{function_name}{node.pre}{arg_str}{node.post}"
     else:
         rendered = f"{function_name}{node.pre}{arg_str}{node.post}"
+    return rendered
+
+
+def render_receiver(
+    renderer: BR, receiver: Any, base_context: BaseRenderContext
+) -> str:
+    """
+    The expression before the ``.`` of an attribute or a method of an
+    expression, rendered like an operand (substituted in the numeric column)
+    and parenthesized when it needs it: ``(a * b).magnitude``.
+    """
+    context = base_context.current
+    rendered = renderer.render(receiver, base_context)
+    if receiver_needs_parens(receiver):
+        return f"{context.lpar}{rendered}{context.rpar}"
     return rendered
 
 
