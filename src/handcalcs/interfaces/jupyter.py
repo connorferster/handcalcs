@@ -2,6 +2,8 @@ import sys
 from string import Formatter
 from .object_oriented import HandCalcs
 from handcalcs import config
+from typing import Any, Optional
+from handcalcs.parsing import line_values
 from handcalcs.parsing.inputs import RESOLVER, InputBinding
 
 # Importing the package registers the built-in renderers by name.
@@ -103,11 +105,40 @@ def jupyter_handcalcs() -> tuple[HandCalcs, type]:
     return HandCalcs(renderer=renderer_cls()), display_class_for(renderer_cls)
 
 
-def render_and_display(source: str, namespace: dict) -> None:
-    """Render ``source`` with the session's Jupyter renderer and display it."""
+def render_and_display(
+    source: str, namespace: dict, values: Optional[line_values.LineValues] = None
+) -> None:
+    """
+    Render ``source``, which has run in ``namespace``, with the session's
+    Jupyter renderer and display it. ``values`` are the values recorded while it
+    ran; without them, every line shows the values in ``namespace``.
+    """
     hc, display_class = jupyter_handcalcs()
     # Display, but not as an "output"
-    display(display_class(hc(source, namespace)))
+    display(display_class(hc.render_run(source, namespace, values)))
+
+
+def run_recorded(source: str) -> tuple[Any, Optional[line_values.LineValues]]:
+    """
+    Run ``source`` as a cell (its own output captured), recording its values
+    line by line. Returns IPython's result and the values, or None for the
+    values when the cell can't be parsed as Python after IPython's transforms.
+    """
+    try:
+        values = line_values.LineValues(ip.transform_cell(source))
+    except SyntaxError:
+        values = None
+    if values is None:
+        with cell_capture:
+            return ip.run_cell(source), None
+    with cell_capture, line_values.recording(values, is_cell_frame):
+        exec_result = ip.run_cell(source)
+    return exec_result, values
+
+
+def is_cell_frame(frame) -> bool:
+    """True for the frame of a cell's code (not of a function or module it calls)."""
+    return frame.f_globals is ip.user_ns and frame.f_code.co_name == "<module>"
 
 
 @register_line_cell_magic
@@ -133,12 +164,11 @@ def render(line, cell=None, local_ns=None):
     # Run the cell. Its own output is captured so that only the render shows;
     # an error is raised again, so that it is shown (and stops "Run All") as it
     # would be in a cell without %%render.
-    with cell_capture:
-        exec_result = ip.run_cell(cell)
+    exec_result, values = run_recorded(cell)
     exec_result.raise_error()
 
     # Render against the updated variables (after .run_cell(cell))
-    render_and_display(cell, ip.user_ns)
+    render_and_display(cell, ip.user_ns, values)
 
 
 INPUT_ARGUMENTS = ("inputs", "strict", "allow_computed")
@@ -192,13 +222,12 @@ def render_with_inputs(
     __tracebackhide__ = True
     binding = InputBinding(cell, inputs, strict=strict, allow_computed=allow_computed)
     ip.user_ns.update(binding.namespace())
-    with cell_capture:
-        exec_result = ip.run_cell(binding.exec_source)
+    exec_result, values = run_recorded(binding.exec_source)
     if not exec_result.success:
         ip.user_ns.pop(RESOLVER, None)
         exec_result.raise_error()
     hc, display_class = jupyter_handcalcs()
-    display(display_class(hc.render_bound(binding, ip.user_ns)))
+    display(display_class(hc.render_bound(binding, ip.user_ns, values)))
 
 
 def render_line(line: str, local_ns: dict | None) -> None:

@@ -98,6 +98,20 @@ class HandCalcs:
         self.hc_ast = self.__parse(source, passed_globals, line_values=values)
         return self.__output(self.__render(passed_globals), destination)
 
+    def render_run(
+        self,
+        source: str,
+        namespace: dict,
+        values: Optional[line_values.LineValues] = None,
+    ) -> Any:
+        """
+        Renders 'source' once it has run in 'namespace', with the 'values'
+        recorded while it ran (see handcalcs.parsing.line_values). The
+        '%%render' magic runs the cell itself and renders it with this.
+        """
+        self.hc_ast = self.__parse(source, namespace, line_values=values)
+        return self.__render(namespace)
+
     def render_bound(
         self,
         binding: InputBinding,
