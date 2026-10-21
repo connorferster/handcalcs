@@ -11,7 +11,7 @@ import re
 from html import unescape
 
 from handcalcs.parsing.block_nodes import CalcsBlock, ForBlock, IfBlock
-from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword
+from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword, Lambda
 from handcalcs.parsing.line_nodes import Heading as HeadingLine, Import
 from handcalcs.parsing.nodes import (
     Attribute,
@@ -286,6 +286,16 @@ def render_slice(renderer: WR, node: Slice, base_context: BRC) -> str:
     if node.step is None:
         parts.pop()
     return omml.run(":").join(parts)
+
+
+@WR.register("lambda")
+def render_lambda(renderer: WR, node: Lambda, base_context: BRC) -> str:
+    """A lambda as written, ``lambda x: x * 2``, with ``lambda`` upright."""
+    params = omml.run(",").join(
+        render_symbolic(renderer, param, base_context) for param in node.params
+    )
+    body = render_symbolic(renderer, node.body, base_context)
+    return f"{omml.upright('lambda ')}{params}{omml.run(':')}{body}"
 
 
 @WR.register("keyword")

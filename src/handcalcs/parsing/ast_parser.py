@@ -31,6 +31,7 @@ from .inline_nodes import (
     Compare,
     Keyword,
     IfExp,
+    Lambda,
 )
 from .null_values import HcNotImplemented, NoValue
 
@@ -733,6 +734,19 @@ class AST_Parser:
                 )
             )
 
+        elif isinstance(node, ast.Lambda):
+            val = Lambda(
+                params=self._lambda_params(node.args), body=self.ast_parse(node.body)
+            )
+
+        elif isinstance(node, ast.JoinedStr):
+            # An f-string shows its value, like a string literal, when it can be
+            # evaluated without side effects; otherwise it is shown as written.
+            value = self._evaluate_expr(node)
+            if isinstance(value, NoValue):
+                value = ast.get_source_segment(self.source, node) or ""
+            val = Constant(value=value, calculated=True)
+
         elif isinstance(node, ast.IfExp):
             val = IfExp(
                 test=self.ast_parse(node.test),
@@ -768,6 +782,22 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _lambda_params(self, args: ast.arguments) -> deque:
+        """A lambda's parameters as names, with ``*args``/``**kwargs`` starred."""
+        params = deque(
+            Name(identifier=arg.arg) for arg in [*args.posonlyargs, *args.args]
+        )
+        if args.vararg is not None:
+            params.append(
+                HcUnaryOp(operand=Name(identifier=args.vararg.arg), symbol="*")
+            )
+        params.extend(Name(identifier=arg.arg) for arg in args.kwonlyargs)
+        if args.kwarg is not None:
+            params.append(
+                HcUnaryOp(operand=Name(identifier=args.kwarg.arg), symbol="**")
+            )
+        return params
 
     def _target(self, node: ast.AST):
         """

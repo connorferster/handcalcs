@@ -105,6 +105,19 @@ class ComprehensionChain(HcInlineNode):
 
 
 @dataclass
+class Lambda(HcInlineNode):
+    """
+    A lambda, ``lambda x, y: x * y``: its ``params`` (names, or a starred
+    ``*args``/``**kwargs``) and its ``body``. It is shown as written: a lambda
+    is a function, so it has no values to substitute.
+    """
+
+    params: deque = field(default_factory=deque)
+    body: Any = None
+    type: str = "lambda"
+
+
+@dataclass
 class IfExp(HcInlineNode):
     """
     A conditional expression, ``body if test else orelse``. ``is_true`` is the

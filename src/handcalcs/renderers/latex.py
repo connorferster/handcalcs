@@ -23,6 +23,7 @@ from handcalcs.renderers.base import (
     postfix_factorial,
     receiver_needs_parens,
     render_receiver,
+    render_symbolic,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -71,6 +72,7 @@ from handcalcs.parsing.inline_nodes import (
     Keyword,
     Compare,
     ComprehensionChain,
+    Lambda,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -790,6 +792,14 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
         latex_identifier(part, options) for part in namespace.split(".")
     )
     return f"{namespace}.{identifier}"
+
+
+@LR.register("lambda")
+def render_lambda(renderer: LR, node: Lambda, base_context: BRC) -> str:
+    """A lambda as written, with ``lambda`` upright: ``\\mathrm{lambda}\\;x\\colon x``."""
+    params = ", ".join(render_symbolic(renderer, p, base_context) for p in node.params)
+    body = render_symbolic(renderer, node.body, base_context)
+    return f"\\mathrm{{lambda}}\\;{params}\\colon\\;{body}"
 
 
 @LR.register("subscript")

@@ -61,6 +61,7 @@ from handcalcs.parsing.inline_nodes import (
     Comprehension,
     ComprehensionChain,
     IfExp,
+    Lambda,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -1396,6 +1397,26 @@ def render_comprehension_chain(
     return f"{opener}{inner}{closer}"
 
 
+@BaseRenderer.register("lambda")
+def render_lambda(renderer: BR, node: Lambda, base_context: BaseRenderContext) -> str:
+    """
+    A lambda as written, ``lambda x, y: x * y``, in the symbolic form in both
+    columns: its names are parameters, not variables with values.
+    """
+    _ = base_context.current.space
+    params = f",{_}".join(
+        render_symbolic(renderer, p, base_context) for p in node.params
+    )
+    body = render_symbolic(renderer, node.body, base_context)
+    return f"lambda{_}{params}:{_}{body}"
+
+
+def is_lambda_line(node: CalcLine) -> bool:
+    """True for an assignment of a lambda, ``f = lambda x: x * 2``."""
+    tree = node.expression_tree
+    return len(tree) == 1 and getattr(tree[0], "type", None) == "lambda"
+
+
 @BaseRenderer.register("comment_command")
 def render_comment_command(
     renderer: BR, node: CommentCommand, base_context: BaseRenderContext
@@ -1530,6 +1551,9 @@ def render_calcline(
         return ""
 
     shown = mode_columns(context.mode)
+    if is_lambda_line(node):
+        # A function has no value to substitute or show: only the lambda.
+        shown = shown & {"ass", "sym"}
     base_context.line_context.break_nodes = breakable_ops(node.expression_tree)
     columns: deque = deque([])
     if "ass" in shown:

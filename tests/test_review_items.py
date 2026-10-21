@@ -98,3 +98,50 @@ def test_attribute_of_an_expression_in_excel():
 
     with pytest.raises(ExcelRendererIncompatibleError, match="of an expression"):
         HandCalcs(ExcelRenderer())("a = 2.5\nb = (a * 2).real\n")
+
+
+# --- S4: f-strings and lambdas -----------------------------------------------------
+
+
+def test_f_string_shows_its_value():
+    assert "s = a=3" in ascii('a = 3\ns = f"a={a}"\n')
+    assert "t = 3.00 kN" in ascii('a = 3\nt = f"{a:.2f} kN"\n')
+    assert 's &= \\text{``a=3\'\'}' in latex('a = 3\ns = f"a={a}"\n')
+
+
+def test_f_string_with_a_call_is_not_evaluated_again():
+    # A user function may have side effects, so it is not called again: the
+    # line shows the value the assignment gave its target.
+    source = (
+        "calls = []\n"
+        "def f(v):\n"
+        "    calls.append(v)\n"
+        "    return v * 2\n"
+        's = f"{f(2)} kN"\n'
+        "n = len(calls)\n"
+    )
+    out = ascii(source)
+    assert "s = 4 kN" in out
+    assert "n = len(calls) = len([2]) = 1" in out
+
+
+def test_lambda_shows_only_its_source():
+    out = ascii("x = 100\nf = lambda x: x * 2\ny = f(3)\n")
+    assert "f = lambda x: x * 2\n" in out
+    assert "0x" not in out
+    assert "y = f(3) = 6" in out
+
+
+def test_lambda_parameters_are_not_substituted():
+    out = ascii("v = 100\nz = sorted([3, 1, 2], key=lambda v: -v)\n")
+    assert "z = sorted([3, 1, 2], key=lambda v: -v) = [3, 2, 1]" in out
+
+
+def test_lambda_with_starred_parameters():
+    out = ascii("g = lambda alpha, *rest, **kw: alpha + len(rest)\n")
+    assert "g = lambda α, *rest, **kw: α + len(rest)" in out
+
+
+def test_lambda_in_latex_and_word():
+    assert "f &= \\mathrm{lambda}\;x\\colon\;x \\cdot 2" in latex("f = lambda x: x * 2\n")
+    assert "lambda" in word_xml("f = lambda x: x * 2\n")
