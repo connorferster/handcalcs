@@ -83,6 +83,14 @@ class Dictionary(HcNode):
 
 
 @dataclass
+class Matrix(HcNode):
+    """A two-dimensional array (a numpy array's value): ``rows`` of element nodes."""
+
+    rows: deque[deque[Any]]
+    type: str = "matrix"
+
+
+@dataclass
 class Subscript(HcNode):
     """
     An index or key lookup: ``xs[0]``, ``loads["dead"]``, ``A[i, j]``. ``index``

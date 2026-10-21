@@ -26,6 +26,7 @@ from handcalcs.parsing.nodes import (
     Set,
     Subscript,
     Slice,
+    Matrix,
 )
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
@@ -168,6 +169,11 @@ def breakable_ops(tree) -> frozenset[int]:
     return frozenset(found)
 
 
+def is_array(value) -> bool:
+    """True for a numpy array (or a numpy scalar, which has ``ndim`` 0)."""
+    return type(value).__module__.split(".")[0] == "numpy" and hasattr(value, "ndim")
+
+
 def _reify(value):
     """
     Wrap a raw runtime Python value in the matching HcNode so it renders through
@@ -180,6 +186,14 @@ def _reify(value):
     """
     if isinstance(value, HcNode):
         return value
+    if is_array(value):
+        # A numpy array: its elements take the format code. A 2-D array is a
+        # matrix; any other is a list (nested for more dimensions).
+        if value.ndim == 0:
+            return _reify(value.item())
+        if value.ndim == 2:
+            return Matrix(rows=deque(deque(map(_reify, row)) for row in value.tolist()))
+        return _reify(value.tolist())
     if isinstance(value, list):
         return List(elems=deque(_reify(v) for v in value))
     if isinstance(value, tuple):
@@ -931,6 +945,30 @@ def render_list(
         return f",{_}".join(rendered_elems)
     rendered_elems = elide_items(rendered_elems, base_context, "…")
     return f"({f',{_}'.join(rendered_elems)})"
+
+
+def elide_matrix(
+    rows: list, base_context: BaseRenderContext, cell_gap: Any, row_gap: Any
+) -> list[list]:
+    """
+    A matrix's rendered rows, each shortened like a collection (``max_items``,
+    ``edge_items``) around ``cell_gap``, and the rows themselves around a row
+    of ``row_gap`` cells.
+    """
+    rows = [elide_items(list(row), base_context, cell_gap) for row in rows]
+    width = len(rows[0]) if rows else 0
+    return elide_items(rows, base_context, [row_gap] * width)
+
+
+@BaseRenderer.register("matrix")
+def render_matrix(
+    renderer: BaseRenderer, node: Matrix, base_context: BaseRenderContext
+) -> str:
+    """A 2-D array on one line, as nested lists: ``[[1, 2], [3, 4]]``."""
+    _ = base_context.current.space
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, "…", "…")
+    return "[" + f",{_}".join("[" + f",{_}".join(row) + "]" for row in rows) + "]"
 
 
 @BaseRenderer.register("inline_comment:pre")

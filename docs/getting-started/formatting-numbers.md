@@ -5,7 +5,9 @@ Every number handcalcs shows goes through a Python
 the part after the colon in `f"{value:.2f}"`. The default is `.5g`: up to five
 significant figures, switching to scientific notation for very large or small values.
 An integer keeps all its digits under a `g` format code (`E = 200000`, not `2e+05`);
-a code such as `.2f` or `.3e` applies to integers too.
+a code such as `.2f` or `.3e` applies to integers too. The elements of a list, tuple or
+numpy array each take the format code, and a two-dimensional numpy array is shown as a
+matrix.
 
 ```{hc-example}
 :renderer: ascii

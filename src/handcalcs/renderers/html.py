@@ -5,6 +5,7 @@ from collections import deque
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     BaseRenderer,
+    elide_matrix,
     render_constant as render_base_constant,
     render_subscript as render_bracketed_subscript,
     subscript_value,
@@ -28,7 +29,7 @@ from handcalcs.renderers.identifiers import (
 )
 
 # Node type imports only used for typing
-from handcalcs.parsing.nodes import HcNode, Name, Constant, Subscript
+from handcalcs.parsing.nodes import HcNode, Name, Constant, Matrix, Subscript
 from handcalcs.parsing.operator_nodes import AddOp, HcBinOp, HcCompOp
 from handcalcs.parsing.inline_nodes import Attribute, InlineComment, FunctionCall
 from handcalcs.parsing.line_nodes import Import, Heading, CommentLine
@@ -231,6 +232,11 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs table.hc-params td.hc-param-comment{"
         "text-align:left;padding-inline-start:var(--hc-eq-gap);}"
         ".handcalcs :where(.hc-pre){white-space:pre;}"
+        ".handcalcs :where(.hc-matrix){display:inline-table;vertical-align:middle;"
+        "border-inline:1px solid currentColor;border-radius:0.2em;padding:0 0.15em;}"
+        ".handcalcs :where(.hc-matrix-row){display:table-row;}"
+        ".handcalcs :where(.hc-matrix-cell){display:table-cell;text-align:right;"
+        "padding:0 0.3em;line-height:1.2;}"
     )
 
     def theme_style(self) -> str:
@@ -574,6 +580,20 @@ def swap_identifier(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
         symbol = parse_identifier(identifier, options)
         node.identifier = html_symbol(symbol, base_context.current.space)
     return node
+
+
+@HTMLR.register("matrix")
+def render_matrix(renderer: HTMLR, node: Matrix, base_context: BRC) -> str:
+    """A 2-D array as a small table in brackets."""
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, "⋯", "⋮")
+    cells = (
+        '<span class="hc-matrix-row">'
+        + "".join(f'<span class="hc-matrix-cell">{cell}</span>' for cell in row)
+        + "</span>"
+        for row in rows
+    )
+    return f'<span class="hc-matrix">{"".join(cells)}</span>'
 
 
 @HTMLR.register("constant")

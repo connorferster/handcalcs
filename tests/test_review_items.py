@@ -262,3 +262,38 @@ def test_strings_are_quoted_and_escaped_in_html():
 
 def test_ascii_superscripts_are_not_quoted():
     assert "y = b² = 3² = 9" in ascii("b = 3\ny = b**2\n")
+
+
+# --- S9: numpy arrays ---------------------------------------------------------------
+
+NP = "import numpy as np  # hc: -i\n"
+
+
+def test_array_elements_take_the_format_code():
+    pytest.importorskip("numpy")
+    out = ascii(NP + "x = np.array([1.23456, 2.34567])  # hc: -f .2f\n")
+    assert "x = np.array([1.23456, 2.34567]) = [1.23, 2.35]" in out
+
+
+def test_two_dimensional_arrays_are_matrices():
+    pytest.importorskip("numpy")
+    source = NP + "M = np.array([[1, 2], [3, 4]])\nB = M @ M\n"
+    assert "B = M @ M = [[1, 2], [3, 4]] @ [[1, 2], [3, 4]] = [[7, 10], [15, 22]]" in ascii(source)
+    assert "= \\begin{bmatrix} 7 & 10 \\\\ 15 & 22 \\end{bmatrix}" in latex(source)
+    html = HandCalcs(HTMLRenderer())(source)
+    assert '<span class="hc-matrix-cell">22</span>' in html
+    assert "<m:m>" in word_xml(source)
+
+
+def test_large_matrices_are_shortened():
+    pytest.importorskip("numpy")
+    out = latex(NP + "big = np.arange(1.0, 151.0).reshape(15, 10)\n")
+    assert "\\vdots & \\vdots" in out
+    assert "141 & 142" in out
+
+
+def test_numpy_scalars_and_indexing():
+    pytest.importorskip("numpy")
+    out = ascii(NP + "M = np.array([[1, 2], [3, 4]])\nr = M[0]\ns = np.float64(2.5) * 2\n")
+    assert "r = M[0] = [1, 2]" in out
+    assert "s = np.float64(2.5) * 2 = 5" in out

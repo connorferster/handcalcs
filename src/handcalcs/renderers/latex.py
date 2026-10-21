@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     elide_items,
+    elide_matrix,
     value_format_code,
     render_subscript as render_bracketed_subscript,
     subscript_value,
@@ -41,6 +42,7 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Attribute,
+    Matrix,
     Subscript,
     NoValue,
     Constant,
@@ -1019,6 +1021,15 @@ def join_items(renderer: LR, items: list[str], base_context: BRC) -> str:
 def render_list(renderer: LR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return f"[{join_items(renderer, elems, base_context)}]"
+
+
+@LR.register("matrix")
+def render_matrix(renderer: LR, node: Matrix, base_context: BRC) -> str:
+    """A 2-D array as a matrix in brackets (``bmatrix``)."""
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, "\\cdots", "\\vdots")
+    body = " \\\\ ".join(" & ".join(row) for row in rows)
+    return f"\\begin{{bmatrix}} {body} \\end{{bmatrix}}"
 
 
 @LR.register("tuple")

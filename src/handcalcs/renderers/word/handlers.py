@@ -17,6 +17,7 @@ from handcalcs.parsing.nodes import (
     Attribute,
     Constant,
     Dictionary,
+    Matrix,
     HcNode,
     List,
     Name,
@@ -29,6 +30,7 @@ from handcalcs.parsing.nodes import (
 from handcalcs.parsing.operator_nodes import DivOp, FloorOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
     elide_items,
+    elide_matrix,
     value_format_code,
     render_symbolic,
     subscript_value,
@@ -407,6 +409,14 @@ def join_items(renderer: WR, items: list[str], base_context: BRC) -> list[str]:
 def render_list(renderer: WR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return omml.delim_items(join_items(renderer, elems, base_context), "[", "]")
+
+
+@WR.register("matrix")
+def render_matrix(renderer: WR, node: Matrix, base_context: BRC) -> str:
+    """A 2-D array as a matrix in brackets."""
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, omml.run("⋯"), omml.run("⋮"))
+    return omml.matrix(rows)
 
 
 @WR.register("tuple")
