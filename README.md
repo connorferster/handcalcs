@@ -20,11 +20,6 @@ The same calculation can go to different **renderers**: Markdown and LaTeX for J
 **[Read the documentation](https://handcalcs.structuralpython.com/)**: getting started, every renderer, a cookbook of
 recipes, and how to customize or write a renderer.
 
-> ### Engineers who use handcalcs
-> Did you know that you can _link_ your handcalcs Jupyter notebooks together so that the result of one notebook is available as an input for the next?
->
-> [Opt in here](https://www.structuralpython.com/handcalcs-the-chaining-technique) to see how you can use the [Chaining Technique](https://www.structuralpython.com/handcalcs-the-chaining-technique) to build entire engineering automations from your handcalcs notebooks.
-
 ## Example
 
 ```python
