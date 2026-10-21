@@ -31,7 +31,8 @@ What happens:
 
 1. The cell runs in the notebook's namespace, exactly as it would without the magic.
    Variables it defines are available to later cells. Anything the cell prints is
-   suppressed.
+   suppressed. If the cell raises an error, the error is shown as usual and nothing
+   is rendered.
 2. handcalcs parses the cell and renders it with the session's renderer, reading values
    from the notebook namespace.
 3. The output is displayed with the IPython display class that matches the renderer.

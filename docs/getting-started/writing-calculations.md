@@ -111,6 +111,17 @@ string, dict, numpy array, pandas object or units-library quantity. Otherwise th
 substitution shows the lookup with its index substituted (`xs[2 + 1]`), followed by the
 result. To show every lookup in brackets, see [the recipe](../customizing/symbols-and-functions.md#indexes-in-brackets).
 
+## Several targets
+
+Tuple unpacking and chained assignment are shown as written, with their values:
+
+```{hc-example}
+:renderer: ascii
+x = [3.0, 4.0]
+a, b = x
+c = d = a * b
+```
+
 ## Inline comments
 
 A comment at the end of a line is shown next to that line. Use it for units, sources or
