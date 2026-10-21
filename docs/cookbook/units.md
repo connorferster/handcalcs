@@ -77,7 +77,9 @@ M = w * L**2 / 8  # hc: -f .2f
 
 ## Keep the unit setup out of the output
 
-Set up the units in a cell you don't render, or end each setup line with `# hc: -i`:
+Set up the units in a cell you don't render, or end each setup line with `# hc: -i`.
+(A call such as `si.environment(...)` is left out on its own; the `-i` on it is only
+needed for the import.)
 
 ```{hc-example}
 import forallpeople as si               # hc: -i
