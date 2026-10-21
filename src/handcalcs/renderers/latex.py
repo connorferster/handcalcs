@@ -1021,6 +1021,8 @@ def render_list(renderer: LR, node: List, base_context: BRC) -> str:
 @LR.register("tuple")
 def render_tuple(renderer: LR, node: Tuple, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
+    if node.bare:
+        return ", ".join(elems)
     return f"({join_items(renderer, elems, base_context)})"
 
 

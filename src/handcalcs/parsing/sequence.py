@@ -10,6 +10,7 @@ from .block_nodes import (
     CommentsBlock,
     CalcsBlock,
 )
+from .line_nodes import ExprLine
 from copy import deepcopy
 from typing import Any
 from .nodes import HcNode
@@ -147,6 +148,32 @@ def group_lines(tree: deque) -> deque:
             run_kind = kind
     flush()
     return grouped
+
+
+def drop_after_return(tree: deque) -> bool:
+    """
+    Remove the lines after a ``return`` that ran, in the body of a function
+    (``@handcalc``). Those lines did not run, so they have no values to show.
+    A ``return`` ends the function wherever it ran: in the body, in the branch
+    of an ``if``/``elif``/``else`` that ran, or in a loop body (where an ``if``
+    test is true for the pass that returned, since the values are the ones
+    the function returned with). True if 'tree' ends at such a ``return``.
+    """
+    for idx, node in enumerate(tree):
+        if isinstance(node, ExprLine):
+            ended = node.return_expr
+        elif isinstance(node, ElifBlock):
+            branch = node.taken_branch()
+            ended = branch is not None and drop_after_return(branch.lines)
+        elif hasattr(node, "lines"):
+            ended = drop_after_return(node.lines)
+        else:
+            ended = False
+        if ended:
+            while len(tree) > idx + 1:
+                tree.pop()
+            return True
+    return False
 
 
 def convert_if_tree(node: HcBlockNode) -> HcBlockNode:

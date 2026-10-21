@@ -212,3 +212,40 @@ def test_render_ignores_words_without_arguments(shell):
     with capture_output() as captured:
         ip.run_cell_magic("render", "params", CELL)
     assert "c &= a + b" in captured.outputs[0].data["text/markdown"]
+
+
+# -- errors in the cell -------------------------------------------------------
+# The cell runs with its output captured (only the render is shown), so an error
+# must be raised again; otherwise the cell shows nothing at all (B5).
+
+
+@pytest.mark.parametrize(
+    "cell, error",
+    [
+        ("g = undefined_name + 1\n", NameError),
+        ("k = 1 / 0\n", ZeroDivisionError),
+        ("k = = 1\n", SyntaxError),
+    ],
+)
+def test_error_in_the_cell_is_raised(shell, cell, error):
+    ip, _ = shell
+    with capture_output() as captured:
+        with pytest.raises(error):
+            ip.run_cell_magic("render", "", cell)
+    assert not captured.outputs  # nothing is rendered
+
+
+def test_error_in_the_cell_fails_the_cell(shell):
+    ip, _ = shell
+    result, outputs = run_cell(ip, "%%render\ng = undefined_name + 1\n")
+    assert not result.success
+    assert isinstance(result.error_in_exec, NameError)
+    assert not outputs
+
+
+def test_error_with_inputs_is_raised(shell):
+    ip, _ = shell
+    ip.user_ns["case"] = {"a": 0}
+    with pytest.raises(ZeroDivisionError):
+        ip.run_cell_magic("render", "inputs=case", "a = 2\nc = 1 / a\n")
+    assert "__hc_input__" not in ip.user_ns

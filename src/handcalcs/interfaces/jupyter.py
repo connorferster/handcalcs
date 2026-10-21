@@ -121,6 +121,7 @@ def render(line, cell=None, local_ns=None):
     the cell assigns them (``strict=`` and ``allow_computed=`` may follow, as for
     ``HandCalcs(..., inputs=...)``).
     """
+    __tracebackhide__ = True  # IPython leaves this frame out of a traceback
     if cell is None:
         return render_line(line, local_ns)
     arguments = input_arguments(line, local_ns)
@@ -129,12 +130,12 @@ def render(line, cell=None, local_ns=None):
     # if line_args["sympy"]:
     #     cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
 
-    # Run the cell
+    # Run the cell. Its own output is captured so that only the render shows;
+    # an error is raised again, so that it is shown (and stops "Run All") as it
+    # would be in a cell without %%render.
     with cell_capture:
         exec_result = ip.run_cell(cell)
-
-    if not exec_result.success:
-        return None
+    exec_result.raise_error()
 
     # Render against the updated variables (after .run_cell(cell))
     render_and_display(cell, ip.user_ns)
@@ -188,13 +189,14 @@ def render_with_inputs(
     in place of the values the cell assigns them, as ``HandCalcs(...,
     inputs=case)`` does for a script.
     """
+    __tracebackhide__ = True
     binding = InputBinding(cell, inputs, strict=strict, allow_computed=allow_computed)
     ip.user_ns.update(binding.namespace())
     with cell_capture:
         exec_result = ip.run_cell(binding.exec_source)
     if not exec_result.success:
         ip.user_ns.pop(RESOLVER, None)
-        return None
+        exec_result.raise_error()
     hc, display_class = jupyter_handcalcs()
     display(display_class(hc.render_bound(binding, ip.user_ns)))
 

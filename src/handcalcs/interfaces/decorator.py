@@ -7,7 +7,7 @@ from typing import Optional
 from functools import wraps
 import innerscope
 from ..renderers.base import BaseRenderer
-from ..parsing.sequence import HcSequence
+from ..parsing.sequence import HcSequence, drop_after_return
 from .. import config
 
 
@@ -76,6 +76,7 @@ def handcalc(renderer: BaseRenderer, render_context: Optional[dict] = None):
             # innerscope retrieves values of locals, closures, and globals
             scope = innerscope.call(func, *args, **kwargs)
             hc_ast = HcSequence.from_source(body_source, hc_globals=scope, hc_locals={})
+            drop_after_return(hc_ast.sequence)
             base_context = renderer.create_context(
                 **(context_settings | render_context | {"global_ns": scope})
             )

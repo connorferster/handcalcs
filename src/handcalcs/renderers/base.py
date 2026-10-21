@@ -898,6 +898,8 @@ def render_list(
     context = base_context.current
     _ = context.space
     rendered_elems = [renderer.render(elem, base_context) for elem in node.elems]
+    if node.bare:
+        return f",{_}".join(rendered_elems)
     rendered_elems = elide_items(rendered_elems, base_context, "…")
     return f"({f',{_}'.join(rendered_elems)})"
 
@@ -1508,11 +1510,11 @@ def render_calcline(
     base_context.line_context.break_nodes = breakable_ops(node.expression_tree)
     columns: deque = deque([])
     if "ass" in shown:
+        # A chained assignment (``a = b = 3``) shows each target in turn.
         base_context.line_context.current_mode = "sym"
-        assign_nodes = [
+        columns.extend(
             renderer.render(subnode, base_context) for subnode in node.assigns
-        ]
-        columns.append(",{_}".join(assign_nodes))
+        )
     if not param_line:
         if "sym" in shown:
             base_context.line_context.current_mode = "sym"
@@ -1531,19 +1533,19 @@ def render_calcline(
     mark = ""
     if "res" in shown:
         if len(node.assigns) == 1:
-            mark = check_mark(renderer, node.assigns[0].value, context)
+            target_value = getattr(node.assigns[0], "value", NoValue())
+            mark = check_mark(renderer, target_value, context)
         if not mark:
+            # Every target of a chained assignment holds the same value.
             base_context.line_context.current_mode = "num"
-            result_nodes = [
-                renderer.render(subnode, base_context) for subnode in node.assigns
-            ]
-            columns.append(f",{_}".join(result_nodes))
+            columns.append(renderer.render(node.assigns[0], base_context))
 
     # Drop a value column that repeats the one before it: a bare reference
     # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
     # in more than one column, which would otherwise show as ``= 3 = 3``.
     has_target = "ass" in shown
-    head = [columns.popleft()] if has_target and columns else []
+    n_targets = len(node.assigns) if has_target else 0
+    head = [columns.popleft() for _target in range(min(n_targets, len(columns)))]
     values: list = []
     for column in columns:
         if not values or column != values[-1]:
@@ -1727,19 +1729,7 @@ def render_exprline(
 def render_elifblock(
     renderer: BaseRenderer, node: ElifBlock, base_context: BaseRenderContext
 ) -> str:
-    clauses: deque = node.lines
-    context = base_context.current
-    try:
-        # Only IfBlock clauses carry ``is_true``; a trailing ElseBlock does not.
-        true_clause: IfBlock = next(
-            ib for ib in clauses if getattr(ib, "is_true", False)
-        )
-    except StopIteration:
-        if len(clauses) >= 1 and isinstance(clauses[-1], ElseBlock):
-            true_clause: ElseBlock = clauses[-1]
-        else:
-            true_clause = None
-
+    true_clause = node.taken_branch()
     if true_clause is None:
         return "No conditions were satisfied within the if-elif block"
     else:

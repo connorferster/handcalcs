@@ -183,3 +183,87 @@ def test_a_return_that_computes_is_rendered():
     assert value == 6
     # A return expression is shown symbolically (it has no single runtime value).
     assert rendered.splitlines() == ["A = b * h = 4 * 3 = 12", "A / 2"]
+
+
+# -- early return (B6) --------------------------------------------------------
+# The lines after a ``return`` that ran did not run, so they are not rendered
+# (they used to render with empty results, e.g. ``c = a * 2 = 3 * 2 = ``).
+
+
+@handcalc(ASCIIRenderer())
+def calc_early_return(a):
+    if a > 1:
+        return a
+    c = a * 2
+    return c
+
+
+def test_early_return_ends_the_render():
+    value, rendered = calc_early_return(3)
+    assert value == 3
+    assert "Since (a>1) -> (3>1) is True:" in rendered
+    assert "c = " not in rendered
+
+
+def test_lines_after_a_return_that_did_not_run_are_kept():
+    value, rendered = calc_early_return(0)
+    assert value == 0
+    assert "c = a * 2 = 0 * 2 = 0" in rendered
+
+
+@handcalc(ASCIIRenderer())
+def calc_branches(a):
+    if a > 5:
+        b = 1
+        return b
+    elif a > 2:
+        b = 2
+    else:
+        return 0
+    c = b * 10
+    return c
+
+
+def test_return_in_the_branch_that_ran():
+    assert "c = " not in calc_branches(6)[1]
+    assert "c = b * 10 = 2 * 10 = 20" in calc_branches(3)[1]
+    _, rendered = calc_branches(1)
+    assert "Otherwise:" in rendered and "c = " not in rendered
+
+
+@handcalc(ASCIIRenderer())
+def calc_loop_return(xs):
+    t = 0
+    for x in xs:
+        t = t + x
+        if t > 3:
+            return t
+    d = t * 2
+    return d
+
+
+def test_return_inside_a_loop():
+    value, rendered = calc_loop_return([1, 1, 5, 9])
+    assert value == 7
+    assert "d = " not in rendered
+    value, rendered = calc_loop_return([1, 1])
+    assert value == 4
+    assert "d = t * 2 = 2 * 2 = 4" in rendered
+
+
+@handcalc(ASCIIRenderer())
+def calc_nested_return(a):
+    if a > 0:
+        if a > 10:
+            return 100
+        b = a
+    else:
+        b = -a
+    c = b + 1
+    return c
+
+
+def test_return_in_a_nested_branch():
+    _, rendered = calc_nested_return(20)
+    assert "b = " not in rendered and "c = " not in rendered
+    assert "c = b + 1 = 5 + 1 = 6" in calc_nested_return(5)[1]

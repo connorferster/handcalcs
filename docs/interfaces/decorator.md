@@ -40,6 +40,8 @@ The decorated function returns a tuple `(return_value, rendered)`. The type of
 The body of the function (its lines between the `def` line and the `return`), with the
 values from that call. Arguments, local variables, closure variables and globals can all
 be used. [Comment commands](../getting-started/comment-commands.md) work as usual.
+An early `return` ends the rendered calculation where the function returned: the lines
+after it did not run, so they are not shown.
 
 ```python
 from math import sqrt

@@ -104,3 +104,15 @@ class ElifBlock(HcBlockNode):
 
         flattened_tree = flatten_if_tree(ib)
         return cls(lines=flattened_tree)
+
+    def taken_branch(self) -> "IfBlock | ElseBlock | None":
+        """
+        The branch that ran: the first ``if``/``elif`` whose test is true, else
+        the ``else`` branch, or None when no branch ran.
+        """
+        for branch in self.lines:
+            if getattr(branch, "is_true", False):
+                return branch
+        if self.lines and isinstance(self.lines[-1], ElseBlock):
+            return self.lines[-1]
+        return None
