@@ -52,7 +52,13 @@ class List(HcNode):
 
 @dataclass
 class Tuple(HcNode):
+    """
+    A tuple. ``bare`` is True for the targets of an assignment or a loop
+    (``a, b = 1, 2``), which are shown without brackets.
+    """
+
     elems: deque[Any]
+    bare: bool = False
     type: str = "tuple"
 
 

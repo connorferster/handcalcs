@@ -396,6 +396,8 @@ def render_list(renderer: WR, node: List, base_context: BRC) -> str:
 @WR.register("tuple")
 def render_tuple(renderer: WR, node: Tuple, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
+    if node.bare:
+        return omml.run(",").join(elems)
     return omml.delim_items(join_items(renderer, elems, base_context), "(", ")")
 
 

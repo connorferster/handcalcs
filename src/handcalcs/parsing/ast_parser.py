@@ -648,12 +648,8 @@ class AST_Parser:
         elif isinstance(node, ast.For):
             for_block = ForBlock()
 
-            # "target": str of the assigned target
-            # Assumes the target is a simple variable name (ast.Name)
-            if isinstance(node.target, ast.Name):
-                for_block.assigns.append(self.ast_parse(node.target))
-            else:
-                print(f"ForBlock, alternate target: {node.target=}")
+            # "target": the loop variable, or several (``for i, x in ...``)
+            for_block.assigns.append(self._target(node.target))
 
             # "body": nested list of the for loop's body
             for_block.lines.extend(self._parse_body(node.body))
@@ -727,7 +723,7 @@ class AST_Parser:
             if not isinstance(expression_tree, deque):
                 expression_tree = deque([expression_tree])
             calc_line = CalcLine(
-                assigns=deque([self.ast_parse(n) for n in node.targets]),
+                assigns=deque([self._target(n) for n in node.targets]),
                 expression_tree=expression_tree,
                 comment=comment_content,
                 pars_nesting=nested_pars,
@@ -765,6 +761,10 @@ class AST_Parser:
                 identifier=attribute,
                 value=getattr(self._resolve_dotted(namespace), attribute, NoValue()),
             )
+
+        elif isinstance(node, ast.Starred):
+            # ``*rest`` in an unpacking target or a call.
+            val = HcUnaryOp(operand=self.ast_parse(node.value), symbol="*")
 
         elif isinstance(node, ast.Subscript):
             val = self._subscript(node)
@@ -812,6 +812,15 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _target(self, node: ast.AST):
+        """
+        An assignment or loop target. Several targets (``a, b``, ``[a, b]``)
+        become a bare Tuple, shown without brackets.
+        """
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return Tuple(elems=deque(self._target(elt) for elt in node.elts), bare=True)
+        return self.ast_parse(node)
 
     def _subscript(self, node: ast.Subscript) -> Subscript:
         """An index or key lookup (``xs[0]``, ``A[i, j]``); see ``Subscript``."""
