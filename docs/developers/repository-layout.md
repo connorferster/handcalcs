@@ -44,8 +44,6 @@
 | {src}`handcalcs.renderers.excel` | `ExcelRenderer`, split into `renderer`, `formulas`, `names`, `rows`, `conditionals`, `units`, `writer`, `symbolic`, `rich_text`, `number_formats`, `evaluate`, `compat`, `options`. |
 | {src}`handcalcs.renderers.demo` | The source rendered by `HandCalcs.demo()`. |
 
-`src/handcalcs/superceded/` holds v1 code kept for reference; nothing imports it.
-
 ## Elsewhere
 
 | Path | Contents |
