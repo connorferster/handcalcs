@@ -56,6 +56,7 @@ os.environ.setdefault(
 )
 
 from handcalcs import HandCalcs  # noqa: E402
+from handcalcs.parsing import line_values  # noqa: E402
 from handcalcs.renderers import get_renderer  # noqa: E402
 
 # Default output display and code language per built-in renderer.
@@ -217,8 +218,10 @@ class HcExampleDirective(SphinxDirective):
 
         globals_: dict = {}
         try:
-            exec(compile(setup + "\n" + source, "<hc-example>", "exec"), globals_)
-            rendered = HandCalcs(renderer=renderer)(source, globals_)
+            exec(compile(setup, "<hc-example-setup>", "exec"), globals_)
+            # Run the example as HandCalcs does, recording each line's values.
+            values = line_values.run(source, globals_, "<hc-example>")
+            rendered = HandCalcs(renderer=renderer).render_run(source, globals_, values)
         except Exception as error:  # surface the failure in the build log
             raise self.error(f"hc-example failed: {type(error).__name__}: {error}")
         if not isinstance(rendered, str):

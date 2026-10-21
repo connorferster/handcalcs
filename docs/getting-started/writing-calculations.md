@@ -241,9 +241,8 @@ Blocks can be nested; each level is indented.
 
 ## Loops
 
-A `for` loop is shown as a line describing the iteration, followed by its body. Because
-values are captured after the code runs, the body shows the values from the **last**
-iteration:
+A `for` loop is shown as a line describing the iteration, followed by its body. The body
+is shown once, with the values of the **last** pass through the loop:
 
 ```{hc-example}
 :renderer: ascii

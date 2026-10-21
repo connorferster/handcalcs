@@ -1,19 +1,12 @@
 # Gotchas
 
-## Values are taken after the code runs
+## Objects changed in place
 
-handcalcs runs your code first and then looks up each variable's value. If a name is
-assigned more than once, every line shows the **final** value, so the substitution
-can disagree with the formula:
-
-```{hc-example}
-:renderer: ascii
-a = 2
-b = a * 3
-a = 10
-```
-
-Use a new name for each quantity (`a_1`, `a_2`, or names that describe them).
+Each line shows the values its variables had when that line ran, even if a name is
+assigned again later. Values are not copied, though: an object that is changed in place
+afterwards (`xs.append(4)`, `arr[0] = 5` on a numpy array) shows its final contents on
+every line. Make a new object instead (`xs = xs + [4]`), or give each quantity its own
+name.
 
 ## Jupyter cells can run out of order
 

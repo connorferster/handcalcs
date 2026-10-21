@@ -37,10 +37,21 @@ statement of a body has no statement to attach to.
 
 ### Values
 
-A `Name` gets its value with `self.globals.get(identifier, NoValue())`; an `Attribute`
-looks up its namespace and then the attribute. Values are looked up once, at parse time,
-from the namespace after the code has run. There is no tracking of reassignment, which is
-why a reassigned name shows its final value everywhere.
+A `Name` gets its value from `self.globals`; an `Attribute` looks up its namespace and
+then the attribute.
+
+While the source runs, {src}`LineValues <handcalcs.parsing.line_values.LineValues>`
+records the namespace just before and just after each statement, keyed by the
+statement's first line (for a statement in a loop, during the last pass). It watches the
+line events of the source's own frames only: `sys.monitoring` on Python 3.12+ (so
+library code runs untraced), `sys.settrace` on 3.11. Only the names the source uses are
+recorded, and values are not copied.
+
+The parser switches `self.globals` as it goes: before parsing a statement, to the values
+from just before it ran (an expression's operands, an `if` test, a loop's iterable);
+before parsing an assignment's targets, to the values from just after it. A statement
+with no recorded values (a branch that did not run, or a namespace supplied without
+running the source) uses the namespace after the run.
 
 ### Unsupported syntax
 
@@ -72,6 +83,6 @@ runs three passes over the tree:
 
 ## Which branch ran
 
-An `IfBlock` records `is_true`: whether its test was true, evaluated against the
-namespace at parse time. The base `elif_block` handler renders only the first true branch
+An `IfBlock` records `is_true`: whether its test was true, evaluated with the values from
+just before the `if` ran (see [Values](#values)). The base `elif_block` handler renders only the first true branch
 (or the `else`), which is how the output shows only the reasoning that applies.
