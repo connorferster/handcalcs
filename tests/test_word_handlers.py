@@ -320,7 +320,7 @@ def test_pint_quantities_follow_the_registry_format():
     exec(source, namespace)
     calcs = HandCalcs(renderer=TreeWordRenderer())(source, namespace)
     line = " ".join(linear(part) for part in calcs[-1][-1][-1])
-    assert line.endswith('= 6.25×{10}^{6}" mm²"')
+    assert line.endswith('= 6250000" mm²"')  # an integer keeps its digits
 
 
 # --- Operators --------------------------------------------------------------

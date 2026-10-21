@@ -27,7 +27,7 @@ def isolated_config(tmp_path, monkeypatch):
 # --- defaults & getters -----------------------------------------------------
 
 def test_defaults_present_when_no_file(isolated_config):
-    assert config.get_option("default_renderer") == "base"
+    assert config.get_option("default_renderer") == "ascii"
     assert config.get_option("jupyter_renderer") == "markdown"
     assert config.get_option("format_code") == ".5g"
     # Nothing is written to disk until save_config() is called.
@@ -115,7 +115,7 @@ def test_unknown_default_renderer_warns_and_falls_back(isolated_config):
     config.set_option("default_renderer", "ghost_renderer_xyz")
     with pytest.warns(UserWarning):
         hc = HandCalcs()
-    assert type(hc.renderer) is BaseRenderer
+    assert type(hc.renderer) is ASCIIRenderer
 
 
 def test_explicit_renderer_ignores_default_renderer_option(isolated_config):

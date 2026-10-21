@@ -1,6 +1,8 @@
 from __future__ import annotations
 import datetime
 import math
+import numbers
+import re
 import os
 import pathlib
 from collections import deque, ChainMap
@@ -24,6 +26,7 @@ from handcalcs.parsing.nodes import (
     Set,
     Subscript,
     Slice,
+    Matrix,
 )
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
@@ -61,6 +64,7 @@ from handcalcs.parsing.inline_nodes import (
     Comprehension,
     ComprehensionChain,
     IfExp,
+    Lambda,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -165,6 +169,11 @@ def breakable_ops(tree) -> frozenset[int]:
     return frozenset(found)
 
 
+def is_array(value) -> bool:
+    """True for a numpy array (or a numpy scalar, which has ``ndim`` 0)."""
+    return type(value).__module__.split(".")[0] == "numpy" and hasattr(value, "ndim")
+
+
 def _reify(value):
     """
     Wrap a raw runtime Python value in the matching HcNode so it renders through
@@ -177,6 +186,14 @@ def _reify(value):
     """
     if isinstance(value, HcNode):
         return value
+    if is_array(value):
+        # A numpy array: its elements take the format code. A 2-D array is a
+        # matrix; any other is a list (nested for more dimensions).
+        if value.ndim == 0:
+            return _reify(value.item())
+        if value.ndim == 2:
+            return Matrix(rows=deque(deque(map(_reify, row)) for row in value.tolist()))
+        return _reify(value.tolist())
     if isinstance(value, list):
         return List(elems=deque(_reify(v) for v in value))
     if isinstance(value, tuple):
@@ -808,12 +825,32 @@ def quantity_power_base(node, base_context: BaseRenderContext) -> bool:
     )
 
 
+# A general format code ('.5g', ',.3g', '>10g', 'n'): its precision and type.
+GENERAL_FORMAT = re.compile(r"(?P<head>[^.]*?)(?:\.\d+)?(?P<type>[gGn]?)")
+
+
+def value_format_code(value: Any, format_code: str) -> str:
+    """
+    The format code to show ``value`` with. Under a general format code (type
+    ``g``, ``n`` or none, such as the default ``.5g``), an integer, or a
+    quantity with an integer magnitude, keeps all its digits: ``200000``, not
+    ``2e+05``. Other format codes (``.2f``, ``.3e``) apply as they are.
+    """
+    magnitude = getattr(value, "magnitude", value)
+    if isinstance(magnitude, bool) or not isinstance(magnitude, numbers.Integral):
+        return format_code
+    match = GENERAL_FORMAT.fullmatch(format_code)
+    if match is None or (format_code and match["head"] == format_code):
+        return format_code
+    return f"{match['head']}{'n' if match['type'] == 'n' else 'd'}"
+
+
 @BaseRenderer.register("constant")
 def render_constant(
     renderer: BaseRenderer, node: Constant, base_context: BaseRenderContext
 ) -> Any:
     context = base_context.current
-    fc = context.format_code
+    fc = value_format_code(node.value, context.format_code)
     # bool is an int subclass, so a numeric format code would render True as 1.
     if isinstance(node.value, bool):
         return f"{node.value}"
@@ -821,6 +858,13 @@ def render_constant(
     # such as '.5g' would render literally instead of the value.
     if isinstance(node.value, (datetime.date, datetime.time)):
         return f"{node.value}"
+    # A string value (a literal from the source, or a calculated value) is shown
+    # in quotes, so it doesn't read as names or an expression: .to("kN*m"), not
+    # .to(kN*m). A string a renderer built as markup (neither) is shown as it is.
+    if isinstance(node.value, str):
+        if node.calculated or node.source_text:
+            return f'"{node.value}"'
+        return node.value
     # A number literal from the source is shown as written: the format code is
     # for calculated values (substitutions and results), not the formula's own
     # coefficients and exponents.
@@ -903,6 +947,30 @@ def render_list(
     return f"({f',{_}'.join(rendered_elems)})"
 
 
+def elide_matrix(
+    rows: list, base_context: BaseRenderContext, cell_gap: Any, row_gap: Any
+) -> list[list]:
+    """
+    A matrix's rendered rows, each shortened like a collection (``max_items``,
+    ``edge_items``) around ``cell_gap``, and the rows themselves around a row
+    of ``row_gap`` cells.
+    """
+    rows = [elide_items(list(row), base_context, cell_gap) for row in rows]
+    width = len(rows[0]) if rows else 0
+    return elide_items(rows, base_context, [row_gap] * width)
+
+
+@BaseRenderer.register("matrix")
+def render_matrix(
+    renderer: BaseRenderer, node: Matrix, base_context: BaseRenderContext
+) -> str:
+    """A 2-D array on one line, as nested lists: ``[[1, 2], [3, 4]]``."""
+    _ = base_context.current.space
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, "…", "…")
+    return "[" + f",{_}".join("[" + f",{_}".join(row) + "]" for row in rows) + "]"
+
+
 @BaseRenderer.register("inline_comment:pre")
 @BaseRenderer.register("comment_line:pre")
 @BaseRenderer.register("heading:pre")
@@ -968,6 +1036,8 @@ def render_attribute(
             f"Attempting to render the Attribute node while context does not have a 'current_mode' key.\n"
             f"{context=}"
         )
+    if node.receiver is not None:
+        return f"{render_receiver(renderer, node.receiver, base_context)}.{node.identifier}"
     namespace = node.namespace
     if namespace in ("", "__main__", None):
         symbolic = node.identifier
@@ -1256,23 +1326,41 @@ def render_function_call(
     renderer: BR, node: FunctionCall, base_context: BaseRenderContext
 ) -> str:
     context = base_context.current
-    function_name = renderer.render(node.function_name, base_context)
+    # A function's name, and a module or object it is called on, are symbols,
+    # not values: they render symbolically in both columns.
+    function_name = render_symbolic(renderer, node.function_name, base_context)
     # Check for the '__main__' namespace before rendering it: a renderer's
     # 'name:sym' rules (e.g. subscript swaps) would otherwise mangle the
     # identifier and the suppression would never match. An empty namespace
     # (e.g. one a renderer rule has cleared) also renders nothing.
     if not node.namespace or getattr(node.namespace, "identifier", None) == "__main__":
         namespace = ""
+    elif isinstance(node.namespace, Name):
+        namespace = render_symbolic(renderer, node.namespace, base_context)
     else:
-        namespace = renderer.render(node.namespace, base_context)
-        if receiver_needs_parens(node.namespace):
-            namespace = f"{context.lpar}{namespace}{context.rpar}"
+        # A method of an expression: the receiver is substituted like an operand.
+        namespace = render_receiver(renderer, node.namespace, base_context)
     args = [renderer.render(arg, base_context) for arg in node.args]
     arg_str = f",{context.space}".join(args)
     if namespace:
         rendered = f"{namespace}.{function_name}{node.pre}{arg_str}{node.post}"
     else:
         rendered = f"{function_name}{node.pre}{arg_str}{node.post}"
+    return rendered
+
+
+def render_receiver(
+    renderer: BR, receiver: Any, base_context: BaseRenderContext
+) -> str:
+    """
+    The expression before the ``.`` of an attribute or a method of an
+    expression, rendered like an operand (substituted in the numeric column)
+    and parenthesized when it needs it: ``(a * b).magnitude``.
+    """
+    context = base_context.current
+    rendered = renderer.render(receiver, base_context)
+    if receiver_needs_parens(receiver):
+        return f"{context.lpar}{rendered}{context.rpar}"
     return rendered
 
 
@@ -1323,16 +1411,19 @@ def render_comprehension(
 ) -> str:
     """
     Render a single ``for ... in ...`` clause of a comprehension, with the
-    keywords (and their spaces) from the renderer's ``COMPREHENSION_KEYWORDS``.
+    keywords (and their spaces) from the renderer's ``COMPREHENSION_KEYWORDS``,
+    followed by its ``if`` filters (the ``if`` keyword of ``IF_EXP_KEYWORDS``).
     """
     for_kw, in_kw = renderer.COMPREHENSION_KEYWORDS
-    targets = ", ".join(
-        renderer.render(target, base_context) for target in node.assigns
-    )
+    if_kw = renderer.IF_EXP_KEYWORDS[0]
+    targets = "".join(renderer.render(target, base_context) for target in node.assigns)
     iterator = "".join(renderer.render(part, base_context) for part in node.iterator)
     if node.is_async:
         for_kw = for_kw.replace("for", "async for")
-    return f"{for_kw}{targets}{in_kw}{iterator}"
+    conditions = "".join(
+        f"{if_kw}{renderer.render(test, base_context)}" for test in node.conditions
+    )
+    return f"{for_kw}{targets}{in_kw}{iterator}{conditions}"
 
 
 @BaseRenderer.register("comprehension_chain")
@@ -1370,8 +1461,30 @@ def render_comprehension_chain(
         "dict": ("{", "}"),
         "generator": ("(", ")"),
     }
+    if node.bare:
+        return inner
     opener, closer = brackets.get(node.comp_type, ("[", "]"))
     return f"{opener}{inner}{closer}"
+
+
+@BaseRenderer.register("lambda")
+def render_lambda(renderer: BR, node: Lambda, base_context: BaseRenderContext) -> str:
+    """
+    A lambda as written, ``lambda x, y: x * y``, in the symbolic form in both
+    columns: its names are parameters, not variables with values.
+    """
+    _ = base_context.current.space
+    params = f",{_}".join(
+        render_symbolic(renderer, p, base_context) for p in node.params
+    )
+    body = render_symbolic(renderer, node.body, base_context)
+    return f"lambda{_}{params}:{_}{body}"
+
+
+def is_lambda_line(node: CalcLine) -> bool:
+    """True for an assignment of a lambda, ``f = lambda x: x * 2``."""
+    tree = node.expression_tree
+    return len(tree) == 1 and getattr(tree[0], "type", None) == "lambda"
 
 
 @BaseRenderer.register("comment_command")
@@ -1508,6 +1621,9 @@ def render_calcline(
         return ""
 
     shown = mode_columns(context.mode)
+    if is_lambda_line(node):
+        # A function has no value to substitute or show: only the lambda.
+        shown = shown & {"ass", "sym"}
     base_context.line_context.break_nodes = breakable_ops(node.expression_tree)
     columns: deque = deque([])
     if "ass" in shown:

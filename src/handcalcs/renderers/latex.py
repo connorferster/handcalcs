@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 from handcalcs.renderers.base import (
     elide_items,
+    elide_matrix,
+    value_format_code,
     render_subscript as render_bracketed_subscript,
     subscript_value,
     BaseRenderer,
@@ -22,6 +24,8 @@ from handcalcs.renderers.base import (
     math_call_name,
     postfix_factorial,
     receiver_needs_parens,
+    render_receiver,
+    render_symbolic,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -38,6 +42,7 @@ from handcalcs.parsing.nodes import (
     HcNode,
     Name,
     Attribute,
+    Matrix,
     Subscript,
     NoValue,
     Constant,
@@ -70,6 +75,7 @@ from handcalcs.parsing.inline_nodes import (
     Keyword,
     Compare,
     ComprehensionChain,
+    Lambda,
 )
 from handcalcs.parsing.line_nodes import (
     CalcLine,
@@ -773,9 +779,12 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
     column shows the captured value, as for a Name.
     """
     context = base_context.current
+    options = identifier_options(renderer, base_context)
+    if node.receiver is not None:
+        receiver = render_receiver(renderer, node.receiver, base_context)
+        return f"{receiver}.{latex_identifier(node.identifier, options)}"
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
-    options = identifier_options(renderer, base_context)
     identifier = MATH_CONSTANTS.get(node.identifier) or latex_identifier(
         node.identifier, options
     )
@@ -786,6 +795,14 @@ def render_attribute(renderer: LR, node: Attribute, base_context: BRC) -> str:
         latex_identifier(part, options) for part in namespace.split(".")
     )
     return f"{namespace}.{identifier}"
+
+
+@LR.register("lambda")
+def render_lambda(renderer: LR, node: Lambda, base_context: BRC) -> str:
+    """A lambda as written, with ``lambda`` upright: ``\\mathrm{lambda}\\;x\\colon x``."""
+    params = ", ".join(render_symbolic(renderer, p, base_context) for p in node.params)
+    body = render_symbolic(renderer, node.body, base_context)
+    return f"\\mathrm{{lambda}}\\;{params}\\colon\\;{body}"
 
 
 @LR.register("subscript")
@@ -924,7 +941,7 @@ def typeset_latex_number(formatted: str) -> str:
 @LR.register("constant")
 def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
     value = node.value
-    fc = base_context.current.format_code
+    fc = value_format_code(value, base_context.current.format_code)
     if isinstance(value, bool) or value is None:
         return f"\\mathrm{{{value}}}"
     # A number literal from the source keeps its digits as written (the format
@@ -1004,6 +1021,15 @@ def join_items(renderer: LR, items: list[str], base_context: BRC) -> str:
 def render_list(renderer: LR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return f"[{join_items(renderer, elems, base_context)}]"
+
+
+@LR.register("matrix")
+def render_matrix(renderer: LR, node: Matrix, base_context: BRC) -> str:
+    """A 2-D array as a matrix in brackets (``bmatrix``)."""
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, "\\cdots", "\\vdots")
+    body = " \\\\ ".join(" & ".join(row) for row in rows)
+    return f"\\begin{{bmatrix}} {body} \\end{{bmatrix}}"
 
 
 @LR.register("tuple")

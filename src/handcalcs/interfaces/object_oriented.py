@@ -5,16 +5,35 @@ from typing import Any, Optional
 from ..parsing.sequence import HcSequence
 from ..parsing.inputs import InputBinding
 from ..parsing import line_values
-from ..renderers import BaseRenderer, get_renderer
+from ..renderers import ASCIIRenderer, BaseRenderer, get_renderer
 from ..renderers import demo
 from .. import config
+
+
+def default_renderer() -> BaseRenderer:
+    """
+    A new instance of the renderer named by the 'default_renderer' option, which
+    a bare HandCalcs() and @handcalc() use. If that name is not registered (e.g. a
+    custom renderer whose module has not been imported), warn and fall back to
+    the ASCIIRenderer.
+    """
+    name = config.get_option("default_renderer", config.DEFAULTS["default_renderer"])
+    renderer_cls = get_renderer(name)
+    if renderer_cls is None:
+        warnings.warn(
+            f"Configured default_renderer '{name}' is not a registered renderer; "
+            "falling back to the ASCIIRenderer. If it is a custom renderer, ensure "
+            "its module is imported before it is used."
+        )
+        renderer_cls = ASCIIRenderer
+    return renderer_cls()
 
 
 class HandCalcs:
 
     def __init__(self, renderer=None):
         if renderer is None:
-            renderer = self.__default_renderer()
+            renderer = default_renderer()
         self.renderer = renderer
         # Global config settings (format_code + any custom fields) seed the render
         # context of every HandCalcs instance, whatever renderer is used. The
@@ -25,24 +44,6 @@ class HandCalcs:
             if key not in config.NON_CONTEXT_OPTIONS
         }
         self.hc_ast = None
-
-    @staticmethod
-    def __default_renderer():
-        """
-        Instantiate the renderer named by the 'default_renderer' global config
-        option. If that name is not registered (e.g. a custom renderer whose module
-        has not been imported), warn and fall back to BaseRenderer.
-        """
-        name = config.get_option("default_renderer", "base")
-        renderer_cls = get_renderer(name)
-        if renderer_cls is None:
-            warnings.warn(
-                f"Configured default_renderer '{name}' is not a registered renderer; "
-                "falling back to BaseRenderer. If it is a custom renderer, ensure its "
-                "module is imported before instantiating HandCalcs()."
-            )
-            renderer_cls = BaseRenderer
-        return renderer_cls()
 
     def __call__(
         self,

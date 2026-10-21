@@ -122,8 +122,6 @@ See [Writing calculations](writing-calculations.md#conditionals) for examples.
   don't render, then render the calculation that uses the result.
 - `print(...)` calls are skipped, so a script can print progress without it showing up.
   A comment line above one is kept.
-- Generator expressions (`sum(x**2 for x in xs)`) are not rendered. Use a list
-  comprehension instead: `sum([x**2 for x in xs])`.
 
 ## Function names and symbols
 

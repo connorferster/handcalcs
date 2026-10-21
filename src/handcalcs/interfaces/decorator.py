@@ -7,6 +7,7 @@ from typing import Optional
 from functools import wraps
 import innerscope
 from ..renderers.base import BaseRenderer
+from .object_oriented import default_renderer
 from ..parsing.sequence import HcSequence, drop_after_return
 from ..parsing.line_values import LineValues, recording
 from .. import config
@@ -66,7 +67,20 @@ def returns_names_only(stmt: ast.stmt) -> bool:
     return all(isinstance(value, ast.Name) for value in values)
 
 
-def handcalc(renderer: BaseRenderer, render_context: Optional[dict] = None):
+def handcalc(
+    renderer: Optional[BaseRenderer] = None, render_context: Optional[dict] = None
+):
+    """
+    Decorate a calculation function so that a call returns ``(return_value,
+    rendered)``. Without a renderer, the ``default_renderer`` option's is used
+    (the ASCIIRenderer unless set). Usable as ``@handcalc(renderer)``,
+    ``@handcalc()`` or ``@handcalc``.
+    """
+    if callable(renderer) and not isinstance(renderer, BaseRenderer):
+        # @handcalc without brackets: the "renderer" is the decorated function.
+        return handcalc()(renderer)
+    if renderer is None:
+        renderer = default_renderer()
     if render_context is None:
         render_context = {}
     # Global config settings (format_code + any custom fields) seed the render

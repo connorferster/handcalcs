@@ -149,7 +149,7 @@ DISPLAY = {
         "xs<sub>0</sub> + xs<sub>-1</sub> + loads<sub>dead</sub>"
         " + loads<sub>live load</sub> + M<sub>Ed,i</sub> + α<sub>i</sub>"
     ),
-    ASCIIRenderer: "xs[0] + xs[-1] + loads[dead] + loads[live load] + M_Ed[i] + α[i]",
+    ASCIIRenderer: 'xs[0] + xs[-1] + loads["dead"] + loads["live load"] + M_Ed[i] + α[i]',
 }
 
 

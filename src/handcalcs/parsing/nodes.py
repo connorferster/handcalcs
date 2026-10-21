@@ -38,9 +38,16 @@ class Constant(HcNode):
 
 @dataclass
 class Attribute(HcNode):
+    """
+    An attribute: of a dotted name (``math.pi``, ``beam.length``; ``namespace``
+    is the dotted name) or of an expression (``(L * 2).magnitude``; then
+    ``namespace`` is empty and ``receiver`` is the expression's node).
+    """
+
     namespace: str
     identifier: str
     value: Any = NoValue()
+    receiver: Any = None
     type: str = "attribute"
 
 
@@ -73,6 +80,14 @@ class Dictionary(HcNode):
     keys: deque[Any]
     values: deque[Any]
     type: str = "dictionary"
+
+
+@dataclass
+class Matrix(HcNode):
+    """A two-dimensional array (a numpy array's value): ``rows`` of element nodes."""
+
+    rows: deque[deque[Any]]
+    type: str = "matrix"
 
 
 @dataclass

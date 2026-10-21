@@ -1,5 +1,6 @@
 import fst as ast
 import ast as py_ast
+import bisect
 import builtins
 import io
 import math
@@ -31,6 +32,7 @@ from .inline_nodes import (
     Compare,
     Keyword,
     IfExp,
+    Lambda,
 )
 from .null_values import HcNotImplemented, NoValue
 
@@ -75,6 +77,13 @@ ARITHMETIC_OPS = {
     "Pow": PowOp,
     "Mod": ModuloOp,
     "MatMult": MatMultOp,
+}
+
+COMPREHENSION_TYPES = {
+    "ListComp": "list",
+    "SetComp": "set",
+    "DictComp": "dict",
+    "GeneratorExp": "generator",
 }
 
 UNARY_OPS = {
@@ -258,9 +267,12 @@ class AST_Parser:
         for tok in tokens:
             if tok.type not in trivia:
                 code_rows.append(tok.start[0])
+        self._comment_columns = {}
         for tok in tokens:
             if tok.type == tokenize.COMMENT and tok.start[0] not in code_rows:
                 self.line_comments[tok.start[0]] = tok.string
+                self._comment_columns[tok.start[0]] = tok.start[1]
+        self._code_rows = sorted(set(code_rows))
         self._pending_comment_rows = deque(sorted(self.line_comments))
 
     def _make_comment_line(self, raw: str):
@@ -408,7 +420,28 @@ class AST_Parser:
                     "page_break"
                 ):
                     out.append(CommentCommand(commands={"page_break": True}))
+        if body and body[0].col_offset > 0:
+            out.extend(self._flush_trailing_comments(body))
         return out
+
+    def _flush_trailing_comments(self, body: list) -> deque:
+        """
+        The comment lines that end an indented block: after its last statement,
+        before the next line of code, and indented at least as far as the
+        block's statements.
+        """
+        next_code = bisect.bisect_right(self._code_rows, body[-1].end_lineno)
+        next_row = (
+            self._code_rows[next_code] if next_code < len(self._code_rows) else 2**63
+        )
+        last = None
+        for row in self._pending_comment_rows:
+            if row >= next_row or self._comment_columns[row] < body[0].col_offset:
+                break
+            last = row
+        if last is None:
+            return deque()
+        return self._flush_comment_lines(last + 1)
 
     def ast_parse(self, node: ast.AST) -> deque:
         """
@@ -519,6 +552,12 @@ class AST_Parser:
             # Create the inner nested list for arguments: the positional
             # arguments, then the keyword arguments (as Keyword nodes)
             args_list = deque([self.ast_parse(arg) for arg in node.args])
+            if (
+                len(node.args) == 1
+                and not node.keywords
+                and isinstance(node.args[0], ast.GeneratorExp)
+            ):
+                args_list[0].bare = True
             args_list.extend(
                 Keyword(arg=keyword.arg, value=self.ast_parse(keyword.value))
                 for keyword in node.keywords
@@ -591,9 +630,11 @@ class AST_Parser:
 
             val = self.current_block = for_block
 
-        elif isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+        elif isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
             comprehension_block = ComprehensionChain(
-                comp_type=node.__class__.__name__.replace("Comp", "").lower(),
+                comp_type=COMPREHENSION_TYPES[type(node).__name__],
             )
 
             assigns = deque([])
@@ -614,18 +655,18 @@ class AST_Parser:
                     assigns=generator["assigns"],
                     iterator=generator["iterator"],
                     is_async=generator["is_async"],
+                    conditions=generator["conditions"],
                 )
                 comp_blocks.append(comp_block)
             comprehension_block.comprehensions = comp_blocks
             val = comprehension_block
 
-            # TODO: HERE: PERHAPS I NEED SPECIAL COMPREHENSION BLOCK
-
         elif isinstance(node, ast.comprehension):
             comp = {
-                "assigns": deque([self.ast_parse(node.target)]),
+                "assigns": deque([self._target(node.target)]),
                 "iterator": deque([self.ast_parse(node.iter)]),
                 "is_async": bool(node.is_async),
+                "conditions": deque(self.ast_parse(test) for test in node.ifs),
             }
             val = comp
 
@@ -696,6 +737,13 @@ class AST_Parser:
                 value=getattr(self._resolve_dotted(namespace), attribute, NoValue()),
             )
 
+        elif isinstance(node, ast.Attribute):
+            # An attribute of an expression, (L * 2).magnitude: the expression
+            # is shown, substituted in the numeric column, before the ``.``.
+            val = Attribute(
+                namespace="", identifier=node.attr, receiver=self.ast_parse(node.value)
+            )
+
         elif isinstance(node, ast.Starred):
             # ``*rest`` in an unpacking target or a call.
             val = HcUnaryOp(operand=self.ast_parse(node.value), symbol="*")
@@ -710,6 +758,19 @@ class AST_Parser:
                     for part in (node.lower, node.upper, node.step)
                 )
             )
+
+        elif isinstance(node, ast.Lambda):
+            val = Lambda(
+                params=self._lambda_params(node.args), body=self.ast_parse(node.body)
+            )
+
+        elif isinstance(node, ast.JoinedStr):
+            # An f-string shows its value, like a string literal, when it can be
+            # evaluated without side effects; otherwise it is shown as written.
+            value = self._evaluate_expr(node)
+            if isinstance(value, NoValue):
+                value = ast.get_source_segment(self.source, node) or ""
+            val = Constant(value=value, calculated=True)
 
         elif isinstance(node, ast.IfExp):
             val = IfExp(
@@ -746,6 +807,22 @@ class AST_Parser:
 
         self.prev_line_number = self.current_line_number
         return val
+
+    def _lambda_params(self, args: ast.arguments) -> deque:
+        """A lambda's parameters as names, with ``*args``/``**kwargs`` starred."""
+        params = deque(
+            Name(identifier=arg.arg) for arg in [*args.posonlyargs, *args.args]
+        )
+        if args.vararg is not None:
+            params.append(
+                HcUnaryOp(operand=Name(identifier=args.vararg.arg), symbol="*")
+            )
+        params.extend(Name(identifier=arg.arg) for arg in args.kwonlyargs)
+        if args.kwarg is not None:
+            params.append(
+                HcUnaryOp(operand=Name(identifier=args.kwarg.arg), symbol="**")
+            )
+        return params
 
     def _target(self, node: ast.AST):
         """

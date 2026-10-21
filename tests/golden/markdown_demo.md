@@ -26,15 +26,15 @@ $$\begin{aligned} x &= 3 \; \text{(comment 1)} \qquad &y &= 4 \qquad &z &= 5 \; 
 
 ## Lateral torsional buckling
 
-$$\begin{aligned} \omega_{2} &= 1 \quad\text{(A beam under uniform moment)} \\ L &= 6000 \quad\text{(Unbraced length of beam, in mm)} \\ E &= 2 \times 10^{5} \quad\text{(Elastic modulus, in MPa)} \\ I_{y} &= 1.6 \times 10^{8} \quad\text{(Second moment of area about weak axis, in mm}\hat{}\text{4)} \\ G &= 77000 \quad\text{(Shear modulus, in MPa)} \\ J &= 1.33 \times 10^{5} \quad\text{(Polar moment of area, in mm}\hat{}\text{3)} \\ C_{w} &= 2 \times 10^{11} \quad\text{(Warping constant)} \end{aligned}$$
+$$\begin{aligned} \omega_{2} &= 1 \quad\text{(A beam under uniform moment)} \\ L &= 6000 \quad\text{(Unbraced length of beam, in mm)} \\ E &= 200000 \quad\text{(Elastic modulus, in MPa)} \\ I_{y} &= 1.6 \times 10^{8} \quad\text{(Second moment of area about weak axis, in mm}\hat{}\text{4)} \\ G &= 77000 \quad\text{(Shear modulus, in MPa)} \\ J &= 1.33 \times 10^{5} \quad\text{(Polar moment of area, in mm}\hat{}\text{3)} \\ C_{w} &= 2 \times 10^{11} \quad\text{(Warping constant)} \end{aligned}$$
 
 &nbsp;
 
-$$\begin{aligned} M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} \\ &= \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{2 \times 10^{5} \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 2 \times 10^{5}}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} \\ &= 4.3134 \times 10^{8} \quad\text{(A long equation)} \end{aligned}$$
+$$\begin{aligned} M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} \\ &= \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} \\ &= 4.3134 \times 10^{8} \quad\text{(A long equation)} \end{aligned}$$
 
 &nbsp;
 
-$$\begin{aligned} M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} = \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{2 \times 10^{5} \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 2 \times 10^{5}}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} = 4.3134 \times 10^{8} \\ &\quad\text{(A long equation)} \end{aligned}$$
+$$\begin{aligned} M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} = \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} = 4.3134 \times 10^{8} \\ &\quad\text{(A long equation)} \end{aligned}$$
 
 ## Steel section class checks
 

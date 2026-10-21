@@ -110,7 +110,7 @@ SOURCE_TO = (
 
 def test_plaintext_method_on_expression():
     out = _last_line(ASCIIRenderer(), SOURCE_TO)
-    assert out == "b = (a * 3).to(mm) = (2 meter * 3).to(mm) = 6000 millimeter"
+    assert out == 'b = (a * 3).to("mm") = (2 meter * 3).to("mm") = 6000 millimeter'
 
 
 def test_latex_method_on_expression():
@@ -120,7 +120,7 @@ def test_latex_method_on_expression():
 
 def test_html_method_on_expression():
     out = _render(HTMLRenderer(), SOURCE_TO)
-    assert "(a · 3).to(mm)" in out
+    assert '(a · 3).to(“mm”)' in out
 
 
 def test_numpy_dotted_namespace_renders():
@@ -186,15 +186,15 @@ def test_numpy_arrays_render_without_truth_value_error():
         "    h = c + a\n"
     )
     out = _render(ASCIIRenderer(), source)
-    assert "c = a * 2 = [1 2 3] * 2 = [2 4 6]" in out
-    assert "h = c + a = [2 4 6] + [1 2 3] = [3 6 9]" in out
+    assert "c = a * 2 = [1, 2, 3] * 2 = [2, 4, 6]" in out
+    assert "h = c + a = [2, 4, 6] + [1, 2, 3] = [3, 6, 9]" in out
 
 
 def test_matrix_multiplication():
     pytest.importorskip("numpy")
     source = "import numpy as np\na = np.array([1.0, 2.0])\nf = a @ a\n"
     assert (
-        _last_line(ASCIIRenderer(), source) == "f = a @ a = [1. 2.] @ [1. 2.] = 5"
+        _last_line(ASCIIRenderer(), source) == "f = a @ a = [1, 2] @ [1, 2] = 5"
     )
     assert "f &= a \\mathbin{@} a" in _render(LatexRenderer(), source)
 

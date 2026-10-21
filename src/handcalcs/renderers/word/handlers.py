@@ -11,12 +11,13 @@ import re
 from html import unescape
 
 from handcalcs.parsing.block_nodes import CalcsBlock, ForBlock, IfBlock
-from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword
+from handcalcs.parsing.inline_nodes import FunctionCall, InlineComment, Keyword, Lambda
 from handcalcs.parsing.line_nodes import Heading as HeadingLine, Import
 from handcalcs.parsing.nodes import (
     Attribute,
     Constant,
     Dictionary,
+    Matrix,
     HcNode,
     List,
     Name,
@@ -29,6 +30,8 @@ from handcalcs.parsing.nodes import (
 from handcalcs.parsing.operator_nodes import DivOp, FloorOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
     elide_items,
+    elide_matrix,
+    value_format_code,
     render_symbolic,
     subscript_value,
     OP_PRECEDENCE,
@@ -237,9 +240,14 @@ def render_attribute(renderer: WR, node: Attribute, base_context: BRC) -> str:
     like a Name. The numeric column shows the captured value, as for a Name.
     """
     context = base_context.current
+    options = identifier_options(renderer, base_context)
+    if node.receiver is not None:
+        receiver = renderer.render(node.receiver, base_context)
+        if receiver_needs_parens(node.receiver):
+            receiver = omml.delim(receiver)
+        return f"{receiver}{omml.run('.')}{word_identifier(node.identifier, options)}"
     if context.current_mode == "num" and not isinstance(node.value, NoValue):
         return renderer.render_node(node.value, base_context)
-    options = identifier_options(renderer, base_context)
     namespace = node.namespace
     if namespace in ("", "__main__", None) or namespace in MATH_NAMESPACES:
         if namespace in MATH_NAMESPACES and node.identifier in MATH_CONSTANTS:
@@ -281,6 +289,16 @@ def render_slice(renderer: WR, node: Slice, base_context: BRC) -> str:
     if node.step is None:
         parts.pop()
     return omml.run(":").join(parts)
+
+
+@WR.register("lambda")
+def render_lambda(renderer: WR, node: Lambda, base_context: BRC) -> str:
+    """A lambda as written, ``lambda x: x * 2``, with ``lambda`` upright."""
+    params = omml.run(",").join(
+        render_symbolic(renderer, param, base_context) for param in node.params
+    )
+    body = render_symbolic(renderer, node.body, base_context)
+    return f"{omml.upright('lambda ')}{params}{omml.run(':')}{body}"
 
 
 @WR.register("keyword")
@@ -338,7 +356,7 @@ def format_number(value, format_code: str) -> str:
 @WR.register("constant")
 def render_constant(renderer: WR, node: Constant, base_context: BRC) -> str:
     value = node.value
-    fc = base_context.current.format_code
+    fc = value_format_code(value, base_context.current.format_code)
     if isinstance(value, bool) or value is None:
         return omml.upright(f"{value}")
     if isinstance(value, (datetime.date, datetime.time)):
@@ -391,6 +409,14 @@ def join_items(renderer: WR, items: list[str], base_context: BRC) -> list[str]:
 def render_list(renderer: WR, node: List, base_context: BRC) -> str:
     elems = [renderer.render(elem, base_context) for elem in node.elems]
     return omml.delim_items(join_items(renderer, elems, base_context), "[", "]")
+
+
+@WR.register("matrix")
+def render_matrix(renderer: WR, node: Matrix, base_context: BRC) -> str:
+    """A 2-D array as a matrix in brackets."""
+    rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
+    rows = elide_matrix(rows, base_context, omml.run("⋯"), omml.run("⋮"))
+    return omml.matrix(rows)
 
 
 @WR.register("tuple")

@@ -74,6 +74,7 @@ Defined in {src}`handcalcs.parsing.nodes`, {src}`handcalcs.parsing.inline_nodes`
 | `dictionary` | `Dictionary` | `keys`, `values` |
 | `subscript` | `Subscript` | `container` (a node), `index` (one node per dimension), `labels` (each index as `(text, is_name)` when the container is a name and every index is an integer, a short string or a name, else `None`), `value` (the element, or `NoValue()`) |
 | `slice` | `Slice` | `lower`, `upper`, `step` (nodes, or `None` for a missing part) |
+| `matrix` | `Matrix` | `rows` (a list of rows of element nodes); the value of a 2-D numpy array |
 | `function_call` | `FunctionCall` | `function_name` (a `Name`), `namespace`, `args`, `pre`/`post` (the argument delimiters) |
 | `keyword` | `Keyword` | `arg` (`None` for `**mapping`), `value` |
 | `compare` | `Compare` | `comparison`: operands and comparison operators, in order |

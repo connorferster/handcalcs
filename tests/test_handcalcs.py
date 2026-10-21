@@ -100,7 +100,9 @@ def test_function_call_keyword_arguments_are_rendered(renderer):
         "t = datetime.timedelta(days=n, hours=2)"
         " = datetime.timedelta(days=3, hours=2) = 3 days, 2:00:00"
     ) in out
-    assert "r = f(1, **opts) = f(1, **{b: 2}) = 3" in out
+    # A string is in quotes: straight in ASCII, curly in HTML.
+    quoted_b = '"b"' if renderer == "ascii" else "“b”"
+    assert f"r = f(1, **opts) = f(1, **{{{quoted_b}: 2}}) = 3" in out
 
 
 def test_line_after_an_ignored_first_line_renders_whole():

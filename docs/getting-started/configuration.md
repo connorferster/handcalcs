@@ -15,7 +15,7 @@ handcalcs.save_config()                      # and every session after
 | Option | Default | Used by |
 |---|---|---|
 | `format_code` | `".5g"` | Every renderer: the default [number format](formatting-numbers.md). |
-| `default_renderer` | `"base"` | `HandCalcs()` with no renderer argument. The name of a [renderer](../renderers/index.md). |
+| `default_renderer` | `"ascii"` | `HandCalcs()` and `@handcalc()` with no renderer argument. The name of a [renderer](../renderers/index.md). |
 | `jupyter_renderer` | `"markdown"` | The `%%render` cell magic. Also set by `%hc_default_renderer`. |
 | `line_values` | `True` | `HandCalcs`, `%%render` and `@handcalc`: record each line's values while the code runs. See [line values](#line-values). |
 

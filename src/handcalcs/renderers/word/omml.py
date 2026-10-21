@@ -132,6 +132,12 @@ def delim_items(
     return f"<m:d>{_delim_props(beg, end, sep)}{slots}</m:d>"
 
 
+def matrix(rows: list[list[str]], beg: str = "[", end: str = "]") -> str:
+    """A matrix (``m:m``) of OMML cells in growing brackets."""
+    body = "".join(element("mr", *(e(cell) for cell in row)) for row in rows)
+    return delim(element("m", body), beg, end)
+
+
 def func(name: str, argument: str) -> str:
     """A function application (``m:func``): ``name`` is set as a function name."""
     return f"<m:func>{element('fName', name)}{e(argument)}</m:func>"
