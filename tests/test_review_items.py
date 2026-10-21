@@ -340,3 +340,22 @@ def test_decorator_without_a_renderer(tmp_path, monkeypatch):
         assert "\\begin{aligned}" in latex_calc(2)[1]
     finally:
         handcalcs.reset_config()
+
+
+# --- S12: a comment that ends an indented block stays in the block -------------------
+
+
+def test_comment_at_the_end_of_a_block():
+    out = ascii("a = 1\nif a:\n    b = 2\n    # last in the block\n# after the block\nc = 3\n")
+    assert "    b = 2\n    last in the block\nafter the block\nc = 3" in out
+
+
+def test_comment_at_the_end_of_a_loop():
+    out = ascii("for i in range(2):\n    d = i\n    # end of loop\n")
+    assert "    d = i = 1\n    end of loop" in out
+
+
+def test_indented_comment_after_the_next_statement_is_not_moved():
+    out = ascii("a = 1\nif a:\n    b = 2\nc = 3\n    # odd indent\n")
+    assert out.rstrip().endswith("odd indent")
+    assert "    odd indent" not in out

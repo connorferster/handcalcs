@@ -1,5 +1,6 @@
 import fst as ast
 import ast as py_ast
+import bisect
 import builtins
 import io
 import math
@@ -267,9 +268,12 @@ class AST_Parser:
         for tok in tokens:
             if tok.type not in trivia:
                 code_rows.append(tok.start[0])
+        self._comment_columns = {}
         for tok in tokens:
             if tok.type == tokenize.COMMENT and tok.start[0] not in code_rows:
                 self.line_comments[tok.start[0]] = tok.string
+                self._comment_columns[tok.start[0]] = tok.start[1]
+        self._code_rows = sorted(set(code_rows))
         self._pending_comment_rows = deque(sorted(self.line_comments))
 
     def _make_comment_line(self, raw: str):
@@ -418,7 +422,28 @@ class AST_Parser:
                     "page_break"
                 ):
                     out.append(CommentCommand(commands={"page_break": True}))
+        if body and body[0].col_offset > 0:
+            out.extend(self._flush_trailing_comments(body))
         return out
+
+    def _flush_trailing_comments(self, body: list) -> deque:
+        """
+        The comment lines that end an indented block: after its last statement,
+        before the next line of code, and indented at least as far as the
+        block's statements.
+        """
+        next_code = bisect.bisect_right(self._code_rows, body[-1].end_lineno)
+        next_row = (
+            self._code_rows[next_code] if next_code < len(self._code_rows) else 2**63
+        )
+        last = None
+        for row in self._pending_comment_rows:
+            if row >= next_row or self._comment_columns[row] < body[0].col_offset:
+                break
+            last = row
+        if last is None:
+            return deque()
+        return self._flush_comment_lines(last + 1)
 
     def ast_parse(self, node: ast.AST) -> deque:
         """
