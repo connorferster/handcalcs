@@ -27,6 +27,8 @@ page explains what each node represents.
 | `tuple` | {src}`Tuple <handcalcs.parsing.nodes.Tuple>` | `elems` |
 | `set` | {src}`Set <handcalcs.parsing.nodes.Set>` | `elems` |
 | `dictionary` | {src}`Dictionary <handcalcs.parsing.nodes.Dictionary>` | `keys`, `values` |
+| `subscript` | {src}`Subscript <handcalcs.parsing.nodes.Subscript>` | `container`, `index`, `labels`, `value` |
+| `slice` | {src}`Slice <handcalcs.parsing.nodes.Slice>` | `lower`, `upper`, `step` |
 | `function_call` | {src}`FunctionCall <handcalcs.parsing.inline_nodes.FunctionCall>` | `namespace`, `function_name`, `args` |
 | `keyword` | {src}`Keyword <handcalcs.parsing.inline_nodes.Keyword>` | `arg`, `value` |
 | `compare` | {src}`Compare <handcalcs.parsing.inline_nodes.Compare>` | `comparison` |

@@ -89,6 +89,24 @@ x = 10
 y = log(x)
 ```
 
+## Indexes in brackets
+
+The LaTeX, Markdown, HTML and Word renderers show `xs[0]` as xs with subscript 0. To keep
+the brackets as written in the code, clear the node's subscript labels in a
+`subscript:pre` rule:
+
+```{literalinclude} ../_examples/bracket_indexes.py
+:language: python
+:lines: 2-
+```
+
+```{hc-example}
+:renderer-file: _examples/bracket_indexes.py
+:renderer-class: BracketMarkdownRenderer
+M_Ed = [90, 120, 140]
+M_max = M_Ed[2]
+```
+
 ## Operator symbols
 
 The LaTeX and Markdown renderers look operator symbols up in `OPERATOR_SYMBOLS`, keyed

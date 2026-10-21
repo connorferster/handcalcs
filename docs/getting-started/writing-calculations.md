@@ -86,6 +86,31 @@ dH = 4.2  # kJ
 Set `symbols` for the whole session with `handcalcs.set_option("symbols", {...})`. A spec
 that can't be parsed raises an error that says where.
 
+## Indexing
+
+An index or key lookup shows the element it looks up in the substitution. A name indexed
+by integers, short strings or other names is set with the index as a subscript, the way a
+hand calculation numbers its values:
+
+```{hc-example}
+M_Ed = [90, 120, 140]  # kNm, load cases
+loads = {"dead": 5.0, "live": 3.0}  # kN/m
+i = 2
+eta = M_Ed[i] / 150
+w = 1.25 * loads["dead"] + 1.5 * loads["live"]
+```
+
+Each index follows the name's own subscripts (`M_Ed[i]` → M<sub>Ed,i</sub>), and
+`A[i, j]` gives A<sub>i,j</sub>. Other lookups, such as slices (`xs[1:3]`) and indexes
+that are expressions (`xs[i + 1]`), are shown in brackets. The ASCII renderer always uses
+brackets.
+
+handcalcs finds the element without running any code again: the index must be a literal,
+a name or an attribute (or a slice or tuple of those), and the container a list, tuple,
+string, dict, numpy array, pandas object or units-library quantity. Otherwise the
+substitution shows the lookup with its index substituted (`xs[2 + 1]`), followed by the
+result. To show every lookup in brackets, see [the recipe](../customizing/symbols-and-functions.md#indexes-in-brackets).
+
 ## Inline comments
 
 A comment at the end of a line is shown next to that line. Use it for units, sources or
