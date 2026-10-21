@@ -267,3 +267,64 @@ def test_decorator_closure(backend):
         return inner(5)
 
     assert "w = z * k = 5 * 3 = 15" in outer(3)[1]
+
+
+# --- the legacy switch: set_option("line_values", False) -------------------------
+
+
+@pytest.fixture
+def legacy(tmp_path, monkeypatch):
+    """The 'line_values' option off: a single exec, final values on every line."""
+    import handcalcs
+
+    monkeypatch.setenv("HANDCALCS_CONFIG", str(tmp_path / "hc_config.json"))
+    handcalcs.reset_config()
+    handcalcs.set_option("line_values", False)
+    yield
+    handcalcs.reset_config()
+
+
+def test_legacy_handcalcs_shows_final_values(legacy, monkeypatch):
+    # Nothing is recorded: LineValues.run is not called.
+    monkeypatch.setattr(line_values, "run", None)
+    out = ascii("a = 2\nb = a * 3\na = 10\n")
+    assert "b = a * 3 = 10 * 3 = 6" in out
+
+
+def test_legacy_inputs(legacy):
+    out = ascii("a = 2\nb = a + 1\na = 0\n", inputs={"a": 7})
+    assert "b = a + 1 = 0 + 1 = 8" in out
+
+
+def test_legacy_decorator(legacy, monkeypatch):
+    from handcalcs.interfaces import decorator
+
+    monkeypatch.setattr(decorator, "recording", None)
+
+    @handcalc(ASCIIRenderer())
+    def calc(a):
+        b = a * 3
+        a = 10
+        return b
+
+    assert "b = a * 3 = 10 * 3 = 6" in calc(2)[1]
+
+
+def test_the_option_is_not_a_render_setting():
+    import handcalcs
+
+    handcalcs.set_option("line_values", True)
+    try:
+        renderer = ASCIIRenderer()
+        out = HandCalcs(renderer)("a = 1\n")
+        assert out.strip() == "a = 1"
+        assert "line_values" in handcalcs.config.NON_CONTEXT_OPTIONS
+    finally:
+        handcalcs.reset_config()
+
+
+def test_the_option_must_be_a_bool():
+    import handcalcs
+
+    with pytest.raises(ValueError, match="bool"):
+        handcalcs.set_option("line_values", "off")

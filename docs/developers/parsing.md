@@ -41,11 +41,16 @@ A `Name` gets its value from `self.globals`; an `Attribute` looks up its namespa
 then the attribute.
 
 While the source runs, {src}`LineValues <handcalcs.parsing.line_values.LineValues>`
-records the namespace just before and just after each statement, keyed by the
-statement's first line (for a statement in a loop, during the last pass). It watches the
-line events of the source's own frames only: `sys.monitoring` on Python 3.12+ (so
-library code runs untraced), `sys.settrace` on 3.11. Only the names the source uses are
-recorded, and values are not copied.
+records a {src}`StatementValues <handcalcs.parsing.line_values.StatementValues>`
+(`before`, `after`) for each statement, keyed by the statement's first line (for a
+statement in a loop, during the last pass). It watches the line events of the source's
+own frames only: `sys.monitoring` on Python 3.12+ (so library code runs untraced),
+`sys.settrace` on 3.11. A new statement starting is the one moment anything is recorded:
+one snapshot is both the `after` of the statement that ended and the `before` of the one
+that starts. Only names the source assigns can change while it runs, so a snapshot holds
+only those that the two statements use (plus names in `{{ }}` in comments). Values are
+not copied. With the `line_values` option off, the source runs with a single `exec` and
+nothing is recorded.
 
 The parser switches `self.globals` as it goes: before parsing a statement, to the values
 from just before it ran (an expression's operands, an `if` test, a loop's iterable);

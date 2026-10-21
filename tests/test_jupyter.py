@@ -285,3 +285,10 @@ def test_cell_with_inputs_shows_its_own_values(shell):
     ]
     assert "a &= 7" in markdown
     assert "b &= a + 1 = 7 + 1 = 8" in markdown
+
+
+def test_cell_without_line_values(shell):
+    ip, _ = shell
+    config.set_option("line_values", False)
+    markdown = render_cell(ip, "a = 2\nb = a * 3\na = 10\n")["text/markdown"]
+    assert "b &= a \\cdot 3 = 10 \\cdot 3 = 6" in markdown

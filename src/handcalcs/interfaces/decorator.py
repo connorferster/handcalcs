@@ -76,7 +76,7 @@ def handcalc(renderer: BaseRenderer, render_context: Optional[dict] = None):
     context_settings = {
         key: value
         for key, value in config.get_config().items()
-        if key not in config.RENDERER_OPTIONS
+        if key not in config.NON_CONTEXT_OPTIONS
     }
 
     def handcalc_decorator(func):
@@ -96,8 +96,12 @@ def handcalc(renderer: BaseRenderer, render_context: Optional[dict] = None):
         def decorated(*args, **kwargs):
             # innerscope retrieves values of locals, closures, and globals; the
             # values of each line are recorded while it runs.
-            values = LineValues(body_source, line_offset)
-            with recording(values, is_call_frame):
+            if config.get_option("line_values", True):
+                values = LineValues(body_source, line_offset)
+                with recording(values, is_call_frame):
+                    scope = innerscope.call(func, *args, **kwargs)
+            else:
+                values = None
                 scope = innerscope.call(func, *args, **kwargs)
             hc_ast = HcSequence.from_source(
                 body_source, hc_globals=scope, hc_locals={}, line_values=values

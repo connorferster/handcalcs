@@ -22,7 +22,7 @@ class HandCalcs:
         self._context_settings = {
             key: value
             for key, value in config.get_config().items()
-            if key not in config.RENDERER_OPTIONS
+            if key not in config.NON_CONTEXT_OPTIONS
         }
         self.hc_ast = None
 
@@ -188,9 +188,13 @@ class HandCalcs:
     def __evaluate(self, source, namespace: Optional[dict] = None):
         """
         Runs 'source' in a copy of 'namespace' and returns the namespace and the
-        values recorded line by line while it ran.
+        values recorded line by line while it ran (None with the 'line_values'
+        option off: the source runs with a single exec).
         """
         eval_globals = dict(namespace or {})
+        if not config.get_option("line_values", True):
+            exec(source, eval_globals)
+            return eval_globals, None
         values = line_values.run(source, eval_globals)
         return eval_globals, values
 

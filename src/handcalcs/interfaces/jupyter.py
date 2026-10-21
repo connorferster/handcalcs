@@ -122,12 +122,15 @@ def run_recorded(source: str) -> tuple[Any, Optional[line_values.LineValues]]:
     """
     Run ``source`` as a cell (its own output captured), recording its values
     line by line. Returns IPython's result and the values, or None for the
-    values when the cell can't be parsed as Python after IPython's transforms.
+    values when the cell can't be parsed as Python after IPython's transforms,
+    or with the 'line_values' option off.
     """
-    try:
-        values = line_values.LineValues(ip.transform_cell(source))
-    except SyntaxError:
-        values = None
+    values = None
+    if config.get_option("line_values", True):
+        try:
+            values = line_values.LineValues(ip.transform_cell(source))
+        except SyntaxError:
+            pass
     if values is None:
         with cell_capture:
             return ip.run_cell(source), None
