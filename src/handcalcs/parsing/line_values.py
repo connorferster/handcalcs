@@ -36,17 +36,6 @@ HEADER_END = {
     ast.AsyncFor: lambda node: node.iter,
 }
 
-# The parts of a compound statement whose names it uses itself (its body's
-# statements record their own).
-HEADER_PARTS = {
-    ast.If: ("test",),
-    ast.While: ("test",),
-    ast.For: ("target", "iter"),
-    ast.AsyncFor: ("target", "iter"),
-    ast.With: ("items",),
-    ast.AsyncWith: ("items",),
-}
-
 # ``{{ ... }}`` in a comment, and the names in it.
 JINJA_EXPRESSION = re.compile(r"{{(.*?)}}")
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -75,17 +64,23 @@ class LineValues:
     def __init__(self, source: str, line_offset: int = 0):
         tree = ast.parse(source)
         self.line_offset = line_offset
-        # The names the source assigns. Only these can change while it runs, so
-        # only these are recorded: any other name has the same value on every
-        # line as after the run.
-        self.names = assigned_names(tree)
         # The line of the running code -> the first line (in 'source') of the
         # innermost statement on it.
         self.statement_of_line: dict[int, int] = {}
-        # The first line of each statement -> the names it uses.
-        self.statement_names: dict[int, frozenset] = {}
         self.loop_headers: set[int] = set()
         self._map_statements(tree.body)
+        # The names the source assigns. Only these can change while it runs, so
+        # only these are recorded: any other name has the same value on every
+        # line as after the run.
+        self.names, used = scan_names(tree)
+        # The first line of each statement -> the names it uses that are recorded.
+        self.statement_names: dict[int, frozenset] = {
+            statement: frozenset() for statement in self.statement_of_line.values()
+        }
+        for line, name in used:
+            statement = self.statement_of_line.get(line + line_offset)
+            if statement is not None and name in self.names:
+                self.statement_names[statement] |= {name}
         # Names in ``{{ }}`` in comments are recorded with every statement.
         self.comment_names = comment_names(source) & self.names
         self.statements: dict[int, StatementValues] = {}
@@ -115,9 +110,6 @@ class LineValues:
                 self.loop_headers.add(stmt.lineno)
             for line in range(stmt.lineno, last + 1):
                 self.statement_of_line.setdefault(line + self.line_offset, stmt.lineno)
-            self.statement_names[stmt.lineno] = self.statement_names.get(
-                stmt.lineno, frozenset()
-            ) | (used_names(stmt) & self.names)
             for field in ("body", "orelse", "finalbody"):
                 inner = getattr(stmt, field, None)
                 if isinstance(inner, list) and inner and isinstance(inner[0], ast.stmt):
@@ -187,52 +179,40 @@ class LineValues:
         return on_line, finish
 
 
-def assigned_names(tree: ast.Module) -> frozenset:
+def scan_names(tree: ast.Module) -> tuple[frozenset, list]:
     """
-    The names ``tree`` assigns anywhere: assignment, loop and ``with`` targets,
-    imports, ``def`` and ``class`` names. After ``from module import *``, every
-    name it uses may be assigned.
+    In one pass over ``tree``: the names it assigns anywhere (assignment, loop
+    and ``with`` targets, imports, ``def`` and ``class`` names; after ``from
+    module import *``, every name it uses), and each use of a name with its
+    line, as ``(line, name)``. A name belongs to the statement on its line, so
+    a name in a compound statement's header belongs to that statement and a
+    name in its body to the statement there.
     """
-    names = set()
+    assigned = set()
+    used = []
+    star_import = False
     for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and not isinstance(node.ctx, ast.Load):
-            names.add(node.id)
+        if isinstance(node, ast.Name):
+            used.append((node.lineno, node.id))
+            if not isinstance(node.ctx, ast.Load):
+                assigned.add(node.id)
         elif isinstance(node, (ast.Import, ast.ImportFrom)):
             for alias in node.names:
                 if alias.name == "*":
-                    return frozenset(
-                        n.id for n in ast.walk(tree) if isinstance(n, ast.Name)
-                    )
-                names.add(alias.asname or alias.name.split(".")[0])
+                    star_import = True
+                else:
+                    assigned.add(alias.asname or alias.name.split(".")[0])
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            names.add(node.name)
+            assigned.add(node.name)
         elif isinstance(node, ast.arg):
-            names.add(node.arg)
+            assigned.add(node.arg)
         elif isinstance(node, ast.ExceptHandler) and node.name:
-            names.add(node.name)
+            assigned.add(node.name)
         elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
-            names.add(node.name)
-    return frozenset(names)
-
-
-def used_names(stmt: ast.stmt) -> frozenset:
-    """The names a statement uses itself (a compound statement, in its header)."""
-    parts = HEADER_PARTS.get(type(stmt))
-    if parts is None:
-        if hasattr(stmt, "body"):
-            return frozenset()
-        nodes = [stmt]
-    else:
-        nodes = []
-        for part in parts:
-            value = getattr(stmt, part)
-            nodes.extend(value if isinstance(value, list) else [value])
-    return frozenset(
-        node.id
-        for root in nodes
-        for node in ast.walk(root)
-        if isinstance(node, ast.Name)
-    )
+            assigned.add(node.name)
+    if star_import:
+        assigned.update(name for _, name in used)
+    return frozenset(assigned), used
 
 
 def comment_names(source: str) -> set:
