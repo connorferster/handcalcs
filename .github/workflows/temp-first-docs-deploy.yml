@@ -29,6 +29,7 @@ jobs:
           destination: "."
           storageZoneName: "${{ secrets.STORAGE_NAME }}"
           storagePassword: "${{ secrets.STORAGE_PASSWORD }}"
+          storageEndpoint: "uk.storage.bunnycdn.com"  # the storage zone's main region is London
           accessKey: "${{ secrets.STORAGE_KEY }}"
           pullZoneId: "${{ secrets.ZONE_ID }}"
           upload: "true"
