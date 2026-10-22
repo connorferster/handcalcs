@@ -16,10 +16,20 @@ si.environment("structural", top_level=True)
 
 ```{hc-example}
 :setup: import forallpeople as si; si.environment("structural", top_level=True)
-L = 6 * m
-w = 5 * kN / m
+L = (6 * m)
+w = 5 * kN / m  # hc: -p
 M = w * L**2 / 8
 ```
+
+An input such as `6 * m` has nothing worth substituting: without help it renders as
+`L = 6 · m = 6 · 1 m = 6 m`. Skip the substitution in either of two ways, which give the
+same result:
+
+- wrap the right-hand side in parentheses: `L = (6 * m)`;
+- end the line with the param-line flag: `w = 5 * kN / m  # hc: -p`.
+
+Both show only *name = value*. Lines that calculate, like `M`, keep every step. See
+[Show only the result of a line](showing-and-hiding.md#show-only-the-result-of-a-line).
 
 Units are set upright, and a substituted quantity raised to a power is bracketed.
 
@@ -37,8 +47,8 @@ ureg.formatter.default_format = "~P"
 
 ```{hc-example}
 :setup: import pint; ureg = pint.UnitRegistry(); ureg.formatter.default_format = "~P"
-L = 6 * ureg.m
-w = 5 * ureg.kN / ureg.m
+L = (6 * ureg.m)
+w = 5 * ureg.kN / ureg.m  # hc: -p
 M = w * L**2 / 8
 ```
 
@@ -58,8 +68,8 @@ expression, or put on its own line with `-p` to show only the converted value:
 
 ```{hc-example}
 :setup: import pint; ureg = pint.UnitRegistry(); ureg.formatter.default_format = "~P"
-w = 5 * ureg.kN / ureg.m
-L = 6000 * ureg.mm
+w = (5 * ureg.kN / ureg.m)
+L = 6000 * ureg.mm  # hc: -p
 M = (w * L**2 / 8).to("kN*m")
 M_Nmm = M.to("N*mm")  # hc: -p
 ```
@@ -70,8 +80,8 @@ M_Nmm = M.to("N*mm")  # hc: -p
 
 ```{hc-example}
 :setup: import forallpeople as si; si.environment("structural", top_level=True)
-w = 5.25 * kN / m
-L = 7.3 * m
+w = (5.25 * kN / m)
+L = 7.3 * m  # hc: -p
 M = w * L**2 / 8  # hc: -f .2f
 ```
 
@@ -82,7 +92,7 @@ Set up the units in a cell you don't render, or end each setup line with `# hc: 
 ```{hc-example}
 import forallpeople as si               # hc: -i
 si.environment("structural", top_level=True)  # hc: -i
-L = 6 * si.m
+L = (6 * si.m)
 ```
 
 ## Units in Excel
