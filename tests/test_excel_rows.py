@@ -57,6 +57,17 @@ def test_reassignment_is_versioned_with_its_own_cached_value():
     assert m1.symbol == m2.symbol
 
 
+def test_augmented_assignment_is_a_versioned_reassignment():
+    _, m1, m2 = rows("a = 2\nM_u = a * 2\nM_u *= a + 1\n")
+    assert (m2.name, m2.formula, m2.cached) == ("M_u_2", "=M_u*(a+1)", 12)
+    assert plain_text(m2.symbolic) == "Mu · (a + 1)"
+
+
+def test_with_block_rows_are_its_body():
+    a, b = rows("a = 2\nwith memoryview(b'x'):\n    b = a * 3\n")
+    assert (b.name, b.formula, b.cached) == ("b", "=a*3", 6)
+
+
 def test_reference_like_names_are_mangled():
     x1, y = rows("x1 = 2\ny = x1 * 2\n")
     assert x1.name == "x1_"
@@ -142,7 +153,6 @@ def test_rows_do_not_mutate_the_tree():
     ("import os\n", "importing 'os'"),
     ("from os import path\n", "importing 'os'"),
     ("import math, os\n", "importing 'os'"),
-    ("a = 1\na += 1\n", "augmented assignment"),
     ("i = 0\nwhile i < 1:\n    i = i + 1\n", "while"),
     ("a = b = 1\n", "chained assignment"),
     ("a, b = 1, 2\n", "tuple unpacking"),

@@ -515,7 +515,7 @@ for _block_type in INCOMPATIBLE_BLOCKS:
 def render_unparsed_statement(renderer: ER, node, base_context: BRC) -> list[Row]:
     raise incompatible(
         "a statement handcalcs does not parse (e.g. a function or class definition, "
-        "augmented assignment 'x += 1', while, with or try) has no worksheet equivalent",
+        "while or try) has no worksheet equivalent",
         node,
     )
 
