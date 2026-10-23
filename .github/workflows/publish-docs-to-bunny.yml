@@ -19,8 +19,7 @@ jobs:
     - name: Build docs
       # The 'doc' extra is Sphinx and its extensions; the 'test' group has the
       # libraries the live examples import (pint, forallpeople, numpy, ...).
-      env:
-        HC_SOURCE_REF: main  # source-code links point at the branch deployed
+      # Source-code links point at HC_SOURCE_REF in docs/conf.py: the release tag.
       run: |
         uv run --locked --no-default-groups --extra doc --group test sphinx-build -W -b html docs docs/_build/html
     - name: Deploy to BunnyCDN
