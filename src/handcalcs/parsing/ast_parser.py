@@ -380,6 +380,12 @@ class AST_Parser:
             if is_print_statement(stmt):
                 i += 1
                 continue
+            # A ``with`` block is shown as its body: the context manager is set-up,
+            # the calculations inside it are part of the surrounding calculation.
+            if isinstance(stmt, (ast.With, ast.AsyncWith)):
+                out.extend(self._parse_body(stmt.body))
+                i += 1
+                continue
             if hasattr(stmt, "lineno"):
                 # A ``# hc: -h`` command directly above opens a params block of
                 # the consecutive single assignments that follow it.
@@ -694,6 +700,22 @@ class AST_Parser:
                 pars_nesting=nested_pars,
             )
             val = calc_line
+
+        elif isinstance(node, ast.AugAssign):
+            # ``a += b`` is shown as ``a = a + b``: the ``a`` on the right has
+            # the value from before the line ran, the target the value after.
+            comment_content = self._inline_comment(node)
+            op_class = ARITHMETIC_OPS[type(node.op).__name__]
+            expression_tree = deque(
+                [op_class(self.ast_parse(node.target), self.ast_parse(node.value))]
+            )
+            self._leave_statement(node)
+            self._set_comment_values(comment_content)
+            val = CalcLine(
+                assigns=deque([self._target(node.target)]),
+                expression_tree=expression_tree,
+                comment=comment_content,
+            )
 
         elif isinstance(node, ast.List):
             val = List(elems=deque([self.ast_parse(el) for el in node.elts]))
