@@ -8,7 +8,7 @@
 </p>
 <p align="center">
   <img src="docs/images/handcalcs.jpg"><br>
-  Covert art by <a href = "https://www.copperkettlegameworks.ca/">Joshua Hoiberg</a>
+  Cover art by <a href = "https://www.copperkettlegameworks.ca/">Joshua Hoiberg</a>
 </p>
 
 <h1 align = "center">handcalcs:<br>Python calculations in Jupyter,<br>as though you wrote them by hand.</h1>
@@ -208,7 +208,7 @@ The docstring in the `handcalcs.set_option()` function demonstrates which option
 
 #### Custom Brackets (New in v1.?.?)
 
-Functioning similiar to the Custom Symbols, this allows a specified character or string of characters to be swapped for brackets. For example:
+Functioning similar to the Custom Symbols, this allows a specified character or string of characters to be swapped for brackets. For example:
 ```python 
 handcalcs.set_option("custom_brackets", {
     "parenthesis": "ˉ",        # macron (ˉ) → parentheses ( )
@@ -421,7 +421,7 @@ This makes it convenient to make notes along side your calculations to briefly e
 
 Any calculation entirely wrapped in parentheses, `()`, will be rendered as just `param = result`, without the substitution. 
 
-This can be convient when you want to calculate a parameter on the fly and not have it be the focus of the calculation.
+This can be convenient when you want to calculate a parameter on the fly and not have it be the focus of the calculation.
 
 ![Skip the substitution](docs/images/no_subs.png)
 
@@ -490,7 +490,7 @@ Objects are rendered into Latex by two main approaches:
 
     a) If the object has some alternate method for rendering itself into Latex code, e.g. `.latex()` or `.to_latex()`, that will be attempted as well.
     
-    In order for the representation to be rendered properly, the object's Latex represention must use commands that are implemented with MathJax and/or Katex.
+    In order for the representation to be rendered properly, the object's Latex representation must use commands that are implemented with MathJax and/or Katex.
 2. If the object does not have a Latex method, then `str()` is used.
 
 If you are using object types which have str methods that render as `<MyObject: value=34>`, then that's what the Latex interpreter will see and attempt to render.
