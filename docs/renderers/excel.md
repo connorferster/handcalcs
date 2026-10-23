@@ -158,7 +158,7 @@ supported.
 A worksheet can only hold assignments, so the renderer raises
 `ExcelRendererIncompatibleError` **before writing anything** for:
 
-- `for`/`while` loops, function definitions, `with`/`try`, `x += 1`;
+- `for`/`while` loops, function definitions, `try`;
 - expression statements such as `print(...)`;
 - imports other than `math`, `pint` and `forallpeople`;
 - lists, tuples, dicts, sets, comprehensions, index or key lookups (`xs[0]`),
@@ -183,7 +183,8 @@ while Excel's `ROUND` rounds them away from zero.
   the single letters `c` and `r`. Such variables get a trailing underscore on
   the sheet (`x1_`, `c_`).
 - A reassigned variable gets a versioned name (`M_u`, then `M_u_2`), so earlier
-  rows keep their own values.
+  rows keep their own values. `M_u *= 2` is a reassignment too, with the formula
+  `=M_u*2`. The body of a `with` block becomes ordinary rows.
 - `HandCalcs(renderer=ExcelRenderer()).demo()` renders a worked steel-beam
   check that uses each feature on this page. The general handcalcs demo has
   loops and collections, so the ExcelRenderer supplies its own (`demo_source`).

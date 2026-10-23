@@ -62,7 +62,12 @@ running the source) uses the namespace after the run.
 
 An `ast` node with no branch in `ast_parse` becomes `NoValue()` and renders as nothing
 (or `HcNotImplemented` when `show_notimplemented` is set). This is why function
-definitions, `while` loops, `with` blocks and augmented assignments silently disappear.
+definitions, `while` loops and `try` blocks silently disappear.
+
+Two statements are rewritten instead. An `ast.AugAssign` (`a += b`) becomes a `CalcLine`
+for `a = a + b`: its right side is parsed with the values from before the line, its target
+with the values after. `_parse_body` replaces an `ast.With` (or `ast.AsyncWith`) with the
+nodes of its body.
 
 ### Comment commands
 

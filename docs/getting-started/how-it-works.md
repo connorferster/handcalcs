@@ -59,6 +59,19 @@ loads = [1.2, 3.4, 5.6]
 Several parameters on one line, separated by `;`, are laid out as a
 [parameter grid](writing-calculations.md#parameter-grids).
 
+### Augmented assignment
+
+`a += b` is shown as `a = a + b`, with the value `a` had before the line on the right
+and its new value as the result. The same goes for `-=`, `*=`, `/=`, `//=`, `%=` and
+`**=`:
+
+```{hc-example}
+:renderer: ascii
+total = 1.5
+extra = 0.25
+total += 2 * extra
+```
+
 ### Skipping the substitution
 
 Wrap the right-hand side in parentheses to show only *target = result*. This is useful
@@ -112,14 +125,15 @@ b = 10 if a > 0 else -10
 |---|---|
 | `if` / `elif` / `else` | The condition that was true, symbolically and with values, followed by that branch's lines. Branches that did not run are not shown. |
 | `for` | A line describing the loop, followed by its body. The body shows the values of the **last** pass through the loop. |
+| `with` | Its body, as if it were not inside the `with`. The `with` line itself is not shown. |
 
 See [Writing calculations](writing-calculations.md#conditionals) for examples.
 
 ## What is not rendered
 
-- Function and class definitions, `while` loops, `with` blocks and augmented
-  assignments (`a += 1`) are not shown. Run them in a cell or script section that you
-  don't render, then render the calculation that uses the result.
+- Function and class definitions, `while` loops and `try` blocks are not shown. Run
+  them in a cell or script section that you don't render, then render the calculation
+  that uses the result.
 - `print(...)` calls are skipped, so a script can print progress without it showing up.
   A comment line above one is kept.
 

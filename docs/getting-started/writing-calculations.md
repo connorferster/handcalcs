@@ -203,6 +203,12 @@ total = a * b \
 Only breaks between the terms of the expression itself are kept. A break inside brackets
 or a fraction can't be, so that calculation is shown on one line. Brackets around the
 *whole* expression show only the result, as for any [bracketed expression](how-it-works.md#skipping-the-substitution).
+
+Code formatters such as black and ruff wrap a long right-hand side in brackets on their
+own, so after formatting the line shows only its result. To keep the steps, shorten the
+line, break it with `\` as above, or leave the calculation out of formatting
+(`# fmt: off` / `# fmt: on` around it).
+
 To break between the steps of a calculation (symbolic, substituted, result) instead, use
 [`# hc: -m`](comment-commands.md).
 

@@ -19,7 +19,7 @@ kernel and run all cells from the top.
 
 handcalcs renders arithmetic, function calls, comparisons, conditional expressions,
 conditionals and loops. It leaves out function and class definitions, `while` loops,
-`with` blocks, augmented assignments and `print()` calls. See
+`try` blocks and `print()` calls. See
 [What is not rendered](how-it-works.md#what-is-not-rendered).
 
 ## Floor division and modulo
