@@ -6,6 +6,7 @@ show an empty step (``a =  = 3``) or leave ``{{ }}`` unfilled.
 
 To guard a new kind of line, add a snippet to CORPUS.
 """
+import builtins
 import re
 
 import pytest
@@ -99,7 +100,7 @@ CORPUS = {
     ),
     "forallpeople": (
         "import forallpeople as si\nsi.environment('structural')  # hc: -i\n"
-        "L = 6 * si.m\nw = 5 * si.kN / si.m\nM = w * L**2 / 8\nM_kNm = M.to('kN*m')\n",
+        "L = 6 * si.m\nw = 5 * si.kN / si.m\nM = w * L**2 / 8\nR = w * L / 2\n",
         ("forallpeople",),
     ),
     "forallpeople_top_level": (
@@ -128,10 +129,32 @@ LEAKS = re.compile(
 )
 
 
+@pytest.fixture(autouse=True)
+def restore_units_environment():
+    """
+    Undo what the forallpeople snippets change globally: the environment, and the
+    units 'top_level=True' writes to builtins (see test_forallpeople_top_level.py).
+    """
+    saved = dict(vars(builtins))
+    yield
+    if "forallpeople" in CORPUS_MODULES_USED:
+        import forallpeople as si
+
+        si.environment("default", top_level=False)
+        CORPUS_MODULES_USED.discard("forallpeople")
+    for name in set(vars(builtins)) - set(saved):
+        delattr(builtins, name)
+    vars(builtins).update(saved)
+
+
+CORPUS_MODULES_USED: set = set()
+
+
 def render(renderer, case: str):
     source, needs = CORPUS[case]
     for module in needs:
         pytest.importorskip(module)
+    CORPUS_MODULES_USED.update(needs)
     return HandCalcs(renderer())(source)
 
 
