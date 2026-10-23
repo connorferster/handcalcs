@@ -47,10 +47,11 @@ c = √(a² + b²) = √(2.5² + 4²) = 4.717
 ## Installing
 
 ```console
-pip install handcalcs
+pip install "handcalcs>=2.0.0rc1"
 ```
 
-handcalcs needs Python 3.11 or newer. Extras add the Excel and Word renderers
+handcalcs 2.0 is a release candidate, so ask for it by version: a plain
+`pip install handcalcs` installs 1.x. handcalcs needs Python 3.11 or newer. Extras add the Excel and Word renderers
 (`handcalcs[excel]`, `handcalcs[word]`) and Jupyter export options
 (`handcalcs[exporters]`). See [Installation](https://handcalcs.structuralpython.com/getting-started/installation.html).
 

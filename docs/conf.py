@@ -23,7 +23,7 @@ version = release
 
 # The git ref that every source-code link points at. Set this to the release tag
 # (e.g. "v2.0.0") when cutting a release so links stay pinned to that code.
-HC_SOURCE_REF = os.environ.get("HC_SOURCE_REF", "hc2/dev")
+HC_SOURCE_REF = os.environ.get("HC_SOURCE_REF", "v2.0.0rc1")
 HC_REPO_URL = "https://github.com/connorferster/handcalcs"
 
 extensions = [
