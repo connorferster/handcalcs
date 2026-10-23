@@ -2680,7 +2680,7 @@ def swap_math_funcs(
             func_name_match = get_func_latex(poss_func_name)
             if poss_func_name != func_name_match:
                 item = swap_func_name(item, poss_func_name)
-                if poss_func_name == "sqrt":
+                if poss_func_name in ("sqrt", "cbrt"):
                     item = insert_func_braces(item)
                 new_item = swap_math_funcs(item, calc_results)
                 swapped_deque.append(new_item)
@@ -2721,6 +2721,7 @@ def get_func_latex(func: str, **config_options) -> str:
         "cos": "\\cos",
         "tan": "\\tan",
         "sqrt": "\\sqrt",
+        "cbrt": "\\sqrt[3]",
         "exp": "\\exp",
         "sinh": "\\sinh",
         "tanh": "\\tanh",
@@ -3278,7 +3279,7 @@ def insert_parentheses(pycode_as_deque: deque, **config_options) -> deque:
     peekable_deque = more_itertools.peekable(pycode_as_deque)
     lpar = "\\left("
     prev_item = None
-    func_exclude = ["sqrt", "quad", "integrate"]
+    func_exclude = ["sqrt", "cbrt", "quad", "integrate"]
     skip_fraction_token = False
     for item in peekable_deque:
         next_item = peekable_deque.peek(False)
