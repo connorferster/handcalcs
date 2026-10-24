@@ -17,7 +17,21 @@
 
 The same calculation can go to different **renderers**: Markdown and LaTeX for Jupyter and documents, HTML for web pages, ASCII text for terminals and logs, a live, formula-based Excel worksheet and Word documents. You can restyle the built-in renderers or write your own.
 
-**[Read the documentation](https://handcalcs.structuralpython.com/)**: getting started, every renderer, a cookbook of
+## v2.0.0 Pre-release out now!
+
+This readme has been uodated to reflect the changes in 
+handcalcs v2. 
+
+As of 2026-10-24, the release candidate is available for install:
+
+pip install "handcalcs==2.0.0rc1"
+
+or
+
+pip install --pre handcalcs
+
+
+**[Read the v2 documentation](https://handcalcs.structuralpython.com/)**: getting started, every renderer, a cookbook of
 recipes, and how to customize or write a renderer.
 
 ## Example
