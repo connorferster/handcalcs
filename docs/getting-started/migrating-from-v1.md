@@ -21,7 +21,8 @@ notebooks need only a few changes.
 | `@handcalc(override=..., precision=..., ...)` | `@handcalc(renderer, render_context={...})` (see [the decorator](../interfaces/decorator.md)) |
 | `handcalcs.set_option("display_precision", 3)` | `handcalcs.set_option("format_code", ".3f")` |
 | `latex_block_start`, `line_break`, `math_environment_start`, ... options | renderer class attributes (see [LaTeX and Markdown tokens](../customizing/latex-markdown-tokens.md)) |
-| `custom_symbols` option | the `symbols` option with renderer-neutral specs (see [display symbols](writing-calculations.md#display-symbols)), or a renderer rule for raw markup |
+| `custom_symbols` option | the `symbols` option with renderer-neutral specs (see [display symbols](writing-calculations.md#display-symbols)), or a renderer rule for raw markup. A `symbols` key matches a whole variable name, not part of one: `{"star": "^*"}` no longer changes `Mstar_1`, so give each name its own entry (`{"Mstar_1": "M^{*}_{1}"}`) |
+| `custom_brackets` option | not available in 2.0. Index the value instead (`x[1]` is shown as x<sub>1</sub>, see [indexing](writing-calculations.md#indexing)), or give the name a `symbols` entry |
 | `greek_exclusions`, `underscore_subscripts` options | the `greek_prefixes`/`subscripts` settings, or a renderer subclass (see [Customizing](../customizing/index.md)) |
 
 ## What's new
@@ -100,8 +101,8 @@ one long line rather than the whole cell.
 The v1 options `decimal_separator`, `latex_block_start`, `latex_block_end`,
 `math_environment_start`, `math_environment_end`, `line_break`,
 `use_scientific_notation`, `display_precision`, `underscore_subscripts`,
-`greek_exclusions`, `param_columns`, `preferred_string_formatter` and `custom_symbols`
-no longer exist. v2 has four options (`format_code`, `default_renderer`,
+`greek_exclusions`, `param_columns`, `preferred_string_formatter`, `custom_symbols` and
+`custom_brackets` no longer exist. v2 has four options (`format_code`, `default_renderer`,
 `jupyter_renderer`, `line_values`) plus any [custom options](configuration.md#custom-options); the rest
 is controlled by the renderer.
 
