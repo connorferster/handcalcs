@@ -1,0 +1,119 @@
+from collections import deque
+from dataclasses import dataclass, field
+from typing import Any, Optional
+from .nodes import HcNode, Name
+from .null_values import NoValue
+from .inline_nodes import InlineComment, InlineCommand
+from .commands import parse_commands
+from .comment_parser import (
+    is_comment_command,
+    is_markdown_heading,
+    parse_kwargs,
+    split_commands,
+)
+
+
+@dataclass
+class HcLineNode(HcNode):
+    level: int = 0
+    pre: str = ""
+    post: str = ""
+
+
+@dataclass
+class CalcLine(HcLineNode):
+    assigns: deque = field(default_factory=deque)
+    expression_tree: deque = field(default_factory=deque)
+    comment: Optional[InlineComment | InlineCommand] = None
+    pars_nesting: bool = False
+    type: str = "calc_line"
+
+
+@dataclass
+class ExprLine(HcLineNode):
+    """
+    A bare expression statement (``a * b``) or a ``return``. ``value`` holds the
+    expression's result when the parser could evaluate it without side effects
+    (see ``AST_Parser._evaluate_expr``), otherwise ``NoValue``.
+    """
+
+    expression_tree: deque = field(default_factory=deque)
+    comment: Optional[InlineComment | InlineCommand] = None
+    return_expr: bool = False
+    pars_nesting: bool = False
+    value: Any = field(default_factory=NoValue, compare=False)
+    type: str = "expr_line"
+
+
+@dataclass
+class CommentLine(HcLineNode):
+    content: Optional[str] = None
+    type: str = "comment_line"
+    # The values ``{{ }}`` in the comment are filled from (set by the parser
+    # when the values of each line were recorded); None for the namespace
+    # after the run.
+    namespace: Any = field(default=None, compare=False, repr=False)
+
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        return cls(content=comment.lstrip("# "))
+
+
+@dataclass
+class Heading(HcLineNode):
+    content: Optional[str] = None
+    # The markdown heading level (number of leading '#'). Note this is distinct
+    # from ``HcLineNode.level``, which is the block-nesting/indent level.
+    heading_level: int = 1
+    type: str = "heading"
+    # The values ``{{ }}`` in the comment are filled from (set by the parser
+    # when the values of each line were recorded); None for the namespace
+    # after the run.
+    namespace: Any = field(default=None, compare=False, repr=False)
+
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        # The first '#' is the Python comment marker, not part of the heading; the
+        # remaining leading '#' characters set the markdown heading level (so '##'
+        # -> level 1, '###' -> level 2). The remaining text (with '#'s and
+        # surrounding whitespace stripped) is the heading content.
+        stripped = comment.lstrip()
+        leading = len(stripped) - len(stripped.lstrip("#"))
+        heading_level = max(leading - 1, 1)
+        content = stripped.lstrip("#").strip()
+        return cls(content=content, heading_level=heading_level)
+
+
+@dataclass
+class CommentCommand(HcLineNode):
+    commands: dict = field(default_factory=dict)
+    type: str = "comment_command"
+
+    @classmethod
+    def from_raw_comment(cls, comment: str):
+        stripped = comment.lstrip("# ")
+        try:
+            parsed = parse_kwargs(stripped)
+        except (SyntaxError, NameError):
+            parsed = parse_commands(stripped, split_commands(stripped))
+        return cls(commands=parsed)
+
+
+@dataclass
+class Import(HcLineNode):
+    import_from: bool = False
+    names: deque[str] = field(default_factory=deque)
+    import_from_module: Optional[str] = None
+    import_from_level: Optional[int] = None
+    comment: Optional[InlineComment | InlineCommand] = None
+    type: str = "import"
+
+
+@dataclass
+class IgnoredLine(HcLineNode):
+    """
+    A line hidden by ``# hc: -i`` that has no handling of its own (an import or a
+    bare expression), swapped in by a 'pre' rule; it renders nothing.
+    """
+
+    type: str = "ignored_line"

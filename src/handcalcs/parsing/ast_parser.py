@@ -1,0 +1,1062 @@
+import fst as ast
+import ast as py_ast
+import bisect
+import builtins
+import io
+import math
+from dataclasses import dataclass, field
+import tokenize
+from typing import Union, Optional
+from collections import deque, ChainMap, Counter
+from collections.abc import Mapping, Sequence
+from .nodes import (
+    Attribute,
+    List,
+    Tuple,
+    Set,
+    Dictionary,
+    Name,
+    Constant,
+    Subscript,
+    Slice,
+)
+from .line_values import LineValues
+from .block_nodes import ForBlock, IfBlock, ElifBlock, HcBlockNode, ParamsBlock
+from .line_nodes import CalcLine, ExprLine, CommentLine, CommentCommand, Heading, Import
+from .inline_nodes import (
+    FunctionCall,
+    ComprehensionChain,
+    Comprehension,
+    InlineComment,
+    InlineCommand,
+    Compare,
+    Keyword,
+    IfExp,
+    Lambda,
+)
+from .null_values import HcNotImplemented, NoValue
+
+from .operator_nodes import (
+    AddOp,
+    SubOp,
+    MultOp,
+    DivOp,
+    FloorOp,
+    ModuloOp,
+    MatMultOp,
+    PowOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
+    EqOp,
+    NeqOp,
+    IsOp,
+    IsNotOp,
+    InOp,
+    NotInOp,
+    AndOp,
+    OrOp,
+    HcUnaryOp,
+)
+
+# from handcalcs.parsing.commands import command_parser
+from .comment_parser import (
+    is_comment_command,
+    parse_kwargs,
+    is_markdown_heading,
+    split_commands,
+)
+
+ARITHMETIC_OPS = {
+    "Add": AddOp,
+    "Sub": SubOp,
+    "Mult": MultOp,
+    "Div": DivOp,
+    "FloorDiv": FloorOp,
+    "Pow": PowOp,
+    "Mod": ModuloOp,
+    "MatMult": MatMultOp,
+}
+
+COMPREHENSION_TYPES = {
+    "ListComp": "list",
+    "SetComp": "set",
+    "DictComp": "dict",
+    "GeneratorExp": "generator",
+}
+
+UNARY_OPS = {
+    "USub": "-",
+    "UAdd": "+",
+    "Not": "not ",
+    "Invert": "~",
+}
+
+COMPARE_OPS = {
+    "Eq": EqOp,
+    "NotEq": NeqOp,
+    "GtE": GtEOp,
+    "Gt": GtOp,
+    "LtE": LtEOp,
+    "Lt": LtOp,
+    "Is": IsOp,
+    "IsNot": IsNotOp,
+    "In": InOp,
+    "NotIn": NotInOp,
+}
+
+BOOL_OPS = {
+    "And": AndOp,
+    "Or": OrOp,
+}
+
+# Built-in functions with no side effects: a bare expression that calls only these
+# (and math/cmath functions or numpy ufuncs) is evaluated to show its result.
+PURE_BUILTINS = (
+    abs,
+    bool,
+    complex,
+    divmod,
+    float,
+    int,
+    len,
+    max,
+    min,
+    pow,
+    round,
+    sum,
+)
+
+
+def is_print_statement(stmt: ast.AST) -> bool:
+    """True if ``stmt`` is a bare ``print(...)`` call statement."""
+    return (
+        isinstance(stmt, ast.Expr)
+        and isinstance(stmt.value, ast.Call)
+        and isinstance(stmt.value.func, ast.Name)
+        and stmt.value.func.id == "print"
+    )
+
+
+def is_infinity_call(node: ast.Call) -> bool:
+    """True if ``node`` is ``float("inf")`` (or ``"-inf"``, ``"infinity"``...)."""
+    if not (
+        isinstance(node.func, ast.Name)
+        and node.func.id == "float"
+        and len(node.args) == 1
+        and not node.keywords
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ):
+        return False
+    try:
+        return math.isinf(float(node.args[0].value))
+    except ValueError:
+        return False
+
+
+@dataclass
+class AST_Parser:
+    globals: dict = field(default_factory=dict)
+    current_line_number: int = 1
+    prev_line_number: int = 0
+    prev_node: Optional[ast.AST] = None
+    new_block_from_comment: bool = False
+    current_block: Optional[Union[ForBlock, IfBlock]] = None
+    show_notimplemented: bool = False
+    source: str = ""
+    # The values each statement ran with (see ``line_values``). Without them,
+    # every name takes its value from 'globals', the namespace after the run.
+    line_values: Optional[LineValues] = None
+
+    def __post_init__(self):
+        self.final_globals = self.globals
+
+    def _values(self, snapshot: Optional[dict]):
+        """The namespace for a statement: its snapshot over the final namespace."""
+        if snapshot is None:
+            return self.final_globals
+        return ChainMap(snapshot, self.final_globals)
+
+    def _enter_statement(self, node: ast.stmt) -> None:
+        """
+        Look names up in the values from just before the statement ran: the
+        values its expression and an if test or loop header were evaluated with.
+        An ``elif`` that was not reached keeps the values of the ``if`` above.
+        """
+        if self.line_values is None:
+            return
+        before = self.line_values.values_before(node.lineno)
+        if before is None and isinstance(node, ast.If):
+            return
+        self.globals = self._values(before)
+
+    def _comment_values(self, snapshot: dict):
+        """
+        The values for ``{{ }}`` in a standalone comment: a name the source has
+        not assigned yet at that point is left undefined (not given its final
+        value); a name the source never assigns keeps its value from the namespace.
+        """
+        unused = {
+            name: value
+            for name, value in self.final_globals.items()
+            if name not in self.line_values.names
+        }
+        return ChainMap(snapshot, unused)
+
+    def _set_comment_values(self, comment):
+        """Fill ``{{ }}`` in an inline comment from the line's current values."""
+        if self.line_values is not None and hasattr(comment, "namespace"):
+            comment.namespace = self.globals
+        return comment
+
+    def _leave_statement(self, node: ast.stmt) -> None:
+        """Look names up in the values from just after the statement ran."""
+        if self.line_values is not None:
+            self.globals = self._values(self.line_values.values_after(node.lineno))
+
+    def __call__(self, source: str) -> deque:
+        """
+        Returns the handcalcs tree from the source.
+        """
+        self.source = source
+        self._classify_comments(source)
+        ast_tree = ast.parse(source)
+        hc_tree = self.ast_parse(ast_tree)
+        self.clear()
+        return hc_tree
+
+    def clear(self):
+        """
+        Clears existing data out of the parser.
+        """
+        self.current_block = None
+        self.source = ""
+        self.current_line_number = 1
+        self.prev_line_number = 0
+        self.new_block_from_comment = False
+
+    def _classify_comments(self, source: str) -> None:
+        """
+        Collects standalone comment lines into ``self.line_comments``, keyed by
+        line number. A comment is standalone iff no non-trivia token shares its
+        row; inline comments (those sharing a row with code) are ignored here
+        since they are read directly from the FST via ``get_line_comment()``.
+
+        Also seeds ``self._pending_comment_rows`` -- a sorted queue of the
+        standalone comment rows still waiting to be interleaved into a body.
+        """
+        self.line_comments = {}
+        self._blank_rows = {
+            row
+            for row, text in enumerate(source.splitlines(), start=1)
+            if not text.strip()
+        }
+        code_rows = []
+        trivia = (
+            tokenize.COMMENT,
+            tokenize.NL,
+            tokenize.NEWLINE,
+            tokenize.INDENT,
+            tokenize.DEDENT,
+            tokenize.ENCODING,
+            tokenize.ENDMARKER,
+        )
+        tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+        for tok in tokens:
+            if tok.type not in trivia:
+                code_rows.append(tok.start[0])
+        self._comment_columns = {}
+        for tok in tokens:
+            if tok.type == tokenize.COMMENT and tok.start[0] not in code_rows:
+                self.line_comments[tok.start[0]] = tok.string
+                self._comment_columns[tok.start[0]] = tok.start[1]
+        self._code_rows = sorted(set(code_rows))
+        self._pending_comment_rows = deque(sorted(self.line_comments))
+
+    def _make_comment_line(self, raw: str):
+        """
+        Builds the appropriate comment-line node from a raw ``tokenize`` comment
+        string (leading ``#`` included), mirroring the three-way branch used for
+        inline comments.
+        """
+        stripped = raw.lstrip("# ")
+        if is_markdown_heading(raw):
+            return Heading.from_raw_comment(raw)
+        elif is_comment_command(stripped):
+            return CommentCommand.from_raw_comment(raw)
+        else:
+            return CommentLine.from_raw_comment(raw)
+
+    def _flush_comment_lines(self, before: int) -> deque:
+        """
+        Pops every pending standalone comment whose row is < ``before`` and
+        returns them, in order, as comment-line nodes.
+        """
+        out = deque()
+        pending = getattr(self, "_pending_comment_rows", deque())
+        while pending and pending[0] < before:
+            row = pending.popleft()
+            comment = self._make_comment_line(self.line_comments[row])
+            if hasattr(comment, "namespace") and self.line_values is not None:
+                # The values at this point: just before the next statement ran.
+                before_next = self.line_values.values_before(before)
+                if before_next is not None:
+                    comment.namespace = self._comment_values(before_next)
+            out.append(comment)
+        return out
+
+    def _has_pending_comment_before(self, before: int) -> bool:
+        """
+        True if a standalone comment row is still pending strictly before
+        ``before``. Used to keep an interleaved comment from silently merging two
+        otherwise-adjacent ``;``-lines into one params block.
+        """
+        pending = getattr(self, "_pending_comment_rows", deque())
+        return bool(pending) and pending[0] < before
+
+    def _line_break(self, node: ast.BinOp) -> str:
+        """
+        Where a line continuation splits the operands of ``node``: ``"after"``
+        if the operator ends the left operand's line (``a + \\`` then ``b``),
+        ``"before"`` if it starts the right operand's line, or ``""`` when both
+        operands share a line (or their positions are unknown).
+        """
+        left, right = node.left, node.right
+        end_row = getattr(left, "end_lineno", None)
+        start_row = getattr(right, "lineno", None)
+        if end_row is None or start_row is None or end_row >= start_row:
+            return ""
+        # The rest of the left operand's line, after the operand itself. Column
+        # offsets are UTF-8 byte offsets.
+        lines = self.source.splitlines()
+        if end_row > len(lines):
+            return ""
+        tail = lines[end_row - 1].encode()[left.end_col_offset :].decode()
+        tail = tail.split("#", 1)[0]
+        if tail.strip(" \t\\()"):
+            return "after"
+        return "before"
+
+    def _blank_between(self, prev: ast.AST, nxt: ast.AST) -> bool:
+        """True if a blank source line separates statement ``prev`` from ``nxt``."""
+        end = getattr(prev, "end_lineno", prev.lineno)
+        return any(row in self._blank_rows for row in range(end + 1, nxt.lineno))
+
+    def _parse_body(self, body: list) -> deque:
+        """
+        Parses a list of statements, interleaving any standalone comment lines
+        that fall before each statement. Use in place of a bare
+        ``[self.ast_parse(item) for item in body]`` comprehension.
+
+        Two or more assignments on one physical line (``a = 1; b = 2``) share a
+        ``lineno``; a run of consecutive such multi-assignment lines is collected
+        into a single :class:`ParamsBlock`. A lone single assignment is parsed as
+        an ordinary line.
+        """
+        # A lineno carrying >= 2 assignments is a ';'-line (a params line).
+        line_counts = Counter(
+            s.lineno for s in body if isinstance(s, ast.Assign) and hasattr(s, "lineno")
+        )
+
+        def is_params_stmt(stmt) -> bool:
+            return (
+                isinstance(stmt, ast.Assign)
+                and hasattr(stmt, "lineno")
+                and line_counts[stmt.lineno] >= 2
+            )
+
+        out = deque()
+        i = 0
+        n = len(body)
+        while i < n:
+            stmt = body[i]
+            if hasattr(stmt, "lineno"):
+                flushed = self._flush_comment_lines(stmt.lineno)
+                out.extend(flushed)
+            # A print() statement is program output, not part of the calculation
+            # (its text is already printed when the source runs), so it is skipped.
+            if is_print_statement(stmt):
+                i += 1
+                continue
+            # A ``with`` block is shown as its body: the context manager is set-up,
+            # the calculations inside it are part of the surrounding calculation.
+            if isinstance(stmt, (ast.With, ast.AsyncWith)):
+                out.extend(self._parse_body(stmt.body))
+                i += 1
+                continue
+            if hasattr(stmt, "lineno"):
+                # A ``# hc: -h`` command directly above opens a params block of
+                # the consecutive single assignments that follow it.
+                if (
+                    isinstance(stmt, ast.Assign)
+                    and flushed
+                    and isinstance(flushed[-1], CommentCommand)
+                    and flushed[-1].commands.get("params_block")
+                ):
+                    run = deque()
+                    while i < n and isinstance(body[i], ast.Assign):
+                        if run and (
+                            self._has_pending_comment_before(body[i].lineno)
+                            or self._blank_between(body[i - 1], body[i])
+                        ):
+                            break
+                        run.append(self.ast_parse(body[i]))
+                        i += 1
+                    out.append(ParamsBlock(lines=run, with_comments=True))
+                    continue
+            if is_params_stmt(stmt):
+                run = deque()
+                while i < n and is_params_stmt(body[i]):
+                    # A standalone comment interleaved before this line ends the
+                    # run so the comment is not swallowed into the grid.
+                    if run and self._has_pending_comment_before(body[i].lineno):
+                        break
+                    run.append(self.ast_parse(body[i]))
+                    i += 1
+                out.append(ParamsBlock(lines=run))
+            else:
+                parsed = self.ast_parse(stmt)
+                out.append(parsed)
+                i += 1
+                # An inline ``# hc: --pagebreak`` breaks the page after its line.
+                comment = getattr(parsed, "comment", None)
+                if isinstance(comment, InlineCommand) and comment.commands.get(
+                    "page_break"
+                ):
+                    out.append(CommentCommand(commands={"page_break": True}))
+        if body and body[0].col_offset > 0:
+            out.extend(self._flush_trailing_comments(body))
+        return out
+
+    def _flush_trailing_comments(self, body: list) -> deque:
+        """
+        The comment lines that end an indented block: after its last statement,
+        before the next line of code, and indented at least as far as the
+        block's statements.
+        """
+        next_code = bisect.bisect_right(self._code_rows, body[-1].end_lineno)
+        next_row = (
+            self._code_rows[next_code] if next_code < len(self._code_rows) else 2**63
+        )
+        last = None
+        for row in self._pending_comment_rows:
+            if row >= next_row or self._comment_columns[row] < body[0].col_offset:
+                break
+            last = row
+        if last is None:
+            return deque()
+        return self._flush_comment_lines(last + 1)
+
+    def ast_parse(self, node: ast.AST) -> deque:
+        """
+        Recursively converts an AST node into the custom nested list/dict structure.
+        """
+        new_line = True
+        if isinstance(node, ast.stmt):
+            self._enter_statement(node)
+        if hasattr(node, "lineno"):
+            self.current_line_number = node.lineno
+        else:
+            self.current_line_number = 0
+        if self.current_line_number == self.prev_line_number:
+            new_line = False
+        # --- Rule 1: Arithmetical Expressions & Parentheses (BinOp) ---
+        if isinstance(node, ast.BinOp):
+            left = self.ast_parse(node.left)
+            right = self.ast_parse(node.right)
+            op_name = type(node.op).__name__
+            op_class = ARITHMETIC_OPS[op_name]
+            hc_op = op_class(left, right)
+            hc_op.line_break = self._line_break(node)
+            val = hc_op
+
+        # --- Unary operations (e.g. -b, -10.423, ~x, not x) ---
+        elif isinstance(node, ast.UnaryOp):
+            operand = self.ast_parse(node.operand)
+            op_name = type(node.op).__name__
+            symbol = UNARY_OPS.get(op_name, op_name)
+            val = HcUnaryOp(operand=operand, symbol=symbol)
+
+        # --- Rule 1: Simplest case (e.g., variable names, constants) ---
+        elif isinstance(node, ast.Name):
+            node: ast.Name
+            val = Name(identifier=node.id, value=self._name_value(node.id))
+        elif isinstance(node, ast.Constant):
+            source_text = ast.get_source_segment(self.source, node) or ""
+            val = Constant(value=node.value, source_text=source_text)
+        elif isinstance(node, ast.Compare):
+            # Comparison operations (e.g., a > b). Structure:
+            # [left, op_name, right] (simplified for this structure)
+            left = self.ast_parse(node.left)
+            op_names = [type(op).__name__ for op in node.ops]
+            comparator_names = [self.ast_parse(n) for n in node.comparators]
+            ops = [COMPARE_OPS[op_name]() for op_name in op_names]
+            matched = list(zip(ops, comparator_names))
+            acc = deque([])
+            acc.append(left)
+            for pair in matched:
+                acc.append(pair[0])
+                acc.append(pair[1])
+            val = Compare(comparison=acc)
+
+        elif isinstance(node, ast.BoolOp):
+            # Boolean operations (``a and b``, ``x or y or z``). A BoolOp is
+            # n-ary: one operator applied to a list of ``values``. ``not`` is not
+            # a BoolOp -- it is an ast.UnaryOp handled above via UNARY_OPS.
+            op_name = type(node.op).__name__
+            op_class = BOOL_OPS[op_name]
+            values = deque([self.ast_parse(value) for value in node.values])
+            val = op_class(values=values)
+
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            acc = deque([])
+            for name in node.names:
+                acc.append(Name(identifier=name.name, value=name.asname))
+            if isinstance(node, ast.Import):
+                val = Import(
+                    import_from=False, names=acc, comment=self._inline_comment(node)
+                )
+            elif isinstance(node, ast.ImportFrom):
+                val = Import(
+                    import_from=True,
+                    import_from_level=node.level,
+                    import_from_module=node.module,
+                    names=acc,
+                    comment=self._inline_comment(node),
+                )
+
+        elif isinstance(node, ast.Call) and is_infinity_call(node):
+            # float("inf") is infinity, shown as its symbol (#166).
+            val = Constant(value=float(node.args[0].value))
+
+        elif isinstance(node, ast.Call):
+            function_call = FunctionCall()
+            # Get the function name being called
+            if isinstance(node.func, ast.Name):
+                func_name = node.func.id
+                module_name = ""
+            elif isinstance(node.func, ast.Attribute):
+                # Example: module.external_func, np.linalg.norm, or a method of
+                # an expression, (a * b).to("mm"), whose receiver is parsed as
+                # an expression node and becomes the call's namespace.
+                func_name = node.func.attr
+                module_name = self._dotted_name(node.func.value)
+                if module_name is None:
+                    module_name = self.ast_parse(node.func.value)
+            else:
+                # Complex call, e.g., a function returned by another function
+                # Fall back to standard Rule 2
+                # ... (original Rule 2 logic) ...
+                module_name = ""
+                func_name = self.ast_parse(node.func)  # Get the function's name (str)
+                if isinstance(func_name, ast.Attribute):
+                    module_name = func_name.module_name
+                    func_name = func_name.attr_name
+
+            # Create the inner nested list for arguments: the positional
+            # arguments, then the keyword arguments (as Keyword nodes)
+            args_list = deque([self.ast_parse(arg) for arg in node.args])
+            if (
+                len(node.args) == 1
+                and not node.keywords
+                and isinstance(node.args[0], ast.GeneratorExp)
+            ):
+                args_list[0].bare = True
+            args_list.extend(
+                Keyword(arg=keyword.arg, value=self.ast_parse(keyword.value))
+                for keyword in node.keywords
+            )
+
+            # Create the main nested list for the function call
+            if isinstance(module_name, str):
+                function_call.namespace = Name(
+                    identifier=module_name, value=module_name
+                )
+            else:
+                function_call.namespace = module_name
+            function_call.function_name = Name(identifier=func_name, value=func_name)
+            function_call.args.extend(args_list)
+
+            val = function_call
+
+        # --- Rule 3: If/Elif/Else block ---
+        elif isinstance(node, ast.If):
+            if_block = IfBlock()
+
+            header_values = self.globals
+            # "test": The condition (nested list via recursive call)
+            if_block.test = self.ast_parse(node.test)
+            # None when the test cannot be evaluated (a supplied namespace that
+            # lacks a name it uses): which branch ran is then unknown.
+            if_block.is_true = self._evaluate_test(node.test)
+            # "body": The block of code inside the if (nested list of statements)
+            if_block.lines.extend(self._parse_body(node.body))
+
+            # "orelse": The block of code inside the else/elif (nested list)
+            self.globals = header_values
+            if node.orelse:
+                # If `orelse` contains another `ast.If` (an `elif`), we recursively
+                # call self.ast_parse on that one.
+                if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
+                    if_block.orelse = deque([self.ast_parse(node.orelse[0])])
+                else:
+                    # Standard `else` block or multiple statements in `orelse`
+                    if_block.orelse = self._parse_body(node.orelse)
+            else:
+                if_block.orelse = deque()  # Empty list for no `else`
+
+            val = self.current_block = if_block
+
+        # --- Rule 4: For loop block ---
+        elif isinstance(node, ast.For):
+            for_block = ForBlock()
+
+            # "target": the loop variable, or several (``for i, x in ...``)
+            for_block.assigns.append(self._target(node.target))
+
+            # "iter": the iterable as a one-element deque, whatever its kind
+            # (a Name, a call such as range(3), or a literal collection), so
+            # renderers can always read ``iterator[0]``.
+            for_block.iterator = deque([self.ast_parse(node.iter)])
+
+            # "body": nested list of the for loop's body
+            for_block.lines.extend(self._parse_body(node.body))
+
+            val = self.current_block = for_block
+
+        elif isinstance(
+            node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+        ):
+            comprehension_block = ComprehensionChain(
+                comp_type=COMPREHENSION_TYPES[type(node).__name__],
+            )
+
+            assigns = deque([])
+            keys = deque([])
+            values = deque([])
+            if isinstance(node, ast.DictComp):
+                keys = deque([self.ast_parse(node.key)])
+                values = deque([self.ast_parse(node.value)])
+            else:
+                assigns = deque([self.ast_parse(node.elt)])
+            comprehension_block.key = keys
+            comprehension_block.value = values
+            comprehension_block.assign = assigns
+            generators = deque([self.ast_parse(gen) for gen in node.generators])
+            comp_blocks = deque([])
+            for generator in generators:
+                comp_block = Comprehension(
+                    assigns=generator["assigns"],
+                    iterator=generator["iterator"],
+                    is_async=generator["is_async"],
+                    conditions=generator["conditions"],
+                )
+                comp_blocks.append(comp_block)
+            comprehension_block.comprehensions = comp_blocks
+            val = comprehension_block
+
+        elif isinstance(node, ast.comprehension):
+            comp = {
+                "assigns": deque([self._target(node.target)]),
+                "iterator": deque([self.ast_parse(node.iter)]),
+                "is_async": bool(node.is_async),
+                "conditions": deque(self.ast_parse(test) for test in node.ifs),
+            }
+            val = comp
+
+        # elif isinstance(node, ast.Comment):
+        #     if new_line:
+        #         comment_value = node.value
+        #         if is_markdown_heading(comment_value):
+        #             val = MarkdownComment(comment=comment_value)
+        #         elif is_comment_command(comment_value):
+        #             split_commands = split_commands(comment_value)
+        #             parsed_commands = InlineCommand.from_raw_comment(node.value)
+        #             val = parsed_commands
+        #         else:
+        #             val = CommentLine(comment=comment_value)
+        #     else:
+        #         val = NoValue() # Is inline Comment, no node created
+
+        # --- Other important nodes (e.g., Assignments, List construction) ---
+        elif isinstance(node, ast.Assign):
+            comment_content = self._inline_comment(node)
+            expression_tree = self.ast_parse(node.value)
+            nested_pars = bool(
+                node.value.f.pars().n
+            )  # True if the expression tree is nested in parenths
+            if not isinstance(expression_tree, deque):
+                expression_tree = deque([expression_tree])
+            # The targets (and the inline comment) show the values the
+            # assignment gave them.
+            self._leave_statement(node)
+            self._set_comment_values(comment_content)
+            calc_line = CalcLine(
+                assigns=deque([self._target(n) for n in node.targets]),
+                expression_tree=expression_tree,
+                comment=comment_content,
+                pars_nesting=nested_pars,
+            )
+            val = calc_line
+
+        elif isinstance(node, ast.AugAssign):
+            # ``a += b`` is shown as ``a = a + b``: the ``a`` on the right has
+            # the value from before the line ran, the target the value after.
+            comment_content = self._inline_comment(node)
+            op_class = ARITHMETIC_OPS[type(node.op).__name__]
+            expression_tree = deque(
+                [op_class(self.ast_parse(node.target), self.ast_parse(node.value))]
+            )
+            self._leave_statement(node)
+            self._set_comment_values(comment_content)
+            val = CalcLine(
+                assigns=deque([self._target(node.target)]),
+                expression_tree=expression_tree,
+                comment=comment_content,
+            )
+
+        elif isinstance(node, ast.List):
+            val = List(elems=deque([self.ast_parse(el) for el in node.elts]))
+
+        elif isinstance(node, ast.Tuple):
+            val = Tuple(elems=deque([self.ast_parse(el) for el in node.elts]))
+
+        elif isinstance(node, ast.Set):
+            val = Set(elems=deque([self.ast_parse(el) for el in node.elts]))
+
+        elif isinstance(node, ast.Dict):
+            val = Dictionary(
+                keys=deque([self.ast_parse(el) for el in node.keys]),
+                values=deque([self.ast_parse(el) for el in node.values]),
+            )
+
+        elif isinstance(node, ast.Return):
+            parsed_value = self.ast_parse(node.value)
+            if not isinstance(parsed_value, deque):
+                parsed_value = deque([parsed_value])
+            val = ExprLine(expression_tree=parsed_value, return_expr=True)
+
+        elif isinstance(node, ast.Attribute) and (
+            self._dotted_name(node.value) is not None
+        ):
+            namespace = self._dotted_name(node.value)
+            attribute = node.attr
+            val = Attribute(
+                namespace=namespace,
+                identifier=attribute,
+                value=getattr(self._resolve_dotted(namespace), attribute, NoValue()),
+            )
+
+        elif isinstance(node, ast.Attribute):
+            # An attribute of an expression, (L * 2).magnitude: the expression
+            # is shown, substituted in the numeric column, before the ``.``.
+            val = Attribute(
+                namespace="", identifier=node.attr, receiver=self.ast_parse(node.value)
+            )
+
+        elif isinstance(node, ast.Starred):
+            # ``*rest`` in an unpacking target or a call.
+            val = HcUnaryOp(operand=self.ast_parse(node.value), symbol="*")
+
+        elif isinstance(node, ast.Subscript):
+            val = self._subscript(node)
+
+        elif isinstance(node, ast.Slice):
+            val = Slice(
+                *(
+                    None if part is None else self.ast_parse(part)
+                    for part in (node.lower, node.upper, node.step)
+                )
+            )
+
+        elif isinstance(node, ast.Lambda):
+            val = Lambda(
+                params=self._lambda_params(node.args), body=self.ast_parse(node.body)
+            )
+
+        elif isinstance(node, ast.JoinedStr):
+            # An f-string shows its value, like a string literal, when it can be
+            # evaluated without side effects; otherwise it is shown as written.
+            value = self._evaluate_expr(node)
+            if isinstance(value, NoValue):
+                value = ast.get_source_segment(self.source, node) or ""
+            val = Constant(value=value, calculated=True)
+
+        elif isinstance(node, ast.IfExp):
+            val = IfExp(
+                test=self.ast_parse(node.test),
+                body=self.ast_parse(node.body),
+                orelse=self.ast_parse(node.orelse),
+                is_true=self._evaluate_test(node.test),
+            )
+
+        elif isinstance(node, ast.Module):
+            # Entry point: process all body statements, interleaving standalone
+            # comment lines, then append any trailing comments after the last stmt.
+            val = self._parse_body(node.body)
+            val.extend(self._flush_comment_lines(before=2**63))
+
+        elif isinstance(node, ast.Expr):
+            # An expression used as a statement (e.g., a standalone function call)
+            parsed_node = self.ast_parse(node.value)
+            val = ExprLine(
+                expression_tree=deque([parsed_node]),
+                comment=self._set_comment_values(self._inline_comment(node)),
+            )
+            if not isinstance(parsed_node, (NoValue, HcNotImplemented)) and not (
+                isinstance(parsed_node, Constant) and isinstance(parsed_node.value, str)
+            ):
+                val.value = self._evaluate_expr(node.value)
+
+        # Default case for unhandled nodes: val = a simple string for clarity
+        else:
+            if self.show_notimplemented:
+                val = HcNotImplemented(node_name=type(node).__name__)
+            else:
+                val = NoValue()
+
+        self.prev_line_number = self.current_line_number
+        return val
+
+    def _lambda_params(self, args: ast.arguments) -> deque:
+        """A lambda's parameters as names, with ``*args``/``**kwargs`` starred."""
+        params = deque(
+            Name(identifier=arg.arg) for arg in [*args.posonlyargs, *args.args]
+        )
+        if args.vararg is not None:
+            params.append(
+                HcUnaryOp(operand=Name(identifier=args.vararg.arg), symbol="*")
+            )
+        params.extend(Name(identifier=arg.arg) for arg in args.kwonlyargs)
+        if args.kwarg is not None:
+            params.append(
+                HcUnaryOp(operand=Name(identifier=args.kwarg.arg), symbol="**")
+            )
+        return params
+
+    def _target(self, node: ast.AST):
+        """
+        An assignment or loop target. Several targets (``a, b``, ``[a, b]``)
+        become a bare Tuple, shown without brackets.
+        """
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return Tuple(elems=deque(self._target(elt) for elt in node.elts), bare=True)
+        return self.ast_parse(node)
+
+    def _subscript(self, node: ast.Subscript) -> Subscript:
+        """An index or key lookup (``xs[0]``, ``A[i, j]``); see ``Subscript``."""
+        items = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+        labels = None
+        if isinstance(node.value, ast.Name):
+            labels = [self._index_label(item) for item in items]
+            if None in labels:
+                labels = None
+        return Subscript(
+            container=self.ast_parse(node.value),
+            index=deque(self.ast_parse(item) for item in items),
+            labels=labels,
+            value=self._subscript_value(node.value, node.slice),
+        )
+
+    @staticmethod
+    def _index_label(node: ast.AST) -> Optional[tuple[str, bool]]:
+        """
+        An index as subscript text: a name (``i``), an integer (``0``, ``-1``) or
+        a short string of letters, digits and spaces (``"dead"``), with whether
+        it is a name. None for any other index.
+        """
+        if isinstance(node, ast.Name):
+            return (node.id, True)
+        try:
+            key = py_ast.literal_eval(node)
+        except Exception:
+            return None
+        if isinstance(key, bool):
+            return None
+        if isinstance(key, int) or (
+            isinstance(key, str) and key.strip() and key.replace(" ", "").isalnum()
+        ):
+            return (str(key), False)
+        return None
+
+    def _subscript_value(self, container: ast.AST, index: ast.AST):
+        """
+        The element ``container[index]`` without evaluating any code: the
+        container is a name, a dotted name or another subscript, and each index
+        is a literal (``ast.literal_eval``), a name, a dotted name, or a slice or
+        tuple of those. The lookup itself runs only on containers whose
+        ``__getitem__`` has no side effects (see ``_pure_getitem``). NoValue if
+        any part cannot be resolved this way.
+        """
+        if isinstance(container, ast.Subscript):
+            obj = self._subscript_value(container.value, container.slice)
+        elif isinstance(container, ast.Name):
+            obj = self._name_value(container.id)
+        elif (dotted := self._dotted_name(container)) is not None:
+            obj = self._resolve_dotted(dotted)
+        else:
+            return NoValue()
+        key = self._index_key(index)
+        if isinstance(obj, NoValue) or isinstance(key, NoValue):
+            return NoValue()
+        if not self._pure_getitem(obj):
+            return NoValue()
+        try:
+            return obj[key]
+        except Exception:
+            return NoValue()
+
+    def _index_key(self, node: ast.AST):
+        """The value of an index (see ``_subscript_value``), or NoValue."""
+        if isinstance(node, ast.Slice):
+            parts = [
+                None if part is None else self._index_key(part)
+                for part in (node.lower, node.upper, node.step)
+            ]
+            if any(isinstance(part, NoValue) for part in parts):
+                return NoValue()
+            return slice(*parts)
+        if isinstance(node, ast.Tuple):
+            keys = tuple(self._index_key(elt) for elt in node.elts)
+            if any(isinstance(key, NoValue) for key in keys):
+                return NoValue()
+            return keys
+        if isinstance(node, ast.Name):
+            return self._name_value(node.id)
+        if (dotted := self._dotted_name(node)) is not None:
+            return self._resolve_dotted(dotted)
+        try:
+            return py_ast.literal_eval(node)
+        except Exception:
+            return NoValue()
+
+    # Libraries whose containers look items up without side effects.
+    PURE_GETITEM_MODULES = (
+        "numpy",
+        "pandas",
+        "pint",
+        "forallpeople",
+        "polars",
+        "xarray",
+    )
+
+    @classmethod
+    def _pure_getitem(cls, obj) -> bool:
+        """
+        True for a container whose ``__getitem__`` only looks an item up: a
+        sequence or mapping (lists, tuples, strings, dicts), or a numpy, pandas
+        or units-library object. A user object may run any code, so it is not
+        indexed again.
+        """
+        if isinstance(obj, (Sequence, Mapping)):
+            return True
+        module = type(obj).__module__.split(".")[0]
+        return module in cls.PURE_GETITEM_MODULES
+
+    def _dotted_name(self, node: ast.AST) -> Optional[str]:
+        """
+        The dotted name a chain of attribute lookups on a name spells
+        (``np.linalg`` for ``np.linalg``), or None for any other expression.
+        """
+        parts = []
+        while isinstance(node, ast.Attribute):
+            parts.append(node.attr)
+            node = node.value
+        if not isinstance(node, ast.Name):
+            return None
+        parts.append(node.id)
+        return ".".join(reversed(parts))
+
+    def _resolve_dotted(self, dotted: str):
+        """The object ``dotted`` (e.g. ``np.linalg``) names in the namespace, or NoValue."""
+        first, *rest = dotted.split(".")
+        obj = self.globals.get(first, NoValue())
+        for attr in rest:
+            obj = getattr(obj, attr, NoValue())
+        return obj
+
+    def _evaluate_test(self, node: ast.AST) -> Optional[bool]:
+        """
+        The truth of an ``if`` test or a conditional expression's test in the
+        namespace, or None if it cannot be evaluated (e.g. a name the namespace
+        lacks).
+        """
+        try:
+            # A flattened *copy* of the namespace, so that the ``__builtins__``
+            # eval adds lands in a throwaway dict, not in the caller's globals.
+            return bool(
+                eval(
+                    compile(py_ast.Expression(node), mode="eval", filename="<ast>"),
+                    dict(self.globals),
+                )
+            )
+        except Exception:
+            return None
+
+    def _inline_comment(self, node: ast.AST) -> InlineComment | InlineCommand | None:
+        """The trailing comment of a statement's line, as a comment or command node."""
+        # get_line_comment() returns the trailing comment already stripped
+        # of its leading '#' and surrounding whitespace (e.g. "hc: sympy").
+        comment_value = node.f.get_line_comment() or ""
+        if is_comment_command(comment_value):
+            return InlineCommand.from_raw_comment(comment_value)
+        elif comment_value:
+            return InlineComment(content=comment_value)
+        return None
+
+    def _name_value(self, identifier: str):
+        """
+        The value of the name 'identifier', looked up as Python does: in the
+        namespace, then in ``builtins``. The fallback is for forallpeople, whose
+        ``si.environment(..., top_level=True)`` puts its units (``m``, ``kN``)
+        in ``builtins`` rather than in the namespace; without it a bare unit
+        substitutes as nothing (``2 * `` instead of ``2 * 1.000 m``). Builtin
+        functions and types (``len``, ``max``) are left as NoValue, as before.
+        """
+        if identifier in self.globals:
+            return self.globals[identifier]
+        value = getattr(builtins, identifier, NoValue())
+        return NoValue() if callable(value) else value
+
+    def _evaluate_expr(self, node: ast.AST):
+        """
+        The value of a bare expression statement in the namespace, so that it can
+        be shown as the line's result (#54). The source already ran, so the
+        expression is evaluated a second time: it is only evaluated when that is
+        free of side effects, i.e. it calls nothing but the functions accepted by
+        ``_is_pure_callable``. Otherwise, or if evaluating it fails, NoValue.
+        """
+        for sub in py_ast.walk(node):
+            if isinstance(
+                sub, (ast.Await, ast.Yield, ast.YieldFrom, ast.NamedExpr, ast.Lambda)
+            ):
+                return NoValue()
+            if isinstance(sub, ast.Call) and not self._is_pure_callable(sub.func):
+                return NoValue()
+        try:
+            # A flattened copy of the namespace, as for an if test (see ast.If).
+            return eval(
+                compile(py_ast.Expression(node), mode="eval", filename="<ast>"),
+                dict(self.globals),
+            )
+        except Exception:
+            return NoValue()
+
+    def _is_pure_callable(self, func: ast.AST) -> bool:
+        """
+        True if the called object is a side-effect-free function: one of
+        ``PURE_BUILTINS``, a ``math``/``cmath`` function or a numpy ufunc.
+        """
+        if isinstance(func, ast.Name):
+            obj = self.globals.get(func.id, getattr(builtins, func.id, None))
+        elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            obj = getattr(self.globals.get(func.value.id), func.attr, None)
+        else:
+            return False
+        if any(obj is pure for pure in PURE_BUILTINS):
+            return True
+        if getattr(obj, "__module__", None) in ("math", "cmath"):
+            return True
+        return type(obj).__name__ == "ufunc"

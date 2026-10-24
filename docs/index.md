@@ -1,24 +1,91 @@
-# handcalcs documentation v1.1.2
-<p>
-  <img src="https://travis-ci.org/connorferster/handcalcs.svg?branch=master">
-<a href='https://coveralls.io/github/connorferster/handcalcs?branch=master'><img src='https://coveralls.io/repos/github/connorferster/handcalcs/badge.svg?branch=master' alt='Coverage Status' /></a>
-  <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
-  <img src="https://img.shields.io/pypi/v/handcalcs">
-  <img src="https://img.shields.io/pypi/pyversions/handcalcs">
-  <img src="https://img.shields.io/github/license/connorferster/handcalcs">
-  <img src="https://img.shields.io/pypi/dm/handcalcs">
-</p>
-<p align="center">
-  <img src="../images/handcalcs.jpg"><br>
-  Covert art by <a href = "https://www.instagram.com/joshuahoibergtattoos/">Joshua Hoiberg</a>
-</p>
+# handcalcs
 
-<h1 align = "center">handcalcs:<br>Python calculations in Jupyter,<br>as though you wrote them by hand.</h1>
+**Python calculations, written out the way you would write them by hand.**
 
-`handcalcs` is a library to render Python calculation code automatically in Latex, but in a manner that mimics how one might format their calculation if it were written with a pencil:  write the symbolic formula, **followed by numeric substitutions**, and then the result.
+handcalcs turns ordinary Python calculation code into a formatted calculation: the
+symbolic formula, then the formula with every value substituted in, then the result.
+Because the substitution step is shown, anyone can check the calculation by hand.
 
-Because `handcalcs` shows the numeric substitution, the calculations become significantly easier to check and verify by hand.
+```{hc-example}
+:renderer: markdown
+:setup: from math import sqrt
+a = 2.5  # Side a, in m
+b = 4.0  # Side b, in m
+c = sqrt(a**2 + b**2)  # Hypotenuse
+```
 
-## Basic Demo
+The same parsed calculation can be sent to different **renderers**: Markdown and LaTeX for
+Jupyter and documents, HTML for web pages, plain text for terminals and logs, a live
+Excel worksheet, and a Word document with editable equations. You can restyle the built-in renderers or write your own.
 
-![handcalcs demo 1](../images/basic_demo1.gif)
+## Where do you want to go?
+
+::::{grid} 1 2 2 2
+:gutter: 3
+
+:::{grid-item-card} {octicon}`rocket` Get started
+:link: getting-started/index
+:link-type: doc
+
+Install handcalcs and render your first calculation in Jupyter or a Python script.
+:::
+
+:::{grid-item-card} {octicon}`paintbrush` Use a renderer
+:link: renderers/index
+:link-type: doc
+
+Markdown, LaTeX, HTML, plain text, Excel or Word: what each produces and when to use it.
+:::
+
+:::{grid-item-card} {octicon}`plug` Pick an interface
+:link: interfaces/index
+:link-type: doc
+
+The `%%render` cell magic, the `HandCalcs` object, or the `@handcalc` decorator.
+:::
+
+:::{grid-item-card} {octicon}`book` Find a recipe
+:link: cookbook/index
+:link-type: doc
+
+Tested recipes: precision, checks, notation, equation numbers, Word and PDF reports, web apps.
+:::
+
+:::{grid-item-card} {octicon}`tools` Customize a renderer
+:link: customizing/index
+:link-type: doc
+
+Add colors to the HTML output, change Markdown and LaTeX tokens, add symbols.
+:::
+
+:::{grid-item-card} {octicon}`package` Build a renderer
+:link: building-renderers/index
+:link-type: doc
+
+How rendering works, the methods you override, and worked examples.
+:::
+
+:::{grid-item-card} {octicon}`code` Work on handcalcs
+:link: developers/index
+:link-type: doc
+
+Set up a development environment, find your way around the source, run the tests.
+:::
+::::
+
+Looking for a specific function, option or `# hc:` command? See the
+[reference](reference/index.md).
+
+```{toctree}
+:hidden:
+:maxdepth: 2
+
+getting-started/index
+interfaces/index
+renderers/index
+cookbook/index
+customizing/index
+building-renderers/index
+developers/index
+reference/index
+```

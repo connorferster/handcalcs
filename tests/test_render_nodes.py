@@ -1,0 +1,839 @@
+"""
+Representative Layer-3 tests: render individual nodes through a bare
+``BaseRenderer`` and assert the produced string.
+
+This module demonstrates the parametrized pattern the full per-node matrix
+will follow (constants, names, collections, operators, comparisons, function
+calls, comments). Known bugs are pinned with ``xfail(strict=True)`` per the
+agreed policy so the suite documents them and flags a fix via an unexpected
+pass.
+"""
+from collections import deque
+from decimal import Decimal
+
+import pytest
+
+from handcalcs.renderers.base import ContextKeyError, ContextValueError, mode_columns
+from handcalcs.parsing.nodes import Name, Constant, List, Tuple, Set, Dictionary, Attribute
+from handcalcs.parsing.operator_nodes import (
+    AddOp,
+    SubOp,
+    MultOp,
+    DivOp,
+    PowOp,
+    FloorOp,
+    ModuloOp,
+    GtOp,
+    GtEOp,
+    LtOp,
+    LtEOp,
+    EqOp,
+    NeqOp,
+    IsOp,
+    IsNotOp,
+    InOp,
+    NotInOp,
+    AndOp,
+    OrOp,
+    HcUnaryOp,
+)
+from handcalcs.parsing.inline_nodes import (
+    FunctionCall,
+    Compare,
+    InlineComment,
+    InlineCommand,
+    Comprehension,
+    ComprehensionChain,
+)
+from handcalcs.parsing.line_nodes import (
+    Heading,
+    CalcLine,
+    ExprLine,
+    Import,
+    CommentLine,
+    CommentCommand,
+)
+from handcalcs.parsing.block_nodes import IfBlock, ElseBlock, ElifBlock
+
+
+# ---------------------------------------------------------------------------
+# Constant
+# ---------------------------------------------------------------------------
+
+def test_constant_applies_format_code(render):
+    assert render(Constant(3.14159265), format_code=".3g") == "3.14"
+
+
+def test_constant_int(render):
+    assert render(Constant(4)) == "4"
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_constant_bool_ignores_numeric_format_code(render, value):
+    # bool is an int subclass: '.5g' would otherwise render True as '1'.
+    assert render(Constant(value), format_code=".5g") == str(value)
+
+
+def test_constant_non_numeric_falls_back_to_str(render):
+    # A format code that does not apply to the value raises ValueError inside
+    # the handler and falls back to plain str().
+    assert render(Constant("foo")) == "foo"
+
+
+# ---------------------------------------------------------------------------
+# Name
+# ---------------------------------------------------------------------------
+
+def test_name_symbolic_mode_renders_identifier(render):
+    assert render(Name("alpha", 3), current_mode="sym") == "alpha"
+
+
+def test_name_numeric_mode_renders_formatted_value(render):
+    assert render(Name("alpha", 3), current_mode="num") == "3"
+
+
+def test_name_numeric_mode_applies_format_code(render):
+    assert render(Name("alpha", 3.14159), current_mode="num", format_code=".2f") == "3.14"
+
+
+def test_name_without_current_mode_raises(render):
+    with pytest.raises(ContextKeyError):
+        render(Name("a", 1))
+
+
+def test_name_unknown_mode_raises(render):
+    with pytest.raises(ContextValueError):
+        render(Name("a", 1), current_mode="bogus")
+
+
+# ---------------------------------------------------------------------------
+# Collections
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "node,expected",
+    [
+        (List(deque([Constant(1), Constant(2)])), "[1, 2]"),
+        (List(deque([])), "[]"),
+        (Set(deque([Constant(1)])), "{1}"),
+        (Tuple(deque([Constant(1), Constant(2)])), "(1, 2)"),
+        (Dictionary(deque([Constant(1)]), deque([Constant(2)])), "{1: 2}"),
+    ],
+    ids=["list", "empty-list", "set", "tuple", "dict"],
+)
+def test_collection_rendering(render, node, expected):
+    assert render(node) == expected
+
+
+def test_collection_float_elements_apply_format_code(render):
+    # Each Constant element of a collection is formatted with the active format
+    # code, just like a scalar constant.
+    node = List(deque([Constant(11.309932474020215), Constant(45.0), Constant(78.69006752597979)]))
+    assert render(node, format_code=".5g") == "[11.31, 45, 78.69]"
+
+
+# ---------------------------------------------------------------------------
+# Attribute (no handler registered)
+# ---------------------------------------------------------------------------
+
+def test_attribute_symbolic_renders_namespace_and_identifier(render):
+    assert render(Attribute("math", "pi", 3.14159), current_mode="sym") == "math.pi"
+
+
+def test_attribute_numeric_renders_value(render):
+    assert render(Attribute("math", "pi", 3.14159), current_mode="num") == "3.1416"
+
+
+def test_attribute_main_namespace_suppressed(render):
+    assert render(Attribute("__main__", "pi", 3.14159), current_mode="sym") == "pi"
+
+
+def test_attribute_numeric_no_value_falls_back_to_symbolic(render):
+    # Attribute's default value is NoValue; with no captured value the numeric
+    # column falls back to the symbolic form.
+    assert render(Attribute("math", "pi"), current_mode="num") == "math.pi"
+
+
+# ---------------------------------------------------------------------------
+# Name value renderability (numeric mode)
+#
+# In numeric mode, render_name renders ``node.value`` via ``render_node`` when
+# the value is itself an HcNode (e.g. a collection literal), and otherwise
+# formats/stringifies the raw Python value. These tests exercise both paths for
+# the basic collection nodes, plain int/float, float-like objects (complex,
+# Decimal, forallpeople Physical), and an arbitrary custom object.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (List(deque([Constant(1), Constant(2), Constant(3)])), "[1, 2, 3]"),
+        (List(deque([])), "[]"),
+        (Set(deque([Constant(1)])), "{1}"),
+        (Tuple(deque([Constant(1), Constant(2)])), "(1, 2)"),
+        (Dictionary(deque([Constant(1)]), deque([Constant(2)])), "{1: 2}"),
+    ],
+    ids=["list", "empty-list", "set", "tuple", "dict"],
+)
+def test_name_value_renders_collection_node(render, value, expected):
+    # A Name bound to a collection literal renders the collection in numeric
+    # mode (render_name delegates to render_node for HcNode values).
+    assert render(Name("x", value), current_mode="num") == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (4, "4"),
+        (-7, "-7"),
+        (0, "0"),
+        (3.14159, "3.1416"),
+        (2.0, "2"),
+    ],
+    ids=["int", "neg-int", "zero", "float", "float-whole"],
+)
+def test_name_value_renders_int_and_float(render, value, expected):
+    # Plain ints/floats are not HcNodes, so render_name falls back to formatting
+    # the raw value with the context format code (default ".5g").
+    assert render(Name("n", value), current_mode="num") == expected
+
+
+def test_name_value_raw_list_of_floats_formats_each_element(render):
+    # A Name bound to a *raw Python list* of floats (e.g. an accumulated result)
+    # formats each element with the format code -- not a plain repr.
+    value = [11.309932474020215, 45.0, 78.69006752597979]
+    assert render(Name("acc", value), current_mode="num", format_code=".5g") == "[11.31, 45, 78.69]"
+
+
+def test_name_value_raw_dict_of_floats_formats_each_element(render):
+    value = {"a": 3.14159, "b": 2.0}
+    assert render(Name("d", value), current_mode="num", format_code=".3g") == '{"a": 3.14, "b": 2}'
+
+
+def test_name_value_raw_nested_collection_formats_elements(render):
+    value = [(1.23456, 2.0), [3.5]]
+    assert render(Name("m", value), current_mode="num", format_code=".3g") == "[(1.23, 2), [3.5]]"
+
+
+def test_name_value_complex_renders(render):
+    # complex is not a node; the ".5g" format code applies to it.
+    assert render(Name("z", complex(1, 2)), current_mode="num") == "1+2j"
+
+
+def test_name_value_decimal_renders(render):
+    # Decimal supports the ".5g" format code like a float.
+    assert render(Name("d", Decimal("3.14159")), current_mode="num") == "3.1416"
+
+
+def test_name_value_physical_renders(render):
+    # A forallpeople Physical is float-like: it honours the ".5g" format code
+    # and renders with its unit.
+    si = pytest.importorskip("forallpeople")
+    si.environment("default")
+    assert render(Name("F", 5000 * si.N), current_mode="num") == "5 kN"
+
+
+def test_name_value_custom_object_falls_back_to_str(render):
+    # An arbitrary object rejects the format code (TypeError) and has no node
+    # handler, so render_name falls back to its string representation.
+    class Widget:
+        def __repr__(self):
+            return "Widget(repr)"
+
+        def __str__(self):
+            return "a widget"
+
+    assert render(Name("w", Widget()), current_mode="num") == "a widget"
+
+
+# ---------------------------------------------------------------------------
+# Binary operators
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "node,expected",
+    [
+        (AddOp(left=Constant(1), right=Constant(2)), "1 + 2"),
+        (SubOp(left=Constant(1), right=Constant(2)), "1 - 2"),
+        (MultOp(left=Constant(1), right=Constant(2)), "1 * 2"),
+        (DivOp(left=Constant(1), right=Constant(2)), "1 / 2"),
+        (PowOp(left=Constant(1), right=Constant(2)), "1 ** 2"),
+    ],
+    ids=["add", "sub", "mult", "div", "pow"],
+)
+def test_binary_operator_rendering(render, node, expected):
+    assert render(node) == expected
+
+
+def test_binary_operator_pre_and_post_wrap(render):
+    node = AddOp(left=Constant(1), right=Constant(2), pre="(", post=")")
+    assert render(node) == "(1 + 2)"
+
+
+def test_binary_operator_empty_symbol_juxtaposes_without_spaces(render):
+    # An empty symbol (e.g. a superscript power rendered as b²) means the
+    # operands butt together with no surrounding spaces -- not "b  ²".
+    node = PowOp(left=Name("b", "b"), right=Constant("²"), symbol="")
+    assert render(node, current_mode="sym") == "b²"
+
+
+def test_floor_and_modulo_operators_render(render):
+    assert render(FloorOp(left=Constant(7), right=Constant(2))) == "7 // 2"
+    assert render(ModuloOp(left=Constant(7), right=Constant(2))) == "7 % 2"
+
+
+# ---------------------------------------------------------------------------
+# Unary operators
+# ---------------------------------------------------------------------------
+
+def test_unary_op_on_name_symbolic(render):
+    assert render(HcUnaryOp(operand=Name("b", -10.423)), current_mode="sym") == "-b"
+
+
+def test_unary_op_on_constant_symbolic(render):
+    assert render(HcUnaryOp(operand=Constant(5)), current_mode="sym") == "-5"
+
+
+def test_unary_op_numeric_signed_operand_parenthesized(render):
+    # -b where b is negative must read as -(-10.423), not the ambiguous --10.423.
+    node = HcUnaryOp(operand=Name("b", -10.423))
+    assert render(node, current_mode="num") == "-(-10.423)"
+
+
+def test_unary_op_parenthesizes_lower_precedence_operand(render):
+    # A binary operand that binds looser than the unary op is parenthesized.
+    node = HcUnaryOp(operand=AddOp(left=Name("a", "a"), right=Name("b", "b")))
+    assert render(node, current_mode="sym") == "-(a + b)"
+
+
+def test_unary_op_no_parens_for_power_operand(render):
+    # Exponentiation binds tighter than the unary op, so no parentheses.
+    node = HcUnaryOp(operand=PowOp(left=Name("a", "a"), right=Constant(2)))
+    assert render(node, current_mode="sym") == "-a ** 2"
+
+
+# ---------------------------------------------------------------------------
+# Comparison operators
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "node,expected",
+    [
+        (GtOp(), ">"),
+        (GtEOp(), ">="),
+        (LtOp(), "<"),
+        (LtEOp(), "<="),
+        (EqOp(), "=="),
+        (NeqOp(), "!="),
+    ],
+    ids=["gt", "gte", "lt", "lte", "eq", "neq"],
+)
+def test_comparison_operator_symbols(render, node, expected):
+    assert render(node, current_mode="sym") == expected
+
+
+# ---------------------------------------------------------------------------
+# FunctionCall
+# ---------------------------------------------------------------------------
+
+def test_function_call_suppresses_main_namespace(render):
+    node = FunctionCall(
+        namespace=Name("__main__", "__main__"),
+        function_name=Name("sin", "sin"),
+        args=deque([Constant(2)]),
+    )
+    assert render(node, current_mode="sym") == "sin(2)"
+
+
+def test_function_call_with_namespace(render):
+    node = FunctionCall(
+        namespace=Name("math", "math"),
+        function_name=Name("sin", "sin"),
+        args=deque([Constant(2)]),
+    )
+    assert render(node, current_mode="sym") == "math.sin(2)"
+
+
+# ---------------------------------------------------------------------------
+# InlineComment
+# ---------------------------------------------------------------------------
+
+def test_inline_comment_rendering(render):
+    # A comment is a component atom; the separating space is supplied by the
+    # join step, not embedded in the atom.
+    assert render(InlineComment("a note")) == "(a note)"
+
+
+# ---------------------------------------------------------------------------
+# Import
+# ---------------------------------------------------------------------------
+
+def test_import_plain(render):
+    node = Import(names=deque([Name("math", None)]))
+    assert render(node) == ["[Python import]:", "import", "math"]
+
+
+def test_import_from_module(render):
+    node = Import(
+        import_from=True,
+        import_from_module="math",
+        import_from_level=0,
+        names=deque([Name("sqrt", None), Name("pi", None)]),
+    )
+    assert render(node) == ["[Python import]:", "from", "math", "import", "sqrt, pi"]
+
+
+# ---------------------------------------------------------------------------
+# Comment nodes
+# ---------------------------------------------------------------------------
+
+def test_comment_line_renders_as_bare_string(render):
+    # A comment line is a single string in the master list; the trailing newline
+    # is added by the join step, not the handler.
+    assert render(CommentLine(content="a note")) == "a note"
+
+
+def test_inline_command_mutates_line_context_and_renders_empty(renderer, make_context):
+    node = InlineCommand(content="hc: precision=3", commands={"precision": 3})
+    ctx = make_context()
+    assert renderer.render(node, ctx) == ""
+    assert ctx.line_context.precision == 3
+
+
+def test_comment_command_renders_empty(renderer, make_context):
+    # The command node itself renders to an empty string (its effect is on the
+    # context, verified separately below).
+    node = CommentCommand(commands={"decimals": 2})
+    assert renderer.render(node, make_context()) == ""
+
+
+def test_comment_command_mutates_global_context(renderer, make_context):
+    node = CommentCommand(commands={"decimals": 2})
+    ctx = make_context()
+    renderer.render(node, ctx)
+    assert ctx.global_context.decimals == 2
+
+
+def test_line_break_command_renders_single_newline(renderer, make_context):
+    # A line_break directive (# hc: -b) renders as a bare newline.
+    node = CommentCommand(commands={"line_break": True})
+    assert renderer.render(node, make_context()) == "\n"
+
+
+def test_line_break_join_produces_single_blank_line(renderer):
+    # The join step must not append another newline to a bare-newline item,
+    # otherwise the blank line is doubled.
+    assert renderer.join(["a", "\n", "b"]) == "a\n\nb\n"
+
+
+# ---------------------------------------------------------------------------
+# CalcLine
+#
+# A CalcLine renders as a list of string components (columns interleaved with
+# the equality symbol); spaces/indent/newline are inserted by the join step.
+# ---------------------------------------------------------------------------
+
+def _calc_c_equals_a_plus_2():
+    return CalcLine(
+        assigns=deque([Name("c", 5)]),
+        expression_tree=deque([AddOp(left=Name("a", 3), right=Constant(2))]),
+    )
+
+
+def test_calc_line_full_mode(render):
+    assert render(_calc_c_equals_a_plus_2(), param_line=False) == [
+        "c", "=", "a + 2", "=", "3 + 2", "=", "5",
+    ]
+
+
+def test_calc_line_symbolic_only_mode(render):
+    # Symbolic-only mode: just the symbolic column, no assign/num/result.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="sym") == ["a + 2"]
+
+
+def test_calc_line_numeric_only_mode(render):
+    # Numeric-only mode: just the numeric-substitution column.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="num") == ["3 + 2"]
+
+
+def test_calc_line_no_num_mode(render):
+    # 'no_num' drops only the numeric-substitution column.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="no_num") == [
+        "c", "=", "a + 2", "=", "5",
+    ]
+
+
+def test_calc_line_no_sym_mode(render):
+    # 'no_sym' drops only the symbolic column.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="no_sym") == [
+        "c", "=", "3 + 2", "=", "5",
+    ]
+
+
+def test_calc_line_long_drop_aliases(render):
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="drop_numeric") == [
+        "c", "=", "a + 2", "=", "5",
+    ]
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="drop_symbolic") == [
+        "c", "=", "3 + 2", "=", "5",
+    ]
+
+
+def test_calc_line_no_num_no_sym_mode(render):
+    # Both drop aliases together leave the target and the result.
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, mode="no_num no_sym") == [
+        "c", "=", "5",
+    ]
+
+
+@pytest.mark.parametrize(
+    "mode, expected",
+    [
+        ("full", {"ass", "sym", "num", "res"}),
+        ("sym", {"sym"}),
+        ("ass sym res", {"ass", "sym", "res"}),
+        ("no_num", {"ass", "sym", "res"}),
+        ("no_sym", {"ass", "num", "res"}),
+        ("drop_numeric", {"ass", "sym", "res"}),
+        ("drop_symbolic", {"ass", "num", "res"}),
+        ("no_num, no_sym", {"ass", "res"}),
+    ],
+)
+def test_mode_columns(mode, expected):
+    assert mode_columns(mode) == expected
+
+
+def test_calc_line_param_line_single_constant(render):
+    node = CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)]))
+    assert render(node, param_line=False) == ["a", "=", "2"]
+
+
+def test_calc_line_param_line_unary_negated_constant(render):
+    # A unary-negated literal (e.g. b = -10.423) collapses to a param line.
+    node = CalcLine(
+        assigns=deque([Name("b", -10.423)]),
+        expression_tree=deque([HcUnaryOp(operand=Constant(10.423))]),
+    )
+    assert render(node, param_line=False, format_code=".5g") == ["b", "=", "-10.423"]
+
+
+@pytest.mark.parametrize(
+    "rhs,value,expected_result",
+    [
+        (List(deque([Constant(1), Constant(2), Constant(3)])), [1, 2, 3], "[1, 2, 3]"),
+        (Tuple(deque([Constant(1), Constant(2)])), (1, 2), "(1, 2)"),
+        (Set(deque([Constant(1)])), {1}, "{1}"),
+        (Dictionary(deque([Constant(1)]), deque([Constant(2)])), {1: 2}, "{1: 2}"),
+    ],
+    ids=["list", "tuple", "set", "dict"],
+)
+def test_calc_line_param_line_literal_collection(render, rhs, value, expected_result):
+    # A collection literal whose elements are all literals collapses to a param
+    # line (identifier = result), hiding the symbolic/numeric columns.
+    node = CalcLine(assigns=deque([Name("x", value)]), expression_tree=deque([rhs]))
+    assert render(node, param_line=False) == ["x", "=", expected_result]
+
+
+def test_calc_line_collection_with_variable_shows_substitution(render):
+    # A collection containing a variable name is NOT a param line; it still
+    # renders the symbolic and numeric-substitution columns.
+    rhs = List(deque([Name("a", 1), Name("b", 2)]))
+    node = CalcLine(assigns=deque([Name("pts", [1, 2])]), expression_tree=deque([rhs]))
+    assert render(node, param_line=False) == ["pts", "=", "[a, b]", "=", "[1, 2]"]
+
+
+def test_calc_line_ignore_short_circuits(render):
+    assert render(_calc_c_equals_a_plus_2(), param_line=False, ignore=True) == ""
+
+
+# ---------------------------------------------------------------------------
+# ExprLine (bare expression statements: no assignment, so no result column)
+# ---------------------------------------------------------------------------
+
+def test_expr_line_statement_call_shows_symbolic_and_numeric(render):
+    # A statement call renders `sym = num` (substitution view), with no
+    # trailing equals and no fabricated result.
+    node = ExprLine(
+        expression_tree=deque([
+            FunctionCall(
+                namespace=Name("__main__", "__main__"),
+                function_name=Name("print", "print"),
+                args=deque([Name("d", 4)]),
+            )
+        ])
+    )
+    assert render(node) == ["print(d)", "=", "print(4)"]
+
+
+def test_expr_line_value_bearing_expression(render):
+    node = ExprLine(expression_tree=deque([AddOp(left=Name("x", 10), right=Name("y", 20))]))
+    assert render(node) == ["x + y", "=", "10 + 20"]
+
+
+def test_expr_line_return_is_symbolic_only(render):
+    # A return statement lives in a symbolic function definition: symbolic form
+    # only, no numeric substitution (its names have no runtime value).
+    node = ExprLine(
+        expression_tree=deque([AddOp(left=Name("pi"), right=Constant(1))]),
+        return_expr=True,
+    )
+    assert render(node) == ["pi + 1"]
+
+
+def test_expr_line_docstring_renders_as_plain_line(render):
+    # A bare string statement parses to a single Constant holding the string.
+    node = ExprLine(expression_tree=deque([Constant("Module note.")]))
+    assert render(node) == ["Module note."]
+
+
+# ---------------------------------------------------------------------------
+# Blocks
+# ---------------------------------------------------------------------------
+
+def test_if_block_renders_header_and_lines(render):
+    # A block renders as ``[header_string, body_list]`` -- the body lines in
+    # their own nested sublist. Indent/newlines are applied later, by join.
+    param = CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)]))
+    node = IfBlock(
+        lines=deque([param]),
+        test=Compare(deque([Constant(2), LtEOp(), Name("a", 3), LtOp(), Constant(5)])),
+        is_true=True,
+    )
+    assert render(node, param_line=False) == [
+        "Since (2<=a<5) -> (2<=3<5) is True:",
+        [["a", "=", "2"]],
+    ]
+
+
+def test_if_block_multiple_lines(render):
+    node = IfBlock(
+        lines=deque([
+            CalcLine(assigns=deque([Name("a", 2)]), expression_tree=deque([Constant(2)])),
+            CalcLine(assigns=deque([Name("b", 3)]), expression_tree=deque([Constant(3)])),
+        ]),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(2)])),
+        is_true=True,
+    )
+    assert render(node, param_line=False) == [
+        "Since (a>2) -> (3>2) is True:",
+        [["a", "=", "2"], ["b", "=", "3"]],
+    ]
+
+
+def test_if_block_header_with_boolean_test(render):
+    # An if-condition that is a boolean op (not a Compare) renders through the
+    # same "Since (...) -> (...) is True:" header.
+    node = IfBlock(
+        lines=deque([
+            CalcLine(assigns=deque([Name("d", 1)]), expression_tree=deque([Constant(1)])),
+        ]),
+        test=AndOp(values=deque([
+            Compare(deque([Name("a", 3), GtOp(), Constant(1)])),
+            Compare(deque([Name("b", 4), LtOp(), Constant(9)])),
+        ])),
+        is_true=True,
+    )
+    assert render(node, param_line=False) == [
+        "Since (a>1 and b<9) -> (3>1 and 4<9) is True:",
+        [["d", "=", "1"]],
+    ]
+
+
+def test_elif_block_selects_true_clause(render):
+    winner = IfBlock(
+        lines=deque([CalcLine(assigns=deque([Name("d", 5)]), expression_tree=deque([Constant(5)]))]),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(2)])),
+        is_true=True,
+    )
+    loser = IfBlock(
+        lines=deque([CalcLine(assigns=deque([Name("d", 6)]), expression_tree=deque([Constant(6)]))]),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(9)])),
+        is_true=False,
+    )
+    node = ElifBlock(lines=deque([loser, winner]))
+    # The elif block renders only the selected (true) clause's [header, body].
+    assert render(node, param_line=False) == [
+        "Since (a>2) -> (3>2) is True:",
+        [["d", "=", "5"]],
+    ]
+
+
+def test_elif_block_no_true_clause_message(render):
+    loser = IfBlock(
+        lines=deque([CalcLine(assigns=deque([Name("d", 6)]), expression_tree=deque([Constant(6)]))]),
+        test=Compare(deque([Name("a", 3), GtOp(), Constant(9)])),
+        is_true=False,
+    )
+    node = ElifBlock(lines=deque([loser]))
+    assert render(node, param_line=False) == (
+        "No conditions were satisfied within the if-elif block"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Comprehensions (best-guess rendering)
+# ---------------------------------------------------------------------------
+
+def _range_call():
+    return FunctionCall(
+        namespace=Name("__main__", "__main__"),
+        function_name=Name("range", "range"),
+        args=deque([Constant(3)]),
+    )
+
+
+def test_list_comprehension_renders(render):
+    node = ComprehensionChain(
+        comp_type="list",
+        assign=deque([MultOp(left=Name("i"), right=Constant(2))]),
+        comprehensions=deque([
+            Comprehension(
+                assigns=deque([Name("i")]),
+                iterator=deque([_range_call()]),
+                is_async=False,
+            )
+        ]),
+    )
+    assert render(node, current_mode="sym") == "[i * 2 for i in range(3)]"
+
+
+def test_dict_comprehension_renders(render):
+    node = ComprehensionChain(
+        comp_type="dict",
+        key=deque([Name("k")]),
+        value=deque([MultOp(left=Name("k"), right=Constant(2))]),
+        comprehensions=deque([
+            Comprehension(
+                assigns=deque([Name("k")]),
+                iterator=deque([_range_call()]),
+                is_async=False,
+            )
+        ]),
+    )
+    assert render(node, current_mode="sym") == "{k: k * 2 for k in range(3)}"
+
+
+# ---------------------------------------------------------------------------
+# ElseBlock
+# ---------------------------------------------------------------------------
+
+def test_else_block_renders_header_and_body(render):
+    node = ElseBlock(
+        lines=deque([
+            CalcLine(assigns=deque([Name("b", 2)]), expression_tree=deque([Constant(2)])),
+        ]),
+    )
+    assert render(node, param_line=False) == ["Otherwise:", [["b", "=", "2"]]]
+
+
+# ---------------------------------------------------------------------------
+# Previously-buggy paths, now fixed
+# ---------------------------------------------------------------------------
+
+def test_calc_line_renders_from_clean_context(render):
+    # A CalcLine as the very first rendered node (no param_line seeded) must
+    # render rather than raise; the calc_line:pre rule defaults param_line.
+    assert render(_calc_c_equals_a_plus_2()) == ["c", "=", "a + 2", "=", "3 + 2", "=", "5"]
+
+
+def test_heading_rendering(render):
+    # A heading renders as a single markdown string, its level reproduced from
+    # the node's heading_level.
+    assert render(Heading(content="A heading", heading_level=2)) == "## A heading"
+
+
+@pytest.mark.parametrize(
+    "level,expected",
+    [(1, "# A heading"), (2, "## A heading"), (3, "### A heading")],
+    ids=["h1", "h2", "h3"],
+)
+def test_heading_rendering_reproduces_level(render, level, expected):
+    assert render(Heading(content="A heading", heading_level=level)) == expected
+
+
+def test_compare_rendering(render):
+    node = Compare(deque([Name("a", 3), GtOp(), Constant(2)]))
+    assert render(node, current_mode="sym") == "a>2"
+
+
+# ---------------------------------------------------------------------------
+# Identity / membership operators (is, is not, in, not in)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "node,expected",
+    [
+        (IsOp(), " is "),
+        (IsNotOp(), " is not "),
+        (InOp(), " in "),
+        (NotInOp(), " not in "),
+    ],
+    ids=["is", "is_not", "in", "not_in"],
+)
+def test_identity_membership_operator_symbols(render, node, expected):
+    # Being word operators, their symbols carry their own surrounding spaces so
+    # a Compare (joined with no separator) reads as ``a is b``.
+    assert render(node, current_mode="sym") == expected
+
+
+@pytest.mark.parametrize(
+    "op_cls,expected",
+    [
+        (IsOp, "a is b"),
+        (IsNotOp, "a is not b"),
+        (InOp, "a in b"),
+        (NotInOp, "a not in b"),
+    ],
+    ids=["is", "is_not", "in", "not_in"],
+)
+def test_identity_membership_compare_rendering(render, op_cls, expected):
+    node = Compare(deque([Name("a", 3), op_cls, Name("b", 4)]))
+    assert render(node, current_mode="sym") == expected
+
+
+# ---------------------------------------------------------------------------
+# Boolean operators (and, or)
+# ---------------------------------------------------------------------------
+
+def test_and_op_rendering(render):
+    node = AndOp(values=deque([Name("a", 1), Name("b", 2)]))
+    assert render(node, current_mode="sym") == "a and b"
+
+
+def test_or_op_rendering(render):
+    node = OrOp(values=deque([Name("a", 1), Name("b", 2)]))
+    assert render(node, current_mode="sym") == "a or b"
+
+
+def test_bool_op_is_n_ary(render):
+    node = OrOp(values=deque([Name("a", 1), Name("b", 2), Name("c", 3)]))
+    assert render(node, current_mode="sym") == "a or b or c"
+
+
+def test_or_nested_in_and_is_parenthesized(render):
+    # ``or`` binds looser than ``and``, so an ``or`` operand inside an ``and`` is
+    # parenthesized: a and (b or c).
+    node = AndOp(values=deque([
+        Name("a", 1),
+        OrOp(values=deque([Name("b", 2), Name("c", 3)])),
+    ]))
+    assert render(node, current_mode="sym") == "a and (b or c)"
+
+
+def test_and_nested_in_or_is_not_parenthesized(render):
+    # ``and`` binds tighter than ``or``, so it needs no parentheses inside an
+    # ``or``: a or b and c.
+    node = OrOp(values=deque([
+        Name("a", 1),
+        AndOp(values=deque([Name("b", 2), Name("c", 3)])),
+    ]))
+    assert render(node, current_mode="sym") == "a or b and c"
+
+
+def test_comparison_operand_of_bool_op_is_not_parenthesized(render):
+    # Comparisons bind tighter than boolean ops, so they are never wrapped.
+    node = AndOp(values=deque([
+        Compare(deque([Name("a", 3), GtOp(), Constant(1)])),
+        Compare(deque([Name("b", 4), LtOp(), Constant(9)])),
+    ]))
+    assert render(node, current_mode="sym") == "a>1 and b<9"

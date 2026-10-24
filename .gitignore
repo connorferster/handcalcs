@@ -3,11 +3,15 @@ handcalcs/.ipynb_checkpoints/
 handcalcs/__pycache__
 *.ipynb
 *.lock
+# uv.lock pins CI's dependencies and keys its cache.
+!uv.lock
 .idea
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+.claude/
 
 # C extensions
 *.so
@@ -145,3 +149,13 @@ cython_debug/
 
 # VSCode
 .vscode/
+joblist.md
+src/handcalcs/renderers/example_output.py
+latex_demo_build/
+latex_demo.pdf
+markdown_demo_build/
+excel_demo/
+html_demo/
+
+# Sphinx docs build
+docs/_build/

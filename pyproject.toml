@@ -7,15 +7,29 @@ name = "handcalcs"
 authors = [{name = "Connor Ferster", email = "connorferster@gmail.com"}]
 readme = "README.md"
 license = {file = "LICENSE"}
-classifiers = ["License :: OSI Approved :: Apache Software License"]
-dynamic = ["version", "description"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Jupyter",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+version = "2.0.0rc1"
+description = "Rendering Python code as math you wrote by hand."
+requires-python = ">=3.11"
 dependencies = [
-    "more_itertools",
-    "innerscope >= 0.7.0",
-    "pyparsing"
+    "innerscope>=0.8.0",
+    "jinja2>=3.1.6",
+    "pfst>=0.3.2,<0.4",  # 0.x: its API may change between minor versions
+    "platformdirs>=3.0.0",
 ]
 
 [project.urls]
+Documentation = "https://handcalcs.structuralpython.com/"
 Source = "https://github.com/connorferster/handcalcs"
 
 
@@ -25,7 +39,20 @@ exporters = [
 ]
 
 
-doc = ["sphinx"]
+doc = [
+    "sphinx>=8.1",
+    "shibuya>=2025.1",
+    "myst-parser>=4.0",
+    "sphinx-design>=0.6",
+    "sphinx-copybutton>=0.5",
+    "sphinxcontrib-katex>=0.9",
+]
+word = [
+    "python-docx>=1.1",
+]
+excel = [
+    "xlsxwriter>=3.2",
+]
 
 [tool.coverage.paths]
 source = ['handcalcs', '*/site-packages']
@@ -38,13 +65,27 @@ source = ['handcalcs']
 show_missing = true
 
 [dependency-groups]
-dev = [
-    "pint>=0.24.4",
+# What the test suite needs; CI installs only this group (and 'lint').
+test = [
     "pytest>=8.4.1",
+    "pint>=0.24.4",
+    "forallpeople>=2.7.1",
+    "ipython>=8.0",
+    "markdown-it-py>=3.0",
+    "openpyxl>=3.1.5",
+    "xlsxwriter>=3.2",
+    "python-docx>=1.1",
+    "numpy>=1.26",
+]
+lint = [
+    "black>=25.1.0",
+]
+dev = [
+    {include-group = "test"},
+    {include-group = "lint"},
     "pytest-cov>=6.2.1",
     "sympy>=1.14.0",
     "jupyterlab>=4.4.4",
-    "forallpeople>=2.7.1",
-    "black>=25.1.0",
-    "numpy>=2.4.4",
+    "rich>=14.2.0",
+    "ipykernel>=7.3.0",
 ]

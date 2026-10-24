@@ -1,21 +1,23 @@
-#    Copyright 2020 Connor Ferster
+from .renderers import BaseRenderer, ASCIIRenderer, get_renderer
+from .config import (
+    set_option,
+    save_config,
+    get_config,
+    get_option,
+    reset_option,
+    reset_config,
+)
+from .interfaces.object_oriented import HandCalcs
+from .interfaces.decorator import handcalc
+from .parsing.inputs import find_inputs
 
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
+# Import the Jupyter interface (the %%render magic) only inside a running IPython
+# shell. IPython is optional: without it, or in a plain Python process,
+# handcalcs works through HandCalcs and @handcalc alone.
+try:
+    from IPython import get_ipython
+except ImportError:
+    get_ipython = None
 
-#        http://www.apache.org/licenses/LICENSE-2.0
-
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
-"""
-Render arithmetic calucations in Jupyter as though they were written by hand.
-"""
-__version__ = "1.11.0"  #
-from .decorator import handcalc
-from .global_config import set_option, save_config
-
-__all__ = ["handcalc"]
+if get_ipython is not None and get_ipython() is not None:
+    from .interfaces.jupyter import render, hc_default_renderer, hc_format_code
