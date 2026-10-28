@@ -43,6 +43,7 @@ C_w = 200e9 # Warping constant
 M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y * C_w) # A long equation
 
 #hc: -b
+#hc: multiline = False
 M_u = omega_2 * math.pi / L * sqrt(E * I_y * G * J + (math.pi * E / L)**2 * I_y * C_w) # A long equation
 
 

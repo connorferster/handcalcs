@@ -1717,7 +1717,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 content='a plain note'
             ),
             CommentCommand(
-                commands={'multiline': False, 'format_code':  '2g', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'check': None, 'line_break': False, 'page_break': False, 'param_cols': None, 'mode': None, 'params_block': False}
+                commands={'multiline': None, 'format_code': '2g', 'if_winner_only': None, 'ignore': None, 'param_line': None, 'check': None, 'line_break': None, 'page_break': None, 'param_cols': None, 'mode': None, 'params_block': None}
             ),
             CalcLine(
                 assigns=deque([
@@ -1773,7 +1773,7 @@ c = b + 1.6578468413515 # hc: -f 5E
                 ]),
                 comment=InlineCommand(
                     content='hc: -f 5E',
-                    commands={'multiline': False, 'format_code': '5E', 'if_winner_only': True, 'ignore': False, 'param_line': False, 'check': None, 'line_break': False, 'page_break': False, 'param_cols': None, 'mode': None, 'params_block': False}
+                    commands={'multiline': None, 'format_code': '5E', 'if_winner_only': None, 'ignore': None, 'param_line': None, 'check': None, 'line_break': None, 'page_break': None, 'param_cols': None, 'mode': None, 'params_block': None}
                 )
             )
         ])
