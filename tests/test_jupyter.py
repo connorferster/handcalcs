@@ -292,3 +292,32 @@ def test_cell_without_line_values(shell):
     config.set_option("line_values", False)
     markdown = render_cell(ip, "a = 2\nb = a * 3\na = 10\n")["text/markdown"]
     assert "b &= a \\cdot 3 = 10 \\cdot 3 = 6" in markdown
+
+
+# --- %%render destination= ---
+
+
+def test_render_destination_writes_the_file_and_shows_its_path(shell, tmp_path):
+    ip, _ = shell
+    path = tmp_path / "calc.md"
+    data = render_cell_with(ip, f"destination={str(path)!r}", INPUT_CELL)
+    assert data == {"text/plain": f"Rendered to {path}"}
+    assert "c &= a + b = 2 + 3 = 5" in path.read_text(encoding="utf-8")
+    assert ip.user_ns["c"] == 5
+
+
+def test_render_destination_with_inputs(shell, tmp_path):
+    ip, _ = shell
+    ip.user_ns["case"] = {"a": 7}
+    ip.user_ns["out"] = tmp_path / "case.md"
+    data = render_cell_with(ip, "inputs=case, destination=out", INPUT_CELL)
+    assert data == {"text/plain": f"Rendered to {tmp_path / 'case.md'}"}
+    assert "c &= a + b = 7 + 3 = 10" in (tmp_path / "case.md").read_text("utf-8")
+
+
+def test_render_destination_uses_the_jupyter_renderer(shell, tmp_path):
+    ip, _ = shell
+    ip.run_line_magic("hc_default_renderer", "latex")
+    path = tmp_path / "calc.tex"
+    render_cell_with(ip, f"destination={str(path)!r}", INPUT_CELL)
+    assert path.read_text(encoding="utf-8").startswith(LatexRenderer.preamble)

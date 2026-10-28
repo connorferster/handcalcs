@@ -1,3 +1,4 @@
+import os
 import sys
 from string import Formatter
 from .object_oriented import HandCalcs
@@ -106,16 +107,36 @@ def jupyter_handcalcs() -> tuple[HandCalcs, type]:
 
 
 def render_and_display(
-    source: str, namespace: dict, values: Optional[line_values.LineValues] = None
+    source: str,
+    namespace: dict,
+    values: Optional[line_values.LineValues] = None,
+    destination: Optional[str | os.PathLike] = None,
 ) -> None:
     """
     Render ``source``, which has run in ``namespace``, with the session's
-    Jupyter renderer and display it. ``values`` are the values recorded while it
-    ran; without them, every line shows the values in ``namespace``.
+    Jupyter renderer and display it (or write it to ``destination``, see
+    ``show``). ``values`` are the values recorded while it ran; without them,
+    every line shows the values in ``namespace``.
     """
     hc, display_class = jupyter_handcalcs()
-    # Display, but not as an "output"
-    display(display_class(hc.render_run(source, namespace, values)))
+    show(hc, display_class, hc.render_run(source, namespace, values), destination)
+
+
+def show(
+    hc: HandCalcs,
+    display_class: type,
+    rendered: Any,
+    destination: Optional[str | os.PathLike],
+) -> None:
+    """
+    Display ``rendered`` (but not as an "output"), or, with a ``destination``,
+    write it to that file instead and display the file's path.
+    """
+    if destination is None:
+        display(display_class(rendered))
+        return
+    path = hc.renderer.to_file(rendered, destination)
+    display(Pretty(f"Rendered to {path}"))
 
 
 def run_recorded(source: str) -> tuple[Any, Optional[line_values.LineValues]]:
@@ -153,14 +174,16 @@ def render(line, cell=None, local_ns=None):
     leaving the rest of the cell unrendered. ``%%render inputs=case`` runs and
     renders the cell with the values in the dict ``case`` in place of the values
     the cell assigns them (``strict=`` and ``allow_computed=`` may follow, as for
-    ``HandCalcs(..., inputs=...)``).
+    ``HandCalcs(..., inputs=...)``). ``%%render destination="calc.tex"`` writes
+    the render to that file instead of displaying it.
     """
     __tracebackhide__ = True  # IPython leaves this frame out of a traceback
     if cell is None:
         return render_line(line, local_ns)
-    arguments = input_arguments(line, local_ns)
-    if arguments is not None:
-        return render_with_inputs(cell, **arguments)
+    arguments = render_arguments(line, local_ns)
+    destination = arguments.pop("destination", None)
+    if arguments:
+        return render_with_inputs(cell, **arguments, destination=destination)
     # if line_args["sympy"]:
     #     cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
 
@@ -171,21 +194,21 @@ def render(line, cell=None, local_ns=None):
     exec_result.raise_error()
 
     # Render against the updated variables (after .run_cell(cell))
-    render_and_display(cell, ip.user_ns, values)
+    render_and_display(cell, ip.user_ns, values, destination)
 
 
-INPUT_ARGUMENTS = ("inputs", "strict", "allow_computed")
+RENDER_ARGUMENTS = ("inputs", "strict", "allow_computed", "destination")
 
 
-def input_arguments(line: str, local_ns: dict | None) -> dict | None:
+def render_arguments(line: str, local_ns: dict | None) -> dict:
     """
-    The arguments of ``%%render inputs=case, strict=False``, written as keyword
-    arguments of a Python call and evaluated in the user namespace. None for a
-    line without arguments (or with only words, like v1's ``%%render params``,
-    which 2.0 ignores).
+    The arguments of ``%%render inputs=case, strict=False, destination="c.tex"``,
+    written as keyword arguments of a Python call and evaluated in the user
+    namespace. Empty for a line without arguments (or with only words, like
+    v1's ``%%render params``, which 2.0 ignores).
     """
     if "=" not in line:
-        return None
+        return {}
     try:
         arguments = eval(
             f"__hc_arguments__({line.strip()})",
@@ -197,17 +220,17 @@ def input_arguments(line: str, local_ns: dict | None) -> dict | None:
             f"%%render could not read its arguments '{line.strip()}' ({error}). "
             "Write them as keyword arguments, e.g. %%render inputs=case, strict=False"
         ) from None
-    unknown = [name for name in arguments if name not in INPUT_ARGUMENTS]
+    unknown = [name for name in arguments if name not in RENDER_ARGUMENTS]
     if unknown:
         raise UsageError(
             f"%%render does not take {', '.join(map(repr, unknown))}. Its arguments "
-            f"are {', '.join(INPUT_ARGUMENTS)}."
+            f"are {', '.join(RENDER_ARGUMENTS)}."
         )
-    if "inputs" not in arguments:
+    if "inputs" not in arguments and ({"strict", "allow_computed"} & set(arguments)):
         raise UsageError(
             "%%render needs inputs=... when it is given strict or allow_computed."
         )
-    if not isinstance(arguments["inputs"], dict):
+    if "inputs" in arguments and not isinstance(arguments["inputs"], dict):
         raise UsageError(
             f"%%render inputs= must be a dict, not {type(arguments['inputs']).__name__}."
         )
@@ -215,7 +238,11 @@ def input_arguments(line: str, local_ns: dict | None) -> dict | None:
 
 
 def render_with_inputs(
-    cell: str, inputs: dict, strict: bool = True, allow_computed: bool = False
+    cell: str,
+    inputs: dict,
+    strict: bool = True,
+    allow_computed: bool = False,
+    destination: Optional[str | os.PathLike] = None,
 ) -> None:
     """
     ``%%render inputs=case``: run and render the cell with the values in ``case``
@@ -230,7 +257,7 @@ def render_with_inputs(
         ip.user_ns.pop(RESOLVER, None)
         exec_result.raise_error()
     hc, display_class = jupyter_handcalcs()
-    display(display_class(hc.render_bound(binding, ip.user_ns, values)))
+    show(hc, display_class, hc.render_bound(binding, ip.user_ns, values), destination)
 
 
 def render_line(line: str, local_ns: dict | None) -> None:
