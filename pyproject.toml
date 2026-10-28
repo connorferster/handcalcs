@@ -18,7 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
 ]
-version = "2.0.0rc1"
+version = "2.0.0rc2"
 description = "Rendering Python code as math you wrote by hand."
 requires-python = ">=3.11"
 dependencies = [
