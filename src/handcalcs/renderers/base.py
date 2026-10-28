@@ -1780,7 +1780,7 @@ def render_params_block(
         base_context.line_context.param_line = True
         rendered = renderer.render(line, base_context)
         # Keep the id / equality / value components, plus the line comment for a
-        # ``# hc: -h`` block; a ``;`` block has no place for a comment, so it drops.
+        # ``# hc: -g`` block; a ``;`` block has no place for a comment, so it drops.
         if isinstance(rendered, list):
             rendered = rendered[: 4 if node.with_comments else 3]
         cells.append(rendered)

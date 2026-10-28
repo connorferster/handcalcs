@@ -54,7 +54,7 @@ Defined in {src}`handcalcs.parsing.block_nodes`. Every block has `lines` (its ch
 |---|---|---|---|
 | `calcs_block` | `CalcsBlock` | `lines` | consecutive calc/expr lines (by `group_lines`) |
 | `comments_block` | `CommentsBlock` | `lines` | consecutive comment lines |
-| `params_block` | `ParamsBlock` | `lines`, `with_comments` | `;` lines, or `# hc: -h` |
+| `params_block` | `ParamsBlock` | `lines`, `with_comments` | `;` lines, or `# hc: -g` |
 | `elif_block` | `ElifBlock` | `lines`: the `IfBlock`s of the chain, then an optional `ElseBlock` | an `if` statement |
 | `if_block` | `IfBlock` | `test`, `lines`, `is_true` (did this branch run) | one `if`/`elif` branch |
 | `else_block` | `ElseBlock` | `lines` | the `else` branch |

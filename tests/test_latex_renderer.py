@@ -132,9 +132,15 @@ def test_params_grid_is_aligned_and_ragged():  # 12
 
 
 def test_params_block_command_keeps_comments_until_blank_line():
-    out = rows("# hc: -h\nx = 3 # one\ny = 4 # two\n\nq = 7\n")
+    out = rows("# hc: -g\nx = 3 # one\ny = 4 # two\n\nq = 7\n")
     assert out[0] == "x &= 3 \\; \\text{(one)} \\qquad &y &= 4 \\; \\text{(two)}"
     assert "q &= 7" in out[1:]
+
+
+@pytest.mark.parametrize("command", ["--grid", "-h"])  # -h: the rc1 spelling
+def test_params_block_command_spellings(command):
+    source = "x = 3 # one\ny = 4 # two\n"
+    assert rows(f"# hc: {command}\n{source}") == rows(f"# hc: -g\n{source}")
 
 
 def test_multiline_calc_aligns_each_row():  # 13

@@ -11,7 +11,7 @@ line; at the end of a line it applies to that line. See
 | `-f CODE` | `--format-code` | `format_code` | a format code | Number format |
 | `-m` | `--multiline`, `--mult` | `multiline` | flag | Break calculations over several lines |
 | `-p` | `--param-line` | `param_line` | flag | Show *target = result* only |
-| `-h` | `--params-block`, `--params` | (opens a grid) | flag | Grid of the following assignments, with comments |
+| `-g` | `--grid`, `--params-block`, `--params` | (opens a grid) | flag | Grid of the following assignments, with comments |
 | `-c N` | `--param-cols`, `--param_cols` | `param_cols` | integer | Columns in parameter grids (default 3) |
 | `-b` | `--line-break` | (one-shot) | flag | Vertical space |
 | | `--check` | `check` | flag | A boolean result is shown as a pass/fail mark (`CHECK_MARKS`) |

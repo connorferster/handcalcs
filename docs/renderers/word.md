@@ -146,7 +146,7 @@ An unknown layout or a missing template raises an error when the renderer is cre
 | `-m` | puts the symbolic, numeric and result columns on rows of their own |
 | `-b` | inserts an empty paragraph |
 | `-i` | leaves the line out |
-| `-h`, `;` | a params table |
+| `-g`, `;` | a params table |
 | `layout = "lines"` | one equation per row for the calcs that follow |
 
 ## Units

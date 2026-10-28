@@ -17,7 +17,7 @@ class HcBlockNode(HcNode):
 @dataclass
 class ParamsBlock(HcBlockNode):
     lines: deque[CalcLine] = field(default_factory=deque)
-    # True for a block opened by ``# hc: -h``: each cell keeps its line comment.
+    # True for a block opened by ``# hc: -g``: each cell keeps its line comment.
     # A ``;`` block has nowhere to put one, so its comments are dropped.
     with_comments: bool = False
     type: str = "params_block"

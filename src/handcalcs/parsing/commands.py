@@ -16,7 +16,7 @@ class CommentCommandParser(argparse.ArgumentParser):
         raise CommentCommandError(message)
 
 
-# add_help=False frees ``-h`` for the params-block command (this parser reads
+# add_help=False frees ``-h``, the rc1 spelling of the params-block command (this parser reads
 # ``# hc:`` comments, never a real command line).
 command_parser = CommentCommandParser(prog="# hc:", add_help=False)
 
@@ -45,7 +45,11 @@ command_parser.add_argument("-c", "--param-cols", "--param_cols", type=int)
 # (e.g. ``--mode no_num``, ``--mode ass sym res``). ``-m`` is ``--multiline``.
 command_parser.add_argument("--mode", nargs="+", action=JoinWords)
 
-command_parser.add_argument("-h", "--params-block", "--params", action="store_true")
+# ``-g`` (grid) opens a params block; ``-h`` is its rc1 spelling, still accepted.
+command_parser.add_argument(
+    "-g", "--grid", "--params-block", "--params", "-h",
+    dest="params_block", action="store_true",
+)
 
 
 def parse_commands(comment: str, args: list[str]) -> dict:

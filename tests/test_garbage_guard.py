@@ -80,7 +80,7 @@ CORPUS = {
         (),
     ),
     "comment_commands": (
-        "# hc: -h\nL = 6.0  # span\nw = 2.0  # load\n\n"
+        "# hc: -g\nL = 6.0  # span\nw = 2.0  # load\n\n"
         "M = w * L**2 / 8  # hc: -m\nx = M * 2  # hc: -p\ny = x + 1  # hc: -i\nz = M  # hc: -f .1f\n",
         (),
     ),
