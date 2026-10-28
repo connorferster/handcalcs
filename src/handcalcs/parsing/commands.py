@@ -47,8 +47,13 @@ command_parser.add_argument("--mode", nargs="+", action=JoinWords)
 
 # ``-g`` (grid) opens a params block; ``-h`` is its rc1 spelling, still accepted.
 command_parser.add_argument(
-    "-g", "--grid", "--params-block", "--params", "-h",
-    dest="params_block", action="store_true",
+    "-g",
+    "--grid",
+    "--params-block",
+    "--params",
+    "-h",
+    dest="params_block",
+    action="store_true",
 )
 
 
