@@ -878,7 +878,12 @@ def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
     base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
-    if base_pre <= OP_PRECEDENCE[PowOp] or quantity_power_base(node, base_context):
+    # A value whose own LaTeX is already bracketed (see format_latex_repr) is
+    # not bracketed twice.
+    own_brackets = base.startswith("\\left(") and base.endswith("\\right)")
+    if base_pre <= OP_PRECEDENCE[PowOp] or (
+        quantity_power_base(node, base_context) and not own_brackets
+    ):
         base = f"{context.lpar}{base}{context.rpar}"
     else:
         base = _wrap_signed(base, base_context)
@@ -966,6 +971,9 @@ def render_constant(renderer: LR, node: Constant, base_context: BRC) -> str:
     quantity = format_latex_quantity(value, fc)
     if quantity is not None:
         return quantity
+    own_latex = format_latex_repr(value)
+    if own_latex is not None:
+        return own_latex
     return latex_escape(f"{value}")
 
 
@@ -1006,6 +1014,32 @@ def format_latex_quantity(value, format_code: str) -> Optional[str]:
         return None
     units = latex.split("\\ ", 1)[1]
     return f"{typeset_latex_number(number.group())}\\ {units}"
+
+
+def format_latex_repr(value) -> Optional[str]:
+    """
+    A value's own ``_repr_latex_`` used as is (``1 \\pm 0.1`` from worstcase),
+    or None if it has none. The ``$`` delimiters and a leading
+    ``\\displaystyle`` (sympy) are dropped. LaTeX with a space in it (``1 \\pm
+    0.1``, ``x + 1``) is bracketed so that it reads as one value beside an
+    operator.
+    """
+    repr_latex = getattr(value, "_repr_latex_", None)
+    if not callable(repr_latex):
+        return None
+    try:
+        latex = repr_latex()
+    except Exception:
+        return None
+    if not isinstance(latex, str):
+        return None
+    latex = latex.strip().strip("$").strip()
+    latex = latex.removeprefix("\\displaystyle").strip()
+    if not latex:
+        return None
+    if " " in latex:
+        return f"\\left({latex}\\right)"
+    return latex
 
 
 def join_items(renderer: LR, items: list[str], base_context: BRC) -> str:

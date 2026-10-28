@@ -224,6 +224,47 @@ def test_string_bool_none_and_complex_constants():  # 17, 19, 25
     assert rows("z = 4j - 3\n")[0].endswith("= -3 + 4j")
 
 
+class Tolerance:
+    """A value with its own LaTeX and no units, like a worstcase parameter (#340)."""
+
+    def __init__(self, nom, tol):
+        self.nom, self.tol = nom, tol
+
+    def __format__(self, spec):
+        return f"x: {self.nom:{spec or 'g'}} (nom)"
+
+    def __mul__(self, other):
+        return Tolerance(self.nom * other, self.tol * other)
+
+    def __pow__(self, other):
+        return Tolerance(self.nom**other, self.tol)
+
+    def _repr_latex_(self):
+        return f"${self.nom:g} \\pm {self.tol:g}$"
+
+
+class Symbolic:
+    """A value whose LaTeX is a single term, like a sympy symbol."""
+
+    def __repr__(self):
+        return "a"
+
+    def _repr_latex_(self):
+        return "$\\displaystyle a_{1}$"
+
+
+def test_own_latex_value_is_used_as_is():  # #340
+    source = "y = x * 2\np = x ** 2\ns = a\n"
+    namespace = {"x": Tolerance(1, 0.1), "a": Symbolic()}
+    exec(source, namespace)
+    out = HandCalcs(renderer=LatexRenderer())(source, namespace)
+    assert "x \\cdot 2 = \\left(1 \\pm 0.1\\right) \\cdot 2" in out
+    assert "= \\left(2 \\pm 0.2\\right)" in out
+    # Already bracketed, so the power does not bracket it again.
+    assert "p &= x^{2} = \\left(1 \\pm 0.1\\right)^{2}" in out
+    assert "s &= a = a_{1}" in out
+
+
 @pytest.mark.parametrize("source, expected", [
     ("x = 2e5\n", "x &= 2 \\times 10^{5}"),
     ("x = 1e-7\n", "x &= 10^{-7}"),

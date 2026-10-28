@@ -48,6 +48,10 @@ M = w * L**2 / 8
   `# hc: -i` at the end of each line. The setup code is not part of the calculation.
 - Unit-aware values are formatted by the units library. Whether the format code
   applies depends on the library's `__format__` support.
+- In LaTeX and Markdown, any other value with a `_repr_latex_` (e.g. a
+  [worstcase](https://github.com/amosborne/worstcase) parameter, shown as `1 ± 0.1`) is
+  rendered with its own LaTeX, bracketed when it has more than one term. The format code
+  does not apply to it.
 - The [Excel renderer](../renderers/excel.md) converts pint and forallpeople
   quantities into unit columns and SI-scaled formulas.
 
