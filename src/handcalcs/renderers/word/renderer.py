@@ -220,11 +220,8 @@ class WordRenderer(BaseRenderer):
         """
         One calc line's components as an equation row, split before its first
         assignment symbol (the alignment point). A line with no math (a
-        docstring) is prose; an ignored line is no row.
-
-        As in the LaTeX renderer, the inline comment of a line that shows
-        substitution columns (more than ``target = value``) moves to its own
-        row, at the alignment point, so it does not lengthen a long row.
+        docstring) is prose; an ignored line is no row. An inline comment stays
+        at the end of its line's row.
         """
         context = base_context.current
         parts = list(parts)
@@ -232,15 +229,12 @@ class WordRenderer(BaseRenderer):
             return []
         if not any("<m:" in part for part in parts):
             return [Prose(" ".join(parts))]
-        comment_row = []
-        if parts[-1].startswith(self.COMMENT_OPEN) and parts.count(context.assign) > 1:
-            comment_row = [Row("", parts.pop())]
         if context.assign in parts:
             idx = parts.index(context.assign)
         else:
             idx = 0
         row = Row("".join(parts[:idx]), "".join(parts[idx:]))
-        return [row, *comment_row]
+        return [row]
 
     def grid_rows(self, grid: CalcGrid) -> list[Row]:
         """

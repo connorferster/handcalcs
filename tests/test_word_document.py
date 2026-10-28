@@ -70,10 +70,10 @@ def test_alignment_point_is_its_own_run():
     assert runs == ["a", "&", "=", "2"]
 
 
-def test_comment_moves_to_its_own_row_with_substitutions():
+def test_comment_stays_on_its_row_with_substitutions():
     document = render("a = 2\nb = a * 3  # note\n")
     (paragraph,) = math_paragraphs(document)
-    assert eq_rows(paragraph) == ["a&=2", "b&=a⋅3=2⋅3=6", "&\u2003(note)"]
+    assert eq_rows(paragraph) == ["a&=2", "b&=a⋅3=2⋅3=6\u2003(note)"]
 
 
 def test_comment_stays_on_a_short_row():

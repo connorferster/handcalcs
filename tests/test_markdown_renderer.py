@@ -294,11 +294,10 @@ def test_inline_comment_is_escaped_math_text():
     )
 
 
-def test_calc_comment_moves_to_own_row():
+def test_calc_comment_stays_on_its_line():
     assert rows("a = 2 # Param comment\nb = a + 1 # Calc comment\n") == [
         "a &= 2 \\quad\\text{(Param comment)}",
-        "b &= a + 1 = 2 + 1 = 3",
-        "&\\quad\\text{(Calc comment)}",
+        "b &= a + 1 = 2 + 1 = 3 \\quad\\text{(Calc comment)}",
     ]
 
 

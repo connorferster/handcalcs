@@ -237,7 +237,7 @@ def render_import(renderer: MR, node: Import, base_context: BRC) -> str:
 def render_inline_comment(renderer: MR, node: InlineComment, base_context: BRC) -> str:
     """
     ``\\quad`` + the parenthesised comment as math text. It still starts with
-    COMMENT_OPEN, which ``join_math_row`` and ``format_param_grid`` look for.
+    ``\\quad``, which ``format_param_grid`` replaces in a grid.
     """
     return f"\\quad{math_prose(f'({node.content})')}"
 
