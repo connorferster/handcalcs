@@ -20,7 +20,12 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-b` | `--line-break` | Insert vertical space here. |
 | | `--check` | On a comparison, show ✓ or ✗ instead of `True`/`False`. See [Checks](../cookbook/checks.md#mark-a-check-as-pass-or-fail). |
 | | `--pagebreak` (`--page-break`) | Start a new page: before the next line when on its own line, after the line when inline. |
-| `-i` | `--ignore` | Run the line but leave it out of the output. |
+| `-i` | `--ignore` | Run the line but leave it out of the output. On its own line, hide every following line. |
+| `-s` | `--show` | Show the line, or every following line, again after `-i`. |
+
+`-i` and `-s` may end with a condition, a Python expression: `# hc: -s M_f > 0` shows
+what follows if it is true and hides it if it is false. See
+[Show or hide a section on a condition](../cookbook/showing-and-hiding.md#show-or-hide-a-section-on-a-condition).
 
 Flags can be combined: `# hc: -m -f .2f`.
 
@@ -47,15 +52,18 @@ w = b / a
 ```
 
 ```{warning}
-A standalone `# hc: -i` hides **everything after it**. To hide a single line, put
-`# hc: -i` at the end of that line.
+A standalone `# hc: -i` hides **everything after it**, until a `# hc: -s`. To hide a
+single line, put `# hc: -i` at the end of that line.
 ```
+
+A command changes only the settings it names: `# hc: -f .2f` leaves an earlier `-m` or
+`-i` in effect.
 
 ### Turning a setting off again
 
-The flags can only switch a setting *on*. To switch one back off, or to set a value, use
-the assignment form described next: `# hc: multiline = False`, `# hc: param_line = False`,
-`# hc: format_code = ".5g"`.
+Apart from `-s`, which undoes `-i`, the flags can only switch a setting *on*. To switch
+one back off, or to set a value, use the assignment form described next:
+`# hc: multiline = False`, `# hc: param_line = False`, `# hc: format_code = ".5g"`.
 
 ## The assignment form
 
@@ -76,7 +84,7 @@ renderer reads. The flags are shorthands for these fields:
 | `-m` | `multiline` |
 | `-p` | `param_line` |
 | `-c` | `param_cols` |
-| `-i` | `ignore` |
+| `-i` / `-s` | `ignore` (`True` / `False`) |
 | `--check` | `check` |
 
 Any other name is allowed too, and is passed to the renderer. A

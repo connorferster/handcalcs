@@ -74,13 +74,23 @@ notebook's namespace, so any expression works: `%%render inputs=cases[2], strict
 
 | Argument | Does |
 |---|---|
-| `inputs` | A dict of names and values. Required when any argument is given. |
+| `inputs` | A dict of names and values. Required for `strict` and `allow_computed`. |
 | `strict=False` | Ignore inputs the cell never assigns, instead of raising a `KeyError`. |
 | `allow_computed=True` | Let an input replace a computed line (`b = 2 * a`), instead of raising a `ValueError`. |
+| `destination="calc.tex"` | Write the render to this file instead of displaying it (see below). |
 
 A misspelled input name or an input on a computed line raises its error before the
 cell runs, so its traceback is shown. A quantity whose units don't match the line's
 raises while the cell runs, so, as the warning above says, nothing is displayed.
+
+## Writing a file
+
+`%%render destination="calc.tex"` runs the cell and writes the render to the file, as
+[`HandCalcs(..., destination=...)`](object-oriented.md#writing-a-file) does, instead of
+displaying it. The cell shows the file's path. The file type follows the
+[Jupyter renderer](#choosing-the-renderer): set it to `latex` for a `.tex` file, `word`
+for a `.docx` file. It combines with inputs:
+`%%render inputs=case, destination="case_1.tex"`.
 
 ## `%render`: one line
 

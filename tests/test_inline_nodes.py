@@ -74,9 +74,9 @@ def test_from_raw_comment_flag_style_falls_back_to_argparse():
     result = InlineCommand.from_raw_comment("hc: -f 5E")
     assert isinstance(result, InlineCommand)
     assert result.commands["format_code"] == "5E"
-    # argparse defaults are present alongside the parsed flag.
-    assert result.commands["multiline"] is False
-    assert result.commands["ignore"] is False
+    # The flags the comment doesn't give are present as None (not given).
+    assert result.commands["multiline"] is None
+    assert result.commands["ignore"] is None
 
 
 def test_from_raw_comment_unknown_flag_raises_not_exits():

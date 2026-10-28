@@ -3,6 +3,7 @@ Rendering to a file: HandCalcs(...)(source, destination=path), demo(destination=
 and each renderer's to_file(). A text renderer writes its preamble, the render
 and its postamble; Word and Excel save their document or workbook.
 """
+
 import pathlib
 import shutil
 import subprocess
@@ -197,3 +198,61 @@ def test_latex_file_compiles(tmp_path):
             timeout=120,
         )
         assert result.returncode == 0, result.stdout[-2000:]
+
+
+# --- @handcalc(destination=) ---
+
+
+@pytest.mark.parametrize("renderer_cls", TEXT_RENDERERS)
+def test_decorator_destination_writes_each_call(renderer_cls, tmp_path):
+    from handcalcs import handcalc
+
+    renderer = renderer_cls()
+    destination = tmp_path / "beam"
+
+    @handcalc(renderer, destination=destination)
+    def beam(w, L):
+        M = w * L**2 / 8
+        return M
+
+    rendered = handcalc(renderer)(beam.__wrapped__)(5, 6)[1]
+    assert beam(5, 6) == (22.5, destination)
+    assert destination.read_text(encoding="utf-8") == (
+        renderer.preamble + rendered + renderer.postamble
+    )
+    # The next call writes over the file.
+    beam(4, 6)
+    assert "18" in destination.read_text(encoding="utf-8")
+
+
+def test_decorator_without_destination_returns_the_render():
+    from handcalcs import handcalc
+
+    @handcalc(ASCIIRenderer())
+    def double(a):
+        b = a * 2
+        return b
+
+    assert double(2) == (4, "b = a * 2 = 2 * 2 = 4\n")
+
+
+def test_decorator_destination_saves_word_and_excel(tmp_path):
+    docx = pytest.importorskip("docx")
+    openpyxl = pytest.importorskip("openpyxl")
+    from handcalcs import handcalc
+    from handcalcs.renderers.excel import ExcelRenderer
+    from handcalcs.renderers.word import WordRenderer
+
+    def beam():
+        w = 5
+        L = 6
+        M = w * L**2 / 8
+        return M
+
+    word = handcalc(WordRenderer(), destination=tmp_path / "beam.docx")(beam)
+    excel = handcalc(ExcelRenderer(), destination=tmp_path / "beam.xlsx")(beam)
+    assert word() == (22.5, tmp_path / "beam.docx")
+    assert excel() == (22.5, tmp_path / "beam.xlsx")
+    assert "M" in "".join(docx.Document(tmp_path / "beam.docx").element.body.itertext())
+    sheet = openpyxl.load_workbook(tmp_path / "beam.xlsx")["Calculations"]
+    assert any(cell.value == "=w*L^2/8" for row in sheet.iter_rows() for cell in row)

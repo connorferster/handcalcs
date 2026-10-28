@@ -95,7 +95,8 @@ def test_comment_command_kwarg_style():
 def test_comment_command_flag_style():
     cc = CommentCommand.from_raw_comment("# hc: -f 2g")
     assert cc.commands["format_code"] == "2g"
-    assert cc.commands["multiline"] is False
+    # A flag the comment doesn't give is None, so it changes no setting.
+    assert cc.commands["multiline"] is None
 
 
 def test_comment_command_kwarg_error_shows_the_code():

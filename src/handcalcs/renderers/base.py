@@ -73,7 +73,6 @@ from handcalcs.parsing.line_nodes import (
     CommentCommand,
     Heading,
     CommentLine,
-    IgnoredLine,
 )
 from handcalcs.parsing.block_nodes import (
     IfBlock,
@@ -138,6 +137,8 @@ PAGE_BREAK = "\f"
 # Comment-command options that act once, where they appear, rather than
 # setting the render context for the lines that follow.
 ONE_SHOT_COMMANDS = ("line_break", "params_block", "page_break")
+# The blocks that only group consecutive lines; one is hidden when all its lines are.
+GROUP_BLOCKS = frozenset({"params_block", "comments_block", "calcs_block"})
 
 
 def breakable_ops(tree) -> frozenset[int]:
@@ -387,6 +388,21 @@ class BaseRenderer:
     # The pass and fail marks a ``# hc: --check`` line shows in place of a
     # boolean result, each with the gap before it; see ``check_mark``.
     CHECK_MARKS: ClassVar[tuple[str, str]] = (" ✓", " ✗")
+    # The nodes ``# hc: -i`` can hide: each line of the calculation and each
+    # block of lines. ``render_node`` hides them for every renderer.
+    HIDEABLE: ClassVar[frozenset[str]] = frozenset(
+        {
+            "calc_line",
+            "expr_line",
+            "import",
+            "heading",
+            "comment_line",
+            "no_value",
+            "not_implemented",
+        }
+        | GROUP_BLOCKS
+        | {"if_block", "elif_block", "else_block", "for_block"}
+    )
 
     def __init__(self) -> None:
         self._handlers: dict[str, Callable] = dict(self.node_handlers)
@@ -563,6 +579,12 @@ class BaseRenderer:
         # ``type`` (any node instance) passes through unchanged.
         if not hasattr(node, "type"):
             node = _reify(node)
+        if node.type in self.HIDEABLE and self.is_hidden(node, base_context):
+            return self.render_hidden(node, base_context)
+        return self.render_shown(node, base_context)
+
+    def render_shown(self, node: HcNode, base_context: BaseRenderContext) -> Any:
+        """Render ``node`` with its rules and handler (``render_node`` less hiding)."""
         node_rules = self._rule_handlers.get(node.type, {})
         current_mode = getattr(base_context.current, "current_mode", None)
 
@@ -585,6 +607,40 @@ class BaseRenderer:
         for rule in node_rules.get("post", []):
             rendered = rule(self, rendered, node, base_context)
         return rendered
+
+    def is_hidden(self, node: HcNode, base_context: BaseRenderContext) -> bool:
+        """
+        True if ``# hc: -i`` hides ``node``: its own inline ``-i``/``-s`` if it
+        has one, otherwise the ``ignore`` setting of the lines around it (a
+        standalone ``-i``/``-s`` above, or else the ``hidden_by_default``
+        option). A group of lines is hidden when all of its lines are.
+        """
+        if node.type in GROUP_BLOCKS:
+            return bool(node.lines) and all(
+                self.is_hidden(line, base_context) for line in node.lines
+            )
+        commands = getattr(getattr(node, "comment", None), "commands", None) or {}
+        ignore = commands.get("ignore")
+        if ignore is None:
+            ignore = getattr(base_context.current, "ignore", None)
+        if ignore is None:
+            # Before any -i or -s: the 'hidden_by_default' option.
+            ignore = getattr(base_context.current, "hidden_by_default", False)
+        return bool(ignore)
+
+    def render_hidden(self, node: HcNode, base_context: BaseRenderContext) -> Any:
+        """
+        What a hidden node renders: nothing (the ``ignored_line`` handler). A
+        hidden block is still rendered, and the result discarded, so that the
+        commands in it (``# hc: -s``, ``-f``) still apply to the lines after it.
+        A renderer that must keep hidden lines (Excel, whose formulas refer to
+        them) overrides this.
+        """
+        if getattr(node, "lines", None) is not None:
+            self.render_shown(node, base_context)
+        # As a rendered line does, leave no line settings behind for the next.
+        base_context.line_context = RenderContext.sparse()
+        return self._handlers["ignored_line"](self, node, base_context)
 
     def render_header(self, node: HcNode, base_context: BaseRenderContext) -> str:
         """
@@ -1535,22 +1591,6 @@ def render_inline_command(
     return ""
 
 
-@BaseRenderer.register("import:pre")
-@BaseRenderer.register("expr_line:pre")
-def skip_ignored_line(renderer: BR, node, base_context: BaseRenderContext):
-    """
-    Swap an import or bare expression hidden by ``# hc: -i`` (inline, or a
-    standalone command above it) for an IgnoredLine, which renders nothing. A
-    calc line handles ``-i`` itself.
-    """
-    comment = getattr(node, "comment", None)
-    commands = getattr(comment, "commands", {}) or {}
-    ignored = commands.get("ignore")
-    if not ignored and ignored is not False:
-        ignored = getattr(base_context.global_context, "ignore", False)
-    return IgnoredLine() if ignored else node
-
-
 @BaseRenderer.register("ignored_line")
 def render_ignored_line(renderer: BR, node, base_context: BaseRenderContext) -> str:
     return ""
@@ -1613,12 +1653,6 @@ def render_calcline(
     _ = context.space
     param_line_post_comment = getattr(context, "param_line", False)
     param_line = param_line_pre_comment or param_line_post_comment
-    if getattr(context, "ignore", False):
-        # Clear the line-specific context (as the normal return path does) so the
-        # ignored line's command options -- e.g. a `format=None` left by an inline
-        # command -- don't leak into the following lines.
-        base_context.line_context = RenderContext.sparse()
-        return ""
 
     shown = mode_columns(context.mode)
     if is_lambda_line(node):
@@ -1779,6 +1813,8 @@ def render_params_block(
     for line in node.lines:
         base_context.line_context.param_line = True
         rendered = renderer.render(line, base_context)
+        if not rendered:
+            continue  # a line hidden by ``# hc: -i``
         # Keep the id / equality / value components, plus the line comment for a
         # ``# hc: -g`` block; a ``;`` block has no place for a comment, so it drops.
         if isinstance(rendered, list):

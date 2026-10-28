@@ -112,8 +112,8 @@ class Import(HcLineNode):
 @dataclass
 class IgnoredLine(HcLineNode):
     """
-    A line hidden by ``# hc: -i`` that has no handling of its own (an import or a
-    bare expression), swapped in by a 'pre' rule; it renders nothing.
+    A line hidden by ``# hc: -i``. A renderer's ``ignored_line`` handler is what a
+    hidden node renders (nothing, by default; see ``BaseRenderer.render_hidden``).
     """
 
     type: str = "ignored_line"

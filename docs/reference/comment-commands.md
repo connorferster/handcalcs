@@ -16,10 +16,18 @@ line; at the end of a line it applies to that line. See
 | `-b` | `--line-break` | (one-shot) | flag | Vertical space |
 | | `--check` | `check` | flag | A boolean result is shown as a pass/fail mark (`CHECK_MARKS`) |
 | | `--pagebreak`, `--page-break` | (one-shot) | flag | Page break (see below) |
-| `-i` | `--ignore` | `ignore` | flag | Leave lines out of the output |
+| `-i` | `--ignore` | `ignore` | flag, or flag + condition | Leave lines out of the output |
+| `-s` | `--show` | `ignore` (`False`) | flag, or flag + condition | Show lines again after `-i` |
 | `-w` | `--if-winner-only`, `--winner` | `if_winner_only` | flag | Accepted; no effect in 2.0 |
 
 Source: {src}`handcalcs.parsing.commands`.
+
+A flag the comment does not give leaves its setting as it is. `-i` or `-s` followed by
+an expression (`# hc: -s M_f > 0`) takes the rest of the comment as the condition; the
+parser evaluates it with the values at the comment (for an inline command, after its
+line ran) and stores only the outcome: a true condition applies the flag, a false one
+the opposite. Hiding is applied by `BaseRenderer.render_node` for every renderer
+(`HIDEABLE`, `is_hidden`, `render_hidden`).
 
 ### Page breaks
 

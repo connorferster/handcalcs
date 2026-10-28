@@ -59,16 +59,72 @@ w = 5
 M = w * L**2 / 8
 ```
 
-On its own line, `# hc: -i` hides every line after it; `# hc: ignore = False` shows
-them again:
+On its own line, `# hc: -i` hides every line after it (headings, comments and blocks
+too), and `# hc: -s` shows them again:
 
 ```{hc-example}
 # hc: -i
 a_raw = [3.1, 2.9, 3.0]
 a = sum(a_raw) / len(a_raw)
-# hc: ignore = False
+# hc: -s
 b = 2 * a
 ```
+
+`-s` at the end of a line shows that one line of a hidden section.
+
+An `if` or `for` block is shown or hidden whole, by the setting where it starts.
+
+## Show or hide a section on a condition
+
+*Asked in {issue}`343`.*
+
+End `-i` or `-s` with a Python expression to decide from the calculation's values.
+`# hc: -s M_f > 0` shows what follows when `M_f > 0` and hides it otherwise, so a load
+case without moment skips its flexure check:
+
+```{hc-example}
+w = 0
+L = 6
+M_f = w * L**2 / 8
+# hc: -s M_f > 0
+## Flexure
+Z_req = M_f / 350
+# hc: -s
+R = w * L / 2
+```
+
+`# hc: -i A_s < A_req` is the opposite: it hides when the expression is true. The
+expression uses the values at the comment, from the lines above it. At the end of a
+line, it uses the values after that line ran:
+
+```{hc-example}
+a = 2
+b = a - 2                  # hc: -i b == 0
+c = a + 1                  # hc: -i c == 0
+```
+
+The expression is the rest of the comment, so other flags go before it:
+`# hc: -f .2f -s M_f > 0`.
+
+## Show only what you mark
+
+*Asked in {issue}`343`.*
+
+To start from nothing and show only chosen lines, begin with `# hc: -i` and mark what
+to show with `-s`:
+
+```{hc-example}
+# hc: -i
+b = 300
+h = 600
+A = b * h
+I_x = b * h**3 / 12        # hc: -s
+```
+
+To do this for every calculation, without the first line, turn on the
+`hidden_by_default` [option](../getting-started/configuration.md):
+`handcalcs.set_option("hidden_by_default", True)`. For one decorated function, pass it
+in the render context: `@handcalc(render_context={"hidden_by_default": True})`.
 
 ## Hide import lines
 
