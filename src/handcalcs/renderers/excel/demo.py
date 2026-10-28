@@ -5,7 +5,7 @@ The ExcelRenderer's demo cell (``ExcelRenderer.demo_source``), used by
 The general demo (``handcalcs.renderers.demo``) uses loops, collections and
 imports that have no worksheet form, so it raises
 ``ExcelRendererIncompatibleError``. This cell is a worked steel-beam check
-built to show off what does convert: inputs (``# hc: -h`` blocks and ``;``
+built to show off what does convert: inputs (``# hc: -g`` blocks and ``;``
 lines), live formulas with math functions, Excel number formats, hidden and
 blank rows, versioned reassignment, if/elif/else trees as ``IF`` formulas,
 booleans and a text result.
@@ -17,7 +17,7 @@ from math import sqrt, pi
 ## 1. Inputs
 # Yellow cells are inputs. Edit any of them in Excel and every formula on the
 # sheet recalculates: this is a working spreadsheet, not a picture of one.
-# hc: -h
+# hc: -g
 F_y = 350  # Yield strength (MPa)
 E_s = 200000  # Elastic modulus (MPa)
 G = 77000  # Shear modulus (MPa)
@@ -32,7 +32,7 @@ b_f = 178; t_f = 12.8; t_w = 7.7; h_w = 381
 I_y = 12.0e6; J = 3.28e5; C_w = 4.67e11; Z_x = 1.2e6
 
 ### Loads
-# hc: -h
+# hc: -g
 w_D = 6.5  # Dead load (kN/m)
 w_L = 9.0  # Live load (kN/m)
 alpha_D = 1.25  # Dead load factor

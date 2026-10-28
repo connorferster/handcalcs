@@ -1655,7 +1655,17 @@ def render_calcline(
         if not mark:
             # Every target of a chained assignment holds the same value.
             base_context.line_context.current_mode = "num"
-            columns.append(renderer.render(node.assigns[0], base_context))
+            if param_line and is_scientific_literal(node.expression_tree):
+                # A param written in scientific notation (``E = 200e3``) is
+                # shown as written, not reformatted from its value (2e+05).
+                columns.append(
+                    "".join(
+                        renderer.render(subnode, base_context)
+                        for subnode in node.expression_tree
+                    )
+                )
+            else:
+                columns.append(renderer.render(node.assigns[0], base_context))
 
     # Drop a value column that repeats the one before it: a bare reference
     # (``q = y``, ``z = math.inf``) or a literal-only expression renders the same
@@ -1717,6 +1727,25 @@ def is_boolean(value) -> bool:
     return isinstance(value, bool) or type(value).__name__ == "bool_"
 
 
+def is_scientific_literal(expression_tree) -> bool:
+    """
+    True if an expression is a single real number literal written with an
+    exponent (``10E6``, ``-2.5e3``), optionally signed.
+    """
+    if len(expression_tree) != 1:
+        return False
+    node = expression_tree[0]
+    if isinstance(node, HcUnaryOp) and node.symbol.strip() in ("-", "+"):
+        node = node.operand
+    return (
+        isinstance(node, Constant)
+        and is_source_number(node)
+        and not isinstance(node.value, complex)
+        and "e" in literal_text(node).lower()
+        and not literal_text(node).lower().startswith("0x")
+    )
+
+
 def check_mark(renderer: BaseRenderer, value, context: RenderContext) -> str:
     """
     The pass or fail mark (from ``renderer.CHECK_MARKS``) that a line under
@@ -1751,7 +1780,7 @@ def render_params_block(
         base_context.line_context.param_line = True
         rendered = renderer.render(line, base_context)
         # Keep the id / equality / value components, plus the line comment for a
-        # ``# hc: -h`` block; a ``;`` block has no place for a comment, so it drops.
+        # ``# hc: -g`` block; a ``;`` block has no place for a comment, so it drops.
         if isinstance(rendered, list):
             rendered = rendered[: 4 if node.with_comments else 3]
         cells.append(rendered)

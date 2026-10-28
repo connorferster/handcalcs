@@ -387,7 +387,7 @@ class AST_Parser:
                 i += 1
                 continue
             if hasattr(stmt, "lineno"):
-                # A ``# hc: -h`` command directly above opens a params block of
+                # A ``# hc: -g`` command directly above opens a params block of
                 # the consecutive single assignments that follow it.
                 if (
                     isinstance(stmt, ast.Assign)

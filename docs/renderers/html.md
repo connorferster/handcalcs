@@ -31,7 +31,7 @@ branch, and a pass/fail check, all in one calculation:
 :setup: from math import pi, sqrt
 ## Steel beam
 # Lateral-torsional buckling resistance of a simply supported span.
-# hc: -h -c 3
+# hc: -g -c 3
 E = 200000     # MPa
 G = 77000      # MPa
 L = 6000       # mm

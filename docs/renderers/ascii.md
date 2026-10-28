@@ -55,7 +55,7 @@ class DashRenderer(ASCIIRenderer):
 ## Lined-up `=` signs
 
 The left-hand sides of the calculation lines between two headings are right-aligned,
-so the `=` signs form one column. Parameter grids (a `;` line, or `# hc: -h`) and long
+so the `=` signs form one column. Parameter grids (a `;` line, or `# hc: -g`) and long
 calculations (`# hc: -m`) are shifted to line up with them:
 
 ```{hc-example}

@@ -113,7 +113,7 @@ ExcelRenderer(
 | `-b`       | inserts a blank row |
 | `-i`       | writes the row but **hides** it, so formulas that use it still work |
 | `-p`       | forces the input layout; a calculation keeps its formula |
-| `-h`, `;`  | each assignment becomes its own input row |
+| `-g`, `;`  | each assignment becomes its own input row |
 | `-m`, `-c` | no effect (the layout is fixed) |
 
 ## Conditionals

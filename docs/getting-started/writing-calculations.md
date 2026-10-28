@@ -160,12 +160,12 @@ separated by `;`, and they are laid out as a grid, three per row:
 b = 200; d = 450; c_c = 40; f_c = 30; f_y = 400
 ```
 
-To keep inline comments, use a `# hc: -h` command instead. The assignments that follow
+To keep inline comments, use a `# hc: -g` command instead. The assignments that follow
 go into the grid, each with its comment, until a blank line, a comment line or a
 statement that is not an assignment. Each cell shows only *target = result*:
 
 ```{hc-example}
-# hc: -h
+# hc: -g
 b = 200  # mm
 d = 450  # mm
 f_c = 30  # MPa

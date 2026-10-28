@@ -47,9 +47,9 @@ def test_division_keeps_slash(render_plain, source, expected):
 
 
 def test_params_block_with_comments_aligns_columns():
-    # ``# hc: -h`` keeps comments; ids right-align and ``=`` lines up per column,
+    # ``# hc: -g`` keeps comments; ids right-align and ``=`` lines up per column,
     # with one space before a comment and a wider gap between cells.
-    src = "# hc: -h\nx = 3 # one\nlonger = 4000\nz = 5 # last\nw = 6\nqq = 77 # c\nr = 1\n"
+    src = "# hc: -g\nx = 3 # one\nlonger = 4000\nz = 5 # last\nw = 6\nqq = 77 # c\nr = 1\n"
     out = HandCalcs(ASCIIRenderer())(src).splitlines()
     assert out == [
         "x = 3 (one)    longer = 4000        z = 5 (last)",

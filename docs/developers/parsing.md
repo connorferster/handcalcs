@@ -29,7 +29,7 @@ A statement list (the module, an `if` branch, a loop body) goes through
   each becoming a `Heading`, `CommentCommand` or `CommentLine`
   ({src}`_make_comment_line <handcalcs.parsing.ast_parser.AST_Parser._make_comment_line>`);
 - gathers `;`-separated assignments that share a line into a `ParamsBlock`;
-- after a `# hc: -h` command, gathers the following assignments into a `ParamsBlock`
+- after a `# hc: -g` command, gathers the following assignments into a `ParamsBlock`
   with comments, stopping at a blank line, a comment or a non-assignment.
 
 Because comments are attached *before* the next statement, a comment after the last

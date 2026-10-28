@@ -15,7 +15,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-f CODE` | `--format-code CODE` | Number format code, e.g. `.2f`, `.3e`, `.4g`. See [Formatting numbers](formatting-numbers.md). |
 | `-m` | `--multiline` | Break a calculation over several lines, aligned on `=`, for long equations. |
 | `-p` | `--param-line` | Show only *target = result*, hiding the symbolic and substituted steps. |
-| `-h` | `--params` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
+| `-g` | `--grid` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
 | `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
 | | `--check` | On a comparison, show ✓ or ✗ instead of `True`/`False`. See [Checks](../cookbook/checks.md#mark-a-check-as-pass-or-fail). |
@@ -34,7 +34,7 @@ Where you put a command decides how long it lasts:
   A line can carry a command *or* a normal comment, not both.
 - **On its own line** (`# hc: -f .2f`), it applies to **every following line** until
   another command changes it. The exceptions are `-b`, which inserts space once, and
-  `-h`, which applies to the grid directly below it.
+  `-g`, which applies to the grid directly below it.
 
 ```{hc-example}
 a = 2
@@ -131,7 +131,7 @@ c = a**2 + b**2  # hc: -p
 ### A parameter grid, two columns wide
 
 ```{hc-example}
-# hc: -h -c 2
+# hc: -g -c 2
 f_c = 30     # Concrete strength, MPa
 f_y = 400    # Rebar yield, MPa
 b = 300      # Width, mm

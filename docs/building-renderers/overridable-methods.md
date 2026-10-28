@@ -93,7 +93,7 @@ See [The render context](render-context.md).
 ## `format_param_grid(rows, base_context)`
 
 Called by the `params_block` handler. `rows` is a list of rows; each cell is the rendered
-parameter as a list of parts, `[identifier, "=", value]` plus a comment for `# hc: -h`
+parameter as a list of parts, `[identifier, "=", value]` plus a comment for `# hc: -g`
 grids, or `None` to pad the last row. Return the grid's rendered form, usually one string.
 
 The base version pads columns to line up the `=` signs in plain text. The LaTeX version

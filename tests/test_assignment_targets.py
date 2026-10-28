@@ -70,7 +70,7 @@ def test_starred_target():
 
 
 def test_chained_assignment():
-    assert "a = b = 10" in ascii("a = b = 1E1\n")
+    assert "a = b = 1E1" in ascii("a = b = 1E1\n")
     assert "a &= b = 10" in latex("a = b = 1E1\n")
     assert "c = a * b = 10 * 10 = 100" in ascii("a = b = 10\nc = a * b\n")
 

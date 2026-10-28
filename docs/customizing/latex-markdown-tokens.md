@@ -67,10 +67,8 @@ Two details in this example come from how the LaTeX layout works:
 
 - The result is found as the part after the last `=` of the line (the context's
   `assign`), the same way as in the [HTML example](html-styling.md#option-3-add-your-own-markup).
-- The LaTeX layout recognises an inline comment by its `COMMENT_OPEN` prefix, and moves
-  the comment of a long calculation onto its own row. Because `color_comment` changes how
-  comments start, the subclass sets `COMMENT_OPEN` to match. If you change
-  `COMMENT_COLOR` in a further subclass, set `COMMENT_OPEN` again.
+- An inline comment stays at the end of its line's row, so `color_comment` only has to
+  wrap the comment's own output.
 
 ## Example: a different heading scheme in LaTeX
 

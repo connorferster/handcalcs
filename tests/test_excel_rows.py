@@ -118,7 +118,7 @@ def test_params_blocks():
     result = rows("x = 1; y = 2; z = 3\n")
     assert [r.name for r in result] == ["x", "y", "z"]
     assert all(isinstance(r, ParamRow) for r in result)
-    result = rows("# hc: -h\np = 1  # first\nq = 2  # second\n")
+    result = rows("# hc: -g\np = 1  # first\nq = 2  # second\n")
     assert [(r.name, r.comment) for r in result] == [("p", "first"), ("q", "second")]
 
 

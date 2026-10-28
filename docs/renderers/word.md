@@ -51,7 +51,7 @@ step. Pass a `pathlib.Path` to render a whole file:
 | an import | the import's source in the `HC Code` style |
 | `if`/`for`/function headers | a text paragraph with the condition as an inline equation: "Since (*a* > 1) → (2 > 1) is True:" |
 | a nested block | indented 0.5" per level |
-| an inline comment | normal text after the equation; on its own row when the line shows substitutions |
+| an inline comment | normal text after the equation, on the same row |
 | a `-m` calc or a line continuation (`\`) | extra rows in the same aligned equation |
 
 Names follow the shared [naming rules](../getting-started/writing-calculations.md#naming-variables):
@@ -146,7 +146,7 @@ An unknown layout or a missing template raises an error when the renderer is cre
 | `-m` | puts the symbolic, numeric and result columns on rows of their own |
 | `-b` | inserts an empty paragraph |
 | `-i` | leaves the line out |
-| `-h`, `;` | a params table |
+| `-g`, `;` | a params table |
 | `layout = "lines"` | one equation per row for the calcs that follow |
 
 ## Units

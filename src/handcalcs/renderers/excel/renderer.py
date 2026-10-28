@@ -402,7 +402,7 @@ def render_calcs_block(renderer: ER, node, base_context: BRC) -> list[Row]:
 
 @ER.register("params_block")
 def render_params_block(renderer: ER, node, base_context: BRC) -> list[Row]:
-    """Each line of a ``;`` or ``# hc: -h`` params block is its own ParamRow."""
+    """Each line of a ``;`` or ``# hc: -g`` params block is its own ParamRow."""
     rows: list[Row] = []
     for line in node.lines:
         base_context.line_context.param_line = True

@@ -106,11 +106,11 @@ A row of short parameter assignments takes up a lot of vertical space. Separate 
 b = 300; h = 600; c = 40
 ```
 
-or put `# hc: -h` above a group of assignments to lay them out in a grid, `-c N`
+or put `# hc: -g` above a group of assignments to lay them out in a grid, `-c N`
 columns wide, with their comments:
 
 ```{hc-example}
-# hc: -h -c 2
+# hc: -g -c 2
 f_c = 30     # Concrete strength, MPa
 f_y = 400    # Rebar yield, MPa
 b = 300      # Width, mm

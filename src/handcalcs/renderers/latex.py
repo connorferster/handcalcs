@@ -536,11 +536,7 @@ class LatexRenderer(BaseRenderer):
         alignment point ``&`` before its first assignment symbol. A string row
         (a pre-formatted multiline grid, or a one-shot line break) passes
         through unchanged; a line break is dropped since rows are already
-        separated.
-
-        The inline comment of a calc line that shows substitution columns
-        (more than ``target = value``) moves to its own row, at the alignment
-        point, so it does not lengthen an already long row.
+        separated. An inline comment stays at the end of its line's row.
         """
         context = base_context.current
         if isinstance(row, str):
@@ -548,17 +544,10 @@ class LatexRenderer(BaseRenderer):
         parts = list(row)
         if parts and parts[0] == "":
             return ""
-        comment_row = ""
-        if (
-            parts
-            and parts[-1].startswith(self.COMMENT_OPEN)
-            and parts.count(context.assign) > 1
-        ):
-            comment_row = f"{self.ROW_SEP}&{parts.pop()}"
         if context.assign in parts:
             idx = parts.index(context.assign)
             parts[idx] = f"&{parts[idx]}"
-        return context.space.join(parts).strip() + comment_row
+        return context.space.join(parts).strip()
 
     def format_param_grid(self, rows: list, base_context: BRC) -> str:
         """

@@ -12,7 +12,7 @@ notebooks need only a few changes.
 | `%%render` | `%%render` (now shows Markdown with LaTeX math by default) |
 | `%%tex` | `%hc_default_renderer latex`, then `%%render`; or `HandCalcs(LatexRenderer())` |
 | `%%render 2` (precision) | `# hc: -f .2f` (any [format code](formatting-numbers.md)) |
-| `%%render params` | `;` [parameter grids](writing-calculations.md#parameter-grids), or `# hc: -h`; `# hc: -p` for one line |
+| `%%render params` | `;` [parameter grids](writing-calculations.md#parameter-grids), or `# hc: -g`; `# hc: -p` for one line |
 | `%%render long` | `# hc: -m` |
 | `%%render short` | the default (or `# hc: multiline = False`) |
 | `%%render symbolic` | `# hc: mode = "ass sym"` (see [mode](comment-commands.md#choosing-which-steps-appear-mode)) |

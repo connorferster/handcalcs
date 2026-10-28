@@ -132,9 +132,15 @@ def test_params_grid_is_aligned_and_ragged():  # 12
 
 
 def test_params_block_command_keeps_comments_until_blank_line():
-    out = rows("# hc: -h\nx = 3 # one\ny = 4 # two\n\nq = 7\n")
+    out = rows("# hc: -g\nx = 3 # one\ny = 4 # two\n\nq = 7\n")
     assert out[0] == "x &= 3 \\; \\text{(one)} \\qquad &y &= 4 \\; \\text{(two)}"
     assert "q &= 7" in out[1:]
+
+
+@pytest.mark.parametrize("command", ["--grid", "-h"])  # -h: the rc1 spelling
+def test_params_block_command_spellings(command):
+    source = "x = 3 # one\ny = 4 # two\n"
+    assert rows(f"# hc: {command}\n{source}") == rows(f"# hc: -g\n{source}")
 
 
 def test_multiline_calc_aligns_each_row():  # 13
@@ -270,6 +276,8 @@ def test_own_latex_value_is_used_as_is():  # #340
     ("x = 1e-7\n", "x &= 10^{-7}"),
     ("x = -10.42314 # hc: -f .3e\n", "x &= -1.042 \\times 10^{1}"),
     ("x = 0.5\n", "x &= 0.5"),
+    ("x = 10E6\n", "x &= 10 \\times 10^{6}"),  # as written, not 10^{7}
+    ("x = -12.5e3\n", "x &= -12.5 \\times 10^{3}"),
 ])
 def test_scientific_notation(source, expected):  # 18
     assert rows(source)[0] == expected
@@ -425,12 +433,11 @@ def test_long_collections_are_elided():
     ]
 
 
-def test_calc_comment_moves_to_own_row():
+def test_calc_comment_stays_on_its_line():
     out = rows("a = 2 # Param comment\nb = a + 1 # Calc comment\n")
     assert out == [
         "a &= 2 \\quad\\text{(Param comment)}",
-        "b &= a + 1 = 2 + 1 = 3",
-        "&\\quad\\text{(Calc comment)}",
+        "b &= a + 1 = 2 + 1 = 3 \\quad\\text{(Calc comment)}",
     ]
 
 

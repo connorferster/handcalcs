@@ -23,7 +23,7 @@ x_2 = (-b - sqrt(b**2 - 4 * a * c)) / (2 * a)
 f = 1; g = 2; h = 4
 
 # Params grid type 2 (Comments allowed)
-# hc: -h
+# hc: -g
 x = 3 # comment 1
 y = 4
 z = 5 # last comment
