@@ -270,6 +270,8 @@ def test_own_latex_value_is_used_as_is():  # #340
     ("x = 1e-7\n", "x &= 10^{-7}"),
     ("x = -10.42314 # hc: -f .3e\n", "x &= -1.042 \\times 10^{1}"),
     ("x = 0.5\n", "x &= 0.5"),
+    ("x = 10E6\n", "x &= 10 \\times 10^{6}"),  # as written, not 10^{7}
+    ("x = -12.5e3\n", "x &= -12.5 \\times 10^{3}"),
 ])
 def test_scientific_notation(source, expected):  # 18
     assert rows(source)[0] == expected

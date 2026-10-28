@@ -26,7 +26,7 @@ $$\begin{aligned} x &= 3 \; \text{(comment 1)} \qquad &y &= 4 \qquad &z &= 5 \; 
 
 ## Lateral torsional buckling
 
-$$\begin{aligned} \omega_{2} &= 1 \quad\text{(A beam under uniform moment)} \\ L &= 6000 \quad\text{(Unbraced length of beam, in mm)} \\ E &= 200000 \quad\text{(Elastic modulus, in MPa)} \\ I_{y} &= 1.6 \times 10^{8} \quad\text{(Second moment of area about weak axis, in mm}\hat{}\text{4)} \\ G &= 77000 \quad\text{(Shear modulus, in MPa)} \\ J &= 1.33 \times 10^{5} \quad\text{(Polar moment of area, in mm}\hat{}\text{3)} \\ C_{w} &= 2 \times 10^{11} \quad\text{(Warping constant)} \end{aligned}$$
+$$\begin{aligned} \omega_{2} &= 1 \quad\text{(A beam under uniform moment)} \\ L &= 6000 \quad\text{(Unbraced length of beam, in mm)} \\ E &= 200000 \quad\text{(Elastic modulus, in MPa)} \\ I_{y} &= 160 \times 10^{6} \quad\text{(Second moment of area about weak axis, in mm}\hat{}\text{4)} \\ G &= 77 \times 10^{3} \quad\text{(Shear modulus, in MPa)} \\ J &= 133 \times 10^{3} \quad\text{(Polar moment of area, in mm}\hat{}\text{3)} \\ C_{w} &= 200 \times 10^{9} \quad\text{(Warping constant)} \end{aligned}$$
 
 &nbsp;
 
