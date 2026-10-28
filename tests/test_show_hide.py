@@ -175,3 +175,84 @@ def test_condition_in_a_decorated_function():
 
     assert check(3) == (6, "a = 1\nb = M_f * 2 = 3 * 2 = 6\n")
     assert check(0) == (0, "a = 1\n")
+
+
+# --- Hiding in every renderer (BaseRenderer.render_node) ---
+
+HIDDEN_REGION = """
+aaa = 2
+# hc: -i
+## Zebra heading
+# Zebra comment
+www = aaa + 1
+xxx = 1; yyy = 2
+# hc: -g
+zzz = 3
+if www > 2:
+    vvv = www * 2
+import statistics
+statistics.mean([1, 2])
+# hc: -s
+ddd = 4
+"""
+
+
+def rendered_text(renderer_name: str, source: str) -> str:
+    """The text of a render, from any of the renderers producing a document."""
+    from handcalcs.renderers import get_renderer
+
+    rendered = HandCalcs(get_renderer(renderer_name)())(source)
+    if isinstance(rendered, str):
+        return rendered
+    return "".join(rendered.element.body.itertext())  # a Word document
+
+
+@pytest.mark.parametrize(
+    "renderer_name", ["ascii", "latex", "markdown", "html", "word"]
+)
+def test_a_hidden_region_hides_every_kind_of_line(renderer_name):
+    text = rendered_text(renderer_name, HIDDEN_REGION)
+    for hidden in ["Zebra", "www", "xxx", "yyy", "zzz", "vvv", "Since", "statistics"]:
+        assert hidden not in text
+    assert "aaa" in text and "ddd" in text
+
+
+def test_a_hidden_params_grid_leaves_no_empty_grid():
+    shown = render("a = 1\n")
+    assert render("a = 1\n# hc: -i\nx = 1; y = 2\n") == shown
+    assert render("a = 1\n# hc: -i\n# hc: -g\nx = 1\ny = 2\n") == shown
+
+
+def test_a_hidden_line_in_a_params_grid_is_left_out():
+    out = render("x = 1; y = 2 # hc: -i\nz = 3\n")
+    assert "y" not in out and "x = 1" in out
+
+
+def test_an_inline_show_reveals_one_line_of_a_hidden_region():
+    out = render("# hc: -i\na = 1\nb = 2 # hc: -s\nc = 3\n")
+    assert out == "b = 2\n"
+
+
+def test_a_hidden_block_is_hidden_whole():
+    # The -s in the body does not reveal it, but applies after the block.
+    source = "a = 3\n# hc: -i\nif a > 2:\n    b = 1\n    # hc: -s\n    c = 2\nd = 4\n"
+    assert render(source) == "a = 3\nd = 4\n"
+
+
+def test_a_command_in_a_hidden_block_still_applies_after_it():
+    source = (
+        "a = 3\n# hc: -i\nif a > 2:\n    # hc: -f .3f\n    b = 1.0\n# hc: -s\nd = 4.0\n"
+    )
+    assert render(source) == "a = 3\nd = 4.000\n"
+
+
+def test_excel_keeps_a_hidden_region_as_hidden_rows():
+    from handcalcs.renderers.excel import ExcelRenderer
+    from handcalcs.renderers.excel.rows import CalcRow, ParamRow
+
+    source = "a = 2\n# hc: -i\n## Hidden\n# note\nb = a * 2\n# hc: -s\nd = b + 1\n"
+    rows = HandCalcs(renderer=ExcelRenderer())(source).rows
+    assert [type(row) for row in rows] == [ParamRow, CalcRow, CalcRow]
+    a, b, d = rows
+    assert b.hidden and not a.hidden and not d.hidden
+    assert d.formula == "=b+1"

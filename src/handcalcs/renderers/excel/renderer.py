@@ -3,7 +3,7 @@ import math
 import os
 import pathlib
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Optional
 
 from handcalcs.parsing.inline_nodes import FunctionCall
@@ -167,6 +167,25 @@ class ExcelRenderer(BaseRenderer):
         for node in root.sequence:
             rows.extend(self.render(node, base_context))
         return rows
+
+    # The hidden nodes that keep their rows (see ``render_hidden``).
+    HIDDEN_ROWS = frozenset(
+        {"calc_line", "params_block", "calcs_block", "if_block", "elif_block"}
+    )
+
+    def render_hidden(self, node, base_context: BaseRenderContext) -> list[Row]:
+        """
+        A line hidden by ``# hc: -i`` stays on the sheet as a hidden row: later
+        formulas may refer to its cell. A hidden heading, comment or import
+        leaves no row.
+        """
+        if node.type not in self.HIDDEN_ROWS:
+            return []
+        return [
+            replace(row, hidden=True)
+            for row in self.render_shown(node, base_context)
+            if isinstance(row, (CalcRow, ParamRow))
+        ]
 
     def complete(
         self, tree: list[Row], base_context: BaseRenderContext
@@ -354,7 +373,6 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
             context.format_code, renderer.general_format
         )
         symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
-        hidden = bool(getattr(context, "ignore", False))
         check = bool(getattr(context, "check", False)) and is_boolean(cached)
 
         if param_line or formula is None:
@@ -366,7 +384,6 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 formula=formula,
                 unit=unit_text,
                 comment=comment,
-                hidden=hidden,
                 check=check,
             )
         else:
@@ -381,7 +398,6 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 number_format=number_format,
                 unit=unit_text,
                 comment=comment,
-                hidden=hidden,
                 check=check,
             )
         rows: list[Row] = [row]
