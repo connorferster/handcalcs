@@ -612,8 +612,8 @@ class BaseRenderer:
         """
         True if ``# hc: -i`` hides ``node``: its own inline ``-i``/``-s`` if it
         has one, otherwise the ``ignore`` setting of the lines around it (a
-        standalone ``-i``/``-s`` above). A group of lines is hidden when all of
-        its lines are.
+        standalone ``-i``/``-s`` above, or else the ``hidden_by_default``
+        option). A group of lines is hidden when all of its lines are.
         """
         if node.type in GROUP_BLOCKS:
             return bool(node.lines) and all(
@@ -622,7 +622,10 @@ class BaseRenderer:
         commands = getattr(getattr(node, "comment", None), "commands", None) or {}
         ignore = commands.get("ignore")
         if ignore is None:
-            ignore = getattr(base_context.current, "ignore", False)
+            ignore = getattr(base_context.current, "ignore", None)
+        if ignore is None:
+            # Before any -i or -s: the 'hidden_by_default' option.
+            ignore = getattr(base_context.current, "hidden_by_default", False)
         return bool(ignore)
 
     def render_hidden(self, node: HcNode, base_context: BaseRenderContext) -> Any:

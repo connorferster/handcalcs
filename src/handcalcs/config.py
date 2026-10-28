@@ -6,7 +6,7 @@ bare ``HandCalcs()`` behaves the way they prefer. The configuration is a JSON fi
 stored in the per-user config location for the operating system (resolved by
 ``platformdirs``), e.g. ``~/.config/handcalcs/hc_config.json`` on Linux.
 
-Four base options are recognised:
+Five base options are recognised:
 
 - ``default_renderer``: the ``name`` of the renderer a bare ``HandCalcs()`` uses.
 - ``jupyter_renderer``: the ``name`` of the renderer the ``%%render`` cell magic
@@ -17,6 +17,8 @@ Four base options are recognised:
   default), so a line shows the values it ran with. ``False`` runs the source
   with a single ``exec``, as before 2.0: faster for loops with many passes, but
   every line shows the values after the run (see ``parsing.line_values``).
+- ``hidden_by_default``: start every render hidden, as if it began with
+  ``# hc: -i``, so only what a ``# hc: -s`` shows is rendered.
 
 In addition, arbitrary extra fields may be set. These are ignored by the base
 renderer but are threaded onto the render context when rendering, so a custom
@@ -46,6 +48,7 @@ DEFAULTS: dict[str, Any] = {
     "jupyter_renderer": "markdown",
     "format_code": ".5g",
     "line_values": True,
+    "hidden_by_default": False,
 }
 
 # The base options whose value type is validated by set_option.
@@ -56,6 +59,7 @@ _BASE_OPTION_TYPES: dict[str, type] = {
     "jupyter_renderer": str,
     "format_code": str,
     "line_values": bool,
+    "hidden_by_default": bool,
 }
 
 # The options that choose a renderer (rather than configure rendering); they are

@@ -256,3 +256,47 @@ def test_excel_keeps_a_hidden_region_as_hidden_rows():
     a, b, d = rows
     assert b.hidden and not a.hidden and not d.hidden
     assert d.formula == "=b+1"
+
+
+# --- The 'hidden_by_default' option (#343) ---
+
+
+@pytest.fixture
+def hidden_by_default(tmp_path, monkeypatch):
+    import handcalcs
+
+    monkeypatch.setenv("HANDCALCS_CONFIG", str(tmp_path / "hc_config.json"))
+    handcalcs.reset_config()
+    handcalcs.set_option("hidden_by_default", True)
+    yield
+    handcalcs.reset_config()
+
+
+def test_hidden_by_default_shows_only_what_show_shows(hidden_by_default):
+    source = "## Inputs\na = 1\nb = 2 # hc: -s\n# hc: -s\nc = a + b\n# hc: -i\nd = 4\n"
+    assert render(source) == "b = 2\nc = a + b = 1 + 2 = 3\n"
+
+
+def test_hidden_by_default_with_a_condition(hidden_by_default):
+    source = "M_f = {}\n# hc: -s M_f > 0\nb = M_f * 2\n"
+    assert render(source.format(5)) == "b = M_f * 2 = 5 * 2 = 10\n"
+    assert render(source.format(0)) == ""
+
+
+def test_hidden_by_default_option_is_validated():
+    import handcalcs
+
+    with pytest.raises((TypeError, ValueError)):
+        handcalcs.set_option("hidden_by_default", "yes")
+
+
+def test_hidden_by_default_in_a_decorator_render_context():
+    from handcalcs import handcalc
+
+    @handcalc(ASCIIRenderer(), render_context={"hidden_by_default": True})
+    def calc(a):
+        b = a * 2
+        c = b + 1  # hc: -s
+        return c
+
+    assert calc(1) == (3, "c = b + 1 = 2 + 1 = 3\n")
