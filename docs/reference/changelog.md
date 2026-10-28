@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- **`# hc: -s`** (`--show`) shows lines again after `# hc: -i`; at the end of a line it
+  shows that line of a hidden section.
+- **Conditional show and hide** (#343): `# hc: -s M_f > 0` shows what follows if the
+  expression is true and hides it if not; `# hc: -i A_s < A_req` the opposite. The
+  expression uses the values at the comment
+  ([details](../cookbook/showing-and-hiding.md#show-or-hide-a-section-on-a-condition)).
+- **`hidden_by_default` option** (#343): start every calculation hidden and show only
+  what `-s` marks.
+- **`destination=`** on `@handcalc` and `%%render`, as on `HandCalcs`: write the render
+  to a file. `%%render destination=` writes the file instead of displaying the render.
+- **Fixed:** a hidden section (`# hc: -i` on its own line) no longer shows its
+  headings, comments, `if`/`for` headers, or an empty parameter grid, in any renderer.
+- **Changed:** a comment command changes only the settings it names. Before,
+  `# hc: -f .2f` also turned off an earlier `# hc: -m`, `-p` or `-i`; to turn one off,
+  use the assignment form (`# hc: multiline = False`) or, for `-i`, `# hc: -s`.
+
 ## 2.0.0rc1 (2026-10-23)
 
 The first release candidate of handcalcs 2.0: a rewrite around a node tree and

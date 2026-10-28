@@ -22,7 +22,7 @@ those values.
 
 ## Signature
 
-`handcalc(renderer=None, render_context=None)`
+`handcalc(renderer=None, render_context=None, destination=None)`
 
 `renderer`
 : A renderer **instance**. If it is omitted, the renderer named by the
@@ -34,6 +34,12 @@ those values.
 : A dictionary of [render context](../customizing/render-context.md) fields for every
   call, for example `{"format_code": ".2f"}`. These override the global
   [configuration](../getting-started/configuration.md).
+
+`destination`
+: A file path (a string or a `pathlib.Path`). If given, every call writes the render to
+  that file, as [`HandCalcs`](object-oriented.md#writing-a-file) does, and returns its
+  `Path` in place of the render. Each call overwrites the file; to keep one file per
+  call, call `HandCalcs` in a loop with your own file names.
 
 The decorated function returns a tuple `(return_value, rendered)`. The type of
 `rendered` depends on the renderer, as for [`HandCalcs`](object-oriented.md).

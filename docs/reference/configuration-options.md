@@ -8,6 +8,7 @@
 | `subscripts` | `str` | the renderer's (`"comma"`) | the built-in renderers: `"comma"` or `"nested"` subscripts |
 | `symbols` | `dict` | (none) | the built-in renderers: display specs for names |
 | `greek_prefixes` | `bool` | the renderer's (`True`) | the built-in renderers: `DeltaH` → ΔH |
+| `hidden_by_default` | `bool` | `False` | every renderer: start hidden, as after `# hc: -i` |
 | any other name | any | (none) | copied onto the render context of every render |
 
 The three base options (`format_code`, `default_renderer`, `jupyter_renderer`) must be

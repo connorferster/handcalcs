@@ -18,6 +18,7 @@ handcalcs.save_config()                      # and every session after
 | `default_renderer` | `"ascii"` | `HandCalcs()` and `@handcalc()` with no renderer argument. The name of a [renderer](../renderers/index.md). |
 | `jupyter_renderer` | `"markdown"` | The `%%render` cell magic. Also set by `%hc_default_renderer`. |
 | `line_values` | `True` | `HandCalcs`, `%%render` and `@handcalc`: record each line's values while the code runs. See [line values](#line-values). |
+| `hidden_by_default` | `False` | Every renderer: start each calculation hidden, as if it began with `# hc: -i`, so only lines shown with `# hc: -s` appear. See [Show only what you mark](../cookbook/showing-and-hiding.md#show-only-what-you-mark). |
 
 Renderer names are `base`, `ascii`, `latex`, `markdown`, `html` and `excel`, plus the
 name of any custom renderer that has been imported.
