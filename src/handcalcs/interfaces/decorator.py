@@ -2,6 +2,7 @@ __all__ = ["handcalc"]
 
 import ast
 import inspect
+import os
 import textwrap
 from typing import Optional
 from functools import wraps
@@ -68,13 +69,19 @@ def returns_names_only(stmt: ast.stmt) -> bool:
 
 
 def handcalc(
-    renderer: Optional[BaseRenderer] = None, render_context: Optional[dict] = None
+    renderer: Optional[BaseRenderer] = None,
+    render_context: Optional[dict] = None,
+    destination: Optional[str | os.PathLike] = None,
 ):
     """
     Decorate a calculation function so that a call returns ``(return_value,
     rendered)``. Without a renderer, the ``default_renderer`` option's is used
     (the ASCIIRenderer unless set). Usable as ``@handcalc(renderer)``,
     ``@handcalc()`` or ``@handcalc``.
+
+    If 'destination' is given, each call writes the render to that file (with
+    the renderer's 'to_file', as ``HandCalcs(..., destination=)`` does) and
+    returns ``(return_value, path)``, the path as a pathlib.Path.
     """
     if callable(renderer) and not isinstance(renderer, BaseRenderer):
         # @handcalc without brackets: the "renderer" is the decorated function.
@@ -126,6 +133,10 @@ def handcalc(
             )
             rendered_tree = renderer.render(hc_ast, base_context)
             completed_render = renderer.complete(rendered_tree, base_context)
+            if destination is not None:
+                return scope.return_value, renderer.to_file(
+                    completed_render, destination
+                )
             return scope.return_value, completed_render
 
         return decorated
