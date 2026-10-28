@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from types import FrameType
 from typing import Callable, Iterator, Optional
 
+from .commands import split_condition
+
 # Compound statements and the part of each that is its header line(s).
 HEADER_END = {
     ast.If: lambda node: node.test,
@@ -39,6 +41,8 @@ HEADER_END = {
 # ``{{ ... }}`` in a comment, and the names in it.
 JINJA_EXPRESSION = re.compile(r"{{(.*?)}}")
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# A ``# hc:`` comment command, and its flags.
+HC_COMMAND = re.compile(r"#+\s*hc:(.*)$")
 
 
 @dataclass(slots=True)
@@ -216,8 +220,11 @@ def scan_names(tree: ast.Module) -> tuple[frozenset, list]:
 
 
 def comment_names(source: str) -> set:
-    """The identifiers inside ``{{ }}`` in the source's comments."""
-    if "{{" not in source:
+    """
+    The identifiers inside ``{{ }}`` in the source's comments, and in the
+    condition of a ``# hc: -i``/``-s`` command (``# hc: -s M_f > 0``).
+    """
+    if "{{" not in source and "hc:" not in source:
         return set()
     names = set()
     tokens = tokenize.generate_tokens(io.StringIO(source).readline)
@@ -225,6 +232,11 @@ def comment_names(source: str) -> set:
         if token.type == tokenize.COMMENT:
             for expression in JINJA_EXPRESSION.findall(token.string):
                 names.update(IDENTIFIER.findall(expression))
+            command = HC_COMMAND.match(token.string)
+            if command is not None:
+                _, condition = split_condition(command.group(1).split())
+                if condition is not None:
+                    names.update(IDENTIFIER.findall(condition))
     return names
 
 

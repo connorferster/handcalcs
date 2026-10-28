@@ -103,3 +103,75 @@ def test_an_inline_command_does_not_show_a_hidden_line():
 def test_show_ends_a_hidden_region():
     out = render("a = 1\n# hc: -i\nb = 2\n# hc: -s\nc = 3\n")
     assert out == "a = 1\nc = 3\n"
+
+
+# --- Conditions ---
+
+
+def test_standalone_condition_true_shows():
+    out = render("a = 1\n# hc: -i\nM_f = 5\n# hc: -s M_f > 0\nb = 2\n")
+    assert out == "a = 1\nb = 2\n"
+
+
+def test_standalone_condition_false_hides():
+    # A false condition does the opposite of its flag.
+    out = render("M_f = 0\n# hc: -s M_f > 0\nb = 2\n# hc: -s\nc = 3\n")
+    # (ASCII right-aligns the names of a group of lines.)
+    assert out == "M_f = 0\n  c = 3\n"
+
+
+def test_standalone_ignore_condition():
+    source = "A_s = 300\nA_req = 400\n# hc: -i A_s < A_req\nb = 2\n"
+    assert render(source) == "  A_s = 300\nA_req = 400\n"
+    source = "A_s = 500\nA_req = 400\n# hc: -i A_s < A_req\nb = 2\n"
+    assert render(source) == "  A_s = 500\nA_req = 400\n    b = 2\n"
+
+
+def test_standalone_condition_uses_the_values_at_the_comment():
+    # M_f is 0 at the comment and only later 5: the section is hidden.
+    out = render("M_f = 0\n# hc: -s M_f > 0\nb = 2\n# hc: -s\nM_f = 5\n")
+    assert out == "M_f = 0\nM_f = 5\n"
+
+
+def test_inline_condition_uses_the_line_result():
+    out = render("a = 2\nb = a - 2 # hc: -i b == 0\nc = a + 1 # hc: -i c == 0\n")
+    assert out == "a = 2\nc = a + 1 = 2 + 1 = 3\n"
+
+
+def test_inline_condition_shows_a_line_in_a_hidden_region():
+    out = render("# hc: -i\na = 2\nb = a * 3 # hc: -s b > 5\nc = 1 # hc: -s c > 5\n")
+    assert out == "b = a * 3 = 2 * 3 = 6\n"
+
+
+def test_condition_without_line_values_uses_the_final_values():
+    import handcalcs
+
+    handcalcs.set_option("line_values", False)
+    try:
+        # Without the recorded values, M_f is its value after the run (5) on
+        # every line, so the condition is true.
+        out = render("M_f = 0\n# hc: -s M_f > 0\nb = 2\n# hc: -s\nM_f = 5\n")
+    finally:
+        handcalcs.reset_option("line_values")
+    assert out == "M_f = 5\n  b = 2\nM_f = 5\n"
+
+
+def test_condition_error_names_the_condition():
+    from handcalcs.parsing.commands import CommentCommandError
+
+    with pytest.raises(CommentCommandError, match=r"'M_x > 0'.*NameError"):
+        render("a = 1\n# hc: -s M_x > 0\nb = 2\n")
+
+
+def test_condition_in_a_decorated_function():
+    from handcalcs import handcalc
+
+    @handcalc(ASCIIRenderer())
+    def check(M_f):
+        a = 1
+        # hc: -s M_f > 0
+        b = M_f * 2
+        return b
+
+    assert check(3) == (6, "a = 1\nb = M_f * 2 = 3 * 2 = 6\n")
+    assert check(0) == (0, "a = 1\n")

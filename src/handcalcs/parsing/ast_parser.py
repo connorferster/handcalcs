@@ -60,7 +60,7 @@ from .operator_nodes import (
     HcUnaryOp,
 )
 
-# from handcalcs.parsing.commands import command_parser
+from .commands import CommentCommandError, resolve_condition
 from .comment_parser import (
     is_comment_command,
     parse_kwargs,
@@ -156,6 +156,20 @@ def is_infinity_call(node: ast.Call) -> bool:
         return False
 
 
+def evaluate_condition(condition: str, namespace) -> object:
+    """
+    The value of the condition of a ``# hc: -i``/``-s`` command in 'namespace'.
+    The source already ran, so this only reads its values.
+    """
+    try:
+        return eval(condition, dict(namespace))
+    except Exception as error:
+        raise CommentCommandError(
+            f"Error evaluating the condition '{condition}' of a handcalcs comment "
+            f"command: {type(error).__name__}: {error}"
+        ) from error
+
+
 @dataclass
 class AST_Parser:
     globals: dict = field(default_factory=dict)
@@ -206,9 +220,25 @@ class AST_Parser:
         return ChainMap(snapshot, unused)
 
     def _set_comment_values(self, comment):
-        """Fill ``{{ }}`` in an inline comment from the line's current values."""
+        """
+        Fill ``{{ }}`` in an inline comment from the line's current values, and
+        decide a conditional ``# hc: -i``/``-s`` with them.
+        """
         if self.line_values is not None and hasattr(comment, "namespace"):
             comment.namespace = self.globals
+        return self._resolve_condition(comment, self.globals)
+
+    def _resolve_condition(self, comment, namespace):
+        """
+        Replace the condition of a conditional show/hide command (``# hc: -s
+        M_f > 0``) with its outcome, evaluated in 'namespace'; renderers only see
+        whether the command hides or shows.
+        """
+        commands = getattr(comment, "commands", None)
+        if commands and commands.get("condition") is not None:
+            resolve_condition(
+                commands, lambda condition: evaluate_condition(condition, namespace)
+            )
         return comment
 
     def _leave_statement(self, node: ast.stmt) -> None:
@@ -299,12 +329,15 @@ class AST_Parser:
         while pending and pending[0] < before:
             row = pending.popleft()
             comment = self._make_comment_line(self.line_comments[row])
-            if hasattr(comment, "namespace") and self.line_values is not None:
+            namespace = self.globals
+            if self.line_values is not None:
                 # The values at this point: just before the next statement ran.
                 before_next = self.line_values.values_before(before)
                 if before_next is not None:
-                    comment.namespace = self._comment_values(before_next)
-            out.append(comment)
+                    namespace = self._comment_values(before_next)
+                    if hasattr(comment, "namespace"):
+                        comment.namespace = namespace
+            out.append(self._resolve_condition(comment, namespace))
         return out
 
     def _has_pending_comment_before(self, before: int) -> bool:
@@ -516,7 +549,9 @@ class AST_Parser:
                 acc.append(Name(identifier=name.name, value=name.asname))
             if isinstance(node, ast.Import):
                 val = Import(
-                    import_from=False, names=acc, comment=self._inline_comment(node)
+                    import_from=False,
+                    names=acc,
+                    comment=self._set_comment_values(self._inline_comment(node)),
                 )
             elif isinstance(node, ast.ImportFrom):
                 val = Import(
@@ -524,7 +559,7 @@ class AST_Parser:
                     import_from_level=node.level,
                     import_from_module=node.module,
                     names=acc,
-                    comment=self._inline_comment(node),
+                    comment=self._set_comment_values(self._inline_comment(node)),
                 )
 
         elif isinstance(node, ast.Call) and is_infinity_call(node):
