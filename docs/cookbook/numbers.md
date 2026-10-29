@@ -48,6 +48,16 @@ EI = E * I             # hc: -f .3e
 
 To keep plain decimals instead, use an `f` format such as `# hc: -f .4f`.
 
+A number you type in scientific notation is shown as you wrote it (`10E6`, not 10<sup>7</sup>),
+whether it is a parameter or a number inside a formula. Values substituted into a
+formula, and results, follow the format code:
+
+```{hc-example}
+E = 10E6
+P = 12.5e3
+sigma = P / 2.5e-3
+```
+
 ## Show small values instead of zero
 
 *Asked in {issue}`230`.*

@@ -17,6 +17,8 @@ GitHub issue that asked for it is linked where there is one.
 | show only the result of a line | [Results only](showing-and-hiding.md#show-only-the-result-of-a-line) |
 | show only formulas, or only results | [Formulas or results for a section](showing-and-hiding.md#show-only-formulas-or-only-results-for-a-whole-section) |
 | hide a line, or the imports | [Hide a line](showing-and-hiding.md#hide-a-line), [hide imports](showing-and-hiding.md#hide-import-lines) |
+| hide or show a section, depending on a value | [On a condition](showing-and-hiding.md#show-or-hide-a-section-on-a-condition) |
+| start hidden and show only chosen lines | [Show only what you mark](showing-and-hiding.md#show-only-what-you-mark) |
 | break a long equation | [Long equations](showing-and-hiding.md#break-a-long-equation-over-several-lines) |
 | render one line of a notebook cell | [`%render`](showing-and-hiding.md#render-one-line-in-a-notebook) |
 | lay out inputs in a grid | [Inputs in a grid](showing-and-hiding.md#lay-out-inputs-in-a-grid) |
@@ -33,8 +35,10 @@ GitHub issue that asked for it is linked where there is one.
 | **Units** | |
 | calculate with forallpeople or pint | [Units](units.md) |
 | show a result in particular units | [Specific units](units.md#show-a-result-in-specific-units) |
+| show a value with a tolerance, like 1 ± 0.1 | [Values with their own LaTeX](units.md#values-with-a-tolerance-or-their-own-latex) |
 | **Reports** | |
 | make a PDF, Word or HTML document | [Write to a file](documents.md#write-a-calculation-straight-to-a-file), [Word](documents.md#a-word-document) |
+| write a file from a decorated function or a notebook cell | [`@handcalc` and `%%render`](documents.md#from-a-decorated-function-or-a-notebook-cell) |
 | number equations, add a title block | [Equation numbers](documents.md#number-the-equations), [title block](documents.md#a-title-block-on-every-calculation) |
 | start a new page | [Page breaks](documents.md#start-a-new-page) |
 | change colors or alignment | [Colors](documents.md#colors), [alignment](documents.md#left-aligned-or-centred-equations) |
