@@ -258,6 +258,21 @@ def test_excel_keeps_a_hidden_region_as_hidden_rows():
     assert d.formula == "=b+1"
 
 
+@pytest.mark.parametrize("source, hidden", [
+    # A -s in a hidden block applies after it, as in the other renderers.
+    ("a = 3\n# hc: -i\nif a > 2:\n    b = 1\n    # hc: -s\nd = 4\n", [False, True, False]),
+    # A -i in the branch that ran applies after the tree.
+    ("a = 3\nif a > 2:\n    b = 1\n    # hc: -i\nelse:\n    b = 2\nd = 4\n", [False, False, True]),
+    # One in a branch that did not run does not.
+    ("a = 1\nif a > 2:\n    b = 1\n    # hc: -i\nelse:\n    b = 2\nd = 4\n", [False, False, False]),
+])
+def test_excel_applies_the_commands_of_the_branch_that_ran(source, hidden):
+    from handcalcs.renderers.excel import ExcelRenderer
+
+    rows = HandCalcs(renderer=ExcelRenderer())(source).rows
+    assert [row.hidden for row in rows] == hidden
+
+
 # --- The 'hidden_by_default' option (#343) ---
 
 
