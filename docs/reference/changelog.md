@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.0.0rc2 (2026-10-29)
+
+The second release candidate of handcalcs 2.0. Install it with
+`pip install "handcalcs>=2.0.0rc2"`; a plain `pip install handcalcs` still installs
+1.x until 2.0.0 is released.
 
 - **`# hc: -s`** (`--show`) shows lines again after `# hc: -i`; at the end of a line it
   shows that line of a hidden section.
@@ -17,6 +21,15 @@
 - **Changed:** a comment command changes only the settings it names. Before,
   `# hc: -f .2f` also turned off an earlier `# hc: -m`, `-p` or `-i`; to turn one off,
   use the assignment form (`# hc: multiline = False`) or, for `-i`, `# hc: -s`.
+- **Fixed:** a value with its own `_repr_latex_` that is not a quantity (e.g. an
+  uncertain value, 1 ± 0.1) is rendered with that LaTeX in the LaTeX and Markdown
+  renderers, instead of its plain text (#340).
+- **Fixed:** an inline comment stays at the end of its calculation's row in the LaTeX,
+  Markdown and Word renderers, instead of moving to a row of its own.
+- **Fixed:** a parameter written in scientific notation is shown as written (`10E6`,
+  not 10<sup>7</sup>; `12.5e3`, not 12500).
+- **Changed:** the parameter grid command is `# hc: -g` (`--grid`). The rc1 spelling
+  `-h` still works.
 
 ## 2.0.0rc1 (2026-10-23)
 

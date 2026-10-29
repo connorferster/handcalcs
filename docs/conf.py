@@ -18,12 +18,12 @@ import handcalcs  # noqa: E402
 project = "handcalcs"
 author = "Connor Ferster"
 copyright = "2020-2026, Connor Ferster"
-release = handcalcs.__dict__.get("__version__", "2.0.0rc1")
+release = handcalcs.__dict__.get("__version__", "2.0.0rc2")
 version = release
 
 # The git ref that every source-code link points at. Set this to the release tag
 # (e.g. "v2.0.0") when cutting a release so links stay pinned to that code.
-HC_SOURCE_REF = os.environ.get("HC_SOURCE_REF", "v2.0.0rc1")
+HC_SOURCE_REF = os.environ.get("HC_SOURCE_REF", "v2.0.0rc2")
 HC_REPO_URL = "https://github.com/connorferster/handcalcs"
 
 extensions = [

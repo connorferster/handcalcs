@@ -5,13 +5,13 @@ a release candidate for now, so ask for it by version (a plain `pip install hand
 installs 1.x):
 
 ```console
-$ pip install "handcalcs>=2.0.0rc1"
+$ pip install "handcalcs>=2.0.0rc2"
 ```
 
 or, with [uv](https://docs.astral.sh/uv/):
 
 ```console
-$ uv add "handcalcs>=2.0.0rc1"
+$ uv add "handcalcs>=2.0.0rc2"
 ```
 
 ## Optional extras
@@ -29,7 +29,7 @@ handcalcs does not install Jupyter itself. Install JupyterLab (or Notebook) in t
 environment:
 
 ```console
-$ pip install "handcalcs>=2.0.0rc1" jupyterlab
+$ pip install "handcalcs>=2.0.0rc2" jupyterlab
 ```
 
 Then, in a notebook, `import handcalcs` registers the `%%render` cell magic. See
