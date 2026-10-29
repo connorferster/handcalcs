@@ -80,6 +80,33 @@ pathlib.Path("report/beam.tex").write_text(HandCalcs(LatexRenderer())(calc))
 
 See [LaTeX renderer](../renderers/latex.md#using-the-output).
 
+## A PDF through HTML, with WeasyPrint
+
+For a PDF without a LaTeX installation, have the HTML renderer write `.pdf` files
+through [WeasyPrint](https://weasyprint.org) (`pip install weasyprint`). Every file
+handcalcs writes, from `HandCalcs`, `@handcalc` or `%%render`, goes through the
+renderer's [`to_file`](#to-file), so a
+subclass that overrides it turns the finished page into a PDF:
+
+```{literalinclude} ../_examples/pdf_renderer.py
+:language: python
+```
+
+Use it as you would the HTML renderer, with a `.pdf` destination:
+
+```python
+import pathlib
+from handcalcs import HandCalcs
+from pdf_renderer import PDFRenderer
+
+HandCalcs(PDFRenderer())(pathlib.Path("calcs/beam.py"), destination="report/beam.pdf")
+```
+
+Any other file name is written as HTML, as before. [Page breaks](#start-a-new-page),
+checks, grids and colors carry over to the PDF. WeasyPrint does not break pages
+inside a flex layout, which the HTML output uses to stack its lines, so the extra
+stylesheet lays them out as blocks; the `@page` rule sets the paper size and margins.
+
 ## A Word document
 
 *Asked in {issue}`222` and {issue}`228`.*

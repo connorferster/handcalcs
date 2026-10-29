@@ -38,6 +38,7 @@ GitHub issue that asked for it is linked where there is one.
 | show a value with a tolerance, like 1 ± 0.1 | [Values with their own LaTeX](units.md#values-with-a-tolerance-or-their-own-latex) |
 | **Reports** | |
 | make a PDF, Word or HTML document | [Write to a file](documents.md#write-a-calculation-straight-to-a-file), [Word](documents.md#a-word-document) |
+| make a PDF without LaTeX | [PDF with WeasyPrint](documents.md#a-pdf-through-html-with-weasyprint) |
 | write a file from a decorated function or a notebook cell | [`@handcalc` and `%%render`](documents.md#from-a-decorated-function-or-a-notebook-cell) |
 | number equations, add a title block | [Equation numbers](documents.md#number-the-equations), [title block](documents.md#a-title-block-on-every-calculation) |
 | start a new page | [Page breaks](documents.md#start-a-new-page) |
