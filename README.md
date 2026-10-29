@@ -22,7 +22,7 @@ The same calculation can go to different **renderers**: Markdown and LaTeX for J
 This readme has been uodated to reflect the changes in 
 handcalcs v2. 
 
-As of 2026-10-28, the second release candidate is available for install:
+As of 2026-10-29, the second release candidate is available for install:
 
 pip install "handcalcs==2.0.0rc2"
 

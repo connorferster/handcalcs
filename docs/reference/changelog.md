@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0rc2 (2026-10-28)
+## 2.0.0rc2 (2026-10-29)
 
 The second release candidate of handcalcs 2.0. Install it with
 `pip install "handcalcs>=2.0.0rc2"`; a plain `pip install handcalcs` still installs
