@@ -9,6 +9,7 @@ DOCS_DIR = pathlib.Path(__file__).parent
 REPO_ROOT = DOCS_DIR.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(DOCS_DIR / "_ext"))
+sys.path.insert(0, str(DOCS_DIR / "_examples"))  # for hc-example :setup: imports
 
 # Build with handcalcs' built-in defaults, never the builder's own saved config.
 os.environ["HANDCALCS_CONFIG"] = str(DOCS_DIR / "_build" / "no-handcalcs-config.json")

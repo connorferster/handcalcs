@@ -25,6 +25,36 @@ The `.tex` file is a complete document that compiles with `pdflatex`, and the `.
 file is a complete page that needs no MathJax or other JavaScript.
 See [Writing a file](../interfaces/object-oriented.md#writing-a-file).
 
+### From a decorated function or a notebook cell
+
+`@handcalc` and `%%render` take the same `destination=`. A decorated function writes
+the file on every call and returns its `Path` in place of the render:
+
+```python
+from handcalcs import handcalc
+from handcalcs.renderers import WordRenderer
+
+@handcalc(renderer=WordRenderer(), destination="report/beam.docx")
+def beam(w, L):
+    M = w * L**2 / 8
+    return M
+
+M, path = beam(5, 6)
+```
+
+In Jupyter, `%%render destination=` writes the cell's render to the file instead of
+displaying it, using the [Jupyter renderer](../interfaces/jupyter.md#choosing-the-renderer)
+(`%hc_default_renderer latex` for a `.tex` file):
+
+```python
+%%render destination="report/beam.tex"
+M = w * L**2 / 8
+```
+
+Each call or run overwrites the file. See
+[`@handcalc`](../interfaces/decorator.md) and
+[Writing a file](../interfaces/jupyter.md#writing-a-file) in Jupyter.
+
 ## A PDF through LaTeX
 
 For a PDF of one calculation, write it with `destination="beam.tex"` (above) and run

@@ -95,6 +95,27 @@ si.environment("structural", top_level=True)  # hc: -i
 L = (6 * si.m)
 ```
 
+## Values with a tolerance, or their own LaTeX
+
+*Asked in {issue}`340`.*
+
+A value that is not a quantity but has its own `_repr_latex_`, such as a
+[worstcase](https://github.com/amosborne/worstcase) parameter, is shown with that LaTeX
+by the LaTeX and Markdown renderers. It is bracketed in a substitution when it has more
+than one term:
+
+```{literalinclude} ../_examples/tolerance.py
+:language: python
+```
+
+```{hc-example}
+:setup: from tolerance import Tolerance; x = Tolerance(1, 0.1)
+y = x * 2
+```
+
+The format code does not apply to such a value: it is shown exactly as its
+`_repr_latex_` writes it. The other renderers show its text (its `__format__`).
+
 ## Units in Excel
 
 The [Excel renderer](../renderers/excel.md) turns pint and forallpeople quantities into
