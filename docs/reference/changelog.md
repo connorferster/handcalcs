@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **`handcalcs.testing`**: a renderer-neutral feature suite. `FEATURE_CASES` holds a
+  calculation for each feature with the names its output must show and hide, and
+  `check_case(renderer, case)` checks a renderer against one, so renderers in other
+  packages can test every feature
+  ([details](../building-renderers/testing.md#run-the-shared-feature-suite)).
+- **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
+  `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
+
 ## 2.0.0rc2 (2026-10-29)
 
 The second release candidate of handcalcs 2.0. Install it with

@@ -66,6 +66,20 @@ in [the Jupyter interface](../interfaces/jupyter.md).
    :members: current
 ```
 
+## Feature suite
+
+```{eval-rst}
+.. autoclass:: handcalcs.testing.FeatureCase
+.. autodata:: handcalcs.testing.FEATURE_CASES
+   :no-value:
+.. autofunction:: handcalcs.testing.check_case
+.. autofunction:: handcalcs.testing.render_case
+.. autofunction:: handcalcs.testing.output_text
+.. autofunction:: handcalcs.testing.check_text
+```
+
+See [Testing your renderer](../building-renderers/testing.md#run-the-shared-feature-suite).
+
 ## Helpers
 
 ```{eval-rst}

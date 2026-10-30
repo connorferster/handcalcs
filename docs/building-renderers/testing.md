@@ -51,6 +51,37 @@ def isolated_config(tmp_path, monkeypatch):
 handcalcs' own tests do the same (see {source}`tests/test_jupyter.py` for the
 pattern).
 
+## Run the shared feature suite
+
+`handcalcs.testing` holds a short calculation for each feature (every comment command,
+showing and hiding, checks, grids, blocks), with the names its output must show and the
+ones it must hide. Run them all against your renderer, so a feature you have not
+handled fails your tests instead of your users' documents:
+
+```python
+import pytest
+from handcalcs.testing import FEATURE_CASES, check_case
+from my_renderers import RstRenderer
+
+
+@pytest.mark.parametrize("case", FEATURE_CASES, ids=lambda case: case.id)
+def test_feature(case):
+    check_case(RstRenderer(), case)
+```
+
+`check_case` renders the case (setting any options it needs, then restoring them) and
+looks for the names in the output's text. It reads strings, Word documents and Excel
+workbooks itself; for another kind of output, pass `text_of`, a function that returns
+its visible text:
+
+```python
+check_case(PdfRenderer(), case, text_of=lambda rendered: rendered["text"])
+```
+
+New features add cases, so a renderer kept in its own package should also run its
+tests against the newest handcalcs pre-release, for example in a scheduled CI job
+that installs `handcalcs --pre`, to hear about a new feature before its users do.
+
 ## Golden files
 
 For a renderer with a lot of layout, compare against stored output ("golden" files)

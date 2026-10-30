@@ -397,4 +397,29 @@ def _captured(lines: list[CalcLine]) -> Any:
 def render_conditional(renderer, node: Any, state, base_context) -> list[Row]:
     """The rows for an if/elif/else tree (one IF-formula row per variable)."""
     conditional = build_conditional(node)
-    return ConditionalRenderer(renderer, state, base_context).rows(conditional)
+    rows = ConditionalRenderer(renderer, state, base_context).rows(conditional)
+    apply_taken_commands(renderer, node, base_context)
+    return rows
+
+
+def apply_taken_commands(renderer, node: Any, base_context) -> None:
+    """
+    Apply the comment commands (``# hc: -s``, ``-f``) of the branch that ran, as
+    the other renderers do by rendering it, so they carry on after the tree. The
+    rows themselves cover every branch, so the commands do not change them.
+    """
+    tree = node if isinstance(node, ElifBlock) else ElifBlock.from_if_tree(node)
+    taken = None if tree.branch_unknown() else tree.taken_branch()
+    if taken is not None:
+        _apply_commands(renderer, taken.lines, base_context)
+
+
+def _apply_commands(renderer, lines: Any, base_context) -> None:
+    for line in lines:
+        kind = getattr(line, "type", None)
+        if kind == "comment_command":
+            renderer.render(line, base_context)
+        elif kind in _TRANSPARENT or kind == "comments_block":
+            _apply_commands(renderer, line.lines, base_context)
+        elif kind in ("elif_block", "if_block"):
+            apply_taken_commands(renderer, line, base_context)
