@@ -43,10 +43,24 @@ def function_body(func) -> tuple[str, int]:
     # decorator, if any).
     file_offset = func.__code__.co_firstlineno - 1
     first = node.body[0]
+    has_docstring = (
+        isinstance(first, ast.Expr)
+        and isinstance(first.value, ast.Constant)
+        and isinstance(first.value.value, str)
+    )
     if first.lineno == node.lineno:
         # A one-line def (``def f(x): return x * 2``): the body shares the def line.
-        body = "\n".join(ast.get_source_segment(source, stmt) for stmt in node.body)
+        body = "\n".join(
+            ast.get_source_segment(source, stmt)
+            for stmt in node.body[1 if has_docstring else 0 :]
+        )
         return body, file_offset + node.lineno - 1
+    if has_docstring:
+        suffix = lines[first.end_lineno - 1].encode()[first.end_col_offset :].decode()
+        indent = lines[first.lineno - 1][: first.col_offset]
+        for index in range(first.lineno - 1, first.end_lineno):
+            lines[index] = ""
+        lines[first.end_lineno - 1] = indent + suffix.lstrip("; \t")
     start = first.lineno - 1
     while start - 1 >= node.lineno and lines[start - 1].lstrip().startswith("#"):
         start -= 1

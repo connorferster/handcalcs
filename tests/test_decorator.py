@@ -107,12 +107,63 @@ def beam(w, L):
     return M
 
 
-def test_arguments_docstring_and_leading_comments_are_rendered():
+def test_arguments_and_leading_comments_are_rendered_without_docstring():
     value, rendered = beam(5, 6)
     assert value == 22.5
-    assert "Simply supported beam." in rendered
+    assert "Simply supported beam." not in rendered
     assert "Midspan moment" in rendered
     assert r"M &= \frac{w \cdot L^{2}}{8} = \frac{5 \cdot 6^{2}}{8} = 22.5" in rendered
+
+
+def test_multiline_docstring_is_not_rendered():
+    @handcalc(ASCIIRenderer())
+    def calc(a, b):
+        """Add two values.
+
+        Return their sum.
+        """
+        c = a + b
+        return c
+
+    value, rendered = calc(7, 8)
+    assert value == 15
+    assert rendered.splitlines() == ["c = a + b = 7 + 8 = 15"]
+
+
+def test_docstring_sharing_a_calculation_line_preserves_line_values():
+    @handcalc(ASCIIRenderer())
+    def calc(a, b):
+        """Add café values."""; c = a + b
+        d = c * 2
+        c = 0
+        return d
+
+    value, rendered = calc(7, 8)
+    assert value == 30
+    assert rendered.splitlines() == [
+        "c = a + b = 7 + 8 = 15",
+        "d = c * 2 = 15 * 2 = 30",
+        "c = 0",
+    ]
+
+
+def test_docstring_only_function():
+    @handcalc(ASCIIRenderer())
+    def calc():
+        """No calculation."""
+
+    value, rendered = calc()
+    assert value is None
+    assert rendered.strip() == ""
+
+
+def test_one_line_function_with_docstring():
+    @handcalc(ASCIIRenderer())
+    def double(x): """Double the value."""; return x * 2
+
+    value, rendered = double(3)
+    assert value == 6
+    assert rendered.strip() == "x * 2"
 
 
 def test_nested_function_and_closure():
