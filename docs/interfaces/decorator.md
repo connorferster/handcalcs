@@ -22,7 +22,7 @@ those values.
 
 ## Signature
 
-`handcalc(renderer=None, render_context=None, destination=None)`
+`handcalc(renderer=None, render_context=None, destination=None, *, docstring=True)`
 
 `renderer`
 : A renderer **instance**. If it is omitted, the renderer named by the
@@ -41,13 +41,21 @@ those values.
   `Path` in place of the render. Each call overwrites the file; to keep one file per
   call, call `HandCalcs` in a loop with your own file names.
 
+`docstring`
+: Whether the function's docstring is rendered, as a note above the calculation
+  (`True`, the default). Use `docstring=False` for a docstring written for the code's
+  readers rather than for the calculation, such as a function in a library that is also
+  used without handcalcs. The comment lines between the docstring and the first
+  statement are rendered either way.
+
 The decorated function returns a tuple `(return_value, rendered)`. The type of
 `rendered` depends on the renderer, as for [`HandCalcs`](object-oriented.md).
 
 ## What is rendered
 
 The body of the function (its lines between the `def` line and the `return`), with the
-values from that call. Arguments, local variables, closure variables and globals can all
+values from that call. A docstring is shown as a note at the top, unless
+`docstring=False`. Arguments, local variables, closure variables and globals can all
 be used. [Comment commands](../getting-started/comment-commands.md) work as usual.
 An early `return` ends the rendered calculation where the function returned: the lines
 after it did not run, so they are not shown.

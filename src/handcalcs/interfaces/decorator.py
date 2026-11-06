@@ -14,12 +14,12 @@ from ..parsing.line_values import LineValues, recording
 from .. import config
 
 
-def function_body_source(func) -> str:
+def function_body_source(func, docstring: bool = True) -> str:
     """The source of ``func``'s body (see ``function_body``)."""
-    return function_body(func)[0]
+    return function_body(func, docstring)[0]
 
 
-def function_body(func) -> tuple[str, int]:
+def function_body(func, docstring: bool = True) -> tuple[str, int]:
     """
     The source of ``func``'s body, dedented, without its decorators and ``def``
     line: the calculation the decorator renders. Also the number to add to a
@@ -30,6 +30,9 @@ def function_body(func) -> tuple[str, int]:
     names values (``return M`` or ``return M, V``) is left out: the body already
     shows them. ``inspect.getsource`` returns a nested function or a method
     still indented, so it is dedented before parsing.
+
+    With ``docstring=False`` the docstring is left out too; the comment lines
+    between it and the first statement are kept.
     """
     source = textwrap.dedent(inspect.getsource(func))
     tree = ast.parse(source)
@@ -43,17 +46,27 @@ def function_body(func) -> tuple[str, int]:
     # ``getsource`` starts at the first line of the code object (its first
     # decorator, if any).
     file_offset = func.__code__.co_firstlineno - 1
-    first = node.body[0]
+    statements = node.body
+    has_docstring = ast.get_docstring(node, clean=False) is not None
+    if not docstring and has_docstring:
+        statements = statements[1:]
+    if not statements:
+        # Nothing but a docstring.
+        return "", file_offset + node.end_lineno
+    first = statements[0]
     if first.lineno == node.lineno:
         # A one-line def (``def f(x): return x * 2``): the body shares the def line.
-        body = "\n".join(ast.get_source_segment(source, stmt) for stmt in node.body)
+        body = "\n".join(ast.get_source_segment(source, stmt) for stmt in statements)
         return body, file_offset + node.lineno - 1
+    # The comment lines directly above the first statement; the scan stops at the
+    # def line, or at the end of a docstring that is left out.
+    floor = node.body[0].end_lineno if statements is not node.body else node.lineno
     start = first.lineno - 1
-    while start - 1 >= node.lineno and lines[start - 1].lstrip().startswith("#"):
+    while start - 1 >= floor and lines[start - 1].lstrip().startswith("#"):
         start -= 1
     end = node.end_lineno
-    last = node.body[-1]
-    if len(node.body) > 1 and returns_names_only(last):
+    last = statements[-1]
+    if len(statements) > 1 and returns_names_only(last):
         end = last.lineno - 1
     return textwrap.dedent("\n".join(lines[start:end])), file_offset + start
 
@@ -72,6 +85,8 @@ def handcalc(
     renderer: Optional[BaseRenderer] = None,
     render_context: Optional[dict] = None,
     destination: Optional[str | os.PathLike] = None,
+    *,
+    docstring: bool = True,
 ):
     """
     Decorate a calculation function so that a call returns ``(return_value,
@@ -82,6 +97,10 @@ def handcalc(
     If 'destination' is given, each call writes the render to that file (with
     the renderer's 'to_file', as ``HandCalcs(..., destination=)`` does) and
     returns ``(return_value, path)``, the path as a pathlib.Path.
+
+    The function's docstring is rendered as a note above the calculation; with
+    ``docstring=False`` it is left out (for a docstring written for the code's
+    readers rather than for the calculation).
     """
     if callable(renderer) and not isinstance(renderer, BaseRenderer):
         # @handcalc without brackets: the "renderer" is the decorated function.
@@ -101,7 +120,7 @@ def handcalc(
     }
 
     def handcalc_decorator(func):
-        body_source, line_offset = function_body(func)
+        body_source, line_offset = function_body(func, docstring)
         code = func.__code__
 
         def is_call_frame(frame) -> bool:
