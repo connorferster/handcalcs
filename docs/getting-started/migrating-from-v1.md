@@ -13,7 +13,7 @@ notebooks need only a few changes.
 | `%%tex` | `%hc_default_renderer latex`, then `%%render`; or `HandCalcs(LatexRenderer())` |
 | `%%render 2` (precision) | `# hc: -f .2f` (any [format code](formatting-numbers.md)) |
 | `%%render params` | `;` [parameter grids](writing-calculations.md#parameter-grids), or `# hc: -g`; `# hc: -p` for one line |
-| `%%render long` | `# hc: -m` |
+| `%%render long` | `# hc: -m` on its own line, for every line after it (see the note below); or at the end of a line, for that line only |
 | `%%render short` | the default (or `# hc: multiline = False`) |
 | `%%render symbolic` | `# hc: mode = "ass sym"` (see [mode](comment-commands.md#choosing-which-steps-appear-mode)) |
 | `%%render sympy` | not available in 2.0 |
@@ -25,6 +25,20 @@ notebooks need only a few changes.
 | `custom_symbols` option | the `symbols` option with renderer-neutral specs (see [display symbols](writing-calculations.md#display-symbols)), or a renderer rule for raw markup. A `symbols` key matches a whole variable name, not part of one: `{"star": "^*"}` no longer changes `Mstar_1`, so give each name its own entry (`{"Mstar_1": "M^{*}_{1}"}`) |
 | `custom_brackets` option | not available in 2.0. Index the value instead (`x[1]` is shown as x<sub>1</sub>, see [indexing](writing-calculations.md#indexing)), or give the name a `symbols` entry |
 | `greek_exclusions`, `underscore_subscripts` options | the `greek_prefixes`/`subscripts` settings, or a renderer subclass (see [Customizing](../customizing/index.md)) |
+
+A command on its own line, such as `# hc: -m`, `-f .2f` or `-p`, **stays in effect**
+for every line after it, until another command changes that setting (its scope is the
+rest of the cell or file, not the next line). To apply a command to one line, put it at
+the end of that line:
+
+```python
+M_u = omega_2 * pi / L * sqrt(E * I_y * G * J + (pi * E / L)**2 * I_y * C_w)  # hc: -m
+M_p = Z_x * F_y  # one line again
+```
+
+To turn a setting off again, use the assignment form: `# hc: multiline = False`,
+`# hc: param_line = False`, `# hc: format_code = ".5g"`. See
+[comment commands](comment-commands.md#turning-a-setting-off-again).
 
 ## What's new
 
