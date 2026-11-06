@@ -7,6 +7,16 @@
   `check_case(renderer, case)` checks a renderer against one, so renderers in other
   packages can test every feature
   ([details](../building-renderers/testing.md#run-the-shared-feature-suite)).
+- **Fixed:** `# hc: -s` and `# hc: -m` work after forallpeople's
+  `si.environment(..., top_level=True)`. Before, `s` (seconds) and `m` (metres) in
+  `builtins` made them valid Python expressions, and they were silently ignored: after
+  `# hc: -i`, everything that followed stayed hidden.
+- **Changed:** a comment command is read, never run. In the assignment form
+  (`# hc: multiline = False`), each value must be a literal; an expression such as
+  `# hc: format_code = "." + "2f"` is now an error.
+- **Fixed:** two or more multi-line calculations in a row (after a standalone
+  `# hc: -m`) render one below the other, instead of being joined into one row
+  (`= 0.8 M_p = 7 * 8`), in every renderer.
 - **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
   `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
 

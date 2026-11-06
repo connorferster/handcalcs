@@ -51,3 +51,20 @@ def test_bare_units_substitute_in_latex(restore_builtins):
         r"e &= \frac{a \cdot \mathrm{kN}}{m}"
         r" = \frac{2 \cdot 1\ \mathrm{kN}}{1\ \mathrm{m}} = 2\ \mathrm{kN/m}"
     ) in rendered
+
+
+# ``-s`` and ``-m`` are valid expressions once ``s`` and ``m`` are in builtins;
+# they must still be read as flags (see test_comment_command_literals.py).
+
+
+def test_short_flags_with_units_in_builtins(restore_builtins):
+    source = (
+        "import forallpeople as si\n"
+        'si.environment("structural", top_level=True)\n'
+        "x = 1\n# hc: -i\ny = 2\n# hc: -s\nz = x + y\n"
+        "c = x * 3 + x / 4  # hc: -m\n"
+    )
+    rendered = HandCalcs(ASCIIRenderer())(source)
+    assert "z = x + y = 1 + 2 = 3" in rendered
+    assert "y = 2" not in rendered
+    assert rendered.splitlines()[-1].strip() == "= 3.25"

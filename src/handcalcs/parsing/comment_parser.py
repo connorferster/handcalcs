@@ -44,21 +44,32 @@ def parse_kwargs(comment: str) -> dict:
     """
     For kwarg comment commands (``# hc: mode = "ass sym"``).
 
-    A SyntaxError or NameError propagates unchanged: it means the comment is not
-    kwarg-style, and the callers fall back to the flag parser. Any other error
-    comes from running the comment's code, and is raised as a
-    CommentCommandError that shows that code.
+    The comment is parsed, never run: it must be one or more ``name = <literal>``
+    assignments (``;``-separated), and anything else raises a SyntaxError, which
+    tells the callers to read it with the flag parser instead. (Running it would
+    let a flag pass as an expression: ``-s`` is a valid expression once
+    forallpeople's ``top_level=True`` has put ``s`` in ``builtins``.) A value that
+    is not a literal (``format_code = fc``) raises a CommentCommandError.
     """
     stripped = strip_command_prefix(comment)
-    kwarg_locals = {}
-    try:
-        # Positional: exec() only accepts globals/locals as keywords from Python 3.13.
-        exec(stripped, {}, kwarg_locals)
-    except (SyntaxError, NameError):
-        raise
-    except Exception as error:
-        raise CommentCommandError(
-            f"Error running handcalcs comment command '# {comment}': "
-            f"{type(error).__name__}: {error}"
-        ) from error
-    return kwarg_locals
+    tree = ast.parse(stripped)
+    if not tree.body or not all(
+        isinstance(stmt, ast.Assign)
+        and all(isinstance(target, ast.Name) for target in stmt.targets)
+        for stmt in tree.body
+    ):
+        raise SyntaxError(f"'{stripped}' is not a kwarg comment command")
+    kwargs = {}
+    for stmt in tree.body:
+        try:
+            value = ast.literal_eval(stmt.value)
+        except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+            names = ", ".join(f"'{target.id}'" for target in stmt.targets)
+            raise CommentCommandError(
+                f"Invalid handcalcs comment command '# {comment}': the value of "
+                f"{names} must be a literal (a number, string, True/False or None), "
+                f"not '{ast.unparse(stmt.value)}'."
+            ) from None
+        for target in stmt.targets:
+            kwargs[target.id] = value
+    return kwargs
