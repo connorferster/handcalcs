@@ -53,6 +53,20 @@ c = a * b  # hc: -f .2f
 d = a * b
 ```
 
+The value keeps that format on the lines that use it, so it reads the same where it is
+calculated and where it is substituted:
+
+```{hc-example}
+C_f = 500
+C_r = 600.3
+DCR = C_f / C_r  # hc: -f .3f
+ok = DCR <= 1.0  # hc: --check
+```
+
+Here `DCR` is substituted as `0.833` in the check, not `0.83292`. A line with an `-f` of
+its own uses that one for every value it substitutes, and a name assigned again on a line
+without `-f` goes back to the format in effect.
+
 **The rest of the calculation**: a command on its own line.
 
 ```{hc-example}

@@ -20,6 +20,13 @@ class Name(HcNode):
     identifier: str
     value: Any = NoValue()
     type: str = "name"
+    # The identifier as written in the source. A renderer may rewrite
+    # ``identifier`` for display (``DCR`` -> ``\\mathrm{DCR}``); this one is kept.
+    source_identifier: str = field(default="", compare=False, repr=False)
+
+    def __post_init__(self):
+        if not self.source_identifier:
+            self.source_identifier = self.identifier
 
 
 @dataclass

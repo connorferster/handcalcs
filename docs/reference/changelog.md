@@ -32,6 +32,12 @@
   every renderer (Markdown, LaTeX, HTML, Word, Excel; the ASCII renderer shows them as
   written), and `` `code` `` is set in a code font in Word and Excel too. Before, the
   Markdown renderer escaped them (`\*\*bold\*\*`).
+- **Changed:** a value keeps the `-f` format code of the line that calculated it on the
+  lines that substitute it: after `DCR = C_f / C_r  # hc: -f .3f`, `ok = DCR <= 1.0`
+  shows `0.833 <= 1.0`, not `0.83292 <= 1.0`. A line's own `-f` still wins
+  ([details](../getting-started/formatting-numbers.md#where-to-set-it)).
+- **Changed:** the ASCII renderer spaces comparison operators like the arithmetic ones
+  (`DCR <= 1.0`, not `DCR<=1.0`), as the HTML renderer does.
 - **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
   `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
 

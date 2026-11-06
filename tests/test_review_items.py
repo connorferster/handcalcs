@@ -50,7 +50,7 @@ def test_generator_expression_beside_other_arguments_keeps_its_brackets():
 
 def test_comprehension_filters():
     out = ascii(XS + "ys = [x * 2 for x in xs if x > 1 if x < 3]\n")
-    assert "ys = [x * 2 for x in xs if x>1 if x<3] = [4]" in out
+    assert "ys = [x * 2 for x in xs if x > 1 if x < 3] = [4]" in out
     assert "\;\\mathrm{if}\;x > 1" in latex(XS + "g = list(x for x in xs if x > 1)\n")
 
 
@@ -329,7 +329,7 @@ def test_if_test_with_a_name_the_namespace_lacks():
 def test_unknown_test_after_the_branch_that_ran_is_ignored():
     source = "if x > 3:\n    b = 2\nelif a > 1:\n    b = 1\n"
     out = ascii(source, {"x": 5, "b": 2}, {})
-    assert "Since (x>3) -> (5>3) is True:" in out
+    assert "Since (x > 3) -> (5 > 3) is True:" in out
 
 
 def test_unknown_test_does_not_change_the_namespace():

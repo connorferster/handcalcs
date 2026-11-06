@@ -196,7 +196,7 @@ def test_format_code_applies_to_the_element():
 
 def test_subscript_in_an_if_test():
     out = render(ASCIIRenderer(), "xs = [1, 5]\nif xs[1] > 2:\n    z = 1\n")
-    assert "(xs[1]>2) -> (5>2)" in out
+    assert "(xs[1] > 2) -> (5 > 2)" in out
 
 
 def test_subscript_in_a_comprehension():
