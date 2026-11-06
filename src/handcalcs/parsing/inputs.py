@@ -19,16 +19,18 @@ value.
 
 import ast
 import dataclasses
+import io
 import numbers
 import pathlib
 import re
+import tokenize
 from collections import deque
 from dataclasses import dataclass
 from typing import Any, Optional
 
 from .nodes import Constant
 
-__all__ = ["bind_inputs", "find_inputs", "InputBinding"]
+__all__ = ["bind_inputs", "find_inputs", "InputBinding", "InputSpec"]
 
 # The function an object input's assignment calls while the script runs
 RESOLVER = "__hc_input__"
@@ -45,6 +47,7 @@ class Binding:
     value: ast.expr
     magnitude: Optional[ast.expr]  # the number of a number-times-units value
     is_given: bool  # a literal or a number times units, i.e. not computed
+    statement: Optional[ast.stmt] = None  # the assignment
 
 
 def bind_inputs(
@@ -258,23 +261,116 @@ def walk(node: Any, seen: Optional[set] = None):
         yield from walk(node.lines, seen)
 
 
-def find_inputs(source_or_path: str | pathlib.Path) -> dict:
+@dataclass(frozen=True)
+class InputSpec:
+    """
+    An input of a script, as ``find_inputs(..., detail=True)`` describes it.
+
+    ``value`` is the value in the script (only the number, for a number times
+    units); ``units`` the units it is written in, as source text (``"mm"``,
+    ``"kN / m"``), or None for a plain value; ``description`` the line's
+    comment (``# Unbraced length``), without a ``# hc:`` command, or None; and
+    ``line`` the line number of the assignment.
+    """
+
+    value: Any
+    units: Optional[str]
+    description: Optional[str]
+    line: int
+
+
+def find_inputs(source_or_path: str | pathlib.Path, *, detail: bool = False) -> dict:
     """
     The candidate inputs of a script: each name whose first top-level assignment
     is a literal or a number times units, with its value in the script (only the
     number, for a number times units). The result is a template for ``inputs``.
+
+    With ``detail=True``, each value is an ``InputSpec`` that also holds the
+    units the value is written in, the line's comment and the line number, e.g.
+    ``L = 6000 * mm  # Unbraced length`` gives
+    ``InputSpec(value=6000, units="mm", description="Unbraced length", line=1)``.
     """
     if isinstance(source_or_path, pathlib.Path):
         source = source_or_path.read_text(encoding="utf-8")
     else:
         source = source_or_path
+    comments = line_comments(source) if detail else {}
     found = {}
     for name, binding in first_bindings(ast.parse(source)).items():
         if not binding.is_given:
             continue
         node = binding.magnitude if binding.magnitude is not None else binding.value
-        found[name] = ast.literal_eval(node)
+        value = ast.literal_eval(node)
+        if detail:
+            value = InputSpec(
+                value=value,
+                units=units_text(source, binding) if has_units(binding) else None,
+                description=comments.get(binding.statement.end_lineno),
+                line=binding.statement.lineno,
+            )
+        found[name] = value
     return found
+
+
+# A comment command after a description: ``# Unbraced length  # hc: -f .2f``.
+TRAILING_COMMAND = re.compile(r"\s*#\s*hc:.*$")
+
+
+def line_comments(source: str) -> dict[int, str]:
+    """
+    The comment at the end of each line of code, by line number, without its
+    ``#`` or a ``# hc:`` command. A line whose comment is only a command, and a
+    comment on a line of its own, are left out.
+    """
+    comments = {}
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type != tokenize.COMMENT or token.line.lstrip().startswith("#"):
+            continue
+        text = TRAILING_COMMAND.sub("", token.string.lstrip("#").strip()).strip()
+        if text and not text.startswith("hc:"):
+            comments[token.start[0]] = text
+    return comments
+
+
+def units_text(source: str, binding: Binding) -> str:
+    """
+    The units of a number-times-units value as source text: the value without
+    its number (``4.5 * kN / m`` -> ``kN / m``; ``5 / s`` -> ``1 / s``). Units
+    that are one part of the source keep their spelling (``3000 * mm**2`` ->
+    ``mm**2``); otherwise they are written out by ``ast.unparse``
+    (``210 * kN*m`` -> ``kN * m``).
+    """
+    units = without_magnitude(binding.value, binding.magnitude)
+    if any(units is node for node in ast.walk(binding.value)):
+        return ast.get_source_segment(source, units) or ast.unparse(units)
+    return ast.unparse(units)
+
+
+def without_magnitude(node: ast.expr, magnitude: ast.expr) -> Optional[ast.expr]:
+    """
+    ``node`` with the number ``magnitude`` taken out of its products, or None if
+    ``node`` is the number. A quotient whose numerator was the number keeps a 1.
+    """
+    if node is magnitude:
+        return None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+        left = without_magnitude(node.left, magnitude)
+        right = without_magnitude(node.right, magnitude)
+        if left is None or right is None:
+            return right if left is None else left
+        if left is node.left and right is node.right:
+            return node
+        return ast.BinOp(left=left, op=ast.Mult(), right=right)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        left = without_magnitude(node.left, magnitude)
+        if left is node.left:
+            return node
+        return ast.BinOp(
+            left=ast.Constant(1) if left is None else left,
+            op=ast.Div(),
+            right=node.right,
+        )
+    return node
 
 
 def first_bindings(tree: ast.Module) -> dict[str, Binding]:
@@ -297,6 +393,7 @@ def first_bindings(tree: ast.Module) -> dict[str, Binding]:
             value=stmt.value,
             magnitude=magnitude,
             is_given=magnitude is not None or is_literal(stmt.value),
+            statement=stmt,
         )
     return bindings
 

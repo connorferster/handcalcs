@@ -12,7 +12,7 @@ import pint
 import pytest
 
 from handcalcs import HandCalcs, ASCIIRenderer, find_inputs
-from handcalcs.parsing.inputs import RESOLVER, InputBinding, bind_inputs
+from handcalcs.parsing.inputs import RESOLVER, InputBinding, InputSpec, bind_inputs
 from handcalcs.renderers.html import HTMLRenderer
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.markdown import MarkdownRenderer
@@ -191,6 +191,43 @@ def test_find_inputs_round_trip():
     # find_inputs gives a template that bind_inputs accepts unchanged
     source = UNITS + "w = 4.5 * kN / m\nL = 6 * m\nM = w * L**2 / 8\n"
     assert bind_inputs(source, find_inputs(source)) == source
+
+
+def test_find_inputs_detail():
+    source = UNITS + (
+        "L = 6000 * mm  # Unbraced length\n"
+        "w = -4.5 * kN / m  # Load  # hc: -f .2f\n"
+        "f = 5 / s\n"
+        "M = 210 * kN*m\n"
+        "A = 3000 * mm**2  # hc: -f .1f\n"
+        "phi = 0.9; n = 1.34  # Factors\n"
+        'grade = "350W"\n'
+        "x = L * 2  # Computed, not an input\n"
+    )
+    first = len(UNITS.splitlines()) + 1
+    assert find_inputs(source, detail=True) == {
+        "L": InputSpec(6000, "mm", "Unbraced length", first),
+        "w": InputSpec(-4.5, "kN / m", "Load", first + 1),
+        "f": InputSpec(5, "1 / s", None, first + 2),
+        "M": InputSpec(210, "kN * m", None, first + 3),
+        "A": InputSpec(3000, "mm**2", None, first + 4),
+        "phi": InputSpec(0.9, None, "Factors", first + 5),
+        "n": InputSpec(1.34, None, "Factors", first + 5),
+        "grade": InputSpec("350W", None, None, first + 6),
+    }
+
+
+def test_find_inputs_detail_matches_the_default():
+    source = UNITS + "w = 4.5 * kN / m  # w\nL = 6 * m\nM = w * L**2 / 8\n"
+    detail = find_inputs(source, detail=True)
+    assert {name: spec.value for name, spec in detail.items()} == find_inputs(source)
+
+
+def test_find_inputs_detail_multiline_value_and_attribute_units():
+    source = "import pint\nureg = pint.UnitRegistry()\nF = (\n    12.5 * ureg.kN\n)  # Axial force\n"
+    assert find_inputs(source, detail=True)["F"] == InputSpec(
+        12.5, "ureg.kN", "Axial force", 3
+    )
 
 
 # --- HandCalcs(..., inputs=...) -------------------------------------------------
