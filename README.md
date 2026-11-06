@@ -22,9 +22,9 @@ The same calculation can go to different **renderers**: Markdown and LaTeX for J
 This readme has been uodated to reflect the changes in 
 handcalcs v2. 
 
-As of 2026-10-29, the second release candidate is available for install:
+As of 2026-11-06, the third release candidate is available for install:
 
-pip install "handcalcs==2.0.0rc2"
+pip install "handcalcs==2.0.0rc3"
 
 or
 
@@ -61,7 +61,7 @@ c = √(a² + b²) = √(2.5² + 4²) = 4.717
 ## Installing
 
 ```console
-pip install "handcalcs>=2.0.0rc2"
+pip install "handcalcs>=2.0.0rc3"
 ```
 
 handcalcs 2.0 is a release candidate, so ask for it by version: a plain
