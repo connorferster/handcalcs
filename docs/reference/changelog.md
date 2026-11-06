@@ -1,45 +1,67 @@
 # Changelog
 
-## Unreleased
+## 2.0.0rc3 (2026-11-06)
 
-- **`handcalcs.testing`**: a renderer-neutral feature suite. `FEATURE_CASES` holds a
-  calculation for each feature with the names its output must show and hide, and
-  `check_case(renderer, case)` checks a renderer against one, so renderers in other
+The third release candidate of handcalcs 2.0. Install it with
+`pip install "handcalcs>=2.0.0rc3"`; a plain `pip install handcalcs` still installs
+1.x until 2.0.0 is released.
+
+### Breaking changes
+
+- **Comment commands are read, never run** (#354). In the assignment form
+  (`# hc: multiline = False`), each value must be a literal: a number, a string, `True`,
+  `False` or `None`. An expression such as `# hc: format_code = "." + "2f"` is now an
+  error.
+- **A value keeps the `-f` format of the line that calculated it** (#357), on the lines
+  that substitute it: after `DCR = C_f / C_r  # hc: -f .3f`, `ok = DCR <= 1.0` shows
+  `0.833 <= 1.0`, not `0.83292 <= 1.0`. A line's own `-f` still wins, and a name
+  assigned again without `-f` goes back to the format in effect. Calculations with an
+  inline `-f` can show different numbers in the lines below it
+  ([details](../getting-started/formatting-numbers.md#where-to-set-it)).
+- **Light markup in comments** (#356) changes how some existing comments render:
+  `**bold**` and `*italic*` are now styled (the Markdown renderer used to escape them),
+  `\*` is a literal `*`, and in the LaTeX and Markdown renderers a pair of `$` is math.
+  Formulas (`w*L**2/8`) and prices ("costs $5 to $10") stay as written; see *Features*.
+- **The ASCII renderer spaces comparison operators** (#357) like the arithmetic ones:
+  `DCR <= 1.0`, not `DCR<=1.0`, as the HTML renderer does.
+
+### Features
+
+- **Math in comments** (#350, #356): `$...$` in a heading, comment line or inline
+  comment is LaTeX math in the LaTeX and Markdown renderers, as in v1. `\$` is a literal
+  `$`. Turn it off with `LatexRenderer(comment_math=False)` or
+  `MarkdownRenderer(comment_math=False)`
+  ([details](../getting-started/writing-calculations.md#styling-comments)).
+- **Bold, italic and code in comments** (#356): `**bold**`, `*italic*` and `` `code` ``
+  are styled in every renderer: Markdown, LaTeX, HTML, Word (including inline comments)
+  and Excel (rich text). The ASCII renderer shows them as written.
+- **`@handcalc(..., docstring=False)`** (#339, #355): leave the function's docstring out
+  of the render. It is rendered by default, as before.
+- **`find_inputs(..., detail=True)`** (#358): each input as an `InputSpec` with its
+  value, the units it is written in (`"mm"`, `"kN / m"`), the comment at the end of its
+  line and its line number, for building a form or an input file from a script
+  ([details](../interfaces/object-oriented.md#finding-a-scripts-inputs)).
+- **`handcalcs.testing`** (#349): a renderer-neutral feature suite. `FEATURE_CASES`
+  holds a calculation for each feature with the names its output must show and hide,
+  and `check_case(renderer, case)` checks a renderer against one, so renderers in other
   packages can test every feature
   ([details](../building-renderers/testing.md#run-the-shared-feature-suite)).
-- **Fixed:** `# hc: -s` and `# hc: -m` work after forallpeople's
-  `si.environment(..., top_level=True)`. Before, `s` (seconds) and `m` (metres) in
-  `builtins` made them valid Python expressions, and they were silently ignored: after
-  `# hc: -i`, everything that followed stayed hidden.
-- **Changed:** a comment command is read, never run. In the assignment form
-  (`# hc: multiline = False`), each value must be a literal; an expression such as
-  `# hc: format_code = "." + "2f"` is now an error.
-- **Fixed:** two or more multi-line calculations in a row (after a standalone
-  `# hc: -m`) render one below the other, instead of being joined into one row
-  (`= 0.8 M_p = 7 * 8`), in every renderer.
-- **`@handcalc(..., docstring=False)`** (#339): leave the function's docstring out of
-  the render. It is rendered by default, as before.
-- **`find_inputs(..., detail=True)`**: each input as an `InputSpec` with its value, the
-  units it is written in (`"mm"`, `"kN / m"`), the comment at the end of its line and
-  its line number, for building a form or an input file from a script
-  ([details](../interfaces/object-oriented.md#finding-a-scripts-inputs)).
-- **Math in comments** (#350): `$...$` in a heading, comment line or inline comment is
-  LaTeX math in the LaTeX and Markdown renderers, as in v1. Prices stay as they are
-  ("costs $5 to $10"); `\$` is a literal `$`. Turn it off with
-  `LatexRenderer(comment_math=False)` or `MarkdownRenderer(comment_math=False)`
-  ([details](../getting-started/writing-calculations.md#styling-comments)).
-- **Bold and italic in comments**: `**bold**` and `*italic*` in comments are styled in
-  every renderer (Markdown, LaTeX, HTML, Word, Excel; the ASCII renderer shows them as
-  written), and `` `code` `` is set in a code font in Word and Excel too. Before, the
-  Markdown renderer escaped them (`\*\*bold\*\*`).
-- **Changed:** a value keeps the `-f` format code of the line that calculated it on the
-  lines that substitute it: after `DCR = C_f / C_r  # hc: -f .3f`, `ok = DCR <= 1.0`
-  shows `0.833 <= 1.0`, not `0.83292 <= 1.0`. A line's own `-f` still wins
-  ([details](../getting-started/formatting-numbers.md#where-to-set-it)).
-- **Changed:** the ASCII renderer spaces comparison operators like the arithmetic ones
-  (`DCR <= 1.0`, not `DCR<=1.0`), as the HTML renderer does.
-- **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
-  `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
+
+### Fixes
+
+- **`# hc: -s` and `# hc: -m` work after forallpeople's
+  `si.environment(..., top_level=True)`** (#354). Before, `s` (seconds) and `m` (metres)
+  in `builtins` made them valid Python expressions, and they were silently ignored:
+  after `# hc: -i`, everything that followed stayed hidden.
+- **Two or more multi-line calculations in a row** (after a standalone `# hc: -m`)
+  render one below the other, instead of being joined into one row
+  (`= 0.8 M_p = 7 * 8`), in every renderer (#354).
+- In the Excel renderer, a comment command inside an `if` block (`# hc: -s`, `-i`,
+  `-f`) now applies to the lines after the block, as in the other renderers.
+- Docs: the migration guide explains that a standalone comment command stays in effect
+  for the lines after it (#359).
+- Development: `uv.lock` updates certifi, nbconvert and tornado for security fixes
+  (#360). The package's own requirements are unchanged.
 
 ## 2.0.0rc2 (2026-10-29)
 
