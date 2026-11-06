@@ -86,11 +86,12 @@ def test_from_raw_comment_unknown_flag_raises_not_exits():
 
 
 def test_from_raw_comment_kwarg_error_shows_the_code():
+    # A kwarg comment is parsed, not run: a value that is not a literal is an error
+    # (it used to be run, and 1/0 raised ZeroDivisionError).
     with pytest.raises(
-        CommentCommandError, match=r"'# hc: x = 1/0': ZeroDivisionError"
-    ) as raised:
+        CommentCommandError, match=r"'# hc: x = 1/0'.*'x' must be a literal.*'1 / 0'"
+    ):
         InlineCommand.from_raw_comment("hc: x = 1/0")
-    assert isinstance(raised.value.__cause__, ZeroDivisionError)
 
 
 def test_from_raw_comment_invalid_value_raises():

@@ -75,6 +75,10 @@ Instead of flags, a command can be one or more Python assignments:
 x = a / b  # hc: multiline = True
 ```
 
+Each value must be a literal: a number, a string, `True`, `False` or `None`. The comment
+is read, never run, so `# hc: format_code = fc` or `# hc: format_code = "." + "2f"` is an
+error.
+
 Each assignment sets a field on the **render context**, the settings object the
 renderer reads. The flags are shorthands for these fields:
 

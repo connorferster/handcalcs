@@ -107,3 +107,47 @@ def test_html_one_line_result_is_highlighted_and_comment_muted():
     assert '<span class="hc-note">(twice <code>a</code>)</span>' in out
     # A param line has no substitution, so its value is not highlighted.
     assert '<span class="hc-result">5</span>' not in out
+
+
+# --- Consecutive long calcs ----------------------------------------------------
+# A long calc renders as one pre-formatted string, like a comment line; a block of
+# nothing but long calcs used to be joined into one line, as a comments block is
+# (``= 0.8 M_p = 7 * 8``).
+
+from handcalcs import HandCalcs
+from handcalcs.renderers.latex import LatexRenderer
+from handcalcs.renderers.markdown import MarkdownRenderer
+
+CONSECUTIVE = "# hc: -m\nM_u = 2 * 3 + 4 / 5 - 6\nM_p = 7 * 8\n"
+
+
+def test_consecutive_long_calcs_ascii():
+    assert HandCalcs(ASCIIRenderer())(CONSECUTIVE) == (
+        "M_u = 2 * 3 + 4 / 5 - 6\n"
+        "    = 0.8\n"
+        "M_p = 7 * 8\n"
+        "    = 56\n"
+    )
+
+
+def test_consecutive_long_calcs_latex():
+    rendered = HandCalcs(LatexRenderer())(CONSECUTIVE)
+    assert "&= 0.8 \\\\\nM_{p} &= 7 \\cdot 8 \\\\\n&= 56\n" in rendered
+
+
+def test_consecutive_long_calcs_markdown():
+    rendered = HandCalcs(MarkdownRenderer())(CONSECUTIVE)
+    assert "&= 0.8 \\\\ M_{p} &= 7 \\cdot 8 \\\\ &= 56" in rendered
+
+
+def test_consecutive_long_calcs_in_if_body():
+    source = "a = 2\nif a > 1:\n    # hc: -m\n    b = a * 3 + 4\n    c = a * 8 - 1\n"
+    lines = HandCalcs(ASCIIRenderer())(source).splitlines()
+    assert "b = a * 3 + 4" in lines[-6]
+    assert lines[-3].strip() == "c = a * 8 - 1"
+
+
+def test_consecutive_comment_lines_still_join():
+    assert HandCalcs(ASCIIRenderer())("# A note\n# continued.\nx = 1\n") == (
+        "A note continued.\nx = 1\n"
+    )

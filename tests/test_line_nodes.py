@@ -100,7 +100,9 @@ def test_comment_command_flag_style():
 
 
 def test_comment_command_kwarg_error_shows_the_code():
-    with pytest.raises(ValueError, match=r"""'# hc: mode = int\("x"\)': ValueError"""):
+    with pytest.raises(
+        ValueError, match=r"""'# hc: mode = int\("x"\)'.*'mode' must be a literal"""
+    ):
         CommentCommand.from_raw_comment('# hc: mode = int("x")')
 
 
