@@ -12,6 +12,8 @@ Every entry links to its source with `[source]`.
 .. autofunction:: handcalcs.handcalc
 
 .. autofunction:: handcalcs.find_inputs
+
+.. autoclass:: handcalcs.InputSpec
 ```
 
 The Jupyter magics (`%%render`, `%hc_default_renderer`, `%hc_format_code`) are described

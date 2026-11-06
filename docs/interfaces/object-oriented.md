@@ -218,6 +218,25 @@ from handcalcs import find_inputs
 find_inputs(pathlib.Path("beam.py"))  # {'w': 5, 'L': 6}
 ```
 
+With `detail=True`, each input is an `InputSpec` that also gives the units the value is
+written in, the comment at the end of its line (without a `# hc:` command) and its line
+number. That is what a form or an input file needs to label its fields:
+
+```python
+# beam.py
+w = 5 * kN / m  # Uniform load
+L = 6000 * mm  # Span  # hc: -f .0f
+```
+
+```python
+find_inputs(pathlib.Path("beam.py"), detail=True)
+# {'w': InputSpec(value=5, units='kN / m', description='Uniform load', line=2),
+#  'L': InputSpec(value=6000, units='mm', description='Span', line=3)}
+```
+
+`units` is None for a value without units, and `description` for a line without a
+comment.
+
 ## The demo
 
 `hc.demo(destination=None)` renders a built-in example calculation (headings, prose, parameter grids,

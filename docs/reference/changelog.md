@@ -19,6 +19,10 @@
   (`= 0.8 M_p = 7 * 8`), in every renderer.
 - **`@handcalc(..., docstring=False)`** (#339): leave the function's docstring out of
   the render. It is rendered by default, as before.
+- **`find_inputs(..., detail=True)`**: each input as an `InputSpec` with its value, the
+  units it is written in (`"mm"`, `"kN / m"`), the comment at the end of its line and
+  its line number, for building a form or an input file from a script
+  ([details](../interfaces/object-oriented.md#finding-a-scripts-inputs)).
 - **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
   `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
 

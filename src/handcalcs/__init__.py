@@ -9,7 +9,7 @@ from .config import (
 )
 from .interfaces.object_oriented import HandCalcs
 from .interfaces.decorator import handcalc
-from .parsing.inputs import find_inputs
+from .parsing.inputs import find_inputs, InputSpec
 
 # Import the Jupyter interface (the %%render magic) only inside a running IPython
 # shell. IPython is optional: without it, or in a plain Python process,
