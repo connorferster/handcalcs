@@ -301,6 +301,23 @@ def swap_greeks(renderer: PTR, node: Name, base_context: BRC) -> HcNode:
     return node
 
 
+@ASCIIRenderer.register("gt_op:post")
+@ASCIIRenderer.register("lt_op:post")
+@ASCIIRenderer.register("gte_op:post")
+@ASCIIRenderer.register("lte_op:post")
+@ASCIIRenderer.register("eq_op:post")
+@ASCIIRenderer.register("neq_op:post")
+def space_comparison(
+    renderer: PTR, rendered: str, node: HcCompOp, base_context: BRC
+) -> str:
+    """
+    Space a comparison operator like the arithmetic ones: ``DCR <= 1.0``, not
+    ``DCR<=1.0``. (The word operators, ``is`` and ``in``, carry their own spaces.)
+    """
+    _ = base_context.current.space
+    return f"{_}{rendered}{_}"
+
+
 @ASCIIRenderer.register("mult_op:pre")
 @ASCIIRenderer.register("pow_op:pre")
 @ASCIIRenderer.register("div_op:pre")

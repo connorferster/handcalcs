@@ -38,8 +38,8 @@ if e <= 3:
         "Comment\n"
         "d = 3\n"
         "c = d * (α + β) / π = 3 * (4 + 5) / 3.142 = 8.594\n"
-        "Since (e<=3) -> (3<=3) is True:\n"
-        "    Since (2<α<β) -> (2<4<5) is True:\n"
+        "Since (e <= 3) -> (3 <= 3) is True:\n"
+        "    Since (2 < α < β) -> (2 < 4 < 5) is True:\n"
         "        f = 20\n"
     )
     # The `# hc: -i` (ignore) line must be suppressed from the output.

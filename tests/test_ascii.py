@@ -144,7 +144,7 @@ def test_conditional_body_aligns_as_its_own_scope():
     assert out.splitlines() == [
         "     a = 2",
         "longer = 3",
-        "Since (a>1) -> (2>1) is True:",
+        "Since (a > 1) -> (2 > 1) is True:",
         "     q = a * longer",
         "       = 2 * 3",
         "       = 6",

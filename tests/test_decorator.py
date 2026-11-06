@@ -201,7 +201,7 @@ def calc_early_return(a):
 def test_early_return_ends_the_render():
     value, rendered = calc_early_return(3)
     assert value == 3
-    assert "Since (a>1) -> (3>1) is True:" in rendered
+    assert "Since (a > 1) -> (3 > 1) is True:" in rendered
     assert "c = " not in rendered
 
 

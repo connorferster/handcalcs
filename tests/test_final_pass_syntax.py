@@ -46,19 +46,19 @@ def test_if_exp_test_that_cannot_be_evaluated():
 
 def test_plaintext_if_exp():
     out = _last_line(ASCIIRenderer(), "a = 1\nb = 2 if a > 0 else 3\n")
-    assert out == "b = 2 if a>0 else 3 = 2 if 1>0 else 3 = 2"
+    assert out == "b = 2 if a > 0 else 3 = 2 if 1 > 0 else 3 = 2"
 
 
 def test_if_exp_is_parenthesized_as_an_operand():
     out = _last_line(ASCIIRenderer(), "a = 1\nb = 3 * (2 if a > 0 else 3)\n")
-    assert out.startswith("b = 3 * (2 if a>0 else 3)")
+    assert out.startswith("b = 3 * (2 if a > 0 else 3)")
 
 
 def test_chained_if_exp_needs_no_parentheses():
     out = _last_line(
         ASCIIRenderer(), "a = 1\nb = 1 if a > 2 else 2 if a > 0 else 3\n"
     )
-    assert out.startswith("b = 1 if a>2 else 2 if a>0 else 3 =")
+    assert out.startswith("b = 1 if a > 2 else 2 if a > 0 else 3 =")
     assert out.endswith("= 2")
 
 
@@ -348,25 +348,25 @@ CHECKS = (
 def test_plaintext_check_marks():
     # Stripped: a text renderer may pad lines to align them on "=".
     out = [line.strip() for line in _render(ASCIIRenderer(), CHECKS).splitlines()]
-    assert out[1] == "ok = DoU<=1 = 0.85<=1 ✓"
-    assert out[2] == "fail = DoU>1 = 0.85>1 ✗"
-    assert out[3] == "plain = DoU>1 = 0.85>1 = False"
+    assert out[1] == "ok = DoU <= 1 = 0.85 <= 1 ✓"
+    assert out[2] == "fail = DoU > 1 = 0.85 > 1 ✗"
+    assert out[3] == "plain = DoU > 1 = 0.85 > 1 = False"
 
 
 def test_check_on_a_bare_comparison():
     out = _last_line(ASCIIRenderer(), "S = 1.2\nS <= 1.5  # hc: --check\n")
-    assert out == "S<=1.5 = 1.2<=1.5 ✓"
+    assert out == "S <= 1.5 = 1.2 <= 1.5 ✓"
 
 
 def test_standalone_check_applies_to_following_lines():
     out = _render(ASCIIRenderer(), "a = 2\n# hc: --check\nb = a > 1\nc = a + 1\n")
-    assert "b = a>1 = 2>1 ✓" in out
+    assert "b = a > 1 = 2 > 1 ✓" in out
     assert "c = a + 1 = 2 + 1 = 3" in out  # not a boolean: unchanged
 
 
 def test_check_with_kwarg_syntax():
     out = _last_line(ASCIIRenderer(), "a = 2\nb = a > 1  # hc: check = True\n")
-    assert out == "b = a>1 = 2>1 ✓"
+    assert out == "b = a > 1 = 2 > 1 ✓"
 
 
 def test_latex_check_marks():

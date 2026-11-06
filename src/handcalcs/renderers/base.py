@@ -127,6 +127,9 @@ OP_PRECEDENCE = {
 # it in place of the space beside an operator that is followed (or preceded) by a
 # ``\`` or bracketed line break in the source; ``render_calcline`` splits the
 # column on it. It never reaches the final output.
+# The global context field holding the format code each name was calculated with
+# (see ``record_name_formats``).
+NAME_FORMATS = "name_formats"
 CONTINUATION_MARK = "\x00"
 
 # The rendered form of a ``# hc: --pagebreak`` command: a form feed, which is a
@@ -1053,6 +1056,37 @@ def render_inline_comment(
     return f"{context.lpar}{node.content}{context.rpar}"
 
 
+def name_format_code(node: Name, base_context: BaseRenderContext) -> Optional[str]:
+    """
+    The format code to substitute the name ``node`` with, if it is not the
+    current one: the ``# hc: -f`` of the line that assigned it (``DCR = C_f / C_r
+    # hc: -f .3f``), unless the line being rendered has an ``-f`` of its own. So
+    a value is shown the same way on the lines that use it as where it is
+    calculated. See ``record_name_formats``.
+    """
+    if "format_code" in vars(base_context.line_context):
+        return None
+    formats = vars(base_context.global_context).get(NAME_FORMATS)
+    return formats.get(node.source_identifier) if formats else None
+
+
+def record_name_formats(node: CalcLine, base_context: BaseRenderContext) -> None:
+    """
+    Remember the format code of a line with an inline ``# hc: -f`` for each name
+    it assigns, for the lines that substitute them (``name_format_code``). A
+    name assigned again by a line without one is forgotten.
+    """
+    line_format = vars(base_context.line_context).get("format_code")
+    formats = vars(base_context.global_context).setdefault(NAME_FORMATS, {})
+    for target in node.assigns:
+        if not isinstance(target, Name):
+            continue
+        if line_format is None:
+            formats.pop(target.source_identifier, None)
+        else:
+            formats[target.source_identifier] = line_format
+
+
 @BaseRenderer.register("name")
 def render_name(
     renderer: BaseRenderer, node: Name, base_context: BaseRenderContext
@@ -1068,7 +1102,15 @@ def render_name(
     elif context.current_mode == "num":
         # The value may be a raw scalar or a collection; render_node reifies it
         # into the matching node so each element picks up the format code.
-        return renderer.render_node(node.value, base_context)
+        name_format = name_format_code(node, base_context)
+        if name_format is None:
+            return renderer.render_node(node.value, base_context)
+        line_context = base_context.line_context
+        line_context.format_code = name_format
+        try:
+            return renderer.render_node(node.value, base_context)
+        finally:
+            del line_context.format_code
     else:
         raise ContextValueError(
             f"The context.current_mode has an unrecognized value: {context.current_mode}"
@@ -1649,6 +1691,7 @@ def render_calcline(
     param_line_pre_comment = getattr(context, "param_line", False)
     if node.comment is not None:
         comment_render = renderer.render(node.comment, base_context)
+    record_name_formats(node, base_context)
     context = base_context.current
     _ = context.space
     param_line_post_comment = getattr(context, "param_line", False)

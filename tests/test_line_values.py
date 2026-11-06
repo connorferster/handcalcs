@@ -174,7 +174,7 @@ def test_index_lookup_uses_the_values_before(backend):
 
 def test_branch_whose_test_variable_is_reassigned(backend):
     out = ascii("a = 5\nif a > 3:\n    a = 1\n    b = 2\nelse:\n    b = 3\n")
-    assert "Since (a>3) -> (5>3) is True:" in out
+    assert "Since (a > 3) -> (5 > 3) is True:" in out
     assert "b = 2" in out
     assert "Otherwise" not in out
 
@@ -182,21 +182,21 @@ def test_branch_whose_test_variable_is_reassigned(backend):
 def test_test_variable_reassigned_after_the_block(backend):
     out = ascii("x = 10\nif x > 5:\n    y = 1\nx = 0\n")
     assert out.splitlines()[0] == "x = 10"
-    assert "Since (x>5) -> (10>5) is True:" in out
+    assert "Since (x > 5) -> (10 > 5) is True:" in out
     assert "No conditions were satisfied" not in out
 
 
 def test_elif_reached(backend):
     source = "a = 3\nif a > 5:\n    b = 1\nelif a > 2:\n    a = 100\n    b = 2\nelse:\n    b = 3\n"
     out = ascii(source)
-    assert "Since (a>2) -> (3>2) is True:" in out
+    assert "Since (a > 2) -> (3 > 2) is True:" in out
     assert "b = 2" in out
 
 
 def test_if_inside_a_loop_uses_that_pass(backend):
     source = "t = 0\nfor x in [1, 5]:\n    if x > 2:\n        t = t + x\n"
     out = ascii(source)
-    assert "Since (x>2) -> (5>2) is True:" in out
+    assert "Since (x > 2) -> (5 > 2) is True:" in out
     assert "t = t + x = 0 + 5 = 5" in out
 
 
@@ -240,7 +240,7 @@ def test_decorator_reassignment_and_branch(backend):
     value, out = calc_reassigned(2)
     assert value == 8
     assert "b = a * 3 = 2 * 3 = 6" in out
-    assert "Since (a>5) -> (10>5) is True:" in out
+    assert "Since (a > 5) -> (10 > 5) is True:" in out
     assert "Otherwise" not in out
 
 

@@ -40,11 +40,12 @@ def test_demo_unary_no_notimplemented_leak(demo_output):
 
 
 def test_demo_unary_renders_negation(demo_output):
-    # -b appears symbolically, and its numeric substitution reads -(-10.423),
-    # never the ambiguous --10.423.
+    # -b appears symbolically, and its numeric substitution reads -(-1.04231e+01)
+    # (b keeps the ``-f .5e`` of the line that assigns it), never the ambiguous
+    # --1.04231e+01.
     assert "(-b +" in demo_output
-    assert "--10.423" not in demo_output
-    assert "(-(-10.423) +" in demo_output
+    assert "--1.04231e+01" not in demo_output
+    assert "(-(-1.04231e+01) +" in demo_output
 
 
 # --- #2 Line-break comments -------------------------------------------------
