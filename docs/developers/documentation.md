@@ -88,6 +88,7 @@ Two roles link to the source on GitHub, at the git ref in `HC_SOURCE_REF`:
 
 The API reference gets `[source]` links the same way, through `sphinx.ext.linkcode`.
 
-`HC_SOURCE_REF` defaults to `hc2/dev` and can be set in the environment:
-`HC_SOURCE_REF=v2.0.0 sphinx-build ...`. Set it to the release tag when publishing docs
-for a release (see [Releasing](releasing.md)).
+`HC_SOURCE_REF` defaults to the latest release tag (set in `docs/conf.py` at each release,
+see [Releasing](releasing.md)), so the published docs link to the code people install.
+Set it in the environment to link elsewhere, for example to a branch you are working on:
+`HC_SOURCE_REF=main sphinx-build ...`.
