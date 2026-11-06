@@ -267,3 +267,96 @@ def test_return_in_a_nested_branch():
     _, rendered = calc_nested_return(20)
     assert "b = " not in rendered and "c = " not in rendered
     assert "c = b + 1 = 5 + 1 = 6" in calc_nested_return(5)[1]
+
+
+# --- docstring=False (#339) ---------------------------------------------------
+
+
+@handcalc(ASCIIRenderer(), docstring=False)
+def my_add(a, b):
+    """Return sum of a and b"""
+    c = a + b
+    return c
+
+
+@handcalc(LatexRenderer(), docstring=False)
+def beam_no_doc(w, L):
+    """
+    Simply supported beam.
+
+    A docstring over several lines.
+    """
+    # Midspan moment
+    M = w * L**2 / 8  # kN m
+    return M
+
+
+@handcalc(ASCIIRenderer(), docstring=False)
+def only_docstring():
+    """Nothing to show."""
+
+
+@handcalc(ASCIIRenderer(), docstring=False)
+def one_line_with_docstring(x): "Twice x."; y = x * 2; return y
+
+
+@handcalc(ASCIIRenderer(), docstring=False)
+def no_docstring(a):
+    # Heading note
+    b = a + 1
+    return b
+
+
+@handcalc(ASCIIRenderer(), docstring=False)
+def docstring_then_note(a):
+    """Doc."""
+    "A note in the body is still shown."
+    b = a + 1
+    return b
+
+
+def test_docstring_false_leaves_out_the_docstring():
+    value, rendered = my_add(7, 8)
+    assert value == 15
+    assert rendered == "c = a + b = 7 + 8 = 15\n"
+
+
+def test_docstring_false_keeps_the_leading_comments():
+    value, rendered = beam_no_doc(5, 6)
+    assert value == 22.5
+    assert "Simply supported" not in rendered and "several lines" not in rendered
+    assert "Midspan moment" in rendered
+    assert r"M &= \frac{w \cdot L^{2}}{8} = \frac{5 \cdot 6^{2}}{8} = 22.5" in rendered
+
+
+def test_docstring_false_with_nothing_else():
+    value, rendered = only_docstring()
+    assert value is None
+    assert rendered == ""
+
+
+def test_docstring_false_on_a_one_line_def():
+    value, rendered = one_line_with_docstring(3)
+    assert value == 6
+    assert "Twice" not in rendered
+    assert "y = x * 2 = 3 * 2 = 6" in rendered
+
+
+def test_docstring_false_without_a_docstring():
+    assert no_docstring(1)[1] == "Heading note\nb = a + 1 = 1 + 1 = 2\n"
+
+
+def test_docstring_false_keeps_a_later_string():
+    rendered = docstring_then_note(1)[1]
+    assert "Doc." not in rendered
+    assert "A note in the body is still shown." in rendered
+
+
+def test_docstring_is_rendered_by_default():
+    @handcalc(ASCIIRenderer())
+    def add(a, b):
+        """Return sum of a and b"""
+        c = a + b
+        return c
+
+    assert add(1, 2)[1].startswith("Return sum of a and b\n")

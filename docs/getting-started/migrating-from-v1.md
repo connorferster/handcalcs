@@ -19,6 +19,7 @@ notebooks need only a few changes.
 | `%%render sympy` | not available in 2.0 |
 | `from handcalcs.decorator import handcalc` | `from handcalcs import handcalc` |
 | `@handcalc(override=..., precision=..., ...)` | `@handcalc(renderer, render_context={...})` (see [the decorator](../interfaces/decorator.md)) |
+| `@handcalc` left out the docstring | the docstring is rendered as a note; `@handcalc(renderer, docstring=False)` leaves it out |
 | `handcalcs.set_option("display_precision", 3)` | `handcalcs.set_option("format_code", ".3f")` |
 | `latex_block_start`, `line_break`, `math_environment_start`, ... options | renderer class attributes (see [LaTeX and Markdown tokens](../customizing/latex-markdown-tokens.md)) |
 | `custom_symbols` option | the `symbols` option with renderer-neutral specs (see [display symbols](writing-calculations.md#display-symbols)), or a renderer rule for raw markup. A `symbols` key matches a whole variable name, not part of one: `{"star": "^*"}` no longer changes `Mstar_1`, so give each name its own entry (`{"Mstar_1": "M^{*}_{1}"}`) |

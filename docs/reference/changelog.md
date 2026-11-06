@@ -17,6 +17,8 @@
 - **Fixed:** two or more multi-line calculations in a row (after a standalone
   `# hc: -m`) render one below the other, instead of being joined into one row
   (`= 0.8 M_p = 7 * 8`), in every renderer.
+- **`@handcalc(..., docstring=False)`** (#339): leave the function's docstring out of
+  the render. It is rendered by default, as before.
 - **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
   `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
 
