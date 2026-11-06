@@ -2,6 +2,7 @@ import re
 
 from handcalcs.renderers.base import BaseRenderContext
 from handcalcs.renderers.latex import LatexRenderer, OPERATOR_SYMBOLS, import_source
+from handcalcs.renderers.prose import prose_spans
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import Constant
@@ -28,22 +29,29 @@ def markdown_escape(text: str) -> str:
     return "".join(f"\\{char}" if char in MARKDOWN_SPECIAL else char for char in text)
 
 
-def markdown_prose(text: str) -> str:
+def markdown_prose(text: str, *, math: bool = False) -> str:
     """
     Escape a comment written as prose (headings, comment paragraphs) for
-    Markdown. A pair of backticks is a code span already, so it passes through
-    untouched; an unpaired backtick is escaped. A leading list marker, rule or
-    setext underline character is escaped so a comment cannot become one.
+    Markdown, keeping its light markup (see ``renderers.prose``): a pair of
+    backticks is a code span already, and ``**bold**`` and ``*italic*`` are
+    Markdown emphasis, so they pass through with their text escaped; an unpaired
+    backtick is escaped. With ``math``, a ``$...$`` span is passed through as
+    written, for MathJax or KaTeX. A leading list marker, rule or setext
+    underline character is escaped so a comment cannot become one.
     """
-    segments = text.split("`")
-    unpaired = ""
-    if len(segments) % 2 == 0:
-        unpaired = f"\\`{markdown_escape(segments.pop())}"
-    escaped = [
-        segment if idx % 2 else markdown_escape(segment)
-        for idx, segment in enumerate(segments)
-    ]
-    prose = "`".join(escaped) + unpaired
+    pieces = []
+    for span in prose_spans(text, math=math):
+        if span.kind == "code":
+            pieces.append(f"`{span.text}`")
+        elif span.kind == "math":
+            pieces.append(f"${span.text}$")
+        elif span.kind == "strong":
+            pieces.append(f"**{markdown_escape(span.text)}**")
+        elif span.kind == "em":
+            pieces.append(f"*{markdown_escape(span.text)}*")
+        else:
+            pieces.append(markdown_escape(span.text).replace("`", "\\`"))
+    prose = "".join(pieces)
     return MARKDOWN_LINE_START.sub(
         lambda m: f"{m[1]}\\{m[2]}" if m[1] else f"\\{m[3]}", prose, count=1
     )
@@ -91,19 +99,32 @@ def math_text(text: str, wrapper: str = "\\text") -> str:
     return "".join(pieces).rstrip()
 
 
-def math_prose(text: str) -> str:
+# The text-mode wrapper (in math) of each kind of prose span.
+MATH_PROSE_WRAPPERS = {
+    "text": "\\text",
+    "code": "\\texttt",
+    "strong": "\\textbf",
+    "em": "\\textit",
+}
+
+
+def math_prose(text: str, *, math: bool = False) -> str:
     """
     ``math_text`` for a comment written as prose: a pair of backticks becomes
-    ``\\texttt{}`` (its content still escaped); an unpaired backtick is kept.
+    ``\\texttt{}``, ``**bold**`` ``\\textbf{}`` and ``*italic*`` ``\\textit{}``
+    (their content still escaped); an unpaired backtick is kept. With ``math``, a
+    ``$...$`` span is set as math in a group of its own. It is already in math, so
+    no ``$`` is written (it would end the Markdown's math group); ``<`` and ``>``
+    become ``\\lt`` and ``\\gt``, as elsewhere in the Markdown.
     """
-    segments = text.split("`")
-    if len(segments) % 2 == 0:
-        segments[-2:] = [f"{segments[-2]}`{segments[-1]}"]
-    return "".join(
-        math_text(segment, "\\texttt" if idx % 2 else "\\text")
-        for idx, segment in enumerate(segments)
-        if segment
-    )
+    pieces = []
+    for span in prose_spans(text, math=math):
+        if span.kind == "math":
+            tex = span.text.replace("<", "\\lt ").replace(">", "\\gt ")
+            pieces.append(f"{{{tex}}}")
+        elif span.text:
+            pieces.append(math_text(span.text, MATH_PROSE_WRAPPERS[span.kind]))
+    return "".join(pieces)
 
 
 class MarkdownRenderer(LatexRenderer):
@@ -216,12 +237,12 @@ MR = MarkdownRenderer
 @MR.register("heading")
 def render_heading(renderer: MR, node: Heading, base_context: BRC) -> str:
     level = min(node.heading_level, 6)
-    return f"{'#' * level} {markdown_prose(node.content)}"
+    return f"{'#' * level} {markdown_prose(node.content, math=renderer.comment_math)}"
 
 
 @MR.register("comment_line")
 def render_comment_line(renderer: MR, node: CommentLine, base_context: BRC) -> str:
-    return markdown_prose(node.content)
+    return markdown_prose(node.content, math=renderer.comment_math)
 
 
 @MR.register("import")
@@ -239,7 +260,8 @@ def render_inline_comment(renderer: MR, node: InlineComment, base_context: BRC) 
     ``\\quad`` + the parenthesised comment as math text. It still starts with
     ``\\quad``, which ``format_param_grid`` replaces in a grid.
     """
-    return f"\\quad{math_prose(f'({node.content})')}"
+    content = math_prose(f"({node.content})", math=renderer.comment_math)
+    return f"\\quad{content}"
 
 
 @MR.register("constant")

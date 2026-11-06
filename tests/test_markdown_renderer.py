@@ -237,7 +237,8 @@ def test_output_has_no_runs_of_blank_lines(demo_output):
 # --- Prose --------------------------------------------------------------------
 
 def test_heading_levels():
-    assert render("## Title\n### Sub *one*\n") == "# Title\n\n## Sub \\*one\\*\n"
+    # *one* is emphasis: comments keep their light Markdown markup.
+    assert render("## Title\n### Sub *one*\n") == "# Title\n\n## Sub *one*\n"
 
 
 def test_import_is_code_span():

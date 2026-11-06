@@ -3,6 +3,7 @@ import re
 from html import escape
 from collections import deque
 from typing import Optional, Any
+from handcalcs.renderers.prose import prose_spans
 from handcalcs.renderers.base import (
     BaseRenderer,
     elide_matrix,
@@ -394,9 +395,24 @@ def keyword(text: str) -> str:
     return f'<span class="hc-kw">{text}</span>'
 
 
-def code_spans(text: str) -> str:
-    """Turn each `backtick` span in comment text into ``<code>``."""
-    return re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+# The element each kind of prose span is wrapped in.
+PROSE_TAGS = {"code": "code", "strong": "strong", "em": "em"}
+
+
+def html_prose(text: str, escape_text: bool = True) -> str:
+    """
+    A comment written as prose with its light markup (see ``renderers.prose``):
+    a `backtick` span becomes ``<code>``, ``**bold**`` ``<strong>`` and
+    ``*italic*`` ``<em>``. A ``$`` is not math in HTML. The text is
+    HTML-escaped unless ``escape_text`` is False (headings and comment lines,
+    whose HTML is passed through as written).
+    """
+    pieces = []
+    for span in prose_spans(text):
+        content = escape(span.text, quote=False) if escape_text else span.text
+        tag = PROSE_TAGS.get(span.kind)
+        pieces.append(f"<{tag}>{content}</{tag}>" if tag else content)
+    return "".join(pieces)
 
 
 ## SWAP RULES
@@ -410,7 +426,8 @@ def render_heading(
     # markdown level reproduced from the node's ``heading_level``. It carries no
     # trailing newline: ``join`` passes block-level HTML through as a flex child
     # and the container's ``gap`` supplies the spacing.
-    return f"<h{node.heading_level}>{node.content}</h{node.heading_level}>"
+    content = html_prose(node.content, escape_text=False)
+    return f"<h{node.heading_level}>{content}</h{node.heading_level}>"
 
 
 @HTMLRenderer.register("comments_block")
@@ -429,7 +446,7 @@ def render_comments_block(
     texts = [line for line in lines if isinstance(line, str) and line.strip()]
     if not texts:
         return ""
-    return f'<p class="hc-comment">{code_spans(_.join(texts))}</p>'
+    return f'<p class="hc-comment">{html_prose(_.join(texts), escape_text=False)}</p>'
 
 
 # ``calcs_block`` intentionally has no HTML override: the inherited
@@ -469,7 +486,7 @@ def render_inline_comment(
     # Inline comments are muted (``.hc-note``), so they read the same in calc
     # lines, multi-line grids and params grids.
     context = base_context.current
-    content = code_spans(escape(node.content, quote=False))
+    content = html_prose(node.content)
     return f"{NOTE_OPEN}{context.lpar}{content}{context.rpar}</span>"
 
 

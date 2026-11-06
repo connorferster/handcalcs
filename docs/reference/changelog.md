@@ -23,6 +23,15 @@
   units it is written in (`"mm"`, `"kN / m"`), the comment at the end of its line and
   its line number, for building a form or an input file from a script
   ([details](../interfaces/object-oriented.md#finding-a-scripts-inputs)).
+- **Math in comments** (#350): `$...$` in a heading, comment line or inline comment is
+  LaTeX math in the LaTeX and Markdown renderers, as in v1. Prices stay as they are
+  ("costs $5 to $10"); `\$` is a literal `$`. Turn it off with
+  `LatexRenderer(comment_math=False)` or `MarkdownRenderer(comment_math=False)`
+  ([details](../getting-started/writing-calculations.md#styling-comments)).
+- **Bold and italic in comments**: `**bold**` and `*italic*` in comments are styled in
+  every renderer (Markdown, LaTeX, HTML, Word, Excel; the ASCII renderer shows them as
+  written), and `` `code` `` is set in a code font in Word and Excel too. Before, the
+  Markdown renderer escaped them (`\*\*bold\*\*`).
 - **Fixed:** in the Excel renderer, a comment command inside an `if` block (`# hc: -s`,
   `-i`, `-f`) now applies to the lines after the block, as in the other renderers.
 
