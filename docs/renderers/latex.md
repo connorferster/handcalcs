@@ -97,7 +97,7 @@ notebooks.
 | Source | LaTeX |
 |---|---|
 | `##`, `###`, `####`, `#####` headings | `\section*`, `\subsection*`, `\subsubsection*`, `\paragraph*` |
-| Comment lines | A `\noindent` paragraph (LaTeX special characters escaped) |
+| Comment lines | A `\noindent` paragraph (LaTeX special characters escaped; `` `code` ``, `**bold**`, `*italic*` and `$math$` typeset) |
 | A run of calculation lines | One flush-left `aligned` group, aligned on the first `=` of each row, with `\medskip` before and after |
 | Parameter grid | An `aligned` group with one column pair per cell |
 | `# hc: -b` | `\medskip` |
@@ -123,6 +123,15 @@ notebooks.
 - Numbers: scientific notation is written as $\times 10^{n}$; `inf` → $\infty$.
 - Collections longer than 10 items show their first and last three items around
   $\ldots$.
+
+## Options
+
+`LatexRenderer(comment_math=True)`
+: Typeset `$...$` in comments as math (see
+  [styling comments](../getting-started/writing-calculations.md#styling-comments)). In an
+  inline comment, which sits in a `\text{}` inside math, it is written as `\(...\)`. With
+  `comment_math=False`, a `$` in a comment is shown as a dollar sign. A subclass can set
+  the default with the `COMMENT_MATH` class attribute.
 
 ## Customizing
 

@@ -18,6 +18,7 @@ notebooks need only a few changes.
 | `%%render symbolic` | `# hc: mode = "ass sym"` (see [mode](comment-commands.md#choosing-which-steps-appear-mode)) |
 | `%%render sympy` | not available in 2.0 |
 | `from handcalcs.decorator import handcalc` | `from handcalcs import handcalc` |
+| `$x^y$` in a comment | still LaTeX math, in the LaTeX and Markdown renderers; other LaTeX in a comment (`\textbf{}`) is escaped: use `**bold**` (see [styling comments](writing-calculations.md#styling-comments)) |
 | `@handcalc(override=..., precision=..., ...)` | `@handcalc(renderer, render_context={...})` (see [the decorator](../interfaces/decorator.md)) |
 | `@handcalc` left out the docstring | the docstring is rendered as a note; `@handcalc(renderer, docstring=False)` leaves it out |
 | `handcalcs.set_option("display_precision", 3)` | `handcalcs.set_option("format_code", ".3f")` |

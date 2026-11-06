@@ -112,6 +112,8 @@ page.
   the part before them. All of this is one `name:sym` rule, `swap_identifier`. See
   [naming variables](../getting-started/writing-calculations.md#naming-variables).
 - Operators: `*` → `·`, `**` → `<sup>`, `sqrt` → `√`, `<=` → `≤`.
+- Comments: `` `code` ``, `**bold**` and `*italic*` become `<code>`, `<strong>` and
+  `<em>`. `$...$` is not math in HTML: it is shown as written.
 - Numbers use the format code as-is (`1.2e+05` stays as written). Strings are shown in
   curly quotes and HTML-escaped.
 

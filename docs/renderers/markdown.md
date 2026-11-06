@@ -92,6 +92,14 @@ Each math group is kept on one physical line because Jupyter extracts math from 
 text *before* parsing the Markdown; a group spread over several `>`-quoted lines would
 carry the `>` characters into the LaTeX.
 
+## Options
+
+`MarkdownRenderer(comment_math=True)`
+: Typeset `$...$` in comments as math (see
+  [styling comments](../getting-started/writing-calculations.md#styling-comments)). In an
+  inline comment the math is set directly in the line's math group, without a `$`. With
+  `comment_math=False`, a `$` in a comment is shown as a dollar sign.
+
 ## Customizing
 
 `MarkdownRenderer` subclasses `LatexRenderer` and is controlled by the same class

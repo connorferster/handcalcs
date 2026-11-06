@@ -443,7 +443,7 @@ def render_dictionary(renderer: WR, node: Dictionary, base_context: BRC) -> str:
 
 @WR.register("inline_comment")
 def render_inline_comment(renderer: WR, node: InlineComment, base_context: BRC) -> str:
-    return renderer.COMMENT_OPEN + omml.text(f"({node.content})")
+    return renderer.COMMENT_OPEN + omml.prose(f"({node.content})")
 
 
 ## OPERATORS

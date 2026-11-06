@@ -132,6 +132,30 @@ L = 6000  # Span, in mm (drawing S-201)
 E = 200000  # MPa
 ```
 
+## Styling comments
+
+Headings, comment lines and inline comments can use a little Markdown, in every
+renderer:
+
+- `` `code` `` is set in a code font;
+- `**bold**` is bold and `*italic*` italic. The `*` must start and end a word, so a
+  formula in a comment stays as written (`w*L**2/8`, `a * b`). `_` is not emphasis, so
+  names like `a_b` are safe. Write `\*` for a literal `*` at the start of a word.
+
+In the LaTeX and Markdown renderers, `$...$` is LaTeX math:
+
+```python
+sigma_x = N / A  # normal stress $\sigma_x$, in MPa
+# **Check:** $\sigma_x \le f_y / \gamma_{M0}$
+```
+
+As in Pandoc, the opening `$` must be followed by a non-space and the closing `$`
+preceded by one and not followed by a digit, so prices stay as they are ("costs $5 to
+$10"). Write `\$` for a literal `$`, or turn the math off with
+`LatexRenderer(comment_math=False)` / `MarkdownRenderer(comment_math=False)`. The other
+renderers show `$...$` as written. The math is passed to LaTeX unchecked, apart from its
+braces: a span with unbalanced braces is shown as text.
+
 ## Values inside comments
 
 Comments (headings, prose and inline comments) are [Jinja](https://jinja.palletsprojects.com/)

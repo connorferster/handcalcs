@@ -22,6 +22,7 @@ from typing import Any, Optional
 
 from .names import quote_sheet_name, scoped_name
 from .rich_text import RichText, plain_text
+from ..prose import prose_spans
 from .rows import (
     BlankRow,
     CalcRow,
@@ -42,6 +43,21 @@ COMMENT_COLOR = "#808080"
 # Major-second scale from the 10 pt body, rounded to Excel's 0.5 pt steps.
 HEADING_SIZES = {1: 16, 2: 14, 3: 12.5, 4: 11.5}
 SCRIPTS = {"sup": 1, "sub": 2}  # XlsxWriter font_script values
+# The font of each kind of prose span in a comment or heading (see renderers.prose).
+PROSE_FONTS = {
+    "text": {},
+    "code": {"font_name": "Consolas"},
+    "strong": {"bold": True},
+    "em": {"italic": True},
+}
+FONT_PROPS = ("font_size", "font_name", "font_color", "bold", "italic")
+
+
+def prose_text(text: str) -> str:
+    """A comment's text as shown: without its ``**``, ``*`` and backtick markers."""
+    return "".join(span.text for span in prose_spans(text))
+
+
 LINE_HEIGHT = 1.32  # row height (pt) per font point, per wrapped line
 
 # (min, max) width in characters, per column.
@@ -157,6 +173,36 @@ class SheetWriter:
     def comment_format(self) -> Any:
         return self.text_format(italic=True, font_color=COMMENT_COLOR, text_wrap=True)
 
+    def write_prose(
+        self, row: int, col: int, text: str, props: dict, last_col: Optional[int] = None
+    ) -> str:
+        """
+        Write a comment or heading with its light markup as a rich string:
+        ``**bold**`` bold, ``*italic*`` italic and a `backtick` span in a code
+        font. ``props`` are the cell's format properties; with ``last_col`` the
+        cell is merged across to that column. Returns the text as shown.
+        """
+        spans = [span for span in prose_spans(text) if span.text]
+        shown = "".join(span.text for span in spans)
+        if len(spans) <= 1:
+            kind = spans[0].kind if spans else "text"
+            cell_format = self.formats.get(**{**props, **PROSE_FONTS[kind]})
+            if last_col is None:
+                self.sheet.write_string(row, col, shown, cell_format)
+            else:
+                self.sheet.merge_range(row, col, row, last_col, shown, cell_format)
+            return shown
+        cell_format = self.formats.get(**props)
+        font = {key: props[key] for key in FONT_PROPS if key in props}
+        fragments: list = []
+        for span in spans:
+            fragments.append(self.formats.get(**{**font, **PROSE_FONTS[span.kind]}))
+            fragments.append(span.text)
+        if last_col is not None:
+            self.sheet.merge_range(row, col, row, last_col, "", cell_format)
+        self.sheet.write_rich_string(row, col, *fragments, cell_format)
+        return shown
+
     # --- cells ---
 
     def _measure(self, col: int, text: str) -> None:
@@ -237,8 +283,19 @@ class SheetWriter:
         )
         self.write_unit(row, record.unit)
         if record.comment:
-            self._measure(COMMENT, record.comment)
-            self.sheet.write_string(row, COMMENT, record.comment, self.comment_format())
+            self._measure(COMMENT, prose_text(record.comment))
+            self.write_prose(
+                row,
+                COMMENT,
+                record.comment,
+                dict(
+                    align="left",
+                    valign="top",
+                    italic=True,
+                    font_color=COMMENT_COLOR,
+                    text_wrap=True,
+                ),
+            )
         self.define(row, record.name)
 
     def write_check(self, row: int) -> None:
@@ -261,13 +318,14 @@ class SheetWriter:
         self.write_rich(row, SYMBOL, record.symbol, self.text_format())
         self.write_equals(row)
         if record.comment:
-            self._measure(MIDDLE, record.comment)
-            self.sheet.write_string(
+            self._measure(MIDDLE, prose_text(record.comment))
+            self.write_prose(
                 row,
                 MIDDLE,
                 record.comment,
-                self.text_format(
+                dict(
                     align="center",
+                    valign="top",
                     italic=True,
                     font_color=COMMENT_COLOR,
                     text_wrap=True,
@@ -280,13 +338,13 @@ class SheetWriter:
 
     def write_heading(self, row: int, record: HeadingRow) -> None:
         size = heading_size(record.level)
-        cell_format = self.formats.get(bold=True, font_size=size, valign="vcenter")
-        self.sheet.merge_range(row, SYMBOL, row, MERGE_LAST, record.text, cell_format)
+        props = dict(bold=True, font_size=size, valign="vcenter")
+        self.write_prose(row, SYMBOL, record.text, props, last_col=MERGE_LAST)
         self.sheet.set_row(row, round(size * LINE_HEIGHT + 4, 1))
 
     def write_comment(self, row: int, record: CommentRow) -> None:
-        cell_format = self.text_format(text_wrap=True)
-        self.sheet.merge_range(row, SYMBOL, row, MERGE_LAST, record.text, cell_format)
+        props = dict(align="left", valign="top", text_wrap=True)
+        self.write_prose(row, SYMBOL, record.text, props, last_col=MERGE_LAST)
 
     def write_rows(self, rows: list[Row]) -> None:
         paragraphs: list[tuple[int, str]] = []
@@ -300,12 +358,12 @@ class SheetWriter:
                 wrapped.append((r, plain_text(record.symbolic)))
             elif isinstance(record, ParamRow):
                 self.write_param(r, record)
-                wrapped.append((r, record.comment or ""))
+                wrapped.append((r, prose_text(record.comment or "")))
             elif isinstance(record, HeadingRow):
                 self.write_heading(r, record)
             elif isinstance(record, CommentRow):
                 self.write_comment(r, record)
-                paragraphs.append((r, record.text))
+                paragraphs.append((r, prose_text(record.text)))
             elif isinstance(record, BlankRow):
                 pass
             elif isinstance(record, PageBreakRow):

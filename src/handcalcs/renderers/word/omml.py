@@ -31,12 +31,13 @@ def escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def run(text: str, upright: bool = False, normal: bool = False) -> str:
+def run(text: str, upright: bool = False, normal: bool = False, font: str = "") -> str:
     """
     A math run (``m:r``). By default Word italicises its letters, the usual
     look of a variable. ``upright`` sets it in the math font without italics
     (a word identifier, a function name, an operator word); ``normal`` sets it
-    as ordinary text (``m:nor``: units, comments, strings).
+    as ordinary text (``m:nor``: units, comments, strings). ``font`` is the
+    text's formatting (``w:rPr`` content, e.g. ``<w:b/>`` for bold).
     """
     if not text:
         return ""
@@ -46,6 +47,8 @@ def run(text: str, upright: bool = False, normal: bool = False) -> str:
         props = '<m:rPr><m:sty m:val="p"/></m:rPr>'
     else:
         props = ""
+    if font:
+        props += f"<w:rPr>{font}</w:rPr>"
     return f'<m:r>{props}<m:t xml:space="preserve">{escape(text)}</m:t></m:r>'
 
 
@@ -55,6 +58,28 @@ def upright(text: str) -> str:
 
 def text(text: str) -> str:
     return run(text, normal=True)
+
+
+# The text formatting of each kind of prose span (see ``renderers.prose``).
+PROSE_FONTS = {
+    "text": "",
+    "code": '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:cs="Consolas"/>',
+    "strong": "<w:b/>",
+    "em": "<w:i/>",
+}
+
+
+def prose(text: str) -> str:
+    """
+    Text runs for a comment written as prose: ``**bold**`` is bold, ``*italic*``
+    italic and a `backtick` span in a code font.
+    """
+    from handcalcs.renderers.prose import prose_spans
+
+    return "".join(
+        run(span.text, normal=True, font=PROSE_FONTS[span.kind])
+        for span in prose_spans(text)
+    )
 
 
 def element(tag: str, *children: str) -> str:

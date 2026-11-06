@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from . import omml
+from ..prose import prose_spans
 
 LAYOUTS = ("aligned", "lines")
 
@@ -167,13 +168,33 @@ class DocumentWriter:
         level = min(max(item.level, 1), 9)
         style = f"Heading {level}"
         if style in self.styles:
-            self.document.add_heading(item.text, level=level)
+            self.add_prose_runs(self.document.add_heading("", level=level), item.text)
             return
         warnings.warn(
             f"The Word document has no {style!r} style; the heading "
             f"{item.text!r} is set as a bold paragraph."
         )
-        self.paragraph().add_run(item.text).bold = True
+        for run in self.add_prose_runs(self.paragraph(), item.text):
+            run.bold = True
+
+    def add_prose_runs(self, paragraph, text: str) -> list:
+        """
+        Add ``text`` to ``paragraph`` as runs of its light markup (see
+        ``renderers.prose``): ``**bold**`` bold, ``*italic*`` italic and a
+        `backtick` span in the ``HC Code`` style. Returns the runs.
+        """
+        runs = []
+        for span in prose_spans(text):
+            if span.kind == "code":
+                runs.append(paragraph.add_run(span.text, style=CODE_STYLE))
+                continue
+            run = paragraph.add_run(span.text)
+            if span.kind == "strong":
+                run.bold = True
+            elif span.kind == "em":
+                run.italic = True
+            runs.append(run)
+        return runs
 
     def prose(self, text: str, depth: int = 0) -> None:
         """
@@ -188,7 +209,7 @@ class DocumentWriter:
                 inner = piece[len("<m:oMath>") : -len("</m:oMath>")]
                 paragraph._p.append(omml.to_element(inner))
             else:
-                paragraph.add_run(piece)
+                self.add_prose_runs(paragraph, piece)
 
     def code(self, item: Code, depth: int = 0) -> None:
         self.paragraph(depth).add_run(item.text, style=CODE_STYLE)

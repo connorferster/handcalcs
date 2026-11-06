@@ -27,6 +27,7 @@ from handcalcs.renderers.base import (
     render_receiver,
     render_symbolic,
 )
+from handcalcs.renderers.prose import Span, prose_spans
 
 from handcalcs.renderers.identifiers import (
     IdentifierOptions,
@@ -117,26 +118,47 @@ def latex_escape(text: str) -> str:
     return "".join(LATEX_SPECIAL_CHARS.get(char, char) for char in text)
 
 
-def latex_prose(text: str) -> str:
+def latex_text(text: str) -> str:
+    """
+    Escape prose text for text mode: the LaTeX specials, a backtick, and an
+    opening quote set as a left quote (TeX otherwise sets ``'a'`` as two right
+    quotes).
+    """
+    text = latex_escape(text).replace("`", "\\textasciigrave{}")
+    text = re.sub(r'(^|[\s(\[])"', r"\1``", text)
+    text = re.sub(r"(^|[\s(\[])'", r"\1`", text)
+    return text.replace('"', "''")
+
+
+def latex_prose(text: str, *, math: bool = False, in_math: bool = False) -> str:
     """
     Escape a comment written as prose (headings, comment paragraphs, inline
-    comments) and typeset its light markup: a pair of backticks becomes
-    ``\\texttt{}`` and an opening quote becomes a left quote (TeX otherwise sets
-    ``'a'`` as two right quotes). An unpaired backtick is kept literally.
+    comments) and typeset its light markup (see ``renderers.prose``): a pair of
+    backticks becomes ``\\texttt{}``, ``**bold**`` ``\\textbf{}`` and ``*italic*``
+    ``\\emph{}``. An unpaired backtick is kept literally.
+
+    With ``math``, a ``$...$`` span is passed through as math: as ``$...$``, or as
+    ``\\(...\\)`` when the prose sits in a ``\\text{}`` inside math (``in_math``,
+    an inline comment), where a ``$`` would end a ``$``-delimited math group for
+    MathJax.
     """
-    segments = text.split("`")
-    if len(segments) % 2 == 0:
-        segments[-2:] = [f"{segments[-2]}`{segments[-1]}"]
     typeset = []
-    for idx, segment in enumerate(segments):
-        if idx % 2:
-            typeset.append(f"\\texttt{{{latex_escape(segment)}}}")
-            continue
-        segment = latex_escape(segment).replace("`", "\\textasciigrave{}")
-        segment = re.sub(r'(^|[\s(\[])"', r"\1``", segment)
-        segment = re.sub(r"(^|[\s(\[])'", r"\1`", segment)
-        typeset.append(segment.replace('"', "''"))
+    for span in prose_spans(text, math=math):
+        typeset.append(latex_span(span, in_math))
     return "".join(typeset)
+
+
+def latex_span(span: Span, in_math: bool = False) -> str:
+    """One span of prose, typeset for text mode (see ``latex_prose``)."""
+    if span.kind == "code":
+        return f"\\texttt{{{latex_escape(span.text)}}}"
+    if span.kind == "math":
+        return f"\\({span.text}\\)" if in_math else f"${span.text}$"
+    if span.kind == "strong":
+        return f"\\textbf{{{latex_text(span.text)}}}"
+    if span.kind == "em":
+        return f"\\emph{{{latex_text(span.text)}}}"
+    return latex_text(span.text)
 
 
 GREEK_LOWER = {
@@ -411,6 +433,8 @@ class LatexRenderer(BaseRenderer):
     # An inline comment renders as COMMENT_OPEN + text + COMMENT_CLOSE.
     COMMENT_OPEN = "\\quad\\text{("
     COMMENT_CLOSE = ")}"
+    # Typeset ``$...$`` in comments as math (``comment_math``); see ``__init__``.
+    COMMENT_MATH = True
     HEADINGS = ("section*", "subsection*", "subsubsection*", "paragraph*")
     # Symbol tables used by the swap rules; override in a subclass to change them.
     OPERATOR_SYMBOLS = OPERATOR_SYMBOLS
@@ -433,6 +457,16 @@ class LatexRenderer(BaseRenderer):
         "\\begin{document}\n"
     )
     postamble = "\\end{document}\n"
+
+    def __init__(self, comment_math: Optional[bool] = None) -> None:
+        """
+        ``comment_math``: typeset a ``$...$`` span in a comment (heading, comment
+        line or inline comment) as math, ``# stress in $\\sigma_x$``. True by
+        default (``COMMENT_MATH``); with False, a ``$`` in a comment is always shown
+        as a dollar sign. A literal ``$`` can also be written ``\\$``.
+        """
+        super().__init__()
+        self.comment_math = self.COMMENT_MATH if comment_math is None else comment_math
 
     def create_context(self, **kwargs):
         # Spacing inside math mode is insignificant, so space/newline stay plain
@@ -620,12 +654,13 @@ LR = LatexRenderer
 @LR.register("heading")
 def render_heading(renderer: LR, node: Heading, base_context: BRC) -> str:
     level = min(node.heading_level, len(renderer.HEADINGS)) - 1
-    return f"\\{renderer.HEADINGS[level]}{{{latex_prose(node.content)}}}"
+    content = latex_prose(node.content, math=renderer.comment_math)
+    return f"\\{renderer.HEADINGS[level]}{{{content}}}"
 
 
 @LR.register("comment_line")
 def render_comment_line(renderer: LR, node: CommentLine, base_context: BRC) -> str:
-    return latex_prose(node.content)
+    return latex_prose(node.content, math=renderer.comment_math)
 
 
 @LR.register("import")
@@ -1079,7 +1114,8 @@ def render_dictionary(renderer: LR, node: Dictionary, base_context: BRC) -> str:
 
 @LR.register("inline_comment")
 def render_inline_comment(renderer: LR, node: InlineComment, base_context: BRC) -> str:
-    return f"{renderer.COMMENT_OPEN}{latex_prose(node.content)}{renderer.COMMENT_CLOSE}"
+    content = latex_prose(node.content, math=renderer.comment_math, in_math=True)
+    return f"{renderer.COMMENT_OPEN}{content}{renderer.COMMENT_CLOSE}"
 
 
 MATH_CONSTANTS = {
