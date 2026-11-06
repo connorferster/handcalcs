@@ -10,6 +10,7 @@
 4. **Docs**: in `docs/conf.py`, set the default `HC_SOURCE_REF` to the release tag (for
    example `"v2.0.0"`) so source links in the published docs point at the released
    code. The docs workflow uses this default, so the links work once the tag exists.
+   It stays on that tag until the next release.
    Build with `-W` to catch broken links and references.
 5. **Changelog**: add the release to [the changelog](../reference/changelog.md). For a
    pre-release, say how to install it: a plain `pip install handcalcs` skips it.
@@ -17,7 +18,6 @@
    Publishing a GitHub release runs the `python-publish.yml` workflow, which builds
    the wheel and sdist (`uv build`, flit backend), checks the version matches the tag
    and uploads to PyPI.
-7. After the release, set `HC_SOURCE_REF` back to the development branch.
 
 ## CI
 

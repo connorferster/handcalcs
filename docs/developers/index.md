@@ -94,8 +94,7 @@ Versioning, CI and publishing to PyPI.
 
 - Code is formatted with [black](https://black.readthedocs.io/); CI checks
   `uv run black src --check`.
-- Renderer branches are merged into `hc2/dev` during the v2 cycle; open pull requests
-  against it.
+- Open pull requests against `main`.
 - Handlers and rules are module-level functions registered with decorators, named
   `render_<type>` for handlers and for what they do for rules (`swap_greeks`,
   `toggle_param_line`). Their docstrings say what they render and why; keep that up.
