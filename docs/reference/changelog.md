@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`float()` and `int()` in the Excel renderer**: `float(x)` is the value itself and
+  `int(x)` becomes `TRUNC`. With units, both match Python: forallpeople gives the
+  magnitude in the displayed unit (`float(4 * ksi)` is `4`), and pint the dimensionless
+  value. This means the ACI pattern `sqrt(float(f_c / psi))` now works
+  ([details](../renderers/excel.md#units)).
+
+### Fixes
+
+- **`round()` of a value with units in the Excel renderer** gave a different result from
+  Python. forallpeople's `round(x, n)` only changes how many digits are shown, but the
+  sheet used `ROUND` on the SI value: `round(M / P, 3)` with `M / P = 4.80 mm` became
+  `5 mm` (0.0048 m rounded to 0.005 m). The formula now leaves the value unchanged.
+  With pint, it rounds the magnitude in the quantity's own unit, as pint does.
+- The test dependencies require forallpeople 3.4.1, which fixes how a value is displayed
+  when its factor matches no defined unit (#352).
+
 ## 2.0.0rc4 (2026-11-11)
 
 The fourth release candidate of handcalcs 2.0. Install it with

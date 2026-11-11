@@ -232,10 +232,16 @@ class ExcelState:
         global_ns = getattr(base_context.global_context, "global_ns", None)
         symbols = SymbolTable()
         factors: dict = {}
+        evaluator = ValueEvaluator(global_ns)
         builder = FormulaBuilder(
-            symbols, global_ns, renderer.functions, renderer.constants, factors
+            symbols,
+            global_ns,
+            renderer.functions,
+            renderer.constants,
+            factors,
+            value_of=evaluator.evaluate,
         )
-        return cls(symbols, builder, ValueEvaluator(global_ns), factors)
+        return cls(symbols, builder, evaluator, factors)
 
 
 def excel_state(renderer: ExcelRenderer, base_context: BaseRenderContext) -> ExcelState:
