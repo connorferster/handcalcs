@@ -244,3 +244,82 @@ def test_to_recalculates_like_python(structural, tmp_path):
     result = HandCalcs(renderer=ExcelRenderer())(TO)
     path = result.save(tmp_path / "to.xlsx")
     assert recalculation_problems(path, result.rows) == []
+
+
+# --- round(), float() and int() of values with units ---
+
+CASTS = """import forallpeople as si
+si.environment('structural')
+from math import sqrt
+f_c = 4 * si.ksi
+M = 10.0 * si.kN * si.m
+P = 2083.0 * si.kN
+F = -4.7 * si.kN
+a = 2.675
+e = round(M / P, 3)
+v_c = 4 * sqrt(float(f_c / si.psi)) * si.psi
+f_num = float(f_c)
+g = 2 * float(M) + 1
+n = int(F)
+r_a = round(a * 3, 1)
+i = int(-a * 3)
+h = float(a + 1) * 2
+"""
+
+
+@pytest.fixture
+def structural_env():
+    yield
+    si.environment("default", top_level=False)
+
+
+def cast_rows():
+    return rows(CASTS)
+
+
+def test_round_of_a_physical_keeps_the_value(structural_env):
+    # forallpeople's round() only sets the digits shown: 4.80 mm, not ROUND in metres (5 mm).
+    e = cast_rows()["e"]
+    assert e.formula == "=M*1000/(P*1000000)/0.001"
+    assert (e.cached, e.unit) == (pytest.approx(4.800768123), "mm")
+
+
+def test_float_and_int_of_a_physical_use_its_display_magnitude(structural_env):
+    r = cast_rows()
+    assert r["v_c"].cached == pytest.approx(252.9822128)  # sqrt(4000 psi), ACI style
+    assert r["f_num"].formula == "=f_c*6894757.29317/6894757.29317"
+    assert r["f_num"].cached == 4.0 and r["f_num"].unit is None
+    assert r["g"].formula == "=2*(M*1000/1000)+1"
+    assert r["n"].formula == "=TRUNC(F*1000/1000)"
+    assert r["n"].cached == -4  # toward zero, like Python
+
+
+def test_round_float_int_of_plain_numbers(structural_env):
+    r = cast_rows()
+    assert r["r_a"].formula == "=ROUND(a*3,1)"
+    assert r["i"].formula == "=TRUNC(-a*3)"
+    assert r["h"].formula == "=(a+1)*2"  # float() adds nothing
+
+
+def test_pint_round_float_int():
+    source = PINT + (
+        "r = round(L * 1.23456, 1)\n"
+        "d = float(L / (7 * ureg.m))\n"
+        "n = int(L / (7 * mm))\n"
+    )
+    r = rows(source)
+    # pint rounds the magnitude in the quantity's own unit (mm).
+    assert r["r_"].formula == "=ROUND(L*0.001*1.23456/0.001,1)*0.001/0.001"
+    assert (r["r_"].cached, r["r_"].unit) == (pytest.approx(370.4), "mm")
+    assert r["d"].cached == pytest.approx(300 / 7000)
+    assert r["n"].formula == "=TRUNC(L*0.001/(7*0.001))"
+    assert r["n"].cached == 42
+
+
+def test_casts_recalculate_like_python(structural_env, tmp_path):
+    pytest.importorskip("formulas")
+    from scripts.excel_demo import recalculation_problems
+    for source in (CASTS, PINT + "r = round(L * 1.23456, 1)\nn = int(L / (7 * mm))\n"):
+        result = HandCalcs(renderer=ExcelRenderer())(source)
+        path = result.save(tmp_path / "casts.xlsx")
+        assert recalculation_problems(path, result.rows) == []

@@ -49,7 +49,14 @@ from handcalcs.parsing.operator_nodes import (
 )
 from .compat import ExcelRendererIncompatibleError, incompatible
 from .names import SymbolTable
-from .units import has_units, is_pint_unit, unit_constant
+from .units import (
+    has_units,
+    is_physical,
+    is_pint_quantity,
+    is_pint_unit,
+    unit_constant,
+    unit_value,
+)
 
 # Excel operator precedence, loosest to tightest. Atoms (names, numbers,
 # function calls) are ATOM and never need parentheses.
@@ -181,7 +188,16 @@ DEFAULT_FUNCTIONS: dict[Any, ExcelFunction] = {
     builtins.max: ExcelFunction("MAX", None, min_args=2),
     # Python rounds half to even; Excel rounds half away from zero.
     builtins.round: ExcelFunction("ROUND", (1, 2), build=_round),
+    # A plain number: float() is the number itself and int() truncates toward
+    # zero. A value with units is handled in FormulaBuilder.unit_call.
+    builtins.float: ExcelFunction(
+        "", (1,), build=lambda args: Formula(args[0], COMPARISON)
+    ),
+    builtins.int: _simple("TRUNC"),
 }
+
+# Builtins whose result depends on the units of their first argument.
+UNIT_SENSITIVE = (builtins.round, builtins.float, builtins.int)
 
 # math constants, by object identity (``from math import pi`` binds the same
 # float object as ``math.pi``).
@@ -311,8 +327,12 @@ class FormulaBuilder:
         functions: Optional[dict] = None,
         constants: Optional[dict] = None,
         factors: Optional[dict] = None,
+        value_of: Optional[Callable[[Any], Any]] = None,
     ) -> None:
         self.symbols = symbols
+        # The Python value of an expression at the current row (raises if it
+        # cannot be found): round/float/int need their argument's units.
+        self.value_of = value_of
         # Excel name -> display-unit-to-SI factor, for rows with units.
         self.factors = {} if factors is None else factors
         self.global_ns = global_ns if isinstance(global_ns, dict) else {}
@@ -553,5 +573,57 @@ class FormulaBuilder:
                 f"'{display}()' with {len(args)} argument(s) has no Excel equivalent",
                 node,
             )
+        if function in UNIT_SENSITIVE and args:
+            converted = self.unit_call(function, args, display, node)
+            if converted is not None:
+                return converted
         rendered = [self.translate(arg).text for arg in args]
         return spec.translate(rendered)
+
+    def unit_call(
+        self, function: Any, args: list, display: str, node: FunctionCall
+    ) -> Optional[Formula]:
+        """
+        ``round``, ``float`` or ``int`` of a value with units, matching Python;
+        None for a plain number (the ordinary translation applies), except
+        that ``float`` of a plain number is the number itself.
+
+        References are in SI, so the argument's formula is its SI value:
+
+        - forallpeople: ``float(x)``/``int(x)`` are the magnitude in x's display
+          unit (``float(4 ksi)`` is 4), and ``round(x, n)`` only sets how many
+          digits x prints with, so it leaves the value unchanged;
+        - pint: ``round(q, n)`` rounds the magnitude in q's unit, and
+          ``float(q)``/``int(q)`` (dimensionless only) are its SI value.
+        """
+        if function is builtins.float and not isinstance(args[0], Keyword):
+            plain = self.translate(args[0])  # kept if the argument has no units
+        else:
+            plain = None
+        if self.value_of is None:
+            return plain
+        try:
+            value = self.value_of(args[0])
+        except Exception:
+            raise incompatible(
+                f"the units of the value passed to '{display}()' could not be "
+                "determined",
+                node,
+            ) from None
+        if not (is_physical(value) or is_pint_quantity(value)):
+            return plain
+        argument = plain or self.translate(args[0])
+        if function is builtins.round:
+            if is_physical(value):
+                return argument
+            factor = unit_value(value).factor
+            digits = self.translate(args[1]).text if len(args) == 2 else "0"
+            rounded = Formula(f"ROUND({scale_formula(argument, factor).text},{digits})")
+            if factor == 1:
+                return rounded
+            return Formula(f"{rounded.text}*{format_number(factor)}", MULTIPLICATIVE)
+        if is_physical(value):
+            argument = scale_formula(argument, unit_value(value).factor)
+        if function is builtins.int:
+            return Formula(f"TRUNC({argument.text})")
+        return argument

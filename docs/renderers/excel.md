@@ -160,6 +160,17 @@ F_z = F_z.to("kip")   # a second row, F_z_2 = =F_z*1000/4448.22161526, in kip
 M = (F * L).to("kipft")
 ```
 
+`round()`, `float()` and `int()` of a value with units work as they do in Python:
+
+- forallpeople: `round(x, n)` only sets how many digits `x` prints with, so the
+  formula leaves the value unchanged (Excel's `ROUND` would round it in SI units).
+  `float(x)` and `int(x)` are the magnitude in the unit `x` displays: `float(4 * ksi)`
+  is `4`, so `sqrt(float(f_c / psi))` gives the √psi value used in ACI equations.
+  That unit is fixed when the sheet is written, so if an edited input moves `x` to
+  a different prefix (kN to MN), the sheet keeps the original unit.
+- pint: `round(q, n)` rounds the magnitude in `q`'s unit. `float(q)` and `int(q)`
+  (dimensionless only) are its value with the units cancelled.
+
 A reassignment such as `F_z = F_z.to("kip")` is a new row, like any other
 reassignment. To skip the extra row, convert where the value is calculated:
 `F_z = (gamma_conc * vol_ftg).to("kip")`.
@@ -188,7 +199,8 @@ The error message names the offending construct and the variable being assigned.
 Supported functions: `sqrt`, `exp`, `log` (`LN`, or `LOG` with a base), `log10`,
 the trigonometric and hyperbolic functions and their inverses, `atan2` (with
 Excel's argument order), `radians`, `degrees`, `abs`/`fabs`, `floor`, `ceil`,
-`trunc`, `factorial`, `pow`, `hypot`, `min`, `max` and `round`. Also the
+`trunc`, `factorial`, `pow`, `hypot`, `min`, `max`, `round`, `float` and `int`
+(`TRUNC`, which also rounds toward zero). Also the
 constants `pi`, `e` and `tau`. Note that Python's `round` rounds halves to even,
 while Excel's `ROUND` rounds them away from zero.
 
