@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.0rc4 (2026-11-11)
+
+The fourth release candidate of handcalcs 2.0. Install it with
+`pip install "handcalcs>=2.0.0rc4"`; a plain `pip install handcalcs` still installs
+1.x until 2.0.0 is released.
+
+### Features
+
+- **`.to()` unit conversions in the Excel renderer**: `F = F.to("kip")` or
+  `M = (F * L).to("kipft")` sets the unit a row displays, with forallpeople or pint
+  (a unit string or a unit expression such as `ureg.kip * ureg.ft`). The formula is
+  unchanged, since the row's unit already scales the SI result, and the symbolic column
+  shows only the value being converted
+  ([details](../renderers/excel.md#units)).
+
 ## 2.0.0rc3 (2026-11-06)
 
 The third release candidate of handcalcs 2.0. Install it with

@@ -149,6 +149,21 @@ L = 300 * mm
 M = F * L      # =F*1000*(L*0.001)/1000, shown in kN·m
 ```
 
+To choose the unit a row displays, convert it with `.to()`. The target can be a
+unit string (`"kip"`) or a unit expression (`ureg.kip * ureg.ft`). The
+conversion adds nothing to the formula, because the row's unit already scales the
+SI result, and the symbolic column shows only the value being converted:
+
+```python
+F_z = gamma_conc * vol_ftg
+F_z = F_z.to("kip")   # a second row, F_z_2 = =F_z*1000/4448.22161526, in kip
+M = (F * L).to("kipft")
+```
+
+A reassignment such as `F_z = F_z.to("kip")` is a new row, like any other
+reassignment. To skip the extra row, convert where the value is calculated:
+`F_z = (gamma_conc * vol_ftg).to("kip")`.
+
 Imports of `pint`/`forallpeople`, `ureg = pint.UnitRegistry()`, `mm = ureg.mm`
 and `si.environment(...)` produce no rows. Offset units (°C, °F) are not
 supported.

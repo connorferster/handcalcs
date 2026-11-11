@@ -49,7 +49,7 @@ from handcalcs.parsing.operator_nodes import (
 )
 from .compat import ExcelRendererIncompatibleError, incompatible
 from .names import SymbolTable
-from .units import has_units, unit_constant  # noqa: F401  (has_units re-exported)
+from .units import has_units, is_pint_unit, unit_constant
 
 # Excel operator precedence, loosest to tightest. Atoms (names, numbers,
 # function calls) are ATOM and never need parentheses.
@@ -241,6 +241,47 @@ def resolve_function(node: FunctionCall, global_ns: dict) -> tuple[Any, str]:
     if obj is missing:
         obj = getattr(math, identifier, None)
     return obj, display
+
+
+def _is_unit_argument(node: Any) -> bool:
+    """
+    A ``.to()`` target: a unit name string (``"kip"``), a unit object, or a
+    product, quotient or power of units (``ureg.kip * ureg.ft``).
+    """
+    if isinstance(node, Constant):
+        return isinstance(node.value, str)
+    if isinstance(node, (Name, Attribute)):
+        value = getattr(node, "value", None)
+        return is_pint_unit(value) or unit_constant(value) is not None
+    if isinstance(node, (MultOp, DivOp)):
+        return _is_unit_argument(node.left) and _is_unit_argument(node.right)
+    if isinstance(node, PowOp):
+        return _is_unit_argument(node.left) and isinstance(node.right, Constant)
+    return False
+
+
+def unit_conversion_receiver(node: FunctionCall, global_ns: dict) -> Any:
+    """
+    The value converted by a unit conversion, ``x`` in ``x.to("kip")`` or
+    ``(F * L).to(ureg.kN * ureg.m)``; None for any other call.
+
+    A conversion only changes the display unit. Formulas already work in SI
+    and scale each row by its own display unit, so the conversion becomes no
+    Excel at all: the row's unit (read from the converted Python value) does it.
+    """
+    identifier = getattr(node.function_name, "identifier", node.function_name)
+    if identifier != "to" or not node.namespace:
+        return None
+    args = list(node.args)
+    if len(args) != 1 or isinstance(args[0], Keyword) or not _is_unit_argument(args[0]):
+        return None
+    receiver = node.namespace
+    if isinstance(receiver, Name):
+        # A name must hold a quantity: ``si.to(...)`` (a module) is not one. A
+        # receiver Name carries its identifier as its value, so look it up.
+        if not has_units(global_ns.get(receiver.identifier)):
+            return None
+    return receiver
 
 
 def scale_formula(formula: Formula, factor: float) -> Formula:
@@ -490,6 +531,9 @@ class FormulaBuilder:
         return resolve_function(node, self.global_ns)
 
     def function_call(self, node: FunctionCall) -> Formula:
+        receiver = unit_conversion_receiver(node, self.global_ns)
+        if receiver is not None:
+            return self.translate(receiver)
         function, display = self.resolve_function(node)
         try:
             spec = self.functions.get(function)

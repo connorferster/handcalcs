@@ -185,3 +185,62 @@ def test_recalculation_matches_python(structural, tmp_path):
         result = HandCalcs(renderer=ExcelRenderer())(source)
         path = result.save(tmp_path / "units.xlsx")
         assert recalculation_problems(path, result.rows) == []
+
+
+# --- unit conversions: .to() ---
+
+TO = """import forallpeople as si
+F = 2 * si.kN
+L = 3 * si.ft
+phi = 0.9
+M = (F * L).to('kipft')
+M = M.to('kipin')
+M_r = phi * (F * L).to('kipft')
+"""
+
+
+def test_to_sets_the_display_unit(structural):
+    r = rows(TO)
+    # The conversion adds no Excel: the row's own unit scales the SI result.
+    assert r["M"].formula == "=F*1000*(L*0.3048)/1355.81794833"
+    assert (r["M"].cached, r["M"].unit) == (pytest.approx(1.348853659), "kip·ft")
+    assert r["M_r"].formula == "=phi*(F*1000*(L*0.3048))/1355.81794833"
+    assert r["M_r"].unit == "kip·ft"
+
+
+def test_reassigned_to_converts_the_previous_version(structural):
+    m2 = rows(TO)["M_2"]
+    assert m2.formula == "=M*1355.81794833/112.984829028"
+    assert (m2.cached, m2.unit) == (pytest.approx(16.18624390), "kip·in")
+
+
+def test_to_shows_only_the_converted_value(structural):
+    from handcalcs.renderers.excel.rich_text import plain_text
+    r = rows(TO)
+    assert plain_text(r["M"].symbolic) == "(F · L)"
+    assert plain_text(r["M_2"].symbolic) == "M"
+    assert plain_text(r["M_r"].symbolic) == "φ · (F · L)"
+
+
+def test_pint_to_with_strings_and_unit_expressions():
+    source = PINT + "M_kNm = M.to('kN*m')\nM_kipft = M.to(ureg.kip * ureg.ft)\n"
+    r = rows(source)
+    assert r["M_kNm"].formula == "=M/1000"
+    assert r["M_kNm"].cached == pytest.approx(3.75)
+    assert r["M_kipft"].formula == "=M/1355.81794833"
+    assert r["M_kipft"].cached == pytest.approx(2.765858060)
+
+
+def test_to_on_a_plain_number_still_raises():
+    with pytest.raises(ExcelRendererIncompatibleError, match=r"'a\.to\(\)'"):
+        HandCalcs(renderer=ExcelRenderer())(
+            "a = 2\nb = a.to('kip')\n", supplied_globals={"a": 2, "b": 2}
+        )
+
+
+def test_to_recalculates_like_python(structural, tmp_path):
+    pytest.importorskip("formulas")
+    from scripts.excel_demo import recalculation_problems
+    result = HandCalcs(renderer=ExcelRenderer())(TO)
+    path = result.save(tmp_path / "to.xlsx")
+    assert recalculation_problems(path, result.rows) == []
