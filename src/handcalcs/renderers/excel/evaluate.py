@@ -34,7 +34,7 @@ from handcalcs.parsing.operator_nodes import (
     PowOp,
     SubOp,
 )
-from .formulas import resolve_function
+from .formulas import resolve_function, unit_conversion_receiver
 
 BINARY = {
     AddOp: operator.add,
@@ -140,6 +140,11 @@ class ValueEvaluator:
                     return result
             return result
         if isinstance(node, FunctionCall):
+            receiver = unit_conversion_receiver(node, self.global_ns)
+            if receiver is not None:
+                # Convert this row's value, not the end-of-cell one that a
+                # method resolved through global_ns would be bound to.
+                return self._eval(receiver).to(*(self._eval(a) for a in node.args))
             function, _ = resolve_function(node, self.global_ns)
             if function is None:
                 raise EvaluationError("unresolved function")

@@ -26,6 +26,7 @@ from handcalcs.renderers.base import (
     infix_binop,
     math_call_name,
     postfix_factorial,
+    receiver_needs_parens,
     render_constant,
 )
 from handcalcs.renderers.identifiers import (
@@ -35,6 +36,7 @@ from handcalcs.renderers.identifiers import (
     identifier_options,
     parse_identifier,
 )
+from .formulas import unit_conversion_receiver
 from .rich_text import escape
 
 GREEK = GREEK_UNICODE
@@ -150,8 +152,21 @@ def function_call_symbol(
 ) -> FunctionCall:
     """
     'function_call:pre': drop the module prefix; ``sqrt`` -> ``√``, ``cbrt``
-    -> ``∛`` and ``factorial(n)`` -> ``n!``.
+    -> ``∛`` and ``factorial(n)`` -> ``n!``. A unit conversion shows only
+    the value converted (``x.to("kip")`` -> x): the unit column shows the unit.
     """
+    global_ns = getattr(base_context.current, "global_ns", None) or {}
+    receiver = unit_conversion_receiver(node, global_ns)
+    if receiver is not None:
+        wrap = receiver_needs_parens(receiver)
+        return replace(
+            node,
+            namespace=deque(),
+            function_name=Name(identifier="", value=""),
+            args=deque([receiver]),
+            pre="(" if wrap else "",
+            post=")" if wrap else "",
+        )
     name = math_call_name(node)
     if name == "":  # already set in its own notation
         return node
