@@ -11,6 +11,17 @@ The walk is a standalone translator rather than a set of renderer handlers:
 Excel needs its own precedence table, its own spelling of nearly every node,
 and must never mutate the nodes that the symbolic pass renders afterwards.
 
+Unit factors are folded through the expression. Rows hold magnitudes in their
+display units, so each translated piece carries the factor that makes it SI
+(``Formula.factor``: text x factor = SI value). Products, quotients and powers
+combine factors without writing them; a factor is written only where values
+must agree (``+``, ``-``, comparisons, ``IF``, ``min``/``max``), where a
+function needs SI (``SQRT`` and the rest), and at the end, when what is left
+does not match the row's own unit. It is written in its simplest form
+(``/12``, ``*25.4``; see ``factor_text``). With US units,
+``M = w * L**2 / 8`` is ``=w*L^2/8``, not
+``=w*14593.9029372*(L*0.3048)^2/8/1355.81794833``.
+
 Two Excel precedence traps are handled here:
 
 - negation binds *tighter* than ``^`` (``-2^2`` is 4), so ``-a**2`` becomes
@@ -22,8 +33,9 @@ Two Excel precedence traps are handled here:
 from __future__ import annotations
 import builtins
 import math
-from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from dataclasses import dataclass, replace
+from fractions import Fraction
+from typing import Any, Callable, Optional, Union
 
 from handcalcs.parsing.nodes import Attribute, Constant, Name, Subscript
 from handcalcs.parsing.null_values import NoValue
@@ -55,6 +67,7 @@ from .units import (
     is_pint_quantity,
     is_pint_unit,
     unit_constant,
+    unit_factor,
     unit_value,
 )
 
@@ -85,12 +98,28 @@ COMPARISON_OPERATORS = {
 }
 
 
+# A display -> SI factor: exact (a Fraction) where the units library allows.
+Factor = Union[Fraction, float]
+
+# Relative difference below which two factors are the same, and a factor is
+# written as a shorter number: float noise from pint (or a non-integer power)
+# is about 1e-16 per operation.
+FACTOR_TOLERANCE = 1e-13
+
+
 @dataclass(frozen=True)
 class Formula:
-    """Formula text plus the precedence of its outermost operator."""
+    """
+    Formula text, the precedence of its outermost operator, and the factor
+    that makes its value SI (``1`` for a plain number or an SI value).
+    """
 
     text: str
     precedence: float = ATOM
+    factor: Factor = 1
+    # A bare unit (``mm``): the text is "1" and the unit is all factor, so
+    # ``12 * mm`` is written ``12``, with the factor of mm.
+    unit: bool = False
 
     def wrapped(self, needs_parens: bool) -> str:
         return f"({self.text})" if needs_parens else self.text
@@ -300,14 +329,155 @@ def unit_conversion_receiver(node: FunctionCall, global_ns: dict) -> Any:
     return receiver
 
 
-def scale_formula(formula: Formula, factor: float) -> Formula:
-    """``formula / factor``: an SI result back in its display unit."""
-    if factor == 1:
-        return formula
-    return Formula(
-        f"{formula.wrapped(formula.precedence < MULTIPLICATIVE)}/{format_number(factor)}",
-        MULTIPLICATIVE,
-    )
+def exact(factor: Any) -> Factor:
+    """``factor`` as a Fraction: exactly, or from a float's shortest decimal."""
+    if isinstance(factor, (int, Fraction)):
+        return Fraction(factor)
+    factor = float(factor)
+    if math.isfinite(factor) and factor:
+        return Fraction(repr(factor))
+    return factor
+
+
+def same_factor(a: Factor, b: Factor) -> bool:
+    return abs(a - b) <= FACTOR_TOLERANCE * abs(b)
+
+
+# Significant digits of an exact decimal factor worth writing in full
+# (4.4482216152605 N per lbf). A pint float such as 0.30479999999999996 has
+# 17, and is written to tolerance instead (0.3048).
+EXACT_DIGITS = 15
+
+
+def _decimal(value: Fraction) -> Optional[tuple[Fraction, bool]]:
+    """
+    ``value`` as a decimal and whether it is exact: the exact decimal when it
+    has at most EXACT_DIGITS significant digits, else the one with the fewest
+    digits within tolerance (None if there is none).
+    """
+    approximate = None
+    for digits in range(EXACT_DIGITS + 1):
+        scale = 10**digits
+        scaled = round(value * scale)
+        candidate = Fraction(scaled, scale)
+        if candidate == value and len(str(abs(scaled))) <= EXACT_DIGITS:
+            return candidate, True
+        if approximate is None and candidate and same_factor(candidate, value):
+            approximate = candidate
+    return None if approximate is None else (approximate, False)
+
+
+def _number_text(value: Fraction) -> str:
+    if value.denominator == 1:
+        return str(value.numerator)
+    return format_number(float(value))
+
+
+def factor_text(ratio: Factor) -> Optional[tuple[str, str]]:
+    """
+    How to write a factor that remains, as ``(operator, number)``: ``("/",
+    "12")`` rather than ``("*", "0.0833333333333")``. None for a factor of 1.
+
+    Of ``*ratio`` and ``/(1/ratio)``, an integer is preferred, then an exact
+    decimal, then the shorter number, then ``*``: ``*1000``, ``/1000``, ``/8``
+    (not ``*0.125``), ``*25.4``, ``/25.4``, ``/0.3048``, ``/4.4482216152605``
+    (not ``*0.2248089430997``).
+    """
+    ratio = exact(ratio)
+    if same_factor(ratio, 1):
+        return None
+    candidates = []
+    for operator, value in (("*", ratio), ("/", 1 / ratio)):
+        found = _decimal(value)
+        if found is not None:
+            decimal, is_exact = found
+            text = _number_text(decimal)
+            candidates.append(
+                (
+                    decimal.denominator != 1,
+                    not is_exact,
+                    len(text),
+                    operator != "*",
+                    operator,
+                    text,
+                )
+            )
+    if candidates:
+        *_, operator, text = min(candidates)
+        return operator, text
+    if ratio >= 1:  # pragma: no cover - every factor has a short decimal
+        return "*", format_number(float(f"{float(ratio):.12g}"))
+    return "/", format_number(float(f"{float(1 / ratio):.12g}"))
+
+
+def is_zero(formula: Formula) -> bool:
+    """A literal 0, which is 0 in any unit."""
+    return formula.text in ("0", "-0")
+
+
+def convert(formula: Formula, factor: Factor) -> Formula:
+    """
+    ``formula`` re-expressed so that its text times ``factor`` is the SI
+    value: the ratio of the two factors is written, when it is not 1.
+    """
+    factor = exact(factor)
+    if is_zero(formula):
+        return replace(formula, factor=factor, unit=False)
+    written = factor_text(exact(formula.factor) / factor)
+    if written is None:
+        return replace(formula, factor=factor, unit=False)
+    operator, number = written
+    text = formula.wrapped(formula.precedence < MULTIPLICATIVE)
+    return Formula(f"{text}{operator}{number}", MULTIPLICATIVE, factor)
+
+
+def common_factor(formulas: list[Formula], hint: Optional[Factor] = None) -> Factor:
+    """
+    The factor to bring values to before they meet (``a + b``, ``a < b``):
+    the one that writes the fewest factors, counting the conversion to
+    ``hint`` (the unit the result is wanted in), if given. Ties go to the
+    first value's, as Python gives a sum the unit of its left side. A literal
+    0 fits any.
+    """
+    factors = [exact(f.factor) for f in formulas if not is_zero(f)]
+    hint = None if hint is None else exact(hint)
+    candidates = factors + ([hint] if hint is not None else [])
+    if not candidates:
+        return Fraction(1)
+
+    def cost(candidate: Factor) -> int:
+        written = sum(not same_factor(f, candidate) for f in factors)
+        if hint is not None and not same_factor(candidate, hint):
+            written += 1
+        return written
+
+    return min(candidates, key=cost)
+
+
+def _power_factor(factor: Factor, exponent: Union[int, float]) -> Factor:
+    if float(exponent).is_integer():
+        return exact(factor) ** int(exponent)
+    return exact(float(factor) ** exponent)
+
+
+def _literal_exponent(node: Any) -> Optional[Union[int, float]]:
+    """The number an exponent is written as (``2``, ``0.5``, ``-1``), or None."""
+    if isinstance(node, Constant):
+        value = node.value
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return value
+        return None
+    if isinstance(node, HcUnaryOp) and node.symbol.strip() in ("-", "+"):
+        value = _literal_exponent(node.operand)
+        if value is None:
+            return None
+        return -value if node.symbol.strip() == "-" else value
+    return None
+
+
+# Functions whose result is in the unit of their arguments: their arguments
+# need only agree with each other, not be SI.
+HOMOGENEOUS = (builtins.min, builtins.max, builtins.abs)
 
 
 class FormulaBuilder:
@@ -340,20 +510,13 @@ class FormulaBuilder:
         self.constants = DEFAULT_CONSTANTS if constants is None else constants
 
     def build(self, expression: Any) -> str:
-        """The formula body (no leading ``=``) for an expression tree."""
-        if hasattr(expression, "__iter__") and not hasattr(expression, "type"):
-            nodes = list(expression)
-            if len(nodes) != 1:
-                raise incompatible(
-                    "the expression could not be parsed into a single formula"
-                )
-            expression = nodes[0]
-        return self.translate(expression).text
+        """The formula body (no leading ``=``) for an expression tree, in SI."""
+        return self.build_scaled(expression, 1)
 
-    def build_scaled(self, expression: Any, factor: float = 1) -> str:
+    def build_scaled(self, expression: Any, factor: Factor = 1) -> str:
         """
-        The formula body of an expression whose references are in SI units,
-        scaled back to a display unit: ``body/factor`` (``body`` when 1).
+        The formula body of an expression, in the display unit whose factor
+        to SI is ``factor`` (1: SI, or a plain number).
         """
         if hasattr(expression, "__iter__") and not hasattr(expression, "type"):
             nodes = list(expression)
@@ -362,12 +525,17 @@ class FormulaBuilder:
                     "the expression could not be parsed into a single formula"
                 )
             expression = nodes[0]
-        formula = self.translate(expression)
-        return scale_formula(formula, factor).text
+        formula = self.translate(expression, hint=exact(factor))
+        return convert(formula, factor).text
 
     # --- dispatch ---
 
-    def translate(self, node: Any) -> Formula:
+    def translate(self, node: Any, hint: Optional[Factor] = None) -> Formula:
+        """
+        ``node`` as a Formula, with the factor that makes it SI. ``hint`` is
+        the factor the result is wanted in, used to choose the unit that the
+        terms of a sum are brought to.
+        """
         if isinstance(node, NoValue):
             raise incompatible(
                 "the expression uses Python syntax handcalcs does not parse "
@@ -381,28 +549,27 @@ class FormulaBuilder:
         if isinstance(node, Attribute):
             return self.attribute(node)
         if isinstance(node, HcUnaryOp):
-            return self.unary(node)
+            return self.unary(node, hint)
         if isinstance(node, FloorOp):
             return self.floor_div(node)
         if isinstance(node, ModuloOp):
-            return Formula(
-                f"MOD({self.translate(node.left).text},{self.translate(node.right).text})"
-            )
+            left, right = self.agree([node.left, node.right], hint)
+            return Formula(f"MOD({left.text},{right.text})", ATOM, left.factor)
         if isinstance(node, HcBinOp) and type(node) in BINARY_OPERATORS:
-            return self.binary(node)
+            return self.binary(node, hint)
         if isinstance(node, Compare):
             return self.compare(node)
         if isinstance(node, (AndOp, OrOp)):
+            # Truth does not depend on units: a value is 0 in any of them.
             function = "AND" if isinstance(node, AndOp) else "OR"
             args = ",".join(self.translate(value).text for value in node.values)
             return Formula(f"{function}({args})")
         if isinstance(node, FunctionCall):
-            return self.function_call(node)
+            return self.function_call(node, hint)
         if isinstance(node, IfExp):
             test = self.translate(node.test).text
-            body = self.translate(node.body).text
-            orelse = self.translate(node.orelse).text
-            return Formula(f"IF({test},{body},{orelse})")
+            body, orelse = self.agree([node.body, node.orelse], hint)
+            return Formula(f"IF({test},{body.text},{orelse.text})", ATOM, body.factor)
         if isinstance(node, Subscript):
             raise incompatible(
                 "an index or key lookup (e.g. xs[0]) has no Excel formula equivalent",
@@ -410,6 +577,19 @@ class FormulaBuilder:
             )
         node_type = getattr(node, "type", type(node).__name__)
         raise incompatible(f"'{node_type}' has no Excel formula equivalent", node)
+
+    def agree(self, nodes: list, hint: Optional[Factor] = None) -> list[Formula]:
+        """
+        Translate values that meet (the terms of a sum, the sides of a
+        comparison), brought to one common factor.
+        """
+        formulas = [self.translate(node, hint) for node in nodes]
+        factor = common_factor(formulas, hint)
+        return [convert(formula, factor) for formula in formulas]
+
+    def si(self, node: Any) -> Formula:
+        """``node`` in SI: for a function argument, an exponent, an index."""
+        return convert(self.translate(node), 1)
 
     # --- leaves ---
 
@@ -429,11 +609,8 @@ class FormulaBuilder:
         identifier = node.identifier
         if identifier in self.symbols:
             excel_name = self.symbols.lookup(identifier, node)
-            factor = self.factors.get(excel_name, 1)
-            if factor != 1:
-                # The row holds a display-unit magnitude; formulas work in SI.
-                return Formula(f"{excel_name}*{format_number(factor)}", MULTIPLICATIVE)
-            return Formula(excel_name)
+            # The row holds a magnitude in its display unit.
+            return Formula(excel_name, ATOM, exact(self.factors.get(excel_name, 1)))
         value = self.global_ns.get(identifier, node.value)
         if isinstance(value, NoValue):
             # Python's lookup order: globals, then builtins (forallpeople's
@@ -442,9 +619,9 @@ class FormulaBuilder:
         constant = self._math_constant(value)
         if constant is not None:
             return constant
-        unit = unit_constant(value)
+        unit = unit_factor(value)
         if unit is not None:
-            return Formula(format_number(unit))
+            return Formula("1", ATOM, exact(unit), unit=True)
         return Formula(self.symbols.lookup(identifier, node))
 
     def attribute(self, node: Attribute) -> Formula:
@@ -460,9 +637,9 @@ class FormulaBuilder:
             constant = self._math_constant(value)
             if constant is not None:
                 return constant
-        unit = unit_constant(node.value)
+        unit = unit_factor(node.value)
         if unit is not None:  # e.g. ureg.mm
-            return Formula(format_number(unit))
+            return Formula("1", ATOM, exact(unit), unit=True)
         raise incompatible(
             f"the attribute '{node.namespace}.{node.identifier}' has no Excel equivalent",
             node,
@@ -475,25 +652,51 @@ class FormulaBuilder:
 
     # --- operators ---
 
-    def unary(self, node: HcUnaryOp) -> Formula:
+    def unary(self, node: HcUnaryOp, hint: Optional[Factor] = None) -> Formula:
         symbol = node.symbol.strip()
-        operand = self.translate(node.operand)
         if symbol == "not":
-            return Formula(f"NOT({operand.text})")
+            return Formula(f"NOT({self.translate(node.operand).text})")
+        operand = self.translate(node.operand, hint)
         if symbol == "+":
             return operand
         if symbol == "-":
             return Formula(
-                "-" + operand.wrapped(operand.precedence <= NEGATION), NEGATION
+                "-" + operand.wrapped(operand.precedence <= NEGATION),
+                NEGATION,
+                operand.factor,
             )
         raise incompatible(
             f"the unary operator '{symbol}' has no Excel equivalent", node
         )
 
-    def binary(self, node: HcBinOp) -> Formula:
+    def binary(self, node: HcBinOp, hint: Optional[Factor] = None) -> Formula:
         symbol, precedence = BINARY_OPERATORS[type(node)]
-        left = self.translate(node.left)
-        right = self.translate(node.right)
+        if precedence == ADDITIVE:
+            left, right = self.agree([node.left, node.right], hint)
+            factor = left.factor
+        elif precedence == POWER:
+            left = self.translate(node.left)
+            right = self.si(node.right)
+            exponent = _literal_exponent(node.right)
+            if exponent is None:
+                # The power of a factor is unknown until the sheet runs.
+                left = convert(left, 1)
+                factor = 1
+            else:
+                factor = _power_factor(left.factor, exponent)
+                if left.unit:  # mm**2: still a bare unit
+                    return Formula("1", ATOM, factor, unit=True)
+        else:
+            left = self.translate(node.left)
+            right = self.translate(node.right)
+            if isinstance(node, MultOp):
+                factor = exact(left.factor) * exact(right.factor)
+            else:
+                factor = exact(left.factor) / exact(right.factor)
+            # A bare unit multiplies or divides only the factor: 12 * mm is 12.
+            if right.unit or (left.unit and isinstance(node, MultOp)):
+                kept = left if right.unit else right
+                return replace(kept, factor=factor, unit=left.unit and right.unit)
         left_parens = left.precedence < precedence
         if precedence == POWER:
             # Any non-atomic base is wrapped: a negated base reads ambiguously
@@ -506,17 +709,21 @@ class FormulaBuilder:
         return Formula(
             f"{left.wrapped(left_parens)}{symbol}{right.wrapped(right_parens)}",
             precedence,
+            factor,
         )
 
     def floor_div(self, node: FloorOp) -> Formula:
-        # INT floors toward -inf, matching Python's //.
+        # INT floors toward -inf, matching Python's //. The quotient must be a
+        # plain number before it is floored.
         left = self.translate(node.left)
         right = self.translate(node.right)
-        quotient = (
+        quotient = Formula(
             f"{left.wrapped(left.precedence < MULTIPLICATIVE)}"
-            f"/{right.wrapped(right.precedence <= MULTIPLICATIVE)}"
+            f"/{right.wrapped(right.precedence <= MULTIPLICATIVE)}",
+            MULTIPLICATIVE,
+            exact(left.factor) / exact(right.factor),
         )
-        return Formula(f"INT({quotient})")
+        return Formula(f"INT({convert(quotient, 1).text})")
 
     def compare(self, node: Compare) -> Formula:
         items = list(node.comparison)
@@ -533,10 +740,10 @@ class FormulaBuilder:
                     f"the '{symbol}' comparison has no Excel equivalent", operator
                 )
             excel_ops.append(excel_op)
-        rendered = []
-        for operand in operands:
-            formula = self.translate(operand)
-            rendered.append(formula.wrapped(formula.precedence <= COMPARISON))
+        rendered = [
+            formula.wrapped(formula.precedence <= COMPARISON)
+            for formula in self.agree(operands)
+        ]
         parts = [
             f"{rendered[i]}{excel_op}{rendered[i + 1]}"
             for i, excel_op in enumerate(excel_ops)
@@ -550,10 +757,12 @@ class FormulaBuilder:
     def resolve_function(self, node: FunctionCall) -> tuple[Any, str]:
         return resolve_function(node, self.global_ns)
 
-    def function_call(self, node: FunctionCall) -> Formula:
+    def function_call(
+        self, node: FunctionCall, hint: Optional[Factor] = None
+    ) -> Formula:
         receiver = unit_conversion_receiver(node, self.global_ns)
         if receiver is not None:
-            return self.translate(receiver)
+            return self.translate(receiver, hint)
         function, display = self.resolve_function(node)
         try:
             spec = self.functions.get(function)
@@ -577,8 +786,12 @@ class FormulaBuilder:
             converted = self.unit_call(function, args, display, node)
             if converted is not None:
                 return converted
-        rendered = [self.translate(arg).text for arg in args]
-        return spec.translate(rendered)
+        if any(function is f for f in HOMOGENEOUS):
+            # min, max, abs: the result is in the arguments' unit.
+            formulas = self.agree(args, hint)
+            result = spec.translate([formula.text for formula in formulas])
+            return replace(result, factor=formulas[0].factor)
+        return spec.translate([self.si(arg).text for arg in args])
 
     def unit_call(
         self, function: Any, args: list, display: str, node: FunctionCall
@@ -616,14 +829,14 @@ class FormulaBuilder:
         if function is builtins.round:
             if is_physical(value):
                 return argument
-            factor = unit_value(value).factor
-            digits = self.translate(args[1]).text if len(args) == 2 else "0"
-            rounded = Formula(f"ROUND({scale_formula(argument, factor).text},{digits})")
-            if factor == 1:
-                return rounded
-            return Formula(f"{rounded.text}*{format_number(factor)}", MULTIPLICATIVE)
-        if is_physical(value):
-            argument = scale_formula(argument, unit_value(value).factor)
+            factor = exact(unit_value(value).factor)
+            digits = self.si(args[1]).text if len(args) == 2 else "0"
+            in_unit = convert(argument, factor)
+            return Formula(f"ROUND({in_unit.text},{digits})", ATOM, factor)
+        # A plain number: forallpeople's magnitude in the display unit, or
+        # pint's SI value (pint allows only dimensionless values).
+        unit = exact(unit_value(value).factor) if is_physical(value) else 1
+        number = replace(convert(argument, unit), factor=1)
         if function is builtins.int:
-            return Formula(f"TRUNC({argument.text})")
-        return argument
+            return Formula(f"TRUNC({number.text})")
+        return number

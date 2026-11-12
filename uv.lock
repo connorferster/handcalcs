@@ -715,11 +715,11 @@ wheels = [
 
 [[package]]
 name = "forallpeople"
-version = "3.4.1"
+version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a6/61/31c9b98ead7648918049f4b865d568ebcc58a4d2e9105ef8a2735fbbb8d7/forallpeople-3.4.1.tar.gz", hash = "sha256:1bddccb084fb71771cf9dcf25e2839fb0d638d1fb88601400dab60757c8e8fd0", size = 63152, upload-time = "2026-11-06T16:59:42.711Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/75/0d4868c5ad2ba21e1948b93d28464bc9e4ebf72db71635745469074267be/forallpeople-3.5.0.tar.gz", hash = "sha256:263b3c31cc1a66675bdcd0aee8d806ecbdeef4dfacf4a15d8d67b7f5072dccb3", size = 67129, upload-time = "2026-11-12T22:51:09.064Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6c/32/19c238d8e498af137dbae88d75903a1f43adacb8c570658be59003446eb9/forallpeople-3.4.1-py2.py3-none-any.whl", hash = "sha256:42ab7ed4b1494337fd58e815b6a94dfc863ed8a4f18315101061df46026a02e9", size = 69316, upload-time = "2026-11-06T16:59:41.627Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/bc/01fb1387018f2ec2b72ea557e9adf7eef0898b083111ea590abfc9256a65/forallpeople-3.5.0-py2.py3-none-any.whl", hash = "sha256:bfae649e277ef3a085078262fb0f174d6107c0e9c1a7229bb1aa8cd92f8f73b8", size = 73675, upload-time = "2026-11-12T22:51:08.136Z" },
 ]
 
 [[package]]
@@ -829,7 +829,7 @@ provides-extras = ["exporters", "doc", "word", "excel"]
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=25.1.0" },
-    { name = "forallpeople", specifier = ">=3.4.1" },
+    { name = "forallpeople", specifier = ">=3.5.0" },
     { name = "ipykernel", specifier = ">=7.3.0" },
     { name = "ipython", specifier = ">=8.0" },
     { name = "jupyterlab", specifier = ">=4.4.4" },
@@ -846,7 +846,7 @@ dev = [
 ]
 lint = [{ name = "black", specifier = ">=25.1.0" }]
 test = [
-    { name = "forallpeople", specifier = ">=3.4.1" },
+    { name = "forallpeople", specifier = ">=3.5.0" },
     { name = "ipython", specifier = ">=8.0" },
     { name = "markdown-it-py", specifier = ">=3.0" },
     { name = "numpy", specifier = ">=1.26" },

@@ -1,8 +1,10 @@
 """
 Tests for values with units (pint, forallpeople): display magnitudes and unit
-text in the cells, SI-scaled formulas, and skipped units setup lines.
+text in the cells, formulas with unit factors only where they are needed, and
+skipped units setup lines.
 """
 import builtins
+from fractions import Fraction
 
 import pytest
 
@@ -49,7 +51,7 @@ def test_pint_offset_units_raise():
 
 def test_physical_unit_value(structural):
     info = unit_value(300 * si.mm)
-    assert (info.magnitude, info.unit, info.factor) == (300, "mm", 0.001)
+    assert (info.magnitude, info.unit, info.factor) == (300, "mm", Fraction(1, 1000))
     info = unit_value(12.5 * si.kN * (300 * si.mm))
     assert (info.magnitude, info.unit, info.factor) == (3.75, "kN·m", 1000)
 
@@ -100,14 +102,15 @@ def test_unit_inputs_are_params(structural):
     assert r["F"].comment == "point load"
 
 
-def test_formulas_scale_references_to_si_and_back(structural):
+def test_formulas_fold_unit_factors(structural):
     r = run_fap()
     m = r["M"]
     assert isinstance(m, CalcRow)
-    assert m.formula == "=(F*1000*(L*0.001)+w*1000*(L*0.001)^2/8)/1000"
+    # kN·mm and kN/m·mm² differ by 1000: the second term is brought to the first.
+    assert m.formula == "=(F*L+w*L^2/8/1000)/1000"
     assert m.unit == "kN·m"
     assert m.cached == pytest.approx(3.7725)
-    assert r["sigma"].formula == "=M*1000/((L*0.001)^3/6)/1000"
+    assert r["sigma"].formula == "=M/(L^3/6)*1000000000"
     assert r["sigma"].unit == "kPa"
     assert r["sigma"].cached == pytest.approx(838.3333333)
 
@@ -115,7 +118,7 @@ def test_formulas_scale_references_to_si_and_back(structural):
 def test_dimensionless_result_has_no_unit(structural):
     ratio = run_fap()["ratio"]
     assert ratio.unit is None
-    assert ratio.formula == "=M*1000/(F*1000*(L*0.001))"
+    assert ratio.formula == "=M/(F*L)*1000"
     assert ratio.cached == pytest.approx(1.006)
 
 
@@ -132,16 +135,17 @@ def test_units_in_a_conditional(structural):
         "A = L * t\n"
     )
     r = run_fap(source)
-    assert r["t"].formula == "=IF(L*0.001>250*0.001,12*0.001,8*0.001)/0.001"
+    # A bare unit is a factor: 12 * mm is 12 in a row of millimetres.
+    assert r["t"].formula == "=IF(L>250,12,8)"
     assert (r["t"].cached, r["t"].unit) == (12, "mm")
-    assert r["A"].formula == "=L*0.001*(t*0.001)/1E-06"
+    assert r["A"].formula == "=L*t"
     assert (r["A"].cached, r["A"].unit) == (3600, "mm²")
 
 
 def test_attribute_units_without_top_level(structural):
     r = rows("import forallpeople as si\nL = 300 * si.mm\nA = L * 2\n")
     assert (r["L"].value, r["L"].unit) == (300, "mm")
-    assert r["A"].formula == "=L*0.001*2/0.001"
+    assert r["A"].formula == "=L*2"
 
 
 # --- rows (pint) ---
@@ -164,11 +168,11 @@ def test_pint_setup_lines_are_skipped():
 def test_pint_rows():
     r = rows(PINT)
     assert (r["F"].value, r["F"].unit) == (12.5, "kN")
-    assert r["M"].formula == "=F*1000*(L*0.001)"  # kN·mm is SI-equivalent (N·m)
+    assert r["M"].formula == "=F*L"  # kN·mm is N·m
     # pint 0.26 joins units with "⋅" (U+22C5); pint 0.25 (the newest on Python
     # 3.11) uses "·" (U+00B7). The renderer passes pint's text through.
     assert (r["M"].cached, r["M"].unit.replace("·", "⋅")) == (3750, "kN⋅mm")
-    assert r["A"].formula == "=(L*0.001)^2/1E-06"
+    assert r["A"].formula == "=L^2"
     assert (r["A"].cached, r["A"].unit) == (90000, "mm²")
 
 
@@ -201,16 +205,17 @@ M_r = phi * (F * L).to('kipft')
 
 def test_to_sets_the_display_unit(structural):
     r = rows(TO)
-    # The conversion adds no Excel: the row's own unit scales the SI result.
-    assert r["M"].formula == "=F*1000*(L*0.3048)/1355.81794833"
+    # The conversion adds no Excel: the row's own unit sets the factor left.
+    # kN·ft to kip·ft is the number of N in a lbf.
+    assert r["M"].formula == "=F*L/4.4482216152605"
     assert (r["M"].cached, r["M"].unit) == (pytest.approx(1.348853659), "kip·ft")
-    assert r["M_r"].formula == "=phi*(F*1000*(L*0.3048))/1355.81794833"
+    assert r["M_r"].formula == "=phi*(F*L)/4.4482216152605"
     assert r["M_r"].unit == "kip·ft"
 
 
 def test_reassigned_to_converts_the_previous_version(structural):
     m2 = rows(TO)["M_2"]
-    assert m2.formula == "=M*1355.81794833/112.984829028"
+    assert m2.formula == "=M*12"
     assert (m2.cached, m2.unit) == (pytest.approx(16.18624390), "kip·in")
 
 
@@ -227,7 +232,7 @@ def test_pint_to_with_strings_and_unit_expressions():
     r = rows(source)
     assert r["M_kNm"].formula == "=M/1000"
     assert r["M_kNm"].cached == pytest.approx(3.75)
-    assert r["M_kipft"].formula == "=M/1355.81794833"
+    assert r["M_kipft"].formula == "=M/1355.8179483314"  # pint's float factor
     assert r["M_kipft"].cached == pytest.approx(2.765858060)
 
 
@@ -280,17 +285,18 @@ def cast_rows():
 def test_round_of_a_physical_keeps_the_value(structural_env):
     # forallpeople's round() only sets the digits shown: 4.80 mm, not ROUND in metres (5 mm).
     e = cast_rows()["e"]
-    assert e.formula == "=M*1000/(P*1000000)/0.001"
+    assert e.formula == "=M/P"  # kN·m / MN is mm
     assert (e.cached, e.unit) == (pytest.approx(4.800768123), "mm")
 
 
 def test_float_and_int_of_a_physical_use_its_display_magnitude(structural_env):
     r = cast_rows()
     assert r["v_c"].cached == pytest.approx(252.9822128)  # sqrt(4000 psi), ACI style
-    assert r["f_num"].formula == "=f_c*6894757.29317/6894757.29317"
+    assert r["v_c"].formula == "=4*SQRT(f_c*1000)"  # f_c / psi, f_c in ksi
+    assert r["f_num"].formula == "=f_c"
     assert r["f_num"].cached == 4.0 and r["f_num"].unit is None
-    assert r["g"].formula == "=2*(M*1000/1000)+1"
-    assert r["n"].formula == "=TRUNC(F*1000/1000)"
+    assert r["g"].formula == "=2*M+1"
+    assert r["n"].formula == "=TRUNC(F)"
     assert r["n"].cached == -4  # toward zero, like Python
 
 
@@ -309,10 +315,11 @@ def test_pint_round_float_int():
     )
     r = rows(source)
     # pint rounds the magnitude in the quantity's own unit (mm).
-    assert r["r_"].formula == "=ROUND(L*0.001*1.23456/0.001,1)*0.001/0.001"
+    assert r["r_"].formula == "=ROUND(L*1.23456,1)"
     assert (r["r_"].cached, r["r_"].unit) == (pytest.approx(370.4), "mm")
     assert r["d"].cached == pytest.approx(300 / 7000)
-    assert r["n"].formula == "=TRUNC(L*0.001/(7*0.001))"
+    assert r["d"].formula == "=L/7/1000"
+    assert r["n"].formula == "=TRUNC(L/7)"
     assert r["n"].cached == 42
 
 
@@ -323,3 +330,122 @@ def test_casts_recalculate_like_python(structural_env, tmp_path):
         result = HandCalcs(renderer=ExcelRenderer())(source)
         path = result.save(tmp_path / "casts.xlsx")
         assert recalculation_problems(path, result.rows) == []
+
+
+# --- unit factors only where needed (US units) ---
+
+from handcalcs.renderers.excel.formulas import factor_text
+
+US = """import forallpeople as si
+si.environment('us_structural')
+L = 24 * si.ft
+w_D = 0.45 * si.kip / si.ft
+w_L = 0.80 * si.kip / si.ft
+w_u = 1.2 * w_D + 1.6 * w_L
+M_u = w_u * L**2 / 8
+F_y = 50 * si.ksi
+Z_x = 54.6 * si.inch**3
+phi = 0.9
+phi_M_n = phi * F_y * Z_x
+DCR = M_u / phi_M_n
+ok = M_u <= phi_M_n
+M_2 = M_u + phi_M_n
+M_max = max(M_u, phi_M_n)
+A_s = 2.37 * si.inch**2
+b = 12 * si.inch
+d = 21.5 * si.inch
+f_c = 4000 * si.psi
+a = A_s * F_y / (0.85 * f_c * b)
+M_rc = A_s * F_y * (d - a / 2)
+s = 12 * si.inch if a > 2 * si.inch else 18 * si.inch
+pos = M_u > 0
+n = 2
+I_n = b * d**n
+"""
+
+
+@pytest.fixture
+def us_rows():
+    yield rows(US)
+    si.environment("default", top_level=False)
+
+
+@pytest.mark.parametrize(
+    "ratio, expected",
+    [
+        (1, None),
+        (Fraction(1, 12), ("/", "12")),
+        (12, ("*", "12")),
+        (Fraction(1, 8), ("/", "8")),  # not *0.125
+        (1000, ("*", "1000")),
+        (Fraction(1, 1000), ("/", "1000")),
+        (Fraction("25.4"), ("*", "25.4")),
+        (1 / Fraction("25.4"), ("/", "25.4")),
+        (Fraction("2.5"), ("*", "2.5")),
+        (Fraction(1) / Fraction("4.4482216152605"), ("/", "4.4482216152605")),
+        (0.30479999999999996, ("*", "0.3048")),  # float noise
+        (0.9999999999999998, None),
+    ],
+)
+def test_factor_text(ratio, expected):
+    assert factor_text(ratio) == expected
+
+
+def test_factors_that_cancel_are_not_written(us_rows):
+    r = us_rows
+    assert r["w_u"].formula == "=1.2*w_D+1.6*w_L"
+    assert r["M_u"].formula == "=w_u*L^2/8"
+    assert r["phi_M_n"].formula == "=phi*F_y*Z_x"
+    assert r["M_rc"].formula == "=A_s*F_y*(d-a/2)"
+
+
+def test_factors_that_remain_are_simple(us_rows):
+    r = us_rows
+    # kip·ft against kip·in
+    assert r["DCR"].formula == "=M_u/phi_M_n*12"
+    assert r["ok"].formula == "=M_u<=phi_M_n/12"
+    # A sum is brought to the unit of its row (kip·ft, the unit of M_u).
+    assert r["M_2"].formula == "=M_u+phi_M_n/12"
+    assert r["M_max"].formula == "=MAX(M_u*12,phi_M_n)"
+    # ksi / psi, in inches (the environment's default length)
+    assert r["a"].formula == "=A_s*F_y/(0.85*f_c*b)*1000"
+    assert r["a"].unit == "in"
+
+
+def test_bare_units_and_zero_need_no_factor(us_rows):
+    assert us_rows["s"].formula == "=IF(a>2,12,18)"
+    assert us_rows["pos"].formula == "=M_u>0"
+
+
+def test_a_power_of_a_row_is_in_si(us_rows):
+    # The power of the factor is unknown until the sheet runs.
+    assert us_rows["I_n"].formula == "=b*(d*0.0254)^n/0.00064516"
+
+
+@pytest.mark.parametrize("environment", ["us_structural", "structural"])
+def test_folded_formulas_recalculate_like_python(environment, tmp_path):
+    pytest.importorskip("formulas")
+    from scripts.excel_demo import recalculation_problems
+    conditional = (
+        "import forallpeople as si\n"
+        f"si.environment('{environment}')\n"
+        "L = 20 * si.ft\nd = 18 * si.inch\nM = 50 * si.kip * si.ft\n"
+        "if L > 15 * si.ft:\n    t = 2 * si.inch\n    M_x = M * 1.5\n"
+        "elif d < 10 * si.inch:\n    t = 1.5 * si.inch\n    M_x = M\n"
+        "else:\n    t = L / 100\n    M_x = M + 10 * si.kip * si.inch\n"
+        "y = t * 2 + d\n"
+    )
+    pint_us = (
+        "import pint\nureg = pint.UnitRegistry()\n"
+        "L = 24 * ureg.ft\nw = 1.82 * ureg.kip / ureg.ft\n"
+        "M = (w * L**2 / 8).to('kip * ft')\n"
+        "M_n = (50 * ureg.ksi * 54.6 * ureg.inch**3).to('kip * inch')\n"
+        "DCR = M / M_n\nM_2 = (M + M_n).to('kip * ft')\nbig = max(M, M_n)\n"
+    )
+    try:
+        for source in (US.replace("us_structural", environment), conditional, pint_us):
+            result = HandCalcs(renderer=ExcelRenderer())(source)
+            path = result.save(tmp_path / "folded.xlsx")
+            assert recalculation_problems(path, result.rows) == []
+    finally:
+        si.environment("default", top_level=False)
