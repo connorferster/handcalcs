@@ -4,16 +4,17 @@ Units: pint Quantities and forallpeople Physicals on a live worksheet.
 Excel cells hold plain numbers, so a value with units is written as its
 magnitude in its *display* unit (``300`` for ``300 mm``) with the unit text in
 the unit column. Formulas stay correct across mixed units by working in SI
-base units: every reference to a row is scaled by that row's display -> SI
-factor and the result is scaled back by its own factor::
+base units. Each row has a display -> SI factor, and the formula builder
+carries these factors through the expression, writing one only where it does
+not cancel (see ``formulas``)::
 
     M = F * L          # F = 12 kN, L = 300 mm, M displays in kN·m
-    =(F*1000)*(L*0.001)/1000
+    =F*L/1000
 
-Factors are computed in Python from the units library and are exact for every
-multiplicative unit; offset units (°C, °F) raise. A factor of 1 is omitted, so
-SI sheets stay clean. A bare unit name in an expression (``x = a * mm``) is the
-constant ``0.001``.
+Factors are computed in Python from the units library: exact fractions for
+forallpeople (from ``Physical.display()``, forallpeople 3.5+), floats for pint.
+Offset units (°C, °F) raise. A bare unit name in an expression
+(``x = a * mm``) is the constant ``0.001``.
 
 Neither library is imported here: values are recognized by duck typing, so
 the renderer works without them installed.
@@ -21,13 +22,14 @@ the renderer works without them installed.
 
 from __future__ import annotations
 from dataclasses import dataclass
+from fractions import Fraction
 from types import ModuleType
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from .compat import incompatible
 
-# Significant digits kept in a factor: removes float noise such as
-# 0.3 / 300 = 0.0009999999999999998 while staying exact for SI prefixes.
+# Significant digits kept in a unit constant (``mm`` -> 0.001): removes float
+# noise such as 0.3 / 300 = 0.0009999999999999998.
 FACTOR_DIGITS = 12
 
 # Modules whose imports and setup lines (``si.environment(...)``) are skipped.
@@ -38,7 +40,9 @@ UNITS_MODULES = ("pint", "forallpeople")
 class UnitValue:
     magnitude: float  # in the display unit
     unit: str  # display unit text ('' when dimensionless)
-    factor: float  # display unit -> SI base unit
+    # display unit -> SI base unit: a Fraction when exact (forallpeople), else
+    # a float (pint)
+    factor: Union[Fraction, float]
 
 
 def _clean(factor: float) -> float:
@@ -104,12 +108,24 @@ def _pint_unit_value(quantity: Any) -> UnitValue:
         )
     unit = f"{quantity.units:~P}"
     factor = quantity._REGISTRY.Quantity(1, quantity.units).to_base_units().magnitude
-    return UnitValue(float(quantity.magnitude), unit, _clean(float(factor)))
+    return UnitValue(float(quantity.magnitude), unit, float(factor))
 
 
 def _physical_unit_value(physical: Any) -> UnitValue:
-    # forallpeople picks the display unit (and prefix) itself; read it back at
-    # full precision and derive the factor from the SI value.
+    # forallpeople picks the display unit (and prefix) itself.
+    display = getattr(physical, "display", None)
+    if callable(display):
+        # forallpeople 3.5+: the shown number and unit, and the exact factor
+        # from the SI value to the number.
+        shown = display()
+        factor = shown.factor
+        if isinstance(factor, (int, Fraction)):
+            to_si = 1 / Fraction(factor)
+        else:
+            to_si = 1 / float(factor)
+        return UnitValue(float(shown.magnitude), shown.unit, to_si)
+    # Older versions: read the display back at full precision and derive the
+    # factor from the SI value.
     text = format(physical, f".{15}g")
     number, _, unit = text.partition(" ")
     magnitude = float(number)
@@ -127,19 +143,24 @@ def unit_value(value: Any) -> Optional[UnitValue]:
     return None
 
 
-def unit_constant(value: Any) -> Optional[float]:
+def unit_factor(value: Any) -> Optional[Union[Fraction, float]]:
     """
-    The SI value of a bare unit (``mm`` -> 0.001), or None.
+    The SI value of a bare unit (``mm`` -> 1/1000), exact when the units
+    library allows, or None.
 
     A pint ``Unit``, or a quantity of magnitude 1 (forallpeople defines ``mm``
     as ``1 mm``), counts as a unit; any other quantity is a value, which must be
     a row on the sheet.
     """
     if is_pint_unit(value):
-        return _clean(
-            float(value._REGISTRY.Quantity(1, value).to_base_units().magnitude)
-        )
+        return float(value._REGISTRY.Quantity(1, value).to_base_units().magnitude)
     info = unit_value(value)
     if info is not None and info.magnitude == 1:
         return info.factor
     return None
+
+
+def unit_constant(value: Any) -> Optional[float]:
+    """The SI value of a bare unit as a float (``mm`` -> 0.001), or None."""
+    factor = unit_factor(value)
+    return None if factor is None else _clean(float(factor))

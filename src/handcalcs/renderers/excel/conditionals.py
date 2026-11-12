@@ -45,7 +45,7 @@ from handcalcs.parsing.nodes import Name
 from handcalcs.parsing.null_values import NoValue
 from .compat import ExcelRendererIncompatibleError, incompatible
 from .evaluate import EvaluationError
-from .formulas import Formula, FormulaBuilder, scale_formula
+from .formulas import Factor, FormulaBuilder
 from .names import SymbolTable
 from .number_formats import to_excel_number_format
 from .rich_text import escape, parse_markup
@@ -201,12 +201,20 @@ class ConditionalRenderer:
     # --- formulas ---
 
     def formula(
-        self, conditional: Conditional, variable: str, scope: Scope, fallback: str
+        self,
+        conditional: Conditional,
+        variable: str,
+        scope: Scope,
+        fallback: str,
+        factor: Factor = 1,
     ) -> str:
-        """``IF(...)`` text for ``variable`` over the tree, nested innermost-last."""
+        """
+        ``IF(...)`` text for ``variable`` over the tree, nested innermost-last,
+        in the display unit whose factor to SI is ``factor``.
+        """
         text = fallback
         for branch in reversed(conditional.branches):
-            value = self.branch_formula(branch, variable, scope, fallback)
+            value = self.branch_formula(branch, variable, scope, fallback, factor)
             if branch.test is None:
                 text = value
             else:
@@ -215,17 +223,24 @@ class ConditionalRenderer:
         return text
 
     def branch_formula(
-        self, branch: Branch, variable: str, scope: Scope, fallback: str
+        self,
+        branch: Branch,
+        variable: str,
+        scope: Scope,
+        fallback: str,
+        factor: Factor = 1,
     ) -> str:
         current = fallback
         for item in branch.body:
             if isinstance(item, Assignment):
                 if item.target == variable:
-                    current = self.builder(scope).build(item.line.expression_tree)
+                    current = self.builder(scope).build_scaled(
+                        item.line.expression_tree, factor
+                    )
                 scope = scope.with_name(item.target, self.new_names[item.target])
             else:
                 if item.assigns(variable):
-                    current = self.formula(item, variable, scope, current)
+                    current = self.formula(item, variable, scope, current, factor)
                 for name in item.variables():
                     scope = scope.with_name(name, self.new_names[name])
         return current
@@ -328,17 +343,19 @@ class ConditionalRenderer:
         formulas = {}
         scope = Scope(self.before)
         for variable in variables:
+            # Every branch is written in the row's display unit.
+            unit = units[variable]
+            factor = unit.factor if unit is not None else 1
             try:
                 previous = self.before.get(variable)
                 fallback = (
-                    self.builder(scope).name(Name(variable)).text if previous else NA
+                    self.builder(scope).build_scaled(Name(variable), factor)
+                    if previous
+                    else NA
                 )
-                text = self.formula(conditional, variable, scope, fallback)
+                text = self.formula(conditional, variable, scope, fallback, factor)
             except ExcelRendererIncompatibleError as error:
                 raise error.with_target(variable) from None
-            unit = units[variable]
-            if unit is not None:
-                text = scale_formula(Formula(text), unit.factor).text
             formulas[variable] = "=" + text
 
         context = self.base_context.current
