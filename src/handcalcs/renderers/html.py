@@ -42,6 +42,9 @@ from handcalcs.parsing.block_nodes import (
     ForBlock,
 )
 
+# Opens a ``# hc: --boxed`` result (``HTMLRenderer.BOX``).
+BOXED_OPEN = '<span class="hc-boxed">'
+
 # The default theme colour ("petrol").
 DEFAULT_THEME = "#0B5F66"
 
@@ -115,6 +118,8 @@ class HTMLRenderer(BaseRenderer):
         ' <span class="hc-check hc-fail">✗</span>',
     )
     PAGE_BREAK = '<div class="hc-page-break" style="break-after: page;"></div>'
+    # A ``# hc: --boxed`` result; see ``result_span``.
+    BOX = (BOXED_OPEN, "</span>")
     # A file written by ``to_file`` is a complete page around the output, which
     # is otherwise a fragment for a host page (a notebook, a web app).
     preamble = (
@@ -180,6 +185,9 @@ class HTMLRenderer(BaseRenderer):
         "color:var(--hc-accent-text);background:var(--hc-highlight);font-weight:600;"
         "padding:0 0.25em;border-radius:3px;"
         "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
+        # A ``# hc: --boxed`` result is framed in the text colour.
+        ".handcalcs :where(.hc-boxed){"
+        "border:1px solid currentColor;padding:0 0.25em;border-radius:0;}"
         ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
         # The pass/fail mark of a ``# hc: --check`` line.
         ".handcalcs :where(.hc-check){font-weight:700;}"
@@ -388,6 +396,10 @@ NOTE_OPEN = '<span class="hc-note">'
 
 
 def result_span(text: str) -> str:
+    # A boxed result is already one span: it takes the highlight too, so the
+    # frame sits on the highlight rather than inside it.
+    if text.startswith(BOXED_OPEN):
+        return f'<span class="hc-result hc-boxed">{text[len(BOXED_OPEN):]}'
     return f'<span class="hc-result">{text}</span>'
 
 

@@ -103,6 +103,7 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
         "apple = 3\nberry = apple > 2  # hc: --check\ncherry = apple < 2  # hc: --check\n",
         "apple berry cherry",
     ),
+    _case("boxed", "apple = 3\nberry = apple * 2  # hc: --boxed\n", "apple berry"),
     _case(
         "pagebreak",
         "apple = 1\n# hc: --pagebreak\nberry = 2  # hc: --pagebreak\ncherry = 3\n",

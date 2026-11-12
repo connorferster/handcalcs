@@ -15,6 +15,7 @@ line; at the end of a line it applies to that line. See
 | `-c N` | `--param-cols`, `--param_cols` | `param_cols` | integer | Columns in parameter grids (default 3) |
 | `-b` | `--line-break` | (one-shot) | flag | Vertical space |
 | | `--check` | `check` | flag | A boolean result is shown as a pass/fail mark (`CHECK_MARKS`) |
+| | `--boxed` | `boxed` | flag | A box is drawn around the result (`BOX`; see below) |
 | | `--pagebreak`, `--page-break` | (one-shot) | flag | Page break (see below) |
 | `-i` | `--ignore` | `ignore` | flag, or flag + condition | Leave lines out of the output |
 | `-s` | `--show` | `ignore` (`False`) | flag, or flag + condition | Show lines again after `-i` |
@@ -47,6 +48,22 @@ nothing at the end of a block header (`if ...:`) or inside a `;` parameter line.
 A custom renderer receives the break as the item `handcalcs.renderers.base.PAGE_BREAK`
 (`"\f"`) in `join_item`.
 
+### Boxed results
+
+`# hc: --boxed` draws a box around the last value of a line: its result, or, on a
+`--check` line, the substitution before the mark. Each renderer puts its class
+attribute `BOX`, an `(open, close)` pair, on either side of that value.
+
+| Renderer | Box |
+|---|---|
+| ASCII | drawn with `┌─┐ │ └─┘` on the rows above, at and below the result |
+| LaTeX, Markdown | `\boxed{...}` (amsmath; MathJax and KaTeX have it too) |
+| HTML | `<span class="hc-boxed">`, a border in the text colour |
+| Word | a boxed formula (`m:borderBox`) |
+| Excel | a thin border on the value cell |
+
+A custom renderer based on `BaseRenderer` gets `[` and `]` unless it sets its own `BOX`.
+
 ## Assignment form
 
 `# hc: name = value[; name = value ...]` sets context fields directly. The text is run as
@@ -63,4 +80,5 @@ Python; if that fails, it is parsed as flags.
 | `symbols` | a dict of name → display spec, e.g. `{"N_plRd": "N_{pl,Rd}"}` |
 | `greek_prefixes` | `True` / `False` |
 | `check` | `True` / `False` |
+| `boxed` | `True` / `False` |
 | any other name | stored on the context for custom renderers |

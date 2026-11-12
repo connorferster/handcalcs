@@ -380,6 +380,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
         )
         symbol = parse_markup(symbolic_markup(renderer, node.assigns, base_context))
         check = bool(getattr(context, "check", False)) and is_boolean(cached)
+        boxed = bool(getattr(context, "boxed", False))
 
         if param_line or formula is None:
             row: Row = ParamRow(
@@ -391,6 +392,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 unit=unit_text,
                 comment=comment,
                 check=check,
+                boxed=boxed,
             )
         else:
             row = CalcRow(
@@ -405,6 +407,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
                 unit=unit_text,
                 comment=comment,
                 check=check,
+                boxed=boxed,
             )
         rows: list[Row] = [row]
         if getattr(context, "line_break", False):

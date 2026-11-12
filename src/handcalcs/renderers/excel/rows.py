@@ -29,6 +29,8 @@ class CalcRow:
     hidden: bool = False
     # A ``# hc: --check`` row: its TRUE/FALSE value is shown green/red.
     check: bool = False
+    # A ``# hc: --boxed`` row: its value cell has a border.
+    boxed: bool = False
 
 
 @dataclass
@@ -50,6 +52,7 @@ class ParamRow:
     comment: Optional[str] = None
     hidden: bool = False
     check: bool = False
+    boxed: bool = False
 
 
 @dataclass
