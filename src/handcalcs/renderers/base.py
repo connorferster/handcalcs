@@ -391,6 +391,9 @@ class BaseRenderer:
     # The pass and fail marks a ``# hc: --check`` line shows in place of a
     # boolean result, each with the gap before it; see ``check_mark``.
     CHECK_MARKS: ClassVar[tuple[str, str]] = (" ✓", " ✗")
+    # What a ``# hc: --boxed`` line draws on either side of its result; see
+    # ``box_result``.
+    BOX: ClassVar[tuple[str, str]] = ("[", "]")
     # The nodes ``# hc: -i`` can hide: each line of the calculation and each
     # block of lines. ``render_node`` hides them for every renderer.
     HIDEABLE: ClassVar[frozenset[str]] = frozenset(
@@ -1755,6 +1758,8 @@ def render_calcline(
         if not values or column != values[-1]:
             values.append(column)
     columns = deque(head + values)
+    if "res" in shown and len(columns) > len(head):
+        box_result(renderer, columns, context)
     if mark and columns:
         columns[-1] = f"{columns[-1]}{mark}"
 
@@ -1821,6 +1826,19 @@ def is_scientific_literal(expression_tree) -> bool:
         and "e" in literal_text(node).lower()
         and not literal_text(node).lower().startswith("0x")
     )
+
+
+def box_result(renderer: BaseRenderer, columns: deque, context: RenderContext) -> None:
+    """
+    Draw ``renderer.BOX`` around the last column of a ``# hc: --boxed`` line: its
+    result, or on a ``--check`` line the substitution before the mark. Only the
+    last row of a column broken by a line continuation is boxed.
+    """
+    if not getattr(context, "boxed", False):
+        return
+    head, sep, last = columns[-1].rpartition(CONTINUATION_MARK)
+    box_open, box_close = renderer.BOX
+    columns[-1] = f"{head}{sep}{box_open}{last}{box_close}"
 
 
 def check_mark(renderer: BaseRenderer, value, context: RenderContext) -> str:
@@ -1929,16 +1947,23 @@ def render_exprline(
     if not node.return_expr and not param_line and "num" in shown:
         columns.append(render_tree("num"))
     mark = check_mark(renderer, node.value, context) if "res" in shown else ""
-    if not isinstance(node.value, NoValue) and "res" in shown and not mark:
+    has_value = not isinstance(node.value, NoValue)
+    if has_value and "res" in shown and not mark:
         base_context.line_context.current_mode = "num"
         columns.append(renderer.render_node(node.value, base_context))
-    if mark and columns:
-        columns[-1] = f"{columns[-1]}{mark}"
+
+    # A column that repeats the one before it is dropped (``2 + 2 = 4``).
+    values: deque = deque([])
+    for column in columns:
+        if not values or column != values[-1]:
+            values.append(column)
+    if has_value and "res" in shown and values:
+        box_result(renderer, values, context)
+    if mark and values:
+        values[-1] = f"{values[-1]}{mark}"
 
     components = deque([])
-    for column in columns:
-        if components and column == components[-1]:
-            continue
+    for column in values:
         if components:
             components.append(context.assign)
         components.append(column)

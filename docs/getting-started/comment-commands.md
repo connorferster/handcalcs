@@ -19,6 +19,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
 | | `--check` | On a comparison, show ✓ or ✗ instead of `True`/`False`. See [Checks](../cookbook/checks.md#mark-a-check-as-pass-or-fail). |
+| | `--boxed` | Draw a box around the result, to make it stand out. |
 | | `--pagebreak` (`--page-break`) | Start a new page: before the next line when on its own line, after the line when inline. |
 | `-i` | `--ignore` | Run the line but leave it out of the output. On its own line, hide every following line. |
 | `-s` | `--show` | Show the line, or every following line, again after `-i`. |
@@ -90,6 +91,7 @@ renderer reads. The flags are shorthands for these fields:
 | `-c` | `param_cols` |
 | `-i` / `-s` | `ignore` (`True` / `False`) |
 | `--check` | `check` |
+| `--boxed` | `boxed` |
 
 Any other name is allowed too, and is passed to the renderer. A
 [customized](../customizing/render-context.md) or [custom](../building-renderers/render-context.md)
@@ -165,6 +167,15 @@ M = w * L**2 / 8
 M_f = 180
 M_r = 240
 M_f <= M_r  # hc: --check
+```
+
+### A boxed result
+
+```{hc-example}
+phi = 0.9
+Z_x = 1.2e6
+F_y = 350
+M_r = phi * Z_x * F_y / 1e6  # hc: --boxed
 ```
 
 ### Several settings at once

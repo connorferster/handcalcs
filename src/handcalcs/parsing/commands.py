@@ -47,6 +47,8 @@ command_parser.add_argument(
 command_parser.add_argument("-p", "--param-line", action="store_true", default=None)
 # Show a boolean result as a pass/fail mark (#251): ``ok = DoU <= 1  # hc: --check``.
 command_parser.add_argument("--check", action="store_true", default=None)
+# Draw a box around the result: ``M_r = phi * Z * F_y  # hc: --boxed``.
+command_parser.add_argument("--boxed", action="store_true", default=None)
 command_parser.add_argument("-b", "--line-break", action="store_true", default=None)
 # A page break before the next line (standalone) or after this one (inline).
 command_parser.add_argument(

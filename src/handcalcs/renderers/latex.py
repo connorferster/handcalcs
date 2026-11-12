@@ -445,6 +445,9 @@ class LatexRenderer(BaseRenderer):
         "\\quad{\\color{green}\\checkmark}",
         "\\quad{\\color{red}\\boldsymbol{\\times}}",
     )
+    # A ``# hc: --boxed`` result; ``\\boxed`` is amsmath's (MathJax and KaTeX
+    # have it too).
+    BOX = ("\\boxed{", "}")
     IF_EXP_KEYWORDS = ("\\;\\mathrm{if}\\;", "\\;\\mathrm{else}\\;")
     COMPREHENSION_KEYWORDS = ("\\;\\mathrm{for}\\;", "\\;\\mathrm{in}\\;")
     # A file written by ``to_file`` is a complete document; the output itself is

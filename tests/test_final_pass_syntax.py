@@ -498,3 +498,95 @@ def test_quantity_power_base_is_bracketed():
     ureg.formatter.default_format = "~P"
     out = _units(ASCIIRenderer(), "L = 6 * u.m\nA = L**2\n", u=ureg)
     assert "A = L² = (6 m)² = 36 m²" in out
+
+
+# --- boxed results ---
+
+BOXED = "a = 2\nb = a * 3  # hc: --boxed\nc = b + 1\n"
+
+
+def test_ascii_boxed_result_is_drawn_on_three_rows():
+    out = _render(ASCIIRenderer(), BOXED).splitlines()
+    assert out == [
+        "a = 2",
+        "                    ┌───┐",
+        "b = a * 3 = 2 * 3 = │ 6 │",
+        "                    └───┘",
+        "c = b + 1 = 6 + 1 = 7",
+    ]
+
+
+def test_ascii_boxed_result_in_a_multiline_calc():
+    out = _render(ASCIIRenderer(), "a = 2\nb = a * 3  # hc: -m --boxed\n")
+    assert out.splitlines()[-4:] == [
+        "  = 2 * 3",
+        "    ┌───┐",
+        "  = │ 6 │",
+        "    └───┘",
+    ]
+
+
+def test_ascii_boxed_result_in_a_params_grid():
+    source = "# hc: -g -c 2\na = 1\nb = 2  # hc: --boxed\nc = 3\nd = 4\n"
+    assert _render(ASCIIRenderer(), source).splitlines() == [
+        "             ┌───┐",
+        "a = 1    b = │ 2 │",
+        "             └───┘",
+        "c = 3    d = 4",
+    ]
+
+
+def test_standalone_boxed_applies_to_following_lines():
+    out = _render(LatexRenderer(), "a = 2\n# hc: --boxed\nb = a * 3\nc = b + 1\n")
+    assert "b &= a \\cdot 3 = 2 \\cdot 3 = \\boxed{6}" in out
+    assert "c &= b + 1 = 6 + 1 = \\boxed{7}" in out
+    assert "a &= 2\n" in out  # before the command: unchanged
+
+
+def test_boxed_bare_expression():
+    out = _last_line(ASCIIRenderer(), "a = 2\na * 3  # hc: --boxed\n")
+    assert out.strip() == "└───┘"
+    out = _render(LatexRenderer(), "a = 2\na * 3  # hc: --boxed\n")
+    assert "a \\cdot 3 &= 2 \\cdot 3 = \\boxed{6}" in out
+
+
+def test_boxed_check_boxes_the_substitution_not_the_mark():
+    out = _render(LatexRenderer(), "a = 2\nok = a > 1  # hc: --check --boxed\n")
+    assert "= \\boxed{2 > 1}\\quad{\\color{green}\\checkmark}" in out
+
+
+def test_latex_and_markdown_boxed_result():
+    from handcalcs.renderers.markdown import MarkdownRenderer
+
+    assert "= \\boxed{6} \\\\" in _render(LatexRenderer(), BOXED)
+    assert "= \\boxed{6} \\\\" in _render(MarkdownRenderer(), BOXED)
+
+
+def test_latex_boxed_param_line():
+    assert "a &= \\boxed{2}" in _render(LatexRenderer(), "a = 2  # hc: --boxed\n")
+
+
+def test_html_boxed_result():
+    out = _render(HTMLRenderer(), BOXED)
+    assert '= <span class="hc-result hc-boxed">6</span>' in out
+    assert ".handcalcs :where(.hc-boxed){border:1px solid currentColor;" in out
+    out = _render(HTMLRenderer(), "a = 2  # hc: --boxed\n")
+    assert 'a = <span class="hc-boxed">2</span>' in out
+
+
+def test_word_boxed_result():
+    pytest.importorskip("docx")
+    from handcalcs.renderers.word import WordRenderer
+
+    xml = _render(WordRenderer(), BOXED).element.xml
+    assert xml.count("<m:borderBox>") == 1
+
+
+def test_excel_boxed_value_cell_has_a_border():
+    openpyxl = pytest.importorskip("openpyxl")
+    import io
+
+    workbook = HandCalcs(ExcelRenderer())(BOXED)
+    assert [row.boxed for row in workbook.rows] == [False, True, False]
+    sheet = openpyxl.load_workbook(io.BytesIO(workbook.to_bytes())).active
+    assert [sheet[f"E{r}"].border.top.style for r in (1, 2, 3)] == [None, "thin", None]
