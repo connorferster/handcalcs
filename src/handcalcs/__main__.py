@@ -242,13 +242,18 @@ def renderer_listing() -> str:
         suffix = ", ".join(extensions.get(name, []))
         lines.append(f"  {name}" + (f"  ({suffix})" if suffix else ""))
         for parameter in renderer_options(renderer_cls):
-            default = (
-                ""
-                if parameter.default is inspect.Parameter.empty
-                else f"  (default: {parameter.default!r})"
-            )
-            lines.append(f"      --{option_flag(parameter.name)}{default}")
+            lines.append(f"      --{option_flag(parameter.name)}{describe_default(parameter)}")
     return "\n".join(lines)
+
+
+def describe_default(parameter: inspect.Parameter) -> str:
+    """'  (default: ...)' for the listing; a long default shows only its type."""
+    if parameter.default is inspect.Parameter.empty:
+        return ""
+    text = repr(parameter.default)
+    if len(text) > 40:
+        text = f"a {type(parameter.default).__name__}"
+    return f"  (default: {text})"
 
 
 def option_flag(name: str) -> str:
