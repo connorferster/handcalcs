@@ -28,6 +28,9 @@ dependencies = [
     "platformdirs>=3.0.0",
 ]
 
+[project.scripts]
+handcalcs = "handcalcs.__main__:main"
+
 [project.urls]
 Documentation = "https://handcalcs.structuralpython.com/"
 Source = "https://github.com/connorferster/handcalcs"
