@@ -25,6 +25,7 @@ from typing import Any, Optional, Sequence
 
 from . import config
 from .interfaces.object_oriented import HandCalcs
+from .parsing.inputs import InputBinding
 from .renderers import BaseRenderer, get_renderer
 from .renderers.base import _RENDERER_REGISTRY
 
@@ -84,6 +85,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "imported with --import first."
         )
 
+    if not args.inputs and (args.allow_computed or not args.strict):
+        parser.error("--allow-computed and --no-strict apply only with --input")
     settings = {name: options.pop(name) for name in CONFIG_OPTIONS if name in options}
     renderer = make_renderer(renderer_cls, options, parser)
     source = read_source(args.source, parser)
@@ -102,7 +105,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 config.set_option(name, value)
             except (TypeError, ValueError) as error:
                 parser.error(f"--{option_flag(name)}: {error}")
-        return render(HandCalcs(renderer=renderer), source, args, parser)
+        inputs = read_inputs(args.inputs, source, args, parser)
+        return render(HandCalcs(renderer=renderer), source, inputs, args, parser)
     finally:
         for name in settings:
             if name in previous:
@@ -116,16 +120,23 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 def render(
     hc: HandCalcs,
     source: str,
+    inputs: Optional[dict],
     args: argparse.Namespace,
     parser: argparse.ArgumentParser,
 ) -> int:
     """Write the render to --output, or print it (text only) to stdout."""
+    if inputs is not None:
+        options = dict(
+            inputs=inputs, strict=args.strict, allow_computed=args.allow_computed
+        )
+    else:
+        options = {}
     if args.output is not None and args.output != "-":
-        path = hc(source, destination=args.output)
+        path = hc(source, destination=args.output, **options)
         if not args.quiet:
             print(f"Wrote {path}", file=sys.stderr)
         return 0
-    rendered = hc(source)
+    rendered = hc(source, **options)
     if not isinstance(rendered, str):
         parser.error(
             f"the {hc.renderer.name!r} renderer writes a file, not text; "
@@ -171,6 +182,32 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "-i",
+        "--input",
+        dest="inputs",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+        help=(
+            "render with VALUE in place of the value the script first assigns NAME "
+            "(repeatable). A number keeps the line's units (-i L=8 makes "
+            "'L = 6 * m' 'L = 8 * m'); an expression may use the names the script "
+            "defines before its inputs "
+            "(-i L='8000 * mm')"
+        ),
+    )
+    parser.add_argument(
+        "--allow-computed",
+        action="store_true",
+        help="with --input, allow replacing a value the script computes",
+    )
+    parser.add_argument(
+        "--strict",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="with --input, fail on a NAME the script never assigns (default)",
+    )
+    parser.add_argument(
         "--import",
         dest="imports",
         action="append",
@@ -212,6 +249,7 @@ def epilog() -> str:
         f"  {PROG} beam.py -r excel -o beam.xlsx --sheet-name Beam",
         f"  {PROG} beam.py -r latex --format-code .3f > beam.tex",
         f"  {PROG} beam.py -o beam.html --theme-color '#1d4ed8'",
+        f"  {PROG} beam.py -i w=7.5 -i L=8                    with other inputs",
     ]
     return "\n".join(lines)
 
@@ -351,6 +389,91 @@ def make_renderer(
         return renderer_cls(**options)
     except (TypeError, ValueError, FileNotFoundError) as error:
         parser.error(f"{renderer_cls.name!r} renderer: {error}")
+
+
+def read_inputs(
+    assignments: list[str],
+    source: str,
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser,
+) -> Optional[dict]:
+    """
+    The --input NAME=VALUE assignments as a dict, or None without any. VALUE is
+    a Python literal (a number keeps the units of the script's line), or else
+    an expression evaluated where the script first assigns an input, such as
+    '8000 * mm' for a script that defines its units before that.
+    """
+    if not assignments:
+        return None
+    namespace: Optional[dict] = None
+    names = [assignment.partition("=")[0].strip() for assignment in assignments]
+    inputs = {}
+    for assignment in assignments:
+        name, has_value, text = assignment.partition("=")
+        name, text = name.strip(), text.strip()
+        if not has_value or not name.isidentifier() or not text:
+            parser.error(f"--input takes NAME=VALUE, not {assignment!r}")
+        try:
+            inputs[name] = ast.literal_eval(text)
+            continue
+        except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
+            pass
+        if namespace is None:
+            namespace = prelude_namespace(source, names, parser)
+        try:
+            inputs[name] = eval(text, namespace)
+        except Exception as error:
+            parser.error(
+                f"--input {name}: could not evaluate {text!r} "
+                f"({type(error).__name__}: {error}). VALUE is a Python literal or an "
+                "expression using names the script defines before its inputs; "
+                "quote a string, "
+                f"e.g. {name}='\"text\"'"
+            )
+    # Check the inputs against the script now, so that a misspelt or unbindable
+    # name is reported as a usage error before anything runs.
+    try:
+        InputBinding(
+            source, inputs, strict=args.strict, allow_computed=args.allow_computed
+        )
+    except KeyError as error:
+        parser.error(error.args[0].replace("pass strict=False", "use --no-strict"))
+    except ValueError as error:
+        message = str(error).replace("pass allow_computed=True", "use --allow-computed")
+        parser.error(message)
+    return inputs
+
+
+def prelude_namespace(
+    source: str, names: Sequence[str], parser: argparse.ArgumentParser
+) -> dict:
+    """
+    The namespace of the script run up to its first top-level assignment of
+    any of ``names``: its imports and setup (e.g. its units), as they are
+    where an input takes the place of a value.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return {}
+    prelude = []
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id in names
+            for target in statement.targets
+        ):
+            break
+        prelude.append(statement)
+    namespace: dict = {}
+    module = ast.Module(body=prelude, type_ignores=[])
+    try:
+        exec(compile(module, "<script>", "exec"), namespace)
+    except Exception as error:
+        parser.error(
+            f"--input: the script failed before its first input "
+            f"({type(error).__name__}: {error})"
+        )
+    return namespace
 
 
 def read_source(source: str, parser: argparse.ArgumentParser) -> str:

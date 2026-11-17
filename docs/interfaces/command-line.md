@@ -68,6 +68,25 @@ set the same way, for that run only:
 $ handcalcs beam.py --format-code .2f
 ```
 
+## Inputs
+
+`-i NAME=VALUE`, `--input NAME=VALUE` renders the script with `VALUE` in place of the
+value it first assigns `NAME`, as `HandCalcs(...)(source, inputs=...)` does (see
+[Rendering many input sets](object-oriented.md#rendering-many-input-sets)). Repeat it
+for each input:
+
+```console
+$ handcalcs beam.py -i w=7.5 -i L=8 -o beam-case2.docx
+```
+
+- A number keeps the units of the script's line: with `L = 6 * m`, `-i L=8` runs and
+  renders `L = 8 * m`.
+- `VALUE` may also be an expression using names the script defines before its first
+  input, such as its units. A quantity is converted to the line's units, so
+  `-i L='8000 * mm'` renders `L = 8 * m` too.
+- `--no-strict` ignores a `NAME` the script never assigns, which is otherwise an error.
+- `--allow-computed` allows replacing a value the script computes.
+
 ## Custom renderers
 
 A custom renderer is chosen by name once the module that defines it is imported.

@@ -181,3 +181,51 @@ def test_python_dash_m(script):
         check=True,
     )
     assert result.stdout.startswith("# Beam")
+
+
+def test_inputs(script, capsys):
+    assert main([str(script), "-i", "w=7.5", "--input", "L=8"]) == 0
+    assert capsys.readouterr().out.endswith("M = w * L² / 8 = 7.5 * 8² / 8 = 60\n")
+
+
+def test_input_expression_uses_the_script_before_its_inputs(tmp_path, capsys):
+    script = tmp_path / "units.py"
+    script.write_text(
+        "class Unit(float):\n"
+        "    pass\n"
+        "mm = 0.001\n"
+        "L = 6.0\n"
+        "A = L * 2\n",
+        encoding="utf-8",
+    )
+    main([str(script), "-i", "L=8000 * mm"])
+    assert "A = L * 2 = 8 * 2 = 16" in capsys.readouterr().out
+
+
+def test_input_unknown_name(script, capsys):
+    with pytest.raises(SystemExit):
+        main([str(script), "-i", "x=1"])
+    assert "use --no-strict" in capsys.readouterr().err
+    main([str(script), "-i", "x=1", "--no-strict"])
+    assert "4.5 * 6² / 8" in capsys.readouterr().out
+
+
+def test_input_computed_name(script, capsys):
+    with pytest.raises(SystemExit):
+        main([str(script), "-i", "M=1"])
+    assert "use --allow-computed" in capsys.readouterr().err
+    main([str(script), "-i", "M=1", "--allow-computed"])
+    assert capsys.readouterr().out.endswith("M = 1\n")
+
+
+@pytest.mark.parametrize("argument", ["w", "=3", "w=", "w=undefined_name"])
+def test_input_bad_values(script, argument, capsys):
+    with pytest.raises(SystemExit):
+        main([str(script), "-i", argument])
+    assert "--input" in capsys.readouterr().err
+
+
+def test_input_options_need_inputs(script, capsys):
+    with pytest.raises(SystemExit):
+        main([str(script), "--allow-computed"])
+    assert "only with --input" in capsys.readouterr().err
