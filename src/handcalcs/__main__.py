@@ -239,7 +239,9 @@ def epilog() -> str:
         "  Any other --name VALUE is passed to the renderer as name=VALUE (dashes",
         "  become underscores). VALUE is read as a Python literal if it is one, else",
         "  as a string; --name alone is True. handcalcs options can be set the same",
-        "  way: " + ", ".join(f"--{option_flag(name)}" for name in CONFIG_OPTIONS) + ".",
+        "  way: "
+        + ", ".join(f"--{option_flag(name)}" for name in CONFIG_OPTIONS)
+        + ".",
         "",
         renderer_listing(),
         "",
@@ -280,7 +282,9 @@ def renderer_listing() -> str:
         suffix = ", ".join(extensions.get(name, []))
         lines.append(f"  {name}" + (f"  ({suffix})" if suffix else ""))
         for parameter in renderer_options(renderer_cls):
-            lines.append(f"      --{option_flag(parameter.name)}{describe_default(parameter)}")
+            lines.append(
+                f"      --{option_flag(parameter.name)}{describe_default(parameter)}"
+            )
     return "\n".join(lines)
 
 
