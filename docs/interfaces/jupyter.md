@@ -92,6 +92,25 @@ displaying it. The cell shows the file's path. The file type follows the
 for a `.docx` file. It combines with inputs:
 `%%render inputs=case, destination="case_1.tex"`.
 
+## `%%source`: the rendered text
+
+`%%source` runs and renders its cell as `%%render` does, but prints the rendered text
+instead of displaying it: the LaTeX, Markdown or HTML itself, ready to copy into a
+report or a `.tex` file. Name a renderer to use it for this cell only:
+
+```python
+%%source latex
+M = w * L**2 / 8
+```
+
+This is v1's `%%tex`. Without a name, `%%source` uses the
+[Jupyter renderer](#choosing-the-renderer). It takes `%%render`'s `inputs=`, `strict=`
+and `allow_computed=` (`%%source latex, inputs=case`), and `renderer="latex"` can be
+written as a keyword with them. `%source <line>` prints the render of one line.
+
+A renderer that produces a document rather than text (Word, Excel) has nothing to
+print; write it to a file with [`destination=`](#writing-a-file) instead.
+
 ## `%render`: one line
 
 `%render` runs the rest of its line in the notebook's namespace and renders just that

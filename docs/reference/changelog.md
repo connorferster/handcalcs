@@ -4,6 +4,10 @@
 
 ### Features
 
+- **`%%source`** prints a cell's rendered text (LaTeX, Markdown, HTML, plain text)
+  instead of displaying it, to copy into another document. `%%source latex` uses the
+  LaTeX renderer for that cell, as v1's `%%tex` did. It takes `%%render`'s `inputs=`
+  arguments, and `%source` prints one line.
 - **`# hc: -u` shows unit inputs as values** (#353): a line that is a number times
   units, `P = 5 * kN`, renders as `P = 5 kN` instead of `P = 5 · kN = 5 · 1 kN = 5 kN`.
   Lines that calculate keep every step. Turn it on for what follows, for one line

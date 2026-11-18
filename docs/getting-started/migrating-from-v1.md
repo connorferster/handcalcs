@@ -10,7 +10,7 @@ notebooks need only a few changes.
 |---|---|
 | `import handcalcs.render` | `import handcalcs` |
 | `%%render` | `%%render` (now shows Markdown with LaTeX math by default) |
-| `%%tex` | `%hc_default_renderer latex`, then `%%render`; or `HandCalcs(LatexRenderer())` |
+| `%%tex` | `%%source latex` (prints the LaTeX, see [`%%source`](../interfaces/jupyter.md#source-the-rendered-text)) |
 | `%%render 2` (precision) | `# hc: -f .2f` (any [format code](formatting-numbers.md)) |
 | `%%render params` | `;` [parameter grids](writing-calculations.md#parameter-grids), or `# hc: -g`; `# hc: -p` for one line |
 | `%%render long` | `# hc: -m` on its own line, for every line after it (see the note below); or at the end of a line, for that line only |

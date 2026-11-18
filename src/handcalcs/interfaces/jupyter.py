@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from string import Formatter
 from .object_oriented import HandCalcs
@@ -79,11 +80,15 @@ def hc_default_renderer(line):
     config.set_option("jupyter_renderer", name)
 
 
-def jupyter_handcalcs() -> tuple[HandCalcs, type]:
-    """A HandCalcs with the session's Jupyter renderer, and its display class."""
-    renderer_name = config.get_option(
-        "jupyter_renderer", config.DEFAULTS["jupyter_renderer"]
-    )
+def jupyter_handcalcs(renderer_name: Optional[str] = None) -> tuple[HandCalcs, type]:
+    """
+    A HandCalcs with the renderer named ``renderer_name`` (by default the
+    session's Jupyter renderer), and its display class.
+    """
+    if renderer_name is None:
+        renderer_name = config.get_option(
+            "jupyter_renderer", config.DEFAULTS["jupyter_renderer"]
+        )
     renderer_cls = resolve_jupyter_renderer(renderer_name)
     return HandCalcs(renderer=renderer_cls()), display_class_for(renderer_cls)
 
@@ -93,15 +98,19 @@ def render_and_display(
     namespace: dict,
     values: Optional[line_values.LineValues] = None,
     destination: Optional[str | os.PathLike] = None,
+    as_source: bool = False,
+    renderer_name: Optional[str] = None,
 ) -> None:
     """
     Render ``source``, which has run in ``namespace``, with the session's
-    Jupyter renderer and display it (or write it to ``destination``, see
-    ``show``). ``values`` are the values recorded while it ran; without them,
-    every line shows the values in ``namespace``.
+    Jupyter renderer (or the one named ``renderer_name``) and display it (or
+    write it to ``destination``, or print its source, see ``show``). ``values``
+    are the values recorded while it ran; without them, every line shows the
+    values in ``namespace``.
     """
-    hc, display_class = jupyter_handcalcs()
-    show(hc, display_class, hc.render_run(source, namespace, values), destination)
+    hc, display_class = jupyter_handcalcs(renderer_name)
+    rendered = hc.render_run(source, namespace, values)
+    show(hc, display_class, rendered, destination, as_source)
 
 
 def show(
@@ -109,16 +118,33 @@ def show(
     display_class: type,
     rendered: Any,
     destination: Optional[str | os.PathLike],
+    as_source: bool = False,
 ) -> None:
     """
     Display ``rendered`` (but not as an "output"), or, with a ``destination``,
-    write it to that file instead and display the file's path.
+    write it to that file instead and display the file's path. With
+    ``as_source`` (``%%source``), print the rendered text itself instead, to
+    be read or copied, e.g. the LaTeX to paste into a document.
     """
+    if as_source:
+        print_source(hc, rendered)
+        return
     if destination is None:
         display(display_class(rendered))
         return
     path = hc.renderer.to_file(rendered, destination)
     display(Pretty(f"Rendered to {path}"))
+
+
+def print_source(hc: HandCalcs, rendered: Any) -> None:
+    """Print the text a renderer produced; a document or workbook has none."""
+    if not isinstance(rendered, str):
+        raise UsageError(
+            f"%%source shows the text a renderer produces, but "
+            f"{type(hc.renderer).__name__} produces a {type(rendered).__name__}. "
+            'Use %%render destination="..." to write it to a file instead.'
+        )
+    print(rendered, end="" if rendered.endswith("\n") else "\n")
 
 
 def run_recorded(source: str) -> tuple[Any, Optional[line_values.LineValues]]:
@@ -160,14 +186,47 @@ def render(line, cell=None, local_ns=None):
     the render to that file instead of displaying it.
     """
     __tracebackhide__ = True  # IPython leaves this frame out of a traceback
+    run_and_render(line, cell, local_ns)
+
+
+@register_line_cell_magic("source")
+@needs_local_scope
+def source_magic(line, cell=None, local_ns=None):
+    """
+    ``%%source`` runs its cell and renders it as ``%%render`` does, but prints
+    the rendered text (the LaTeX, Markdown, HTML, ...) instead of displaying
+    it, so it can be read or copied into another document. ``%%source latex``
+    uses the renderer named ``latex`` for this cell (v1's ``%%tex``); without a
+    name it uses the session's renderer. It takes ``%%render``'s ``inputs=``,
+    ``strict=`` and ``allow_computed=``, and ``renderer="latex"`` with them.
+    ``%source <line>`` prints the render of one line.
+    """
+    __tracebackhide__ = True
+    run_and_render(line, cell, local_ns, as_source=True)
+
+
+def run_and_render(
+    line: str, cell: Optional[str], local_ns: dict | None, as_source: bool = False
+) -> None:
+    """``%%render`` and ``%%source`` (``as_source``), cell or line magic."""
+    __tracebackhide__ = True
+    if as_source:
+        line, renderer_name = source_renderer(line, cell is None)
+    else:
+        renderer_name = None
     if cell is None:
-        return render_line(line, local_ns)
-    arguments = render_arguments(line, local_ns)
+        return render_line(line, local_ns, as_source, renderer_name)
+    arguments = render_arguments(line, local_ns, as_source)
+    renderer_name = arguments.pop("renderer", renderer_name)
     destination = arguments.pop("destination", None)
     if arguments:
-        return render_with_inputs(cell, **arguments, destination=destination)
-    # if line_args["sympy"]:
-    #     cell = s_kit.convert_sympy_cell_to_py_cell(cell, user_ns_prerun)
+        return render_with_inputs(
+            cell,
+            **arguments,
+            destination=destination,
+            as_source=as_source,
+            renderer_name=renderer_name,
+        )
 
     # Run the cell. Its own output is captured so that only the render shows;
     # an error is raised again, so that it is shown (and stops "Run All") as it
@@ -176,19 +235,43 @@ def render(line, cell=None, local_ns=None):
     exec_result.raise_error()
 
     # Render against the updated variables (after .run_cell(cell))
-    render_and_display(cell, ip.user_ns, values, destination)
+    render_and_display(cell, ip.user_ns, values, destination, as_source, renderer_name)
+
+
+def source_renderer(line: str, is_line_magic: bool) -> tuple[str, Optional[str]]:
+    """
+    Split ``%%source latex`` into the rest of the line and the renderer name.
+    A line magic's line is code, so only the cell magic takes a name.
+    """
+    match = re.match(r"\s*([A-Za-z_][\w.-]*)(?![\w.-])\s*(?:,|$|(?=[^=\s]))", line)
+    if is_line_magic or match is None:
+        return line, None
+    name = match.group(1)
+    resolve_magic_renderer(name)
+    return line[match.end() :].strip(), name
+
+
+def resolve_magic_renderer(name: str) -> None:
+    """A UsageError (shown without a traceback) for an unknown renderer name."""
+    try:
+        resolve_jupyter_renderer(name)
+    except ValueError as error:
+        raise UsageError(str(error)) from None
 
 
 RENDER_ARGUMENTS = ("inputs", "strict", "allow_computed", "destination")
+SOURCE_ARGUMENTS = ("inputs", "strict", "allow_computed", "renderer")
 
 
-def render_arguments(line: str, local_ns: dict | None) -> dict:
+def render_arguments(line: str, local_ns: dict | None, as_source: bool = False) -> dict:
     """
-    The arguments of ``%%render inputs=case, strict=False, destination="c.tex"``,
-    written as keyword arguments of a Python call and evaluated in the user
-    namespace. Empty for a line without arguments (or with only words, like
-    v1's ``%%render params``, which 2.0 ignores).
+    The arguments of ``%%render inputs=case, strict=False, destination="c.tex"``
+    (or of ``%%source``), written as keyword arguments of a Python call and
+    evaluated in the user namespace. Empty for a line without arguments (or
+    with only words, like v1's ``%%render params``, which 2.0 ignores).
     """
+    magic = "%%source" if as_source else "%%render"
+    allowed = SOURCE_ARGUMENTS if as_source else RENDER_ARGUMENTS
     if "=" not in line:
         return {}
     try:
@@ -199,23 +282,30 @@ def render_arguments(line: str, local_ns: dict | None) -> dict:
         )
     except (SyntaxError, TypeError) as error:
         raise UsageError(
-            f"%%render could not read its arguments '{line.strip()}' ({error}). "
-            "Write them as keyword arguments, e.g. %%render inputs=case, strict=False"
+            f"{magic} could not read its arguments '{line.strip()}' ({error}). "
+            f"Write them as keyword arguments, e.g. {magic} inputs=case, strict=False"
         ) from None
-    unknown = [name for name in arguments if name not in RENDER_ARGUMENTS]
+    unknown = [name for name in arguments if name not in allowed]
     if unknown:
+        hint = (
+            " %%source prints the render; use %%render to write a file."
+            if as_source and "destination" in unknown
+            else ""
+        )
         raise UsageError(
-            f"%%render does not take {', '.join(map(repr, unknown))}. Its arguments "
-            f"are {', '.join(RENDER_ARGUMENTS)}."
+            f"{magic} does not take {', '.join(map(repr, unknown))}. Its arguments "
+            f"are {', '.join(allowed)}.{hint}"
         )
     if "inputs" not in arguments and ({"strict", "allow_computed"} & set(arguments)):
         raise UsageError(
-            "%%render needs inputs=... when it is given strict or allow_computed."
+            f"{magic} needs inputs=... when it is given strict or allow_computed."
         )
     if "inputs" in arguments and not isinstance(arguments["inputs"], dict):
         raise UsageError(
-            f"%%render inputs= must be a dict, not {type(arguments['inputs']).__name__}."
+            f"{magic} inputs= must be a dict, not {type(arguments['inputs']).__name__}."
         )
+    if "renderer" in arguments:
+        resolve_magic_renderer(arguments["renderer"])
     return arguments
 
 
@@ -225,6 +315,8 @@ def render_with_inputs(
     strict: bool = True,
     allow_computed: bool = False,
     destination: Optional[str | os.PathLike] = None,
+    as_source: bool = False,
+    renderer_name: Optional[str] = None,
 ) -> None:
     """
     ``%%render inputs=case``: run and render the cell with the values in ``case``
@@ -238,11 +330,17 @@ def render_with_inputs(
     if not exec_result.success:
         ip.user_ns.pop(RESOLVER, None)
         exec_result.raise_error()
-    hc, display_class = jupyter_handcalcs()
-    show(hc, display_class, hc.render_bound(binding, ip.user_ns, values), destination)
+    hc, display_class = jupyter_handcalcs(renderer_name)
+    rendered = hc.render_bound(binding, ip.user_ns, values)
+    show(hc, display_class, rendered, destination, as_source)
 
 
-def render_line(line: str, local_ns: dict | None) -> None:
+def render_line(
+    line: str,
+    local_ns: dict | None,
+    as_source: bool = False,
+    renderer_name: Optional[str] = None,
+) -> None:
     """
     ``%render``: run one line of code in the user namespace, then render it.
 
@@ -261,7 +359,9 @@ def render_line(line: str, local_ns: dict | None) -> None:
             "@handcalc to render it."
         )
     exec(compile(source + "\n", "<%render>", "exec"), ip.user_ns)
-    render_and_display(source + "\n", ip.user_ns)
+    render_and_display(
+        source + "\n", ip.user_ns, as_source=as_source, renderer_name=renderer_name
+    )
 
 
 def load_ipython_extension(ipython):
@@ -271,3 +371,4 @@ def load_ipython_extension(ipython):
     `register_magic_function` method of the shell
     instance."""
     ipython.register_magic_function(render, "line_cell")
+    ipython.register_magic_function(source_magic, "line_cell", "source")
