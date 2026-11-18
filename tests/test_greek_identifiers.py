@@ -10,6 +10,7 @@ from handcalcs.renderers.excel.names import to_excel_name
 from handcalcs.renderers.identifiers import IdentifierOptions
 from handcalcs.renderers.excel.symbolic import symbolic_identifier
 from handcalcs.renderers.html import HTMLRenderer
+from tests.html_markup import var
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.markdown import MarkdownRenderer
 from handcalcs.renderers.ascii import ASCIIRenderer
@@ -65,7 +66,7 @@ def test_markdown(identifier):
 
 @pytest.mark.parametrize("identifier", TABLE)
 def test_html(identifier):
-    assert f"{TABLE[identifier][2]} = 2" in render(HTMLRenderer(), identifier)
+    assert f"{var(TABLE[identifier][2])} = 2" in render(HTMLRenderer(), identifier)
 
 
 @pytest.mark.parametrize("identifier", TABLE)
@@ -79,7 +80,7 @@ def test_excel_display(identifier):
         (ASCIIRenderer, "DeltaH = 2"),
         (LatexRenderer, "\\mathrm{DeltaH} &= 2"),
         (MarkdownRenderer, "\\mathrm{DeltaH} &= 2"),
-        (HTMLRenderer, "DeltaH = 2"),
+        (HTMLRenderer, "<var>DeltaH</var> = 2"),
     ],
 )
 def test_greek_prefixes_off(renderer_class, expected):

@@ -80,7 +80,7 @@ def test_html_multiline_emits_left_aligned_table():
     assert '<table class="hc-params hc-multiline">' in out
     # Target only on the first row; empty id cells thereafter so '=' aligns.
     assert out.count("<tr>") == 3
-    assert '<td class="hc-param-id">d</td>' in out
+    assert '<td class="hc-param-id"><var>d</var></td>' in out
     assert '<td class="hc-param-id"></td>' in out
     # The left-aligned override is present in the stylesheet.
     assert "table.hc-params.hc-multiline{align-self:start;" in out

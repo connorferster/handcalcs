@@ -18,6 +18,8 @@ from handcalcs.renderers.base import (
     ROOT_SYMBOLS,
     math_call_name,
     postfix_factorial,
+    quantity_power_base,
+    OP_PRECEDENCE,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -31,7 +33,14 @@ from handcalcs.renderers.identifiers import (
 
 # Node type imports only used for typing
 from handcalcs.parsing.nodes import HcNode, Name, Constant, Matrix, Subscript
-from handcalcs.parsing.operator_nodes import AddOp, HcBinOp, HcCompOp
+from handcalcs.parsing.operator_nodes import (
+    AddOp,
+    DivOp,
+    FloorOp,
+    HcBinOp,
+    HcCompOp,
+    PowOp,
+)
 from handcalcs.parsing.inline_nodes import Attribute, InlineComment, FunctionCall
 from handcalcs.parsing.line_nodes import Import, Heading, CommentLine
 from handcalcs.parsing.block_nodes import (
@@ -106,6 +115,11 @@ class HTMLRenderer(BaseRenderer):
     Every colour is a CSS custom property on ``.handcalcs`` (``--hc-accent``,
     ``--hc-guide-1`` to ``--hc-guide-3``, ``--hc-tint``, ``--hc-muted``, ...), so
     a host stylesheet can restyle the output without changing the renderer.
+
+    ``fractions="stacked"`` (the default) shows a division as a fraction, its
+    numerator over its denominator, drawn with plain HTML and CSS (no math
+    library). A division in an exponent stays on one line (``a<sup>1/2</sup>``).
+    ``fractions="inline"`` writes every division on one line, ``a / b``.
     """
 
     name = "html"
@@ -131,10 +145,23 @@ class HTMLRenderer(BaseRenderer):
     )
     postamble = "\n</body>\n</html>\n"
 
-    def __init__(self, theme_color: str = DEFAULT_THEME) -> None:
+    FRACTIONS = ("stacked", "inline")
+
+    def __init__(
+        self, theme_color: str = DEFAULT_THEME, fractions: str = "stacked"
+    ) -> None:
         super().__init__()
+        if fractions not in self.FRACTIONS:
+            raise ValueError(
+                f"fractions must be one of {', '.join(map(repr, self.FRACTIONS))}, "
+                f"not {fractions!r}"
+            )
         self.theme_color = theme_color
         self.theme = theme_variables(theme_color)
+        self.fractions = fractions
+        # How many exponents the node being rendered is inside: a fraction in
+        # an exponent is written on one line.
+        self.exponent_depth = 0
 
     # One scoped stylesheet owns ALL vertical rhythm and indentation. Emitted
     # once by ``complete``; every rule except the table rules uses ``:where()``
@@ -147,7 +174,9 @@ class HTMLRenderer(BaseRenderer):
         "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;--hc-eq-gap:0.3em;"
         "--hc-accent-text:var(--hc-accent);"
         "--hc-tint:color-mix(in srgb,var(--hc-accent) 9%,transparent);"
-        "--hc-highlight:color-mix(in srgb,var(--hc-accent) 12%,transparent);"
+        "--hc-mark:#FFE31D;--hc-mark-text:#17131F;"
+        '--hc-math-font:"Cambria Math",Cambria,"STIX Two Text","DejaVu Serif",'
+        'Georgia,"Times New Roman",serif;'
         "--hc-muted:color-mix(in srgb,currentColor 60%,transparent);"
         "--hc-chip:color-mix(in srgb,currentColor 6%,transparent);"
         "display:flex;flex-direction:column;gap:var(--hc-gap);"
@@ -167,6 +196,13 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-body .hc-body .hc-body .hc-body .hc-body){--hc-guide:var(--hc-guide-2);}"
         ".handcalcs :where(.hc-line,.hc-header,.hc-comment){"
         "margin-block:0;}"
+        # The maths is typeset like a hand calculation: a serif maths font
+        # (``--hc-math-font``), names in italic, small sub- and superscripts that
+        # don't push the lines apart. Comments and headings keep the page's font.
+        ".handcalcs :where(.hc-line,.hc-header){"
+        "font-family:var(--hc-math-font);line-height:1.6;}"
+        ".handcalcs :where(var){font-style:italic;font-size:1.08em;}"
+        ".handcalcs :where(sub,sup){font-size:0.7em;line-height:0;white-space:nowrap;}"
         # Block headers (``Since ... is True:``) are callouts: a tinted band with
         # an accent marker; their keywords (``.hc-kw``) are set in the accent.
         ".handcalcs :where(.hc-header){"
@@ -174,11 +210,11 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-header)::before{"
         'content:"\\25B8";color:var(--hc-accent-text);margin-inline-end:0.4em;}'
         ".handcalcs :where(.hc-kw){color:var(--hc-accent-text);}"
-        # The result of a calc with a substitution is highlighted; inline
-        # comments are muted.
+        # The result of a calc with a substitution is bold on a highlighter mark
+        # (``--hc-mark``, dark text on it on any page); inline comments are muted.
         ".handcalcs :where(.hc-result){"
-        "color:var(--hc-accent-text);background:var(--hc-highlight);font-weight:600;"
-        "padding:0 0.25em;border-radius:3px;"
+        "color:var(--hc-mark-text);background:var(--hc-mark);font-weight:700;"
+        "padding:0 0.2em;white-space:nowrap;"
         "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
         ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
         # The pass/fail mark of a ``# hc: --check`` line.
@@ -214,7 +250,7 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs table.hc-params{"
         "margin:0;border:0;border-collapse:separate;border-spacing:0;table-layout:auto;"
         "width:auto;align-self:center;font-size:inherit;color:inherit;"
-        "font-variant-numeric:tabular-nums;"
+        "font-variant-numeric:tabular-nums;font-family:var(--hc-math-font);"
         "background:var(--hc-tint);border-radius:4px;padding:0.1em 0.6em;}"
         # A multi-line calc reads as one unit: no panel, an accent bar on its left.
         ".handcalcs table.hc-params.hc-multiline{align-self:start;"
@@ -236,6 +272,26 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-matrix){display:inline-table;vertical-align:middle;"
         "border-inline:1px solid currentColor;border-radius:0.2em;padding:0 0.15em;}"
         ".handcalcs :where(.hc-matrix-row){display:table-row;}"
+        # A stacked fraction: the numerator over the denominator, the bar the
+        # numerator's bottom border. ``inline-block`` with block children (not
+        # flexbox) so it also lays out in WeasyPrint and email clients. Centred
+        # on the line's middle, roughly the math axis. The ``/`` and any brackets
+        # it needs are hidden but kept, so copied text and screen readers get
+        # ``(a + b)/(c - a)``.
+        ".handcalcs :where(.hc-frac){display:inline-block;vertical-align:middle;"
+        "text-align:center;line-height:1.3;margin:0.2em 0.15em;position:relative;}"
+        ".handcalcs :where(.hc-num,.hc-den){display:block;padding:0 0.2em;}"
+        ".handcalcs :where(.hc-num){border-bottom:1px solid currentColor;"
+        "padding-bottom:0.08em;}"
+        ".handcalcs :where(.hc-den){padding-top:0.12em;}"
+        ".handcalcs :where(.hc-frac) :where(.hc-frac){font-size:0.92em;}"
+        # Brackets around a stacked fraction are stretched to its height.
+        ".handcalcs :where(.hc-paren){display:inline-block;vertical-align:middle;"
+        "line-height:1;transform-origin:center;}"
+        ".handcalcs :where(.hc-paren-1){transform:scaleY(2.1);margin:0 0.1em;}"
+        ".handcalcs :where(.hc-paren-2){transform:scaleY(3);margin:0 0.15em;}"
+        ".handcalcs :where(.hc-hidden){position:absolute;width:1px;height:1px;"
+        "overflow:hidden;clip-path:inset(50%);white-space:nowrap;}"
         ".handcalcs :where(.hc-matrix-cell){display:table-cell;text-align:right;"
         "padding:0 0.3em;line-height:1.2;}"
     )
@@ -250,8 +306,7 @@ class HTMLRenderer(BaseRenderer):
         return (
             f".handcalcs{{{props}}}"
             f":is({','.join(DARK_HOSTS)}) .handcalcs{{--hc-accent-text:var(--hc-accent-dark);"
-            "--hc-tint:color-mix(in srgb,var(--hc-accent) 30%,transparent);"
-            "--hc-highlight:color-mix(in srgb,var(--hc-accent) 38%,transparent);}"
+            "--hc-tint:color-mix(in srgb,var(--hc-accent) 30%,transparent);}"
         )
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> str:
@@ -494,7 +549,8 @@ def render_inline_comment(
 @HTMLRenderer.register("expr_line:post")
 def mark_result(renderer: HTMLR, rendered, node, base_context: BaseRenderContext):
     """
-    Highlight the result of a one-line calc that shows a substitution.
+    Highlight the result of a one-line calc that shows a substitution, and
+    stretch the brackets around stacked fractions (see ``stretch_brackets``).
 
     A rendered line is ``[col, '=', col, '=', col, comment?]``: the columns
     interleave with the ``=`` sign, so the list has an odd length unless a
@@ -503,7 +559,11 @@ def mark_result(renderer: HTMLR, rendered, node, base_context: BaseRenderContext
     (``a = 5``) stays plain. Grids and ignored lines are strings and pass through.
     """
     if not isinstance(rendered, list):
-        return rendered
+        return stretch_brackets(rendered) if isinstance(rendered, str) else rendered
+    rendered = [
+        stretch_brackets(column) if isinstance(column, str) else column
+        for column in rendered
+    ]
     has_comment = len(rendered) % 2 == 0
     result_idx = len(rendered) - 1 - has_comment
     if result_idx < 4:
@@ -522,7 +582,10 @@ def if_block_header(
     sym_expr = render_condition(renderer, node.test, base_context, "sym")
     num_expr = render_condition(renderer, node.test, base_context, "num")
     # No trailing <br>: the ``.hc-header`` div supplies the break structurally.
-    return f"{keyword('Since')}{_}({sym_expr}){_}\u2192{_}({num_expr}){_}{keyword(f'is{_}True:')}"
+    return stretch_brackets(
+        f"{keyword('Since')}{_}({sym_expr}){_}\u2192{_}({num_expr}){_}"
+        f"{keyword(f'is{_}True:')}"
+    )
 
 
 @HTMLRenderer.register("header:else_block")
@@ -559,20 +622,24 @@ ACCENT_MARKS = {
 PRIME_MARK = "\u2032"
 
 
-def html_symbol(symbol: Symbol, space: str = " ") -> str:
+def html_symbol(symbol: Symbol, space: str = " ", italic: bool = True) -> str:
     """A parsed ``Symbol`` as HTML: Greek letters, combining accents, primes,
-    ``<sup>`` and ``<sub>`` (sibling subscripts separated by commas)."""
+    ``<sup>`` and ``<sub>`` (sibling subscripts separated by commas). The name
+    itself is a ``<var>`` (set in italic, as in typeset maths); its subscripts
+    and superscripts are upright."""
     markup = space.join(
         "".join(GREEK[text] if is_greek else escape(text) for is_greek, text in pieces)
         for pieces in symbol.words
     )
     markup += "".join(ACCENT_MARKS[accent] for accent in symbol.accents)
     markup += PRIME_MARK * symbol.primes
+    if italic and markup:
+        markup = f"<var>{markup}</var>"
     if symbol.superscripts:
-        sups = ",".join(html_symbol(sup, space) for sup in symbol.superscripts)
+        sups = ",".join(html_symbol(sup, space, False) for sup in symbol.superscripts)
         markup += f"<sup>{sups}</sup>"
     if symbol.subscripts:
-        subs = ",".join(html_symbol(sub, space) for sub in symbol.subscripts)
+        subs = ",".join(html_symbol(sub, space, False) for sub in symbol.subscripts)
         markup += f"<sub>{subs}</sub>"
     return markup
 
@@ -595,7 +662,23 @@ def swap_identifier(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     identifier = node.identifier
     if identifier in options.symbols or is_identifier(identifier):
         symbol = parse_identifier(identifier, options)
-        node.identifier = html_symbol(symbol, base_context.current.space)
+        italic = not getattr(node, "upright", False)
+        node.identifier = html_symbol(symbol, base_context.current.space, italic)
+    return node
+
+
+@HTMLR.register("function_call:pre")
+def upright_call_names(
+    renderer: HTMLR, node: FunctionCall, base_context: BRC
+) -> FunctionCall:
+    """
+    Mark a call's function name, and the module it is called from, to be set
+    upright rather than as an italic variable: ``sin(x)``, ``np.linspace``,
+    ``(a · 3).to("mm")``, as typeset maths writes them.
+    """
+    for name in (node.function_name, node.namespace):
+        if isinstance(name, Name):
+            name.upright = True
     return node
 
 
@@ -639,9 +722,127 @@ def render_subscript(renderer: HTMLR, node: Subscript, base_context: BRC) -> str
 
 
 @HTMLR.register("pow_op")
-def render_pow_op(renderer: HTMLR, node: AddOp, base_context: BaseRenderContext) -> str:
-    as_infix = infix_binop(node, renderer, False, base_context)
-    return f"{node.pre}{as_infix}{node.post}"
+def render_pow_op(renderer: HTMLR, node: PowOp, base_context: BRC) -> str:
+    """
+    ``base<sup>exponent</sup>``. The superscript groups the exponent, so it
+    needs no brackets. The base is bracketed when it binds no tighter than the
+    power (including a left-nested power, since ``**`` is right-associative),
+    renders signed, or is a quantity.
+    """
+    context = base_context.current
+    base = renderer.render_node(node.left, base_context)
+    if (
+        OP_PRECEDENCE.get(type(node.left), float("inf")) <= OP_PRECEDENCE[PowOp]
+        or renderer.leading_sign(base)
+        or quantity_power_base(node, base_context)
+    ):
+        base = f"{context.lpar}{base}{context.rpar}"
+    renderer.exponent_depth += 1
+    try:
+        exponent = renderer.render_node(node.right, base_context)
+    finally:
+        renderer.exponent_depth -= 1
+    return f"{base}<sup>{exponent}</sup>"
+
+
+def hidden(text: str) -> str:
+    """Text kept for copying and screen readers but not shown."""
+    return f'<span class="hc-hidden">{text}</span>' if text else ""
+
+
+def stacked_fraction(
+    renderer: HTMLR, node: HcBinOp, base_context: BRC, separator: str
+) -> str:
+    """
+    The operands of ``node`` as a stacked fraction. The bar groups each operand,
+    so the brackets an inline division needs are only kept hidden.
+    """
+    context = base_context.current
+    numerator = renderer.render_node(node.left, base_context)
+    denominator = renderer.render_node(node.right, base_context)
+    precedence = OP_PRECEDENCE[type(node)]
+    if OP_PRECEDENCE.get(type(node.left), float("inf")) < precedence:
+        numerator = f"{hidden(context.lpar)}{numerator}{hidden(context.rpar)}"
+    if OP_PRECEDENCE.get(type(node.right), float("inf")) <= precedence:
+        denominator = f"{hidden(context.lpar)}{denominator}{hidden(context.rpar)}"
+    return (
+        f'<span class="hc-frac"><span class="hc-num">{numerator}</span>'
+        f"{hidden(separator)}"
+        f'<span class="hc-den">{denominator}</span></span>'
+    )
+
+
+TAG = re.compile(r"(<[^>]+>)")
+
+
+def stretch_brackets(html: str) -> str:
+    """
+    Make the visible brackets that enclose a stacked fraction as tall as it
+    (``.hc-paren-1``, or ``.hc-paren-2`` around nested fractions), as LaTeX's
+    ``\\left( \\right)`` does. Brackets inside hidden text, and brackets that
+    don't pair up within ``html``, are left alone.
+    """
+    if "hc-frac" not in html:
+        return html
+    tokens = [
+        [token] if token.startswith("<") else list(token) for token in TAG.split(html)
+    ]
+    spans: list[str] = []  # the open spans: "hidden", "frac" or ""
+    opened: list[list] = []  # [token, char, frac level, deepest level inside]
+    for t, token in enumerate(tokens):
+        if token and token[0].startswith("<"):
+            tag = token[0]
+            if tag.startswith("</span"):
+                if spans:
+                    spans.pop()
+            elif tag.startswith("<span"):
+                kind = (
+                    "hidden"
+                    if "hc-hidden" in tag
+                    else "frac" if "hc-frac" in tag else ""
+                )
+                spans.append(kind)
+                if kind == "frac":
+                    level = spans.count("frac")
+                    for paren in opened:
+                        paren[3] = max(paren[3], level)
+            continue
+        if "hidden" in spans:
+            continue
+        for c, char in enumerate(token):
+            if char == "(":
+                level = spans.count("frac")
+                opened.append([t, c, level, level])
+            elif char == ")" and opened:
+                ot, oc, level, deepest = opened.pop()
+                depth = min(deepest - level, 2)
+                if depth:
+                    tokens[ot][oc] = f'<span class="hc-paren hc-paren-{depth}">(</span>'
+                    token[c] = f'<span class="hc-paren hc-paren-{depth}">)</span>'
+    return "".join("".join(token) for token in tokens)
+
+
+def stacks(renderer: HTMLR) -> bool:
+    """True if a division is drawn as a stacked fraction here."""
+    return renderer.fractions == "stacked" and not renderer.exponent_depth
+
+
+@HTMLR.register("div_op")
+def render_div_op(renderer: HTMLR, node: DivOp, base_context: BRC) -> str:
+    """A stacked fraction, or ``a / b`` (inline, or in an exponent)."""
+    if stacks(renderer):
+        return stacked_fraction(renderer, node, base_context, "/")
+    _ = "" if renderer.exponent_depth else base_context.current.space
+    return infix_binop(node, renderer, bool(_), base_context)
+
+
+@HTMLR.register("floor_op")
+def render_floor_op(renderer: HTMLR, node: FloorOp, base_context: BRC) -> str:
+    """A stacked fraction in floor brackets, ``⌊a/b⌋``; or ``a // b``."""
+    if stacks(renderer):
+        return f"⌊{stacked_fraction(renderer, node, base_context, '//')}⌋"
+    _ = "" if renderer.exponent_depth else base_context.current.space
+    return infix_binop(node, renderer, bool(_), base_context)
 
 
 # The display symbol of each arithmetic operator: ``*`` is a centred dot, the
@@ -659,15 +860,14 @@ UNWRAPPED_OPERATORS = {"mult_op", "div_op", "floor_op"}
 
 
 @HTMLR.register("mult_op:pre")
-@HTMLR.register("pow_op:pre")
 @HTMLR.register("div_op:pre")
 @HTMLR.register("floor_op:pre")
 @HTMLR.register("add_op:pre")
 @HTMLR.register("sub_op:pre")
 def swap_py_operators(renderer: HTMLR, node: HcBinOp, base_context: BRC) -> HcBinOp:
     """
-    Rewrite a binary operator's display symbol/pre/post to the HTML form. A
-    power with a literal exponent becomes a superscript (``a<sup>2</sup>``).
+    Rewrite a binary operator's display symbol/pre/post to the HTML form (a
+    power is drawn by ``render_pow_op``).
 
     Registered as a 'pre' rule on each arithmetic operator node: the swap is
     mode-independent (the same symbol is shown in both the symbolic and numeric
@@ -679,9 +879,6 @@ def swap_py_operators(renderer: HTMLR, node: HcBinOp, base_context: BRC) -> HcBi
         if node.type in UNWRAPPED_OPERATORS:
             node.pre = ""
             node.post = ""
-    elif node.type == "pow_op" and isinstance(node.right, Constant):
-        node.symbol = "<sup>"
-        node.post = "</sup>"
     return node
 
 

@@ -115,7 +115,8 @@ def test_line_after_an_ignored_first_line_renders_whole():
     assert HandCalcs(ASCIIRenderer())(source).splitlines() == ["b = 2", "c = b * 3 = 2 * 3 = 6"]
     assert "b &= 2" in HandCalcs(LatexRenderer())(source)
     assert "b &= 2" in HandCalcs(MarkdownRenderer())(source)
-    assert '<div class="hc-line">b = 2</div>' in HandCalcs(HTMLRenderer())(source)
+    html = HandCalcs(HTMLRenderer())(source)
+    assert '<div class="hc-line"><var>b</var> = 2</div>' in html
 
 
 def test_mode_drop_aliases_from_comment_commands():
