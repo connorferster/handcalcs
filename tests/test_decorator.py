@@ -8,6 +8,9 @@ renderer. It returns ``(return_value, rendered)`` where the type of
 render tree (a list) for the ``BaseRenderer`` and a finished HTML string for
 the ``HTMLRenderer``.
 """
+
+import pytest
+
 from handcalcs import handcalc
 from handcalcs.renderers import BaseRenderer, HTMLRenderer
 
@@ -96,7 +99,10 @@ def test_base_render_tree_holds_the_calc_lines():
 
 def test_html_render_holds_the_calc_lines():
     _value, rendered = calc_html()
-    assert '<div class="hc-line">c = a + b = 2 + 3 = <span class="hc-result">5</span></div>' in rendered
+    assert (
+        '<div class="hc-line">c = a + b = 2 + 3 = <span class="hc-result">5</span></div>'
+        in rendered
+    )
 
 
 @handcalc(LatexRenderer())
@@ -123,6 +129,7 @@ def test_nested_function_and_closure():
         def inner(a):
             b = a * k
             return b
+
         return inner(4)
 
     value, rendered = outer(10)
@@ -160,7 +167,8 @@ def test_multiline_signature_and_comment_commands():
 
 def test_one_line_function():
     @handcalc(ASCIIRenderer())
-    def double(x): return x * 2
+    def double(x):
+        return x * 2
 
     value, rendered = double(3)
     assert value == 6
@@ -297,7 +305,10 @@ def only_docstring():
 
 
 @handcalc(ASCIIRenderer(), docstring=False)
-def one_line_with_docstring(x): "Twice x."; y = x * 2; return y
+def one_line_with_docstring(x):
+    "Twice x."
+    y = x * 2
+    return y
 
 
 @handcalc(ASCIIRenderer(), docstring=False)
@@ -360,3 +371,72 @@ def test_docstring_is_rendered_by_default():
         return c
 
     assert add(1, 2)[1].startswith("Return sum of a and b\n")
+
+
+# display=: show the render, return only the value.
+
+
+def calc_display_body(a):
+    b = a * 2
+    return b
+
+
+def test_display_true_prints_outside_jupyter(capsys):
+    calc = handcalc(ASCIIRenderer(), display=True)(calc_display_body)
+    assert calc(3) == 6
+    assert capsys.readouterr().out == "b = a * 2 = 3 * 2 = 6\n"
+
+
+def test_display_function_receives_the_render():
+    shown = []
+    calc = handcalc(ASCIIRenderer(), display=shown.append)(calc_display_body)
+    assert calc(3) == 6
+    assert shown == ["b = a * 2 = 3 * 2 = 6\n"]
+
+
+def test_display_false_returns_the_tuple():
+    calc = handcalc(ASCIIRenderer(), display=False)(calc_display_body)
+    assert calc(3) == (6, "b = a * 2 = 3 * 2 = 6\n")
+
+
+def test_display_in_a_kernel_uses_the_renderer_display_class(monkeypatch):
+    IPython = pytest.importorskip("IPython")
+    from IPython.display import Markdown
+    from handcalcs.interfaces import display as display_module
+    from handcalcs.renderers import MarkdownRenderer
+
+    shown = []
+    monkeypatch.setattr(display_module, "in_kernel", lambda: True)
+    monkeypatch.setattr(IPython.display, "display", shown.append)
+    calc = handcalc(MarkdownRenderer(), display=True)(calc_display_body)
+    assert calc(3) == 6
+    [output] = shown
+    assert isinstance(output, Markdown) and "3 \\cdot 2" in output.data
+
+
+def test_display_with_destination_shows_the_path(tmp_path, capsys):
+    path = tmp_path / "calc.txt"
+    calc = handcalc(ASCIIRenderer(), destination=path, display=True)(calc_display_body)
+    assert calc(3) == 6
+    assert capsys.readouterr().out == f"Rendered to {path}\n"
+    assert "3 * 2" in path.read_text(encoding="utf-8")
+
+
+def test_display_needs_text_output():
+    calc = handcalc(BaseRenderer(), display=True)(calc_display_body)
+    with pytest.raises(TypeError, match="give a destination"):
+        calc(3)
+
+
+def test_display_rejects_other_values():
+    with pytest.raises(TypeError, match="True, False or a function"):
+        handcalc(ASCIIRenderer(), display="yes")
+
+
+def test_jupyter_display_is_a_deprecated_alias(capsys):
+    with pytest.warns(DeprecationWarning, match="use display=True"):
+        decorate = handcalc(ASCIIRenderer(), jupyter_display=True)
+    assert decorate(calc_display_body)(3) == 6
+    assert "3 * 2" in capsys.readouterr().out
+    with pytest.raises(TypeError, match="not both"):
+        handcalc(ASCIIRenderer(), display=True, jupyter_display=True)

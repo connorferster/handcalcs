@@ -2,6 +2,7 @@ import os
 import sys
 from string import Formatter
 from .object_oriented import HandCalcs
+from .display import DISPLAY_CLASS_NAMES, display_class_for
 from handcalcs import config
 from typing import Any, Optional
 from handcalcs.parsing import line_values
@@ -29,16 +30,6 @@ try:
     from IPython.display import Latex, HTML, Markdown, Pretty, display
     from IPython.utils.capture import capture_output
 
-    # The IPython display class for each built-in renderer's output. A custom
-    # renderer uses the display class of its nearest built-in ancestor.
-    _DISPLAY = {
-        "markdown": Markdown,
-        "latex": Latex,
-        "html": HTML,
-        "ascii": Pretty,
-        "base": Pretty,
-    }
-
 except ImportError:
     raise HandCalcsJupyterEnvironmentError(
         "The Jupyter interface (handcalcs.render) must be used in a Python environment where IPython installed."
@@ -64,22 +55,13 @@ def hc_format_code(line):
     config.set_option("format_code", line)
 
 
-def display_class_for(renderer_cls: type[BaseRenderer]) -> type:
-    """The display class of the renderer's nearest built-in ancestor (or itself)."""
-    for cls in renderer_cls.__mro__:
-        name = cls.__dict__.get("name")
-        if name in _DISPLAY:
-            return _DISPLAY[name]
-    return Pretty
-
-
 def resolve_jupyter_renderer(name: str) -> type[BaseRenderer]:
     """The renderer class registered under ``name``, or a ValueError naming the options."""
     renderer_cls = get_renderer(name)
     if renderer_cls is None:
         raise ValueError(
             f"No renderer named '{name}' is registered. Built-in renderers: "
-            f"{', '.join(repr(name) for name in _DISPLAY if name != 'base')}. A custom "
+            f"{', '.join(repr(name) for name in DISPLAY_CLASS_NAMES if name != 'base')}. A custom "
             "renderer must be imported (defined) before it can be selected by name."
         )
     return renderer_cls
