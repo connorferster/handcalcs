@@ -98,6 +98,12 @@ def theme_variables(theme_color: str) -> dict[str, str]:
     }
 
 
+def tint_of(color: str):
+    """A function giving ``color`` at an opacity, as CSS ``rgba()``."""
+    r, g, b = (round(c * 255) for c in _rgb(color))
+    return lambda alpha: f"rgba({r},{g},{b},{alpha})"
+
+
 class HTMLRenderer(BaseRenderer):
     """
     Renders a calculation as a self-contained HTML fragment for Jupyter, VS Code
@@ -148,7 +154,9 @@ class HTMLRenderer(BaseRenderer):
     FRACTIONS = ("stacked", "inline")
 
     def __init__(
-        self, theme_color: str = DEFAULT_THEME, fractions: str = "stacked"
+        self,
+        theme_color: str = DEFAULT_THEME,
+        fractions: str = "stacked",
     ) -> None:
         super().__init__()
         if fractions not in self.FRACTIONS:
@@ -173,12 +181,12 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs{"
         "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;--hc-eq-gap:0.3em;"
         "--hc-accent-text:var(--hc-accent);"
-        "--hc-tint:color-mix(in srgb,var(--hc-accent) 9%,transparent);"
-        "--hc-mark:#FFE31D;--hc-mark-text:#17131F;"
         '--hc-math-font:"Cambria Math",Cambria,"STIX Two Text","DejaVu Serif",'
         'Georgia,"Times New Roman",serif;'
-        "--hc-muted:color-mix(in srgb,currentColor 60%,transparent);"
-        "--hc-chip:color-mix(in srgb,currentColor 6%,transparent);"
+        # Plain rgba() rather than color-mix(), which WeasyPrint can't draw (it
+        # drops the declaration): muted text and chips are translucent black,
+        # translucent white on a dark host (see ``theme_style``).
+        "--hc-muted:rgba(0,0,0,0.6);--hc-chip:rgba(0,0,0,0.06);"
         "display:flex;flex-direction:column;gap:var(--hc-gap);"
         "line-height:1.6;font-variant-numeric:tabular-nums;}"
         ".handcalcs :where(.hc-block,.hc-body){"
@@ -210,11 +218,11 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-header)::before{"
         'content:"\\25B8";color:var(--hc-accent-text);margin-inline-end:0.4em;}'
         ".handcalcs :where(.hc-kw){color:var(--hc-accent-text);}"
-        # The result of a calc with a substitution is bold on a highlighter mark
-        # (``--hc-mark``, dark text on it on any page); inline comments are muted.
+        # The result of a calc with a substitution is highlighted; inline
+        # comments are muted.
         ".handcalcs :where(.hc-result){"
-        "color:var(--hc-mark-text);background:var(--hc-mark);font-weight:700;"
-        "padding:0 0.2em;white-space:nowrap;"
+        "color:var(--hc-accent-text);background:var(--hc-highlight);font-weight:600;"
+        "padding:0 0.25em;border-radius:3px;"
         "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
         ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
         # The pass/fail mark of a ``# hc: --check`` line.
@@ -299,14 +307,18 @@ class HTMLRenderer(BaseRenderer):
     def theme_style(self) -> str:
         """
         The theme's custom properties on ``.handcalcs``, plus the dark-host
-        overrides: a lighter accent for text and stronger tints. The dark rule
-        uses ``:is()`` so it outranks the light defaults on ``.handcalcs``.
+        overrides: a lighter accent for text, stronger tints, and light muted
+        text and chips. The dark rule uses ``:is()`` so it outranks the light
+        defaults on ``.handcalcs``. The tints are translucent ``rgba()`` of the
+        theme (WeasyPrint can't draw ``color-mix()``).
         """
         props = "".join(f"{key}:{value};" for key, value in self.theme.items())
+        tint = tint_of(self.theme["--hc-accent"])
         return (
-            f".handcalcs{{{props}}}"
+            f".handcalcs{{{props}--hc-tint:{tint(0.09)};--hc-highlight:{tint(0.12)};}}"
             f":is({','.join(DARK_HOSTS)}) .handcalcs{{--hc-accent-text:var(--hc-accent-dark);"
-            "--hc-tint:color-mix(in srgb,var(--hc-accent) 30%,transparent);}"
+            f"--hc-tint:{tint(0.30)};--hc-highlight:{tint(0.38)};"
+            "--hc-muted:rgba(255,255,255,0.6);--hc-chip:rgba(255,255,255,0.08);}"
         )
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> str:

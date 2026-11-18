@@ -281,5 +281,21 @@ def test_function_and_module_names_are_upright():
 def test_maths_style_is_in_the_stylesheet():
     out = _render_markup("a = 1\n", {"a": 1})
     assert '--hc-math-font:"Cambria Math",Cambria,"STIX Two Text","DejaVu Serif"' in out
-    assert "--hc-mark:#FFE31D;" in out
+    assert "--hc-highlight:rgba(11,95,102,0.12);" in out
     assert ".handcalcs :where(var){font-style:italic;" in out
+
+
+# --- colours WeasyPrint can draw ---
+
+
+def test_no_color_mix_in_the_stylesheet():
+    # WeasyPrint drops color-mix() declarations, so tints are plain rgba().
+    out = _render("a = 1\nif a > 0:\n    b = 2\n", {"a": 1, "b": 2})
+    assert "color-mix" not in out
+    assert "--hc-tint:rgba(11,95,102,0.09);" in out
+    assert "--hc-tint:rgba(11,95,102,0.3);" in out  # on a dark host
+
+
+def test_result_highlight_follows_the_theme():
+    out = _render("a = 1\n", {"a": 1}, theme_color="#7C3AED")
+    assert "--hc-highlight:rgba(124,58,237,0.12);" in out
