@@ -110,6 +110,11 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
     _case(
         "grid-semicolons", "apple = 1; berry = 2; cherry = 3\n", "apple berry cherry"
     ),
+    _case(
+        "grid-semicolon-rows",
+        "apple = 1; berry = 2; cherry = 3; damson = 4\nelder = 5;\nfig = 6; grape = 7\n",
+        "apple berry cherry damson elder fig grape",
+    ),
     _case("line-break", "apple = 1\n# hc: -b\nberry = 2\n", "apple berry"),
     _case(
         "check",

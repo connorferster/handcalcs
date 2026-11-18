@@ -255,8 +255,8 @@ def test_registered_post_rule_transforms_rendered_output(renderer):
 # ---------------------------------------------------------------------------
 
 def test_params_block_renders_as_grid(renderer):
-    # Consecutive ';'-lines flatten and reflow into the default 3 columns; the
-    # short final row is padded (trailing blank trimmed).
+    # Each ';'-line is a row of the grid, as written; a short row is padded
+    # (trailing blank trimmed).
     tree = HcSequence.from_source(
         "a = 1; b = 2; c = 3\nd = 4; e = 5\n",
         {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}, {},
@@ -268,14 +268,65 @@ def test_params_block_renders_as_grid(renderer):
     )
 
 
-def test_params_block_respects_param_cols(renderer):
-    # A `# hc: param_cols=N` command sets the grid width for the block below it.
+def test_params_block_keeps_the_source_layout(renderer):
+    # One-off layouts: rows of any length, wider or narrower than param_cols.
+    tree = HcSequence.from_source(
+        "a = 1; b = 2; c = 3; d = 4; e = 5\nf = 6;\ng = 7; h = 8\n",
+        {k: v for v, k in enumerate("abcdefgh", start=1)}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == (
+        "a = 1    b = 2    c = 3    d = 4    e = 5\n"
+        "f = 6\n"
+        "g = 7    h = 8\n"
+    )
+
+
+def test_trailing_semicolon_makes_a_one_cell_row():
+    # Without the ';' a lone line ends the grid; with it, the line is a row.
+    def blocks(source):
+        tree = HcSequence.from_source(source, {"a": 1, "b": 2, "c": 3}, {})
+        return [type(node).__name__ for node in tree.sequence]
+
+    assert blocks("a = 1; b = 2\nc = 3\n") == ["ParamsBlock", "CalcsBlock"]
+    assert blocks("a = 1; b = 2\nc = 3;  # hc: -i\n") == ["ParamsBlock"]
+    assert blocks("a = 1;\nb = 2;\n") == ["ParamsBlock"]
+    assert blocks("a = 1\n") == ["CalcsBlock"]
+
+
+def test_param_cols_does_not_reshape_semicolon_lines(renderer):
     tree = HcSequence.from_source(
         "# hc: param_cols=2\na = 1; b = 2; c = 3\n",
         {"a": 1, "b": 2, "c": 3}, {},
     )
     out = renderer.join(renderer.render(tree))
+    assert out == "a = 1    b = 2    c = 3\n"
+
+
+def test_params_block_respects_param_cols(renderer):
+    # A `# hc: param_cols=N` command sets the width of a `# hc: -g` grid, which
+    # reflows its cells, ';'-lines included.
+    tree = HcSequence.from_source(
+        "# hc: -g -c 2\na = 1; b = 2; c = 3\nd = 4\n",
+        {"a": 1, "b": 2, "c": 3, "d": 4}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == (
+        "a = 1    b = 2\n"
+        "c = 3    d = 4\n"
+    )
+
+
+def test_hidden_cell_in_a_semicolon_row(renderer):
+    tree = HcSequence.from_source(
+        "a = 1; b = 2\nc = 3; d = 4  # hc: -i\ne = 5; f = 6\n",
+        {k: v for v, k in enumerate("abcdef", start=1)}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    # The inline comment belongs to the line's last statement: only d is hidden,
+    # and its row keeps its place.
     assert out == (
         "a = 1    b = 2\n"
         "c = 3\n"
+        "e = 5    f = 6\n"
     )

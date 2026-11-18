@@ -13,7 +13,7 @@ to change the output, and needs no subclass.
 | `assign` | `"="` | The symbol between the steps of a calculation. |
 | `multiline` | `False` | Break calculations over several lines (`# hc: -m`). |
 | `param_line` | `False` | Show *target = result* only (`# hc: -p`). |
-| `param_cols` | `3` | Columns in a parameter grid (`# hc: -c`). |
+| `param_cols` | `3` | Columns in a `# hc: -g` parameter grid (`# hc: -c`). |
 | `ignore` | `False` | Leave lines out of the output (`# hc: -i`). |
 | `space` | `" "` | The separator between the parts of a line. |
 | `newline` | `"\n"` | The line separator. |

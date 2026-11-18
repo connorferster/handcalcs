@@ -18,7 +18,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-u` | `--units` | Show a number times units (`P = 5 * kN`) as its value alone, `P = 5 kN`. Lines that calculate are unchanged. See [Units](../cookbook/units.md#calculate-with-forallpeople). |
 | `-y` | `--sympy` | Substitute a SymPy expression: `x = f`, where `f` holds one, runs as `x = <the expression>` with the values its symbols have. See [SymPy](../cookbook/sympy.md). |
 | `-g` | `--grid` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
-| `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
+| `-c N` | `--param-cols N` | Number of columns in `-g` parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
 | | `--check` | On a comparison, show ✓ or ✗ instead of `True`/`False`. See [Checks](../cookbook/checks.md#mark-a-check-as-pass-or-fail). |
 | | `--pagebreak` (`--page-break`) | Start a new page: before the next line when on its own line, after the line when inline. |

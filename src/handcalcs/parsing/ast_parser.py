@@ -372,6 +372,16 @@ class AST_Parser:
             return "after"
         return "before"
 
+    def _ends_with_semicolon(self, stmt: ast.AST) -> bool:
+        """True if ``;`` follows ``stmt`` on its last line (``f = 6;``)."""
+        row = getattr(stmt, "end_lineno", None)
+        lines = self.source.splitlines()
+        if row is None or row > len(lines):
+            return False
+        # Column offsets are UTF-8 byte offsets.
+        tail = lines[row - 1].encode()[stmt.end_col_offset :].decode()
+        return tail.lstrip().startswith(";")
+
     def _blank_between(self, prev: ast.AST, nxt: ast.AST) -> bool:
         """True if a blank source line separates statement ``prev`` from ``nxt``."""
         end = getattr(prev, "end_lineno", prev.lineno)
@@ -394,10 +404,11 @@ class AST_Parser:
         )
 
         def is_params_stmt(stmt) -> bool:
+            # ``f = 6;`` -- a lone assignment ended by ``;`` -- is a one-cell row.
             return (
                 isinstance(stmt, ast.Assign)
                 and hasattr(stmt, "lineno")
-                and line_counts[stmt.lineno] >= 2
+                and (line_counts[stmt.lineno] >= 2 or self._ends_with_semicolon(stmt))
             )
 
         out = deque()
@@ -441,14 +452,20 @@ class AST_Parser:
                     continue
             if is_params_stmt(stmt):
                 run = deque()
+                row_sizes: list[int] = []
+                row = None
                 while i < n and is_params_stmt(body[i]):
                     # A standalone comment interleaved before this line ends the
                     # run so the comment is not swallowed into the grid.
                     if run and self._has_pending_comment_before(body[i].lineno):
                         break
+                    if body[i].lineno != row:
+                        row = body[i].lineno
+                        row_sizes.append(0)
+                    row_sizes[-1] += 1
                     run.append(self.ast_parse(body[i]))
                     i += 1
-                out.append(ParamsBlock(lines=run))
+                out.append(ParamsBlock(lines=run, row_sizes=row_sizes))
             else:
                 parsed = self.ast_parse(stmt)
                 out.append(parsed)

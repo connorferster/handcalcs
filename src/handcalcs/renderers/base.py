@@ -1,5 +1,6 @@
 from __future__ import annotations
 import datetime
+import itertools
 import math
 import numbers
 import re
@@ -1891,32 +1892,45 @@ def render_params_block(
     renderer: BaseRenderer, node: ParamsBlock, base_context: BaseRenderContext
 ) -> str:
     """
-    Render a ParamsBlock (a run of consecutive ``;``-joined assignment lines) as a
-    grid of ``identifier = value`` cells.
+    Render a ParamsBlock as a grid of ``identifier = value`` cells.
 
     Each child line is rendered as a param line (forced ``param_line=True``), so it
     collapses to a ``["id", "=", "value"]`` cell via the existing ``render_calcline``
-    handler -- any trailing comment on the line is dropped. All cells are flattened
-    and reflowed into ``param_cols`` columns (default 3, min 1, configurable via
-    ``# hc: param_cols=N``); the final row is padded with ``None`` so the grid stays
-    rectangular. ``format_param_grid`` turns the cell grid into the final text.
+    handler. A ``;`` block keeps the rows of its source: each source line is a row
+    of the grid, so its layout is the one written (``node.row_sizes``), and any
+    trailing comment on a line is dropped. A ``# hc: -g`` block keeps each line's
+    comment and reflows its cells into ``param_cols`` columns (default 3, min 1,
+    ``# hc: -c N``). Short rows are padded with ``None`` so the grid stays
+    rectangular; ``format_param_grid`` turns the cell grid into the final text.
     """
     context = base_context.current
     cols = max(1, int(getattr(context, "param_cols", 3)))
-    cells: list = []
-    for line in node.lines:
-        base_context.line_context.param_line = True
-        rendered = renderer.render(line, base_context)
-        if not rendered:
-            continue  # a line hidden by ``# hc: -i``
-        # Keep the id / equality / value components, plus the line comment for a
-        # ``# hc: -g`` block; a ``;`` block has no place for a comment, so it drops.
-        if isinstance(rendered, list):
-            rendered = rendered[: 4 if node.with_comments else 3]
-        cells.append(rendered)
-    rows = [cells[k : k + cols] for k in range(0, len(cells), cols)]
-    if rows:
-        rows[-1].extend([None] * (cols - len(rows[-1])))
+    sizes = node.row_sizes or [len(node.lines)]
+    source_rows: list[list] = []
+    lines = iter(node.lines)
+    for size in sizes:
+        row = []
+        for line in itertools.islice(lines, size):
+            base_context.line_context.param_line = True
+            rendered = renderer.render(line, base_context)
+            if not rendered:
+                continue  # a line hidden by ``# hc: -i``
+            # Keep the id / equality / value components, plus the line comment
+            # for a ``# hc: -g`` block; a ``;`` block has no place for a comment.
+            if isinstance(rendered, list):
+                rendered = rendered[: 4 if node.with_comments else 3]
+            row.append(rendered)
+        if row:
+            source_rows.append(row)
+    if node.row_sizes:
+        rows = source_rows
+        width = max((len(row) for row in rows), default=0)
+    else:
+        cells = [cell for row in source_rows for cell in row]
+        rows = [cells[k : k + cols] for k in range(0, len(cells), cols)]
+        width = cols
+    for row in rows:
+        row.extend([None] * (width - len(row)))
     return renderer.format_param_grid(rows, base_context)
 
 
