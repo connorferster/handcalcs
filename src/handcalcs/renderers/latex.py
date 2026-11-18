@@ -16,6 +16,7 @@ from handcalcs.renderers.base import (
     ContextValueError,
     render_condition,
     OP_PRECEDENCE,
+    operand_precedence,
     is_source_number,
     literal_text,
     pint_default_format,
@@ -39,6 +40,7 @@ from handcalcs.renderers.identifiers import (
 )
 
 # Node type imports only used for typing
+from handcalcs.parsing.sympy_substitution import is_sympy
 from handcalcs.parsing.nodes import (
     HcNode,
     Name,
@@ -901,7 +903,7 @@ def render_pow_op(renderer: LR, node: PowOp, base_context: BRC) -> str:
     context = base_context.current
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
-    base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
+    base_pre = operand_precedence(node.left, base_context)
     # A value whose own LaTeX is already bracketed (see format_latex_repr) is
     # not bracketed twice.
     own_brackets = base.startswith("\\left(") and base.endswith("\\right)")
@@ -1061,7 +1063,9 @@ def format_latex_repr(value) -> Optional[str]:
     latex = latex.removeprefix("\\displaystyle").strip()
     if not latex:
         return None
-    if " " in latex:
+    if " " in latex and not is_sympy(value):
+        # A SymPy value is bracketed by the operators, as a sum, product or
+        # power is (see operand_precedence), so only where it needs it.
         return f"\\left({latex}\\right)"
     return latex
 

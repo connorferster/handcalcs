@@ -36,6 +36,11 @@
 
 ### Fixes
 
+- **A substituted value that is itself a sum is bracketed** (#224): a complex number
+  with a real and an imaginary part, or a SymPy sum, product or power, now reads
+  `2 · (3+4j)`, `(3+4j)²` and `-(3+4j)` instead of `2 · 3+4j`, `3+4j²` and `-3+4j`, in
+  every renderer. The LaTeX renderer no longer brackets a SymPy value standing on its
+  own (`z = 3 + 4i`, not `z = (3 + 4i)`).
 - **`round()` of a value with units in the Excel renderer** gave a different result from
   Python. forallpeople's `round(x, n)` only changes how many digits are shown, but the
   sheet used `ROUND` on the SI value: `round(M / P, 3)` with `M / P = 4.80 mm` became

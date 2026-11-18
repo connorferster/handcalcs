@@ -20,6 +20,7 @@ from handcalcs.renderers.base import (
     postfix_factorial,
     quantity_power_base,
     OP_PRECEDENCE,
+    operand_precedence,
 )
 
 from handcalcs.renderers.identifiers import (
@@ -748,7 +749,7 @@ def render_pow_op(renderer: HTMLR, node: PowOp, base_context: BRC) -> str:
     context = base_context.current
     base = renderer.render_node(node.left, base_context)
     if (
-        OP_PRECEDENCE.get(type(node.left), float("inf")) <= OP_PRECEDENCE[PowOp]
+        operand_precedence(node.left, base_context) <= OP_PRECEDENCE[PowOp]
         or renderer.leading_sign(base)
         or quantity_power_base(node, base_context)
     ):
@@ -777,9 +778,9 @@ def stacked_fraction(
     numerator = renderer.render_node(node.left, base_context)
     denominator = renderer.render_node(node.right, base_context)
     precedence = OP_PRECEDENCE[type(node)]
-    if OP_PRECEDENCE.get(type(node.left), float("inf")) < precedence:
+    if operand_precedence(node.left, base_context) < precedence:
         numerator = f"{hidden(context.lpar)}{numerator}{hidden(context.rpar)}"
-    if OP_PRECEDENCE.get(type(node.right), float("inf")) <= precedence:
+    if operand_precedence(node.right, base_context) <= precedence:
         denominator = f"{hidden(context.lpar)}{denominator}{hidden(context.rpar)}"
     return (
         f'<span class="hc-frac"><span class="hc-num">{numerator}</span>'
