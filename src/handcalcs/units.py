@@ -12,7 +12,13 @@ from typing import Any
 from .parsing.nodes import Attribute, Constant, Name
 from .parsing.operator_nodes import DivOp, HcUnaryOp, MultOp, PowOp
 
-__all__ = ["is_pint_unit", "is_physical", "is_unit", "is_units_input"]
+__all__ = [
+    "displays_bare",
+    "is_pint_unit",
+    "is_physical",
+    "is_unit",
+    "is_units_input",
+]
 
 
 def is_pint_unit(value: Any) -> bool:
@@ -31,6 +37,18 @@ def is_physical(value: Any) -> bool:
         and hasattr(value, "dimensions")
         and hasattr(value, "value")
     )
+
+
+def displays_bare(value: Any) -> bool:
+    """
+    True if ``value`` displays as its unit alone, with no number: a pint
+    ``Unit``, or a forallpeople 4 defined unit (``kN``) unless its legacy
+    display is on.
+    """
+    if is_pint_unit(value):
+        return True
+    shows_bare_unit = getattr(value, "shows_bare_unit", None)
+    return is_physical(value) and callable(shows_bare_unit) and shows_bare_unit()
 
 
 def _bare(text: str) -> str:
