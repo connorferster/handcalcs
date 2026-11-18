@@ -75,6 +75,7 @@ from handcalcs.parsing.line_nodes import (
     CommentLine,
 )
 from handcalcs.units import displays_bare, is_units_input
+from handcalcs.parsing.sympy_substitution import is_sympy
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
@@ -122,6 +123,40 @@ OP_PRECEDENCE = {
     HcUnaryOp: UNARY_PRECEDENCE,
     PowOp: 3,
 }
+
+
+def operand_precedence(node, base_context: Optional["BaseRenderContext"]) -> float:
+    """
+    How tightly ``node`` binds as an operand (``OP_PRECEDENCE``, infinitely
+    tight for a name or a number). In the numeric column a name stands for its
+    value, so a value that is itself a sum binds as one: a complex number with a
+    real and an imaginary part (``3+4j``), or a SymPy sum, product or power. It
+    is bracketed where a sum would be: ``2 · (3+4j)``, ``(3+4j)²``, ``-(3+4j)``.
+    """
+    precedence = OP_PRECEDENCE.get(type(node))
+    if precedence is not None:
+        return precedence
+    if (
+        base_context is not None
+        and getattr(base_context.current, "current_mode", None) == "num"
+        and isinstance(node, (Name, Attribute, Subscript))
+    ):
+        return value_precedence(getattr(node, "value", None))
+    return float("inf")
+
+
+def value_precedence(value) -> float:
+    """How tightly a substituted value binds (see ``operand_precedence``)."""
+    if isinstance(value, complex):
+        return OP_PRECEDENCE[AddOp] if value.real and value.imag else float("inf")
+    if is_sympy(value):
+        if getattr(value, "is_Add", False):
+            return OP_PRECEDENCE[AddOp]
+        if getattr(value, "is_Mul", False):
+            return OP_PRECEDENCE[MultOp]
+        if getattr(value, "is_Pow", False):
+            return OP_PRECEDENCE[PowOp]
+    return float("inf")
 
 
 # Marks a source line continuation inside a rendered column. ``infix_binop`` emits
@@ -1283,7 +1318,7 @@ def render_unary_op(
     # constant or a power (-a**b) need no parentheses. Also parenthesize a +/-
     # operand that renders with a leading sign so a numeric substitution reads as
     # -(-10.423) rather than the ambiguous --10.423.
-    operand_pre = OP_PRECEDENCE.get(type(node.operand), float("inf"))
+    operand_pre = operand_precedence(node.operand, base_context)
     needs_parens = operand_pre < UNARY_PRECEDENCE
     # Python's `not` binds looser than a comparison, so `not (a < b)` parses with
     # no parens in the AST. Re-add them: `not a < b` reads as `(not a) < b`.
@@ -2253,8 +2288,8 @@ def infix_binop(
     symbol = node.symbol
     ltype = left.__class__
     rtype = right.__class__
-    lpre = precedence.get(ltype, float("inf"))
-    rpre = precedence.get(rtype, float("inf"))
+    lpre = operand_precedence(left, base_context)
+    rpre = operand_precedence(right, base_context)
     _ = context.space
     if not allow_spaces:
         _ = ""
