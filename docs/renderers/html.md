@@ -57,7 +57,18 @@ color, and its styles never override yours (see
 
 The calculations themselves are typeset like a hand calculation: names in italic, in a
 serif maths font (Cambria Math, then STIX Two Text, DejaVu Serif or Georgia, whichever
-the reader has), with each result in bold on a yellow highlighter.
+the reader has), with each result highlighted in the theme colour.
+
+## Colours
+
+`theme_color` (a `"#RRGGBB"` colour, petrol `#0B5F66` by default) colours the result
+highlight, block headers, parameter grids and indent guides:
+
+```python
+HTMLRenderer(theme_color="#4100C2")
+```
+
+The colours are plain CSS, so they also print with WeasyPrint.
 
 ```python
 from handcalcs import HandCalcs

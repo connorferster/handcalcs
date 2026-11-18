@@ -40,7 +40,7 @@ Two more set the look of the calculations:
 | Property | Default | Controls |
 |---|---|---|
 | `--hc-math-font` | `"Cambria Math", Cambria, "STIX Two Text", "DejaVu Serif", Georgia, serif` | The font of calculation lines and grids |
-| `--hc-mark` | `#FFE31D` | The highlighter behind each result (`--hc-mark-text`, `#17131F`, is its text) |
+| `--hc-highlight` | a tint of the theme colour | The highlight behind each result |
 
 ```css
 .handcalcs { --hc-gap: 0.6em; --hc-indent: 2em; --hc-math-font: inherit; }
