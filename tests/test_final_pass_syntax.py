@@ -55,9 +55,7 @@ def test_if_exp_is_parenthesized_as_an_operand():
 
 
 def test_chained_if_exp_needs_no_parentheses():
-    out = _last_line(
-        ASCIIRenderer(), "a = 1\nb = 1 if a > 2 else 2 if a > 0 else 3\n"
-    )
+    out = _last_line(ASCIIRenderer(), "a = 1\nb = 1 if a > 2 else 2 if a > 0 else 3\n")
     assert out.startswith("b = 1 if a > 2 else 2 if a > 0 else 3 =")
     assert out.endswith("= 2")
 
@@ -120,7 +118,7 @@ def test_latex_method_on_expression():
 
 def test_html_method_on_expression():
     out = _render(HTMLRenderer(), SOURCE_TO)
-    assert '(a · 3).to(“mm”)' in out
+    assert "(a · 3).to(“mm”)" in out
 
 
 def test_numpy_dotted_namespace_renders():
@@ -193,9 +191,7 @@ def test_numpy_arrays_render_without_truth_value_error():
 def test_matrix_multiplication():
     pytest.importorskip("numpy")
     source = "import numpy as np\na = np.array([1.0, 2.0])\nf = a @ a\n"
-    assert (
-        _last_line(ASCIIRenderer(), source) == "f = a @ a = [1, 2] @ [1, 2] = 5"
-    )
+    assert _last_line(ASCIIRenderer(), source) == "f = a @ a = [1, 2] @ [1, 2] = 5"
     assert "f &= a \\mathbin{@} a" in _render(LatexRenderer(), source)
 
 
@@ -228,8 +224,13 @@ def test_plaintext_cbrt_factorial_infinity():
 def test_html_cbrt_factorial_infinity():
     out = _render(HTMLRenderer(), FUNCTIONS)
     assert "y = ∛(x) = ∛(27) =" in out
-    assert "g = (n + 1)! / n! = (4 + 1)! / 4! =" in out
+    assert (
+        'g = <span class="hc-frac"><span class="hc-num">(n + 1)!</span>'
+        '<span class="hc-hidden">/</span><span class="hc-den">n!</span></span>'
+    ) in out
     assert '<div class="hc-line">i = ∞</div>' in out
+    inline = _render(HTMLRenderer(fractions="inline"), FUNCTIONS)
+    assert "g = (n + 1)! / n! = (4 + 1)! / 4! =" in inline
 
 
 def test_latex_cbrt_factorial_infinity():
