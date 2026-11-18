@@ -92,8 +92,18 @@ def _pint_unit_value(quantity: Any) -> UnitValue:
 
 
 def _physical_unit_value(physical: Any) -> UnitValue:
-    # forallpeople picks the display unit (and prefix) itself; read it back at
-    # full precision and derive the factor from the SI value.
+    # forallpeople picks the display unit (and prefix) itself. 3.5 and later
+    # say what it is with display(); earlier versions are read back from the
+    # text at full precision. (forallpeople 4 shows a defined unit with no
+    # number, "mm", so its text can't be parsed.)
+    display = getattr(physical, "display", None)
+    if callable(display):
+        shown = display()
+        magnitude = float(shown.magnitude)
+        factor = float(shown.factor)
+        return UnitValue(
+            magnitude, shown.unit, 1.0 if factor == 0 else _clean(1 / factor)
+        )
     text = format(physical, f".{15}g")
     number, _, unit = text.partition(" ")
     magnitude = float(number)

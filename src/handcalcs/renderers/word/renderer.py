@@ -124,6 +124,11 @@ class WordRenderer(BaseRenderer):
     def leading_sign(self, rendered: str) -> bool:
         return omml.plain_text(rendered).lstrip().startswith(("-", "+", "−"))
 
+    def same_column(self, column: str, other: str) -> bool:
+        """Columns read the same, whatever their run styles (a name is set
+        upright as maths, a value as normal text)."""
+        return column == other or omml.plain_text(column) == omml.plain_text(other)
+
     def complete(self, tree: list, base_context: BaseRenderContext) -> Any:
         """
         Write the render tree as a Word document and return it; save it if
