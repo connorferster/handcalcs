@@ -43,7 +43,7 @@ def is_unit(node: Any) -> bool:
     True if ``node`` (a Name or Attribute) is a unit, not a variable:
 
     - a pint ``Unit``;
-    - a forallpeople Physical flagged as a defined unit (``unit`` is True,
+    - a forallpeople Physical flagged as a defined unit (``is_unit``,
       forallpeople 4 and later);
     - a forallpeople Physical of exactly 1 whose unit text is its own name
       (``kN`` is ``1 kN``). The name check keeps a variable that happens to be
@@ -56,7 +56,7 @@ def is_unit(node: Any) -> bool:
         return True
     if not is_physical(value):
         return False
-    if getattr(value, "unit", None) is True:
+    if getattr(value, "is_unit", None) is True:
         return True
     number, _, unit = format(value, ".15g").partition(" ")
     try:

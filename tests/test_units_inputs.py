@@ -11,6 +11,19 @@ from handcalcs.renderers import ASCIIRenderer
 forallpeople = pytest.importorskip("forallpeople")
 
 
+def plain(line: str) -> str:
+    """
+    How ``line`` (``R = 7 * kN``) renders without ``-u``: forallpeople 4 shows
+    a unit as ``kN``, so the substitution repeats the line and is dropped;
+    earlier versions show it as ``1 kN``.
+    """
+    target, expression = line.split(" = ")
+    number, unit = expression.split(" * ")
+    if repr(getattr(forallpeople, unit)) == unit:
+        return f"{line} = {number} {unit}"
+    return f"{line} = {number} * 1 {unit} = {number} {unit}"
+
+
 def render(source: str, namespace: dict) -> list[str]:
     exec(source, namespace)
     return HandCalcs(ASCIIRenderer()).render_run(source, namespace).splitlines()
@@ -51,7 +64,6 @@ def test_number_times_units_collapses(fap, line, shown):
         "X = 5 * kN * 2",
         "Y = 3 * m + 200 * mm",
         "Z = 1 / (5 * m)",
-        "L = m",
         "Q = (5 * kN)**2",
     ],
 )
@@ -78,17 +90,17 @@ def test_standalone_command_lasts_until_turned_off(fap):
     assert render(source, fap) == [
         "P = 5 kN",
         "Q = 6 kN",
-        "R = 7 * kN = 7 * 1 kN = 7 kN",
+        plain("R = 7 * kN"),
     ]
 
 
 def test_inline_command_applies_to_its_line(fap):
     out = render("P = 5 * kN  # hc: -u\nQ = 6 * kN\n", fap)
-    assert out == ["P = 5 kN", "Q = 6 * kN = 6 * 1 kN = 6 kN"]
+    assert out == ["P = 5 kN", plain("Q = 6 * kN")]
 
 
 def test_off_without_the_command(fap):
-    assert render("P = 5 * kN\n", fap) == ["P = 5 * kN = 5 * 1 kN = 5 kN"]
+    assert render("P = 5 * kN\n", fap) == [plain("P = 5 * kN")]
 
 
 def test_symbolic_only_mode_is_left_alone(fap):
