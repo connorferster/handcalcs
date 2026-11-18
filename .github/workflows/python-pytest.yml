@@ -50,6 +50,36 @@ jobs:
         uv run --no-sync python --version
         uv run --no-sync pytest
 
+  forallpeople-4:
+    # The lock pins forallpeople 3.4 (the oldest supported). forallpeople 4 shows
+    # a defined unit as its unit alone ("kN", not "1 kN"); test that too, and its
+    # temporary escape hatch back to the old display.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v7
+      with:
+        python-version: "3.13"
+    - uses: astral-sh/setup-uv@v10.3.0
+      with:
+        version: "0.13.1"
+        python-version: "3.13"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+        cache-suffix: forallpeople-4
+    - name: Install dependencies, then forallpeople 4
+      run: |
+        uv sync --locked --no-default-groups --group test
+        uv pip install "forallpeople>=4,<5"
+    - name: Test with pytest
+      run: uv run --no-sync pytest
+    - name: Test with the legacy unit display
+      env:
+        FORALLPEOPLE_LEGACY_UNIT_REPR: "1"
+      run: uv run --no-sync pytest -p no:warnings
+
   lint:
     runs-on: ubuntu-latest
     steps:
