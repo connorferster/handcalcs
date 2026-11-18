@@ -5,6 +5,8 @@ chips, block-header callouts and comparison spacing.
 
 import pytest
 
+from tests.html_markup import var, without_var
+
 from handcalcs.parsing.sequence import HcSequence
 from handcalcs.renderers.html import (
     DEFAULT_THEME,
@@ -14,11 +16,17 @@ from handcalcs.renderers.html import (
 )
 
 
-def _render(source, names, **kwargs):
+def _render_markup(source, names, **kwargs):
     r = HTMLRenderer(**kwargs)
     ctx = r.create_context()
     tree = r.render(HcSequence.from_source(source, names, {}), ctx)
     return r.complete(tree, ctx)
+
+
+def _render(source, names, **kwargs):
+    """The render without its ``<var>`` tags: most tests here are about other
+    markup (see ``test_names_are_italic_vars`` for those)."""
+    return without_var(_render_markup(source, names, **kwargs))
 
 
 def test_default_theme_derives_the_petrol_palette():
@@ -83,7 +91,7 @@ def _render_with_globals(source, global_ns):
     r = HTMLRenderer()
     ctx = r.create_context(global_ns=global_ns)
     tree = r.render(HcSequence.from_source(source, global_ns, {}), ctx)
-    return r.complete(tree, ctx)
+    return without_var(r.complete(tree, ctx))
 
 
 def test_math_prefix_is_dropped_from_function_calls():
@@ -242,3 +250,36 @@ def test_hidden_and_unpaired_brackets_are_left_alone():
 def test_condition_header_brackets_stretch():
     out = _render("a = 3\nif a / 2 > 1:\n    b = 1\n", {"a": 3, "b": 1})
     assert '<span class="hc-paren hc-paren-1">(</span>' in out
+
+
+# --- names in <var>, and the maths style ---
+
+
+def test_names_are_italic_vars():
+    names = {"w_f": 2.0, "L": 3.0, "M_f": 0.0}
+    out = _render_markup("M_f = w_f * L**2\n", names)
+    assert (
+        f"{var('M<sub>f</sub>')} = {var('w<sub>f</sub>')} · {var('L')}<sup>2</sup>"
+        in out
+    )
+
+
+def test_function_and_module_names_are_upright():
+    import math
+
+    r = HTMLRenderer()
+    global_ns = {"math": math, "x": 1.0, "y": 0.0}
+    ctx = r.create_context(global_ns=global_ns)
+    tree = r.render(
+        HcSequence.from_source("y = math.sin(x) + math.hypot(x, x)\n", global_ns, {}),
+        ctx,
+    )
+    out = r.complete(tree, ctx)
+    assert "sin(<var>x</var>) + hypot(<var>x</var>, <var>x</var>)" in out
+
+
+def test_maths_style_is_in_the_stylesheet():
+    out = _render_markup("a = 1\n", {"a": 1})
+    assert '--hc-math-font:"Cambria Math",Cambria,"STIX Two Text","DejaVu Serif"' in out
+    assert "--hc-mark:#FFE31D;" in out
+    assert ".handcalcs :where(var){font-style:italic;" in out

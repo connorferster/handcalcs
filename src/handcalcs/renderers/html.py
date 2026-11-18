@@ -174,7 +174,9 @@ class HTMLRenderer(BaseRenderer):
         "--hc-gap:0.35em;--hc-indent:1.5em;--hc-param-gap:2em;--hc-eq-gap:0.3em;"
         "--hc-accent-text:var(--hc-accent);"
         "--hc-tint:color-mix(in srgb,var(--hc-accent) 9%,transparent);"
-        "--hc-highlight:color-mix(in srgb,var(--hc-accent) 12%,transparent);"
+        "--hc-mark:#FFE31D;--hc-mark-text:#17131F;"
+        '--hc-math-font:"Cambria Math",Cambria,"STIX Two Text","DejaVu Serif",'
+        'Georgia,"Times New Roman",serif;'
         "--hc-muted:color-mix(in srgb,currentColor 60%,transparent);"
         "--hc-chip:color-mix(in srgb,currentColor 6%,transparent);"
         "display:flex;flex-direction:column;gap:var(--hc-gap);"
@@ -194,6 +196,13 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-body .hc-body .hc-body .hc-body .hc-body){--hc-guide:var(--hc-guide-2);}"
         ".handcalcs :where(.hc-line,.hc-header,.hc-comment){"
         "margin-block:0;}"
+        # The maths is typeset like a hand calculation: a serif maths font
+        # (``--hc-math-font``), names in italic, small sub- and superscripts that
+        # don't push the lines apart. Comments and headings keep the page's font.
+        ".handcalcs :where(.hc-line,.hc-header){"
+        "font-family:var(--hc-math-font);line-height:1.6;}"
+        ".handcalcs :where(var){font-style:italic;font-size:1.08em;}"
+        ".handcalcs :where(sub,sup){font-size:0.7em;line-height:0;white-space:nowrap;}"
         # Block headers (``Since ... is True:``) are callouts: a tinted band with
         # an accent marker; their keywords (``.hc-kw``) are set in the accent.
         ".handcalcs :where(.hc-header){"
@@ -201,11 +210,11 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-header)::before{"
         'content:"\\25B8";color:var(--hc-accent-text);margin-inline-end:0.4em;}'
         ".handcalcs :where(.hc-kw){color:var(--hc-accent-text);}"
-        # The result of a calc with a substitution is highlighted; inline
-        # comments are muted.
+        # The result of a calc with a substitution is bold on a highlighter mark
+        # (``--hc-mark``, dark text on it on any page); inline comments are muted.
         ".handcalcs :where(.hc-result){"
-        "color:var(--hc-accent-text);background:var(--hc-highlight);font-weight:600;"
-        "padding:0 0.25em;border-radius:3px;"
+        "color:var(--hc-mark-text);background:var(--hc-mark);font-weight:700;"
+        "padding:0 0.2em;white-space:nowrap;"
         "-webkit-box-decoration-break:clone;box-decoration-break:clone;}"
         ".handcalcs :where(.hc-note){color:var(--hc-muted);}"
         # The pass/fail mark of a ``# hc: --check`` line.
@@ -241,7 +250,7 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs table.hc-params{"
         "margin:0;border:0;border-collapse:separate;border-spacing:0;table-layout:auto;"
         "width:auto;align-self:center;font-size:inherit;color:inherit;"
-        "font-variant-numeric:tabular-nums;"
+        "font-variant-numeric:tabular-nums;font-family:var(--hc-math-font);"
         "background:var(--hc-tint);border-radius:4px;padding:0.1em 0.6em;}"
         # A multi-line calc reads as one unit: no panel, an accent bar on its left.
         ".handcalcs table.hc-params.hc-multiline{align-self:start;"
@@ -270,7 +279,7 @@ class HTMLRenderer(BaseRenderer):
         # it needs are hidden but kept, so copied text and screen readers get
         # ``(a + b)/(c - a)``.
         ".handcalcs :where(.hc-frac){display:inline-block;vertical-align:middle;"
-        "text-align:center;line-height:1.25;margin:0.2em 0.15em;position:relative;}"
+        "text-align:center;line-height:1.3;margin:0.2em 0.15em;position:relative;}"
         ".handcalcs :where(.hc-num,.hc-den){display:block;padding:0 0.2em;}"
         ".handcalcs :where(.hc-num){border-bottom:1px solid currentColor;"
         "padding-bottom:0.08em;}"
@@ -297,8 +306,7 @@ class HTMLRenderer(BaseRenderer):
         return (
             f".handcalcs{{{props}}}"
             f":is({','.join(DARK_HOSTS)}) .handcalcs{{--hc-accent-text:var(--hc-accent-dark);"
-            "--hc-tint:color-mix(in srgb,var(--hc-accent) 30%,transparent);"
-            "--hc-highlight:color-mix(in srgb,var(--hc-accent) 38%,transparent);}"
+            "--hc-tint:color-mix(in srgb,var(--hc-accent) 30%,transparent);}"
         )
 
     def complete(self, tree: list, base_context: BaseRenderContext) -> str:
@@ -614,20 +622,24 @@ ACCENT_MARKS = {
 PRIME_MARK = "\u2032"
 
 
-def html_symbol(symbol: Symbol, space: str = " ") -> str:
+def html_symbol(symbol: Symbol, space: str = " ", italic: bool = True) -> str:
     """A parsed ``Symbol`` as HTML: Greek letters, combining accents, primes,
-    ``<sup>`` and ``<sub>`` (sibling subscripts separated by commas)."""
+    ``<sup>`` and ``<sub>`` (sibling subscripts separated by commas). The name
+    itself is a ``<var>`` (set in italic, as in typeset maths); its subscripts
+    and superscripts are upright."""
     markup = space.join(
         "".join(GREEK[text] if is_greek else escape(text) for is_greek, text in pieces)
         for pieces in symbol.words
     )
     markup += "".join(ACCENT_MARKS[accent] for accent in symbol.accents)
     markup += PRIME_MARK * symbol.primes
+    if italic and markup:
+        markup = f"<var>{markup}</var>"
     if symbol.superscripts:
-        sups = ",".join(html_symbol(sup, space) for sup in symbol.superscripts)
+        sups = ",".join(html_symbol(sup, space, False) for sup in symbol.superscripts)
         markup += f"<sup>{sups}</sup>"
     if symbol.subscripts:
-        subs = ",".join(html_symbol(sub, space) for sub in symbol.subscripts)
+        subs = ",".join(html_symbol(sub, space, False) for sub in symbol.subscripts)
         markup += f"<sub>{subs}</sub>"
     return markup
 
@@ -650,7 +662,23 @@ def swap_identifier(renderer: HTMLR, node: Name, base_context: BRC) -> Name:
     identifier = node.identifier
     if identifier in options.symbols or is_identifier(identifier):
         symbol = parse_identifier(identifier, options)
-        node.identifier = html_symbol(symbol, base_context.current.space)
+        italic = not getattr(node, "upright", False)
+        node.identifier = html_symbol(symbol, base_context.current.space, italic)
+    return node
+
+
+@HTMLR.register("function_call:pre")
+def upright_call_names(
+    renderer: HTMLR, node: FunctionCall, base_context: BRC
+) -> FunctionCall:
+    """
+    Mark a call's function name, and the module it is called from, to be set
+    upright rather than as an italic variable: ``sin(x)``, ``np.linspace``,
+    ``(a · 3).to("mm")``, as typeset maths writes them.
+    """
+    for name in (node.function_name, node.namespace):
+        if isinstance(name, Name):
+            name.upright = True
     return node
 
 

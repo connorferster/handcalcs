@@ -100,8 +100,8 @@ def test_base_render_tree_holds_the_calc_lines():
 def test_html_render_holds_the_calc_lines():
     _value, rendered = calc_html()
     assert (
-        '<div class="hc-line">c = a + b = 2 + 3 = <span class="hc-result">5</span></div>'
-        in rendered
+        '<div class="hc-line"><var>c</var> = <var>a</var> + <var>b</var> = 2 + 3 = '
+        '<span class="hc-result">5</span></div>' in rendered
     )
 
 

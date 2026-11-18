@@ -20,6 +20,7 @@ from handcalcs.renderers.identifiers import (
 from handcalcs.renderers.latex import LatexRenderer
 from handcalcs.renderers.markdown import MarkdownRenderer
 from handcalcs.renderers.ascii import ASCIIRenderer
+from tests.html_markup import var
 
 NESTED = IdentifierOptions(subscripts="nested")
 
@@ -157,11 +158,16 @@ def render(renderer, source: str) -> str:
     return HandCalcs(renderer=renderer)(source)
 
 
+def markup(renderer_class, expected: str) -> str:
+    """The expected name, with the HTMLRenderer's ``<var>``."""
+    return var(expected) if renderer_class is HTMLRenderer else expected
+
+
 @pytest.mark.parametrize("renderer_class, column, pattern", RENDERERS)
 @pytest.mark.parametrize("identifier", COMMA)
 def test_comma_style(renderer_class, column, pattern, identifier):
     out = render(renderer_class(), f"{identifier} = 2\n")
-    assert pattern.format(COMMA[identifier][column]) in out
+    assert pattern.format(markup(renderer_class, COMMA[identifier][column])) in out
 
 
 @pytest.mark.parametrize("renderer_class, column, pattern", RENDERERS)
@@ -169,7 +175,8 @@ def test_comma_style(renderer_class, column, pattern, identifier):
 def test_nested_style_comment(renderer_class, column, pattern, identifier):
     source = f'# hc: subscripts = "nested"\n{identifier} = 2\n'
     out = render(renderer_class(), source)
-    assert pattern.format(NESTED_TABLE[identifier][column]) in out
+    expected = markup(renderer_class, NESTED_TABLE[identifier][column])
+    assert pattern.format(expected) in out
 
 
 @pytest.mark.parametrize("renderer_class, column, pattern", RENDERERS)
@@ -177,7 +184,8 @@ def test_nested_style_comment(renderer_class, column, pattern, identifier):
 def test_symbols_comment(renderer_class, column, pattern, identifier):
     source = f"# hc: symbols = {SYMBOLS!r}\n{identifier} = 2\n"
     out = render(renderer_class(), source)
-    assert pattern.format(SYMBOL_TABLE[identifier][column]) in out
+    expected = markup(renderer_class, SYMBOL_TABLE[identifier][column])
+    assert pattern.format(expected) in out
 
 
 @pytest.mark.parametrize("identifier", COMMA)
@@ -246,7 +254,7 @@ def test_accents_latex_and_html(identifier):
     source = f"# hc: symbols = {ACCENT_SPECS!r}\n{identifier} = 2\n"
     latex, html, _ = ACCENT_TABLE[identifier]
     assert f"{latex} &= 2" in render(LatexRenderer(), source)
-    assert f"{html} = 2" in render(HTMLRenderer(), source)
+    assert f"{var(html)} = 2" in render(HTMLRenderer(), source)
 
 
 @pytest.mark.parametrize("identifier", ACCENT_TABLE)

@@ -35,9 +35,18 @@ way:
 | `--hc-param-gap` | `2em` | Space between the columns of a parameter grid |
 | `--hc-eq-gap` | `0.3em` | Space on each side of `=` in a grid |
 
+Two more set the look of the calculations:
+
+| Property | Default | Controls |
+|---|---|---|
+| `--hc-math-font` | `"Cambria Math", Cambria, "STIX Two Text", "DejaVu Serif", Georgia, serif` | The font of calculation lines and grids |
+| `--hc-mark` | `#FFE31D` | The highlighter behind each result (`--hc-mark-text`, `#17131F`, is its text) |
+
 ```css
-.handcalcs { --hc-gap: 0.6em; --hc-indent: 2em; }
+.handcalcs { --hc-gap: 0.6em; --hc-indent: 2em; --hc-math-font: inherit; }
 ```
+
+`--hc-math-font: inherit` sets the calculations in the page's own font.
 
 ## Option 2: ship the style with the renderer
 

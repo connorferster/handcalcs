@@ -118,7 +118,7 @@ def test_latex_method_on_expression():
 
 def test_html_method_on_expression():
     out = _render(HTMLRenderer(), SOURCE_TO)
-    assert "(a · 3).to(“mm”)" in out
+    assert "(<var>a</var> · 3).to(“mm”)" in out
 
 
 def test_numpy_dotted_namespace_renders():
@@ -223,14 +223,16 @@ def test_plaintext_cbrt_factorial_infinity():
 
 def test_html_cbrt_factorial_infinity():
     out = _render(HTMLRenderer(), FUNCTIONS)
-    assert "y = ∛(x) = ∛(27) =" in out
+    assert "<var>y</var> = ∛(<var>x</var>) = ∛(27) =" in out
     assert (
-        'g = <span class="hc-frac"><span class="hc-num">(n + 1)!</span>'
-        '<span class="hc-hidden">/</span><span class="hc-den">n!</span></span>'
+        '<var>g</var> = <span class="hc-frac"><span class="hc-num">(<var>n</var> + 1)!</span>'
+        '<span class="hc-hidden">/</span><span class="hc-den"><var>n</var>!</span></span>'
     ) in out
-    assert '<div class="hc-line">i = ∞</div>' in out
+    assert '<div class="hc-line"><var>i</var> = ∞</div>' in out
     inline = _render(HTMLRenderer(fractions="inline"), FUNCTIONS)
-    assert "g = (n + 1)! / n! = (4 + 1)! / 4! =" in inline
+    assert (
+        "<var>g</var> = (<var>n</var> + 1)! / <var>n</var>! = (4 + 1)! / 4! =" in inline
+    )
 
 
 def test_latex_cbrt_factorial_infinity():

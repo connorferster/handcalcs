@@ -95,7 +95,8 @@ def test_html_continuation_rows():
     out = _render(HTMLRenderer(), "a = 2\nb = 3\nc = a * b + \\\n    b\n")
     assert '<table class="hc-params hc-multiline">' in out
     assert (
-        '<td class="hc-param-eq"></td><td class="hc-param-val">&emsp;&emsp;b</td>'
+        '<td class="hc-param-eq"></td>'
+        '<td class="hc-param-val">&emsp;&emsp;<var>b</var></td>'
         in out
     )
     assert '<span class="hc-result">9</span>' in out

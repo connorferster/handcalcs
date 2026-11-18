@@ -51,8 +51,13 @@ M_f <= M_r     # hc: --check
 
 ## Using the output
 
-Insert the string anywhere in a page. It inherits the page's font and color, and its
-styles never override yours (see [Styling the HTML output](../customizing/html-styling.md)).
+Insert the string anywhere in a page. Comments and headings inherit the page's font and
+color, and its styles never override yours (see
+[Styling the HTML output](../customizing/html-styling.md)).
+
+The calculations themselves are typeset like a hand calculation: names in italic, in a
+serif maths font (Cambria Math, then STIX Two Text, DejaVu Serif or Georgia, whichever
+the reader has), with each result in bold on a yellow highlighter.
 
 ```python
 from handcalcs import HandCalcs
@@ -117,13 +122,15 @@ HTMLRenderer(fractions="inline")  # a / b
 | `hc-frac`, `hc-num`, `hc-den` | A stacked fraction, its numerator and its denominator. |
 | `hc-paren` | A bracket stretched around a fraction (`hc-paren-1`, or `hc-paren-2` around nested fractions). |
 | `hc-hidden` | Text kept for copying and screen readers but not shown. |
+| `<var>` | A name (set in italic). Function and module names are not in `<var>`. |
 
 Headings are `<h1>` (for `##`) to `<h6>`. The headings and text sizes come from the host
 page.
 
 ## Conventions
 
-- Names: Greek letters as Unicode characters; `_` makes a `<sub>` subscript, and further
+- Names: in `<var>`, set in italic (subscripts and superscripts stay upright); Greek
+  letters as Unicode characters; `_` makes a `<sub>` subscript, and further
   subscripts follow after a comma (`N<sub>pl,Rd</sub>`; nested with the `subscripts`
   option); `__` is a space, `___` a literal underscore. `hat`, `bar`, `dot`, `ddot`,
   `prime` and `star` add a hat, an overbar, a dot, two dots, a prime or a superscript `*` to
