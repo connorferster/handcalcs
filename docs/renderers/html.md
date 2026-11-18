@@ -72,6 +72,21 @@ HandCalcs(HTMLRenderer())(source, destination="beam.html")
 
 In Jupyter, `%hc_default_renderer html` displays it with `IPython.display.HTML`.
 
+## Fractions
+
+A division is shown as a stacked fraction, numerator over denominator, drawn with plain
+HTML and CSS. Fractions nest, and brackets around a fraction stretch to its height. A
+division in an exponent stays on one line: `a**(1/2)` is shown as a<sup>1/2</sup>.
+
+The `/` and the brackets an inline division would need are kept as hidden text, so
+copying a calculation, or reading it with a screen reader, gives `(a + b)/(c - d)`.
+
+For divisions on one line, as in earlier versions, use `fractions="inline"`:
+
+```python
+HTMLRenderer(fractions="inline")  # a / b
+```
+
 ## Output structure
 
 ```html
@@ -99,6 +114,9 @@ In Jupyter, `%hc_default_renderer html` displays it with `IPython.display.HTML`.
 | `hc-params` | A parameter grid (a `<table>`); cells are `hc-param-id`, `hc-param-eq`, `hc-param-val`, `hc-param-comment`, with `hc-param-gap` spacers. |
 | `hc-multiline` | Added to the table of a `# hc: -m` calculation. |
 | `hc-pre` | Pre-formatted text (whitespace kept). |
+| `hc-frac`, `hc-num`, `hc-den` | A stacked fraction, its numerator and its denominator. |
+| `hc-paren` | A bracket stretched around a fraction (`hc-paren-1`, or `hc-paren-2` around nested fractions). |
+| `hc-hidden` | Text kept for copying and screen readers but not shown. |
 
 Headings are `<h1>` (for `##`) to `<h6>`. The headings and text sizes come from the host
 page.
@@ -111,7 +129,8 @@ page.
   `prime` and `star` add a hat, an overbar, a dot, two dots, a prime or a superscript `*` to
   the part before them. All of this is one `name:sym` rule, `swap_identifier`. See
   [naming variables](../getting-started/writing-calculations.md#naming-variables).
-- Operators: `*` → `·`, `**` → `<sup>`, `sqrt` → `√`, `<=` → `≤`.
+- Operators: `*` → `·`, `/` → a stacked fraction, `//` → a fraction in `⌊ ⌋`, `**` →
+  `<sup>`, `sqrt` → `√`, `<=` → `≤`.
 - Comments: `` `code` ``, `**bold**` and `*italic*` become `<code>`, `<strong>` and
   `<em>`. `$...$` is not math in HTML: it is shown as written.
 - Numbers use the format code as-is (`1.2e+05` stays as written). Strings are shown in
