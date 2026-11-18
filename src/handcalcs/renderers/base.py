@@ -74,7 +74,7 @@ from handcalcs.parsing.line_nodes import (
     Heading,
     CommentLine,
 )
-from handcalcs.units import is_units_input
+from handcalcs.units import displays_bare, is_units_input
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
@@ -727,6 +727,15 @@ class BaseRenderer:
     def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
         return str(node)
 
+    def same_column(self, column: str, other: str) -> bool:
+        """
+        True if two rendered columns of a line read the same, so the second is
+        dropped (``q = y = 3``, not ``q = y = 3 = 3``). A renderer that marks up
+        one column differently (the HTML renderer's ``<var>`` names) overrides
+        this to look past the markup.
+        """
+        return column == other
+
     def leading_sign(self, rendered: str) -> bool:
         """
         True if a rendered operand starts with a ``-`` or ``+`` sign (e.g. a
@@ -875,13 +884,15 @@ def is_quantity(value) -> bool:
 def quantity_power_base(node, base_context: BaseRenderContext) -> bool:
     """
     True if the base of a power substitutes a quantity in the numeric column,
-    which must be bracketed: ``(6 m)²``, not ``6 m²``.
+    which must be bracketed: ``(6 m)²``, not ``6 m²``. A unit that displays as
+    its unit alone (forallpeople 4's ``mm``) is not: ``mm²``.
     """
     current_mode = getattr(base_context.current, "current_mode", None)
     return (
         current_mode == "num"
         and isinstance(node.left, (Name, Attribute))
         and is_quantity(node.left.value)
+        and not displays_bare(node.left.value)
     )
 
 
@@ -1753,7 +1764,7 @@ def render_calcline(
     head = [columns.popleft() for _target in range(min(n_targets, len(columns)))]
     values: list = []
     for column in columns:
-        if not values or column != values[-1]:
+        if not values or not renderer.same_column(column, values[-1]):
             values.append(column)
     columns = deque(head + values)
     if mark and columns:

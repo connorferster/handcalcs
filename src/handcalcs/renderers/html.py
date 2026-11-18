@@ -329,6 +329,10 @@ class HTMLRenderer(BaseRenderer):
         style = self.theme_style() + self.STYLE
         return f'<div class="handcalcs"><style>{style}</style>{body}</div>'
 
+    def same_column(self, column: str, other: str) -> bool:
+        """Columns read the same apart from the symbolic column's ``<var>`` names."""
+        return without_var(column) == without_var(other)
+
     def create_context(self, **config_kwargs):
         # Indentation is now structural (``.hc-body`` padding), not a text
         # prefix, so no ``&nbsp;`` indent is injected into the context.
@@ -785,6 +789,11 @@ def stacked_fraction(
 
 
 TAG = re.compile(r"(<[^>]+>)")
+
+
+def without_var(html: str) -> str:
+    """``html`` without ``<var>`` tags."""
+    return html.replace("<var>", "").replace("</var>", "")
 
 
 def stretch_brackets(html: str) -> str:
