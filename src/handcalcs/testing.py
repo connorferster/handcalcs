@@ -95,6 +95,13 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
         "apple",
         "kiwi",
     ),
+    # SymPy substitution runs the source in stages; no line here holds a SymPy
+    # expression, so it renders as usual (and needs no SymPy).
+    _case(
+        "sympy",
+        "# hc: -y\napple = 2\nberry = apple\n# hc: sympy = False\ncherry = berry * 2\n",
+        "apple berry cherry",
+    ),
     _case(
         "grid",
         "# hc: -g -c 2\napple = 1  # lemon\nberry = 2\ncherry = 3\n",

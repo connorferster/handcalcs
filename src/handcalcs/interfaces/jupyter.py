@@ -6,7 +6,7 @@ from .object_oriented import HandCalcs
 from .display import DISPLAY_CLASS_NAMES, display_class_for
 from handcalcs import config
 from typing import Any, Optional
-from handcalcs.parsing import line_values
+from handcalcs.parsing import line_values, sympy_substitution
 from handcalcs.parsing.inputs import RESOLVER, InputBinding
 
 # Importing the package registers the built-in renderers by name.
@@ -168,6 +168,66 @@ def run_recorded(source: str) -> tuple[Any, Optional[line_values.LineValues]]:
     return exec_result, values
 
 
+def run_staged(source: str) -> tuple[Any, Optional[line_values.LineValues], str]:
+    """
+    Run a cell with '# hc: -y' lines a piece at a time (see
+    sympy_substitution.run_staged): each line is rewritten just before it runs.
+    Returns IPython's result for the last piece that ran, the values recorded
+    line by line (None with the 'line_values' option off) and the rewritten cell.
+    """
+    __tracebackhide__ = True
+    # IPython's transforms (line magics, !commands) keep each line on its line,
+    # so the transformed cell and the cell have the same line numbers.
+    transformed = ip.transform_cell(source)
+    results = []
+
+    def run_chunk(chunk: str) -> bool:
+        result = ip.run_cell(chunk)
+        results.append(result)
+        return result.success
+
+    values = None
+    if config.get_option("line_values", True):
+        values = line_values.LineValues(transformed)
+    substitutions = []
+
+    def on_substitution(substitution) -> None:
+        substitutions.append(substitution)
+        if values is not None:
+            values.add_names(substitution.line, substitution.names)
+
+    try:
+        with cell_capture:
+            if values is None:
+                rewritten = sympy_substitution.run_staged(
+                    transformed, ip.user_ns, run_chunk, on_substitution
+                )
+            else:
+                with line_values.recording(values, is_cell_frame):
+                    rewritten = sympy_substitution.run_staged(
+                        transformed, ip.user_ns, run_chunk, on_substitution
+                    )
+    except sympy_substitution.SympySubstitutionError as error:
+        raise UsageError(str(error)) from None
+    return results[-1], values, carry_lines(source, transformed, rewritten)
+
+
+def carry_lines(source: str, transformed: str, rewritten: str) -> str:
+    """
+    'source' with the lines that differ between 'transformed' and 'rewritten'
+    (the '# hc: -y' lines, which IPython's transforms leave as they are) taken
+    from 'rewritten'.
+    """
+    lines = source.splitlines(keepends=True)
+    before = transformed.splitlines(keepends=True)
+    after = rewritten.splitlines(keepends=True)
+    for index, (old, new) in enumerate(zip(before, after)):
+        if old != new and index < len(lines):
+            ending = lines[index][len(lines[index].rstrip("\r\n")) :]
+            lines[index] = new.rstrip("\r\n") + ending
+    return "".join(lines)
+
+
 def is_cell_frame(frame) -> bool:
     """True for the frame of a cell's code (not of a function or module it calls)."""
     return frame.f_globals is ip.user_ns and frame.f_code.co_name == "<module>"
@@ -231,7 +291,10 @@ def run_and_render(
     # Run the cell. Its own output is captured so that only the render shows;
     # an error is raised again, so that it is shown (and stops "Run All") as it
     # would be in a cell without %%render.
-    exec_result, values = run_recorded(cell)
+    if sympy_substitution.has_sympy_commands(cell):
+        exec_result, values, cell = run_staged(cell)
+    else:
+        exec_result, values = run_recorded(cell)
     exec_result.raise_error()
 
     # Render against the updated variables (after .run_cell(cell))
@@ -324,6 +387,11 @@ def render_with_inputs(
     inputs=case)`` does for a script.
     """
     __tracebackhide__ = True
+    if sympy_substitution.has_sympy_commands(cell):
+        raise UsageError(
+            "'# hc: -y' can't be combined with inputs=: it rewrites lines just "
+            "before they run, and inputs= rewrites the cell before it runs."
+        )
     binding = InputBinding(cell, inputs, strict=strict, allow_computed=allow_computed)
     ip.user_ns.update(binding.namespace())
     exec_result, values = run_recorded(binding.exec_source)
@@ -358,6 +426,16 @@ def render_line(
             "not be the function's variables. Decorate the function with "
             "@handcalc to render it."
         )
+    if sympy_substitution.has_sympy_commands(source):
+        # '%render x = f  # hc: -y': the line runs as 'x = <f's expression>'.
+        try:
+            source, _ = sympy_substitution.substitute(
+                source,
+                sympy_substitution.namespace_lookup(ip.user_ns),
+                check_lines=frozenset({1}),
+            )
+        except sympy_substitution.SympySubstitutionError as error:
+            raise UsageError(str(error)) from None
     exec(compile(source + "\n", "<%render>", "exec"), ip.user_ns)
     render_and_display(
         source + "\n", ip.user_ns, as_source=as_source, renderer_name=renderer_name
