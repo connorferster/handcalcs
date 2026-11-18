@@ -4,6 +4,12 @@
 
 ### Features
 
+- **`;` grids keep the layout you write**: each `;` line is a row of the grid, so
+  `a = 1; b = 2` over `c = 3; d = 4; e = 5` lays out two cells over three. Before,
+  the cells were reflowed three to a row. End a line with `;` (`f = 6;`) for a
+  one-cell row. `# hc: -c N` now sets the width of
+  `# hc: -g` grids only, which still reflow
+  ([details](../getting-started/writing-calculations.md#parameter-grids)).
 - **SymPy substitution, `# hc: -y`**: `x = f`, where `f` holds a SymPy expression, runs
   and renders as `x = <the expression>` with the values its symbols have when the line
   runs, so the algebra done in SymPy becomes a calculation, as v1's `%%render sympy`

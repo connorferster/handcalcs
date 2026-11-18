@@ -178,10 +178,20 @@ to control them.
 ## Parameter grids
 
 Long lists of inputs take up a lot of vertical space. Put several assignments on one line,
-separated by `;`, and they are laid out as a grid, three per row:
+separated by `;`, and they are laid out as a grid. Each line is a row of the grid, so it
+has the layout you write, as many cells to a row as you like:
 
 ```{hc-example}
-b = 200; d = 450; c_c = 40; f_c = 30; f_y = 400
+b = 200; d = 450; c_c = 40
+f_c = 30; f_y = 400
+```
+
+A line without a `;` ends the grid. To give a row a single cell, end it with `;`:
+
+```{hc-example}
+L = 6000; b = 300; d = 540; c_c = 40
+f_c = 30;
+f_y = 400; E_s = 200000
 ```
 
 To keep inline comments, use a `# hc: -g` command instead. The assignments that follow
@@ -196,11 +206,15 @@ f_c = 30  # MPa
 f_y = 400  # MPa
 ```
 
-Change the number of columns with `# hc: -c N`:
+A `# hc: -g` grid has three cells to a row; change the number of columns with
+`# hc: -c N`:
 
 ```{hc-example}
-# hc: -c 2
-b = 200; d = 450; f_c = 30; f_y = 400
+# hc: -g -c 2
+b = 200  # mm
+d = 450  # mm
+f_c = 30  # MPa
+f_y = 400  # MPa
 ```
 
 ```{note}

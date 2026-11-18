@@ -20,6 +20,10 @@ class ParamsBlock(HcBlockNode):
     # True for a block opened by ``# hc: -g``: each cell keeps its line comment.
     # A ``;`` block has nowhere to put one, so its comments are dropped.
     with_comments: bool = False
+    # For a ``;`` block, how many of ``lines`` each source line holds: the grid
+    # keeps the source's rows. Empty for a ``# hc: -g`` block, which reflows its
+    # cells into ``param_cols`` columns.
+    row_sizes: list[int] = field(default_factory=list)
     type: str = "params_block"
 
 
