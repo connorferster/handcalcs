@@ -4,6 +4,12 @@
 
 ### Features
 
+- **SymPy substitution, `# hc: -y`**: `x = f`, where `f` holds a SymPy expression, runs
+  and renders as `x = <the expression>` with the values its symbols have when the line
+  runs, so the algebra done in SymPy becomes a calculation, as v1's `%%render sympy`
+  did. On its own line it applies to every such line until `# hc: sympy = False`. Works
+  in scripts, `%%render` and `@handcalc` (where the expression may be an argument).
+  SymPy is not a dependency.
 - **`%%source`** prints a cell's rendered text (LaTeX, Markdown, HTML, plain text)
   instead of displaying it, to copy into another document. `%%source latex` uses the
   LaTeX renderer for that cell, as v1's `%%tex` did. It takes `%%render`'s `inputs=`

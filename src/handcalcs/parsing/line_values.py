@@ -89,6 +89,15 @@ class LineValues:
         self.comment_names = comment_names(source) & self.names
         self.statements: dict[int, StatementValues] = {}
 
+    def add_names(self, statement: int, names) -> None:
+        """
+        Also record ``names`` for the statement starting on ``statement``: a line
+        rewritten before it runs (``# hc: -y``) uses names the source didn't show.
+        Call it before the statement runs.
+        """
+        if statement in self.statement_names:
+            self.statement_names[statement] |= frozenset(names) & self.names
+
     def values_before(self, line: int) -> Optional[dict]:
         """The values just before the statement starting on ``line`` ran."""
         values = self.statements.get(line)

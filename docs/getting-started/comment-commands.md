@@ -16,6 +16,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-m` | `--multiline` | Break a calculation over several lines, aligned on `=`, for long equations. |
 | `-p` | `--param-line` | Show only *target = result*, hiding the symbolic and substituted steps. |
 | `-u` | `--units` | Show a number times units (`P = 5 * kN`) as its value alone, `P = 5 kN`. Lines that calculate are unchanged. See [Units](../cookbook/units.md#calculate-with-forallpeople). |
+| `-y` | `--sympy` | Substitute a SymPy expression: `x = f`, where `f` holds one, runs as `x = <the expression>` with the values its symbols have. See [SymPy](../cookbook/sympy.md). |
 | `-g` | `--grid` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
 | `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
@@ -89,6 +90,7 @@ renderer reads. The flags are shorthands for these fields:
 | `-m` | `multiline` |
 | `-p` | `param_line` |
 | `-u` | `units` |
+| `-y` | `sympy` |
 | `-c` | `param_cols` |
 | `-i` / `-s` | `ignore` (`True` / `False`) |
 | `--check` | `check` |

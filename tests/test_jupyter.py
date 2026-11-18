@@ -380,3 +380,43 @@ def test_source_errors(shell, line, message):
     ip, jupyter = shell
     with pytest.raises(jupyter.UsageError, match=re.escape(message)):
         ip.run_cell_magic("source", line, INPUT_CELL)
+
+
+# --- # hc: -y (SymPy substitution) in %%render ---
+
+
+def test_render_substitutes_a_sympy_expression(shell):
+    sp = pytest.importorskip("sympy")
+    ip, _ = shell
+    ip.user_ns.update(f=sp.integrate(sp.Symbol("a") ** 2, sp.Symbol("a")))
+    data = render_cell(ip, "a = 3\nx = f  # hc: -y\ny = x + 1\n")
+    markdown = data["text/markdown"]
+    assert "x &= \\frac{a^{3}}{3} = \\frac{3^{3}}{3} = 9" in markdown
+    assert ip.user_ns["x"] == 9 and ip.user_ns["y"] == 10
+
+
+def test_render_sympy_errors_are_usage_errors(shell):
+    sp = pytest.importorskip("sympy")
+    ip, jupyter = shell
+    ip.user_ns.update(f=sp.Symbol("a") + sp.Symbol("q"))
+    with pytest.raises(jupyter.UsageError, match="'q', which has no value"):
+        ip.run_cell_magic("render", "", "a = 3\nx = f  # hc: -y\n")
+    with pytest.raises(jupyter.UsageError, match="inputs="):
+        ip.run_cell_magic("render", "inputs={'a': 1}", "a = 3\nx = f  # hc: -y\n")
+
+
+def test_render_sympy_error_in_the_cell_is_raised(shell):
+    sp = pytest.importorskip("sympy")
+    ip, _ = shell
+    ip.user_ns.update(f=sp.Symbol("a") * 2)
+    with pytest.raises(ZeroDivisionError):
+        ip.run_cell_magic("render", "", "a = 1 / 0\nx = f  # hc: -y\n")
+
+
+def test_line_magic_substitutes_a_sympy_expression(shell):
+    sp = pytest.importorskip("sympy")
+    ip, _ = shell
+    ip.user_ns.update(f=sp.Symbol("a") * 3)
+    _, outputs = run_cell(ip, "a = 2\n%render x = f  # hc: -y\n")
+    assert "x &= 3 \\cdot a = 3 \\cdot 2 = 6" in outputs[0]["text/markdown"]
+    assert ip.user_ns["x"] == 6
