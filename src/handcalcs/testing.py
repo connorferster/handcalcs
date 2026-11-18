@@ -90,6 +90,12 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
     ),
     _case("param-line", "apple = 2\nberry = apple * 3  # hc: -p\n", "apple berry"),
     _case(
+        "units",
+        "from handcalcs.testing import kiwi  # hc: -i\n# hc: -u\napple = 5 * kiwi\n",
+        "apple",
+        "kiwi",
+    ),
+    _case(
         "grid",
         "# hc: -g -c 2\napple = 1  # lemon\nberry = 2\ncherry = 3\n",
         "apple berry cherry lemon",
@@ -197,6 +203,37 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
 )
 
 _MISSING = object()
+
+
+class _Registry:
+    """The little of a pint registry the Excel renderer asks a unit for."""
+
+    class Quantity:
+        def __init__(self, magnitude, unit):
+            self.magnitude = magnitude
+
+        def to_base_units(self):
+            return self
+
+
+class Unit:
+    """
+    A stand-in unit for the ``units`` case, so it needs neither pint nor
+    forallpeople: it is recognized as a pint ``Unit`` (see ``handcalcs.units``),
+    is its own SI base unit, and a number times it is the number.
+    """
+
+    dimensionality: dict = {}
+    _REGISTRY = _Registry()
+
+    def __rmul__(self, number):
+        return number
+
+    def __repr__(self) -> str:
+        return "kiwi"
+
+
+kiwi = Unit()
 
 
 def render_case(renderer: Any, case: FeatureCase) -> Any:

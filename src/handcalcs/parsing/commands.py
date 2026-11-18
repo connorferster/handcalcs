@@ -45,6 +45,9 @@ command_parser.add_argument(
     "-s", "--show", dest="ignore", action="store_const", const=False
 )
 command_parser.add_argument("-p", "--param-line", action="store_true", default=None)
+# Show a number-times-units line (``P = 5 * kN``) as its value alone (``P = 5 kN``),
+# from here on (standalone) or for this line (inline); ``# hc: units = False`` ends it.
+command_parser.add_argument("-u", "--units", action="store_true", default=None)
 # Show a boolean result as a pass/fail mark (#251): ``ok = DoU <= 1  # hc: --check``.
 command_parser.add_argument("--check", action="store_true", default=None)
 command_parser.add_argument("-b", "--line-break", action="store_true", default=None)

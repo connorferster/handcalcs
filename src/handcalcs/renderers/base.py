@@ -74,6 +74,7 @@ from handcalcs.parsing.line_nodes import (
     Heading,
     CommentLine,
 )
+from handcalcs.units import is_units_input
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
@@ -2117,6 +2118,20 @@ def _is_scalar_literal(node) -> bool:
     return False
 
 
+def units_input_line(node: CalcLine, context) -> bool:
+    """True if ``# hc: -u`` applies to ``node`` and it is a number times units."""
+    inline = node.comment.commands if isinstance(node.comment, InlineCommand) else {}
+    units = inline.get("units")
+    if units is None:
+        units = getattr(context, "units", False)
+    return (
+        bool(units)
+        and len(node.expression_tree) == 1
+        and "res" in mode_columns(inline.get("mode") or context.mode)
+        and is_units_input(node.expression_tree[0])
+    )
+
+
 @BaseRenderer.register("calc_line:pre")
 def toggle_param_line(
     renderer: BaseRenderer, node: CalcLine, base_context: BRC
@@ -2131,9 +2146,17 @@ def toggle_param_line(
     a unary-negated constant, e.g. ``-10.423``) or a literal collection (a
     ``list``/``tuple``/``set``/``dict`` whose every element is itself a literal).
     A collection containing a variable name still shows its substitution.
+
+    Under ``# hc: -u`` (``context.units``, or the line's own inline command), a
+    number times units (``P = 5 * kN``, see ``units.is_units_input``) is a
+    param line too, unless the mode hides the result: the collapsed line shows
+    only the value, so it would show nothing but the name.
     """
     context = base_context.current
     if getattr(context, "param_line", False) == True:
+        return node
+    if units_input_line(node, context):
+        base_context.line_context.param_line = True
         return node
     rhs = node.expression_tree[0] if len(node.expression_tree) == 1 else None
     is_literal_collection = isinstance(
