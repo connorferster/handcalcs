@@ -15,6 +15,7 @@ x = a / b  # hc: -f .2f        <- applies to this line only
 | `-f CODE` | `--format-code CODE` | Number format code, e.g. `.2f`, `.3e`, `.4g`. See [Formatting numbers](formatting-numbers.md). |
 | `-m` | `--multiline` | Break a calculation over several lines, aligned on `=`, for long equations. |
 | `-p` | `--param-line` | Show only *target = result*, hiding the symbolic and substituted steps. |
+| `-u` | `--units` | Show a number times units (`P = 5 * kN`) as its value alone, `P = 5 kN`. Lines that calculate are unchanged. See [Units](../cookbook/units.md#calculate-with-forallpeople). |
 | `-g` | `--grid` | Start a [parameter grid](writing-calculations.md#parameter-grids) of the following assignments, keeping their comments. |
 | `-c N` | `--param-cols N` | Number of columns in parameter grids (default 3). |
 | `-b` | `--line-break` | Insert vertical space here. |
@@ -87,6 +88,7 @@ renderer reads. The flags are shorthands for these fields:
 | `-f` | `format_code` |
 | `-m` | `multiline` |
 | `-p` | `param_line` |
+| `-u` | `units` |
 | `-c` | `param_cols` |
 | `-i` / `-s` | `ignore` (`True` / `False`) |
 | `--check` | `check` |

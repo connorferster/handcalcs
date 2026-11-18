@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from types import ModuleType
 from typing import Any, Optional
 
+from ...units import is_physical, is_pint_unit
 from .compat import incompatible
 
 # Significant digits kept in a factor: removes float noise such as
@@ -53,25 +54,8 @@ def is_pint_quantity(value: Any) -> bool:
     )
 
 
-def is_pint_unit(value: Any) -> bool:
-    return (
-        type(value).__name__ == "Unit"
-        and hasattr(value, "dimensionality")
-        and hasattr(value, "_REGISTRY")
-    )
-
-
 def is_pint_registry(value: Any) -> bool:
     return type(value).__name__.endswith("UnitRegistry") and hasattr(value, "Quantity")
-
-
-def is_physical(value: Any) -> bool:
-    """A forallpeople Physical."""
-    return (
-        type(value).__name__ == "Physical"
-        and hasattr(value, "dimensions")
-        and hasattr(value, "value")
-    )
 
 
 def has_units(value: Any) -> bool:

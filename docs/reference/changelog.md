@@ -4,6 +4,20 @@
 
 ### Features
 
+- **`# hc: -u` shows unit inputs as values** (#353): a line that is a number times
+  units, `P = 5 * kN`, renders as `P = 5 kN` instead of `P = 5 · kN = 5 · 1 kN = 5 kN`.
+  Lines that calculate keep every step. Turn it on for what follows, for one line
+  (inline), or everywhere with `set_option("units", True)`
+  ([details](../cookbook/units.md#calculate-with-forallpeople)).
+- **Stacked fractions in the HTML renderer**, with typeset maths: italic names in a
+  serif maths font. `HTMLRenderer(fractions="inline")` keeps divisions on one line
+  ([details](../renderers/html.md#fractions)).
+- **`@handcalc(display=True)`** shows the render (displayed in Jupyter, printed
+  elsewhere) and returns only the function's result; `jupyter_display=True` from
+  handcalcs 1 still works (#369, [details](../interfaces/decorator.md#showing-the-render)).
+- **A command line**: `handcalcs script.py -o calc.docx` (see
+  [Command line](../interfaces/command-line.md)).
+
 - **`float()` and `int()` in the Excel renderer**: `float(x)` is the value itself and
   `int(x)` becomes `TRUNC`. With units, both match Python: forallpeople gives the
   magnitude in the displayed unit (`float(4 * ksi)` is `4`), and pint the dimensionless
@@ -17,6 +31,10 @@
   sheet used `ROUND` on the SI value: `round(M / P, 3)` with `M / P = 4.80 mm` became
   `5 mm` (0.0048 m rounded to 0.005 m). The formula now leaves the value unchanged.
   With pint, it rounds the magnitude in the quantity's own unit, as pint does.
+- The HTML renderer's tints (the result highlight, parameter grids, block headers,
+  import chips, muted comments) now print in WeasyPrint PDFs.
+- A power with an exponent that isn't a number (`a**(1/2)`) rendered as `a**(1 / 2)` in
+  HTML; it is now a superscript.
 - The test dependencies require forallpeople 3.4.1, which fixes how a value is displayed
   when its factor matches no defined unit (#352).
 
