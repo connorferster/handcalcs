@@ -8,7 +8,7 @@ values come from.
 |---|---|---|---|---|
 | [`%%render`](jupyter.md) | a Jupyter cell | the notebook namespace | displays the output | notebooks |
 | [`HandCalcs`](object-oriented.md) | a string or a `.py` file | running the code, or a namespace you pass | the rendered output | scripts, reports, web apps, tests |
-| [`@handcalc`](decorator.md) | a function | the function's call | `(return value, rendered output)` | reusable calculations |
+| [`@handcalc`](decorator.md) | a function | the function's call | `(return value, rendered output)`, or shows the output | reusable calculations |
 | [`handcalcs`](command-line.md) | a `.py` script | running the script | prints the output or writes a file | the terminal, build scripts |
 
 ## In 30 seconds

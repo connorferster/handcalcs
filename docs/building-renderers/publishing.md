@@ -34,8 +34,9 @@ replaces the earlier one in the registry.
 
 ## Jupyter display
 
-`%%render` displays a renderer's output with the IPython display class of the nearest
-built-in ancestor ({src}`display_class_for <handcalcs.interfaces.jupyter.display_class_for>`):
+`%%render` and `@handcalc(display=True)` display a renderer's output with the IPython
+display class of the nearest built-in ancestor
+({src}`display_class_for <handcalcs.interfaces.display.display_class_for>`):
 
 | Inherits from | Displayed as |
 |---|---|

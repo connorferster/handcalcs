@@ -4,11 +4,13 @@ import ast
 import inspect
 import os
 import textwrap
-from typing import Optional
+import warnings
+from typing import Callable, Optional
 from functools import wraps
 import innerscope
 from ..renderers.base import BaseRenderer
 from .object_oriented import default_renderer
+from .display import show
 from ..parsing.sequence import HcSequence, drop_after_return
 from ..parsing.line_values import LineValues, recording
 from .. import config
@@ -87,6 +89,8 @@ def handcalc(
     destination: Optional[str | os.PathLike] = None,
     *,
     docstring: bool = True,
+    display: bool | Callable[[object], object] = False,
+    jupyter_display: Optional[bool] = None,
 ):
     """
     Decorate a calculation function so that a call returns ``(return_value,
@@ -101,10 +105,29 @@ def handcalc(
     The function's docstring is rendered as a note above the calculation; with
     ``docstring=False`` it is left out (for a docstring written for the code's
     readers rather than for the calculation).
+
+    With ``display=True`` each call shows the render where the code is running
+    (displayed in a Jupyter kernel, printed elsewhere) and returns only the
+    function's return value. ``display`` may instead be a function, which each
+    call passes the render to (``display=st.markdown``). With a 'destination',
+    the file's path is shown (or passed) instead of the render.
+    ``jupyter_display=True`` is a deprecated alias for ``display=True``.
     """
+    if jupyter_display is not None:
+        if display is not False:
+            raise TypeError("give display or jupyter_display, not both")
+        warnings.warn(
+            "jupyter_display is deprecated; use display=True, which shows the "
+            "render in Jupyter and prints it elsewhere.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        display = bool(jupyter_display)
+    if not (isinstance(display, bool) or callable(display)):
+        raise TypeError(f"display must be True, False or a function, not {display!r}")
     if callable(renderer) and not isinstance(renderer, BaseRenderer):
         # @handcalc without brackets: the "renderer" is the decorated function.
-        return handcalc()(renderer)
+        return handcalc(docstring=docstring, display=display)(renderer)
     if renderer is None:
         renderer = default_renderer()
     if render_context is None:
@@ -152,11 +175,18 @@ def handcalc(
             )
             rendered_tree = renderer.render(hc_ast, base_context)
             completed_render = renderer.complete(rendered_tree, base_context)
+            output = completed_render
             if destination is not None:
-                return scope.return_value, renderer.to_file(
-                    completed_render, destination
-                )
-            return scope.return_value, completed_render
+                output = renderer.to_file(completed_render, destination)
+            if display is False:
+                return scope.return_value, output
+            if callable(display):
+                display(output)
+            elif destination is not None:
+                print(f"Rendered to {output}")
+            else:
+                show(renderer, output)
+            return scope.return_value
 
         return decorated
 
