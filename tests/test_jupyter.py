@@ -5,6 +5,7 @@ active shell at import, so the module is imported after the shell is created.
 """
 
 import importlib
+import re
 import sys
 
 import pytest
@@ -321,3 +322,61 @@ def test_render_destination_uses_the_jupyter_renderer(shell, tmp_path):
     path = tmp_path / "calc.tex"
     render_cell_with(ip, f"destination={str(path)!r}", INPUT_CELL)
     assert path.read_text(encoding="utf-8").startswith(LatexRenderer.preamble)
+
+
+# --- %%source: print the rendered text instead of displaying it ---
+
+
+def source_cell(shell, line: str, cell: str = INPUT_CELL) -> str:
+    """Run ``%%source <line>`` on a cell; return what it printed (no display)."""
+    with capture_output() as captured:
+        shell.run_cell_magic("source", line, cell)
+    assert captured.outputs == []
+    return captured.stdout
+
+
+def test_source_prints_the_session_renderers_text(shell):
+    ip, _ = shell
+    assert source_cell(ip, "") == (
+        "$$\\begin{aligned} a &= 2 \\\\ b &= 3 \\\\ "
+        "c &= a + b = 2 + 3 = 5 \\end{aligned}$$\n"
+    )
+    assert ip.user_ns["c"] == 5
+
+
+def test_source_latex_is_v1_tex(shell):
+    ip, _ = shell
+    out = source_cell(ip, "latex")
+    assert out.startswith("\\medskip") and "c &= a + b = 2 + 3 = 5" in out
+    # The session's renderer is unchanged.
+    assert config.get_option("jupyter_renderer") == "markdown"
+
+
+def test_source_with_inputs_and_a_renderer(shell):
+    ip, _ = shell
+    ip.user_ns["case"] = {"a": 10}
+    assert "c = a + b = 10 + 3 = 13" in source_cell(ip, "ascii, inputs=case")
+    out = source_cell(ip, 'renderer="ascii", inputs=case, strict=False')
+    assert "c = a + b = 10 + 3 = 13" in out
+
+
+def test_source_line_magic(shell):
+    ip, _ = shell
+    with capture_output() as captured:
+        result = ip.run_cell("a = 2\n%source c = a * 4\n")
+    assert result.success and captured.outputs == []
+    assert "c &= a \\cdot 4 = 2 \\cdot 4 = 8" in captured.stdout
+
+
+@pytest.mark.parametrize(
+    "line, message",
+    [
+        ("ghost", "No renderer named 'ghost'"),
+        ('destination="c.tex"', "use %%render to write a file"),
+        ("excel", "produces a ExcelWorkbook"),
+    ],
+)
+def test_source_errors(shell, line, message):
+    ip, jupyter = shell
+    with pytest.raises(jupyter.UsageError, match=re.escape(message)):
+        ip.run_cell_magic("source", line, INPUT_CELL)
