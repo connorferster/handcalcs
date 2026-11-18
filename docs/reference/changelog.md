@@ -37,6 +37,9 @@
   HTML; it is now a superscript.
 - The test dependencies require forallpeople 3.4.1, which fixes how a value is displayed
   when its factor matches no defined unit (#352).
+- A parameter line (`w = 5`) in a mode without the result column, such as
+  `mode = "ass sym"` (v1's `%%render symbolic`), showed only its name (`w`). It now
+  shows its value: `w = 5`.
 
 ## 2.0.0rc4 (2026-11-11)
 

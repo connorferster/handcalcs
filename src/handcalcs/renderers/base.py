@@ -1713,6 +1713,10 @@ def render_calcline(
     if is_lambda_line(node):
         # A function has no value to substitute or show: only the lambda.
         shown = shown & {"ass", "sym"}
+    if param_line and shown & {"sym", "num"}:
+        # A param line's value is its only value column: a mode that shows any
+        # of them (``ass sym``) shows ``w = 5``, not the bare ``w``.
+        shown = shown | {"res"}
     base_context.line_context.break_nodes = breakable_ops(node.expression_tree)
     columns: deque = deque([])
     if "ass" in shown:
