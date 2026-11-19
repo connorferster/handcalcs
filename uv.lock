@@ -758,7 +758,7 @@ wheels = [
 
 [[package]]
 name = "handcalcs"
-version = "2.0.0rc4"
+version = "2.0.0rc5"
 source = { editable = "." }
 dependencies = [
     { name = "innerscope" },

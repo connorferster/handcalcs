@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.0.0rc5 (2026-11-19)
+
+The fifth release candidate of handcalcs 2.0. Install it with
+`pip install "handcalcs>=2.0.0rc5"`; a plain `pip install handcalcs` still installs
+1.x until 2.0.0 is released.
 
 ### Features
 
