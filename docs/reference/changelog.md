@@ -33,7 +33,11 @@
   handcalcs 1 still works (#369, [details](../interfaces/decorator.md#showing-the-render)).
 - **A command line**: `handcalcs script.py -o calc.docx` (see
   [Command line](../interfaces/command-line.md)).
-
+- **`# hc: --boxed`** draws a box around a line's result: `\boxed{}` in LaTeX and
+  Markdown, a framed result in HTML, a boxed formula in Word, a bordered value cell in
+  Excel, and a box drawn with line characters in ASCII. On its own line it boxes the
+  result of every following line
+  ([reference](comment-commands.md#boxed-results)).
 - **`float()` and `int()` in the Excel renderer**: `float(x)` is the value itself and
   `int(x)` becomes `TRUNC`. With units, both match Python: forallpeople gives the
   magnitude in the displayed unit (`float(4 * ksi)` is `4`), and pint the dimensionless
@@ -47,6 +51,9 @@
   `2 · (3+4j)`, `(3+4j)²` and `-(3+4j)` instead of `2 · 3+4j`, `3+4j²` and `-3+4j`, in
   every renderer. The LaTeX renderer no longer brackets a SymPy value standing on its
   own (`z = 3 + 4i`, not `z = (3 + 4i)`).
+- A bare expression under `--check` whose symbolic and substituted forms are the same
+  (`2 <= 3  # hc: --check`) showed both (`2 ≤ 3 = 2 ≤ 3 ✓`); the repeat is now dropped,
+  as for an assignment.
 - **`round()` of a value with units in the Excel renderer** gave a different result from
   Python. forallpeople's `round(x, n)` only changes how many digits are shown, but the
   sheet used `ROUND` on the SI value: `round(M / P, 3)` with `M / P = 4.80 mm` became

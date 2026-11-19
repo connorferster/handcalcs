@@ -142,6 +142,11 @@ def _user_format(options: dict) -> dict:
     return props
 
 
+def boxed_props(props: dict, record: Any) -> dict:
+    """The value cell's format properties, with a thin border on a ``--boxed`` row."""
+    return {**props, "border": 1} if record.boxed else props
+
+
 def _value_text(value: Any) -> str:
     """Roughly how a value displays, for column widths."""
     if isinstance(value, bool):
@@ -279,7 +284,11 @@ class SheetWriter:
             self.text_format(align="center", text_wrap=True),
         )
         self.write_value(
-            row, record.cached, record.formula, self.formula_props, record.number_format
+            row,
+            record.cached,
+            record.formula,
+            boxed_props(self.formula_props, record),
+            record.number_format,
         )
         self.write_unit(row, record.unit)
         if record.comment:
@@ -332,7 +341,13 @@ class SheetWriter:
                 ),
             )
         props = self.formula_props if record.formula is not None else self.value_props
-        self.write_value(row, record.value, record.formula, props, record.number_format)
+        self.write_value(
+            row,
+            record.value,
+            record.formula,
+            boxed_props(props, record),
+            record.number_format,
+        )
         self.write_unit(row, record.unit)
         self.define(row, record.name)
 
