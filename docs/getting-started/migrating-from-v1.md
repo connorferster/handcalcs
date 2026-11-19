@@ -10,16 +10,17 @@ notebooks need only a few changes.
 |---|---|
 | `import handcalcs.render` | `import handcalcs` |
 | `%%render` | `%%render` (now shows Markdown with LaTeX math by default) |
-| `%%tex` | `%hc_default_renderer latex`, then `%%render`; or `HandCalcs(LatexRenderer())` |
+| `%%tex` | `%%source latex` (prints the LaTeX, see [`%%source`](../interfaces/jupyter.md#source-the-rendered-text)) |
 | `%%render 2` (precision) | `# hc: -f .2f` (any [format code](formatting-numbers.md)) |
 | `%%render params` | `;` [parameter grids](writing-calculations.md#parameter-grids), or `# hc: -g`; `# hc: -p` for one line |
 | `%%render long` | `# hc: -m` on its own line, for every line after it (see the note below); or at the end of a line, for that line only |
 | `%%render short` | the default (or `# hc: multiline = False`) |
 | `%%render symbolic` | `# hc: mode = "ass sym"` (see [mode](comment-commands.md#choosing-which-steps-appear-mode)) |
-| `%%render sympy` | not available in 2.0 |
+| `%%render sympy` | `# hc: -y` on the lines that use a SymPy expression, or on its own line for the rest of the cell (see [SymPy](../cookbook/sympy.md)) |
 | `from handcalcs.decorator import handcalc` | `from handcalcs import handcalc` |
 | `$x^y$` in a comment | still LaTeX math, in the LaTeX and Markdown renderers; other LaTeX in a comment (`\textbf{}`) is escaped: use `**bold**` (see [styling comments](writing-calculations.md#styling-comments)) |
 | `@handcalc(override=..., precision=..., ...)` | `@handcalc(renderer, render_context={...})` (see [the decorator](../interfaces/decorator.md)) |
+| `@handcalc(jupyter_display=True)` | `@handcalc(renderer, display=True)`: displayed in Jupyter, printed elsewhere; the call returns only the result, as before. `jupyter_display=True` still works, with a deprecation warning |
 | `@handcalc` left out the docstring | the docstring is rendered as a note; `@handcalc(renderer, docstring=False)` leaves it out |
 | `handcalcs.set_option("display_precision", 3)` | `handcalcs.set_option("format_code", ".3f")` |
 | `latex_block_start`, `line_break`, `math_environment_start`, ... options | renderer class attributes (see [LaTeX and Markdown tokens](../customizing/latex-markdown-tokens.md)) |

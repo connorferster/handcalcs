@@ -1,6 +1,6 @@
 # Interfaces
 
-An **interface** is how you hand code to handcalcs. All three use the same parser and
+An **interface** is how you hand code to handcalcs. All four use the same parser and
 the same [renderers](../renderers/index.md); they differ in where the code and its
 values come from.
 
@@ -8,7 +8,8 @@ values come from.
 |---|---|---|---|---|
 | [`%%render`](jupyter.md) | a Jupyter cell | the notebook namespace | displays the output | notebooks |
 | [`HandCalcs`](object-oriented.md) | a string or a `.py` file | running the code, or a namespace you pass | the rendered output | scripts, reports, web apps, tests |
-| [`@handcalc`](decorator.md) | a function | the function's call | `(return value, rendered output)` | reusable calculations |
+| [`@handcalc`](decorator.md) | a function | the function's call | `(return value, rendered output)`, or shows the output | reusable calculations |
+| [`handcalcs`](command-line.md) | a `.py` script | running the script | prints the output or writes a file | the terminal, build scripts |
 
 ## In 30 seconds
 
@@ -50,6 +51,12 @@ value, html = moment(5, 6)
 ```
 :::
 
+:::{tab-item} Command line
+```console
+$ handcalcs calc.py --renderer excel --output calc.xlsx
+```
+:::
+
 ::::
 
 ## Which one?
@@ -61,6 +68,8 @@ value, html = moment(5, 6)
 - Wrapping a calculation you **call repeatedly** with different inputs: use
   `@handcalc`, which returns the result for your program and the rendered calculation
   for your report.
+- Turning a **script into a document** without writing any code around it: use the
+  `handcalcs` command, e.g. from a Makefile or CI job.
 
 ```{toctree}
 :hidden:
@@ -68,4 +77,5 @@ value, html = moment(5, 6)
 jupyter
 object-oriented
 decorator
+command-line
 ```

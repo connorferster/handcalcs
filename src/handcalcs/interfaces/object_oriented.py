@@ -5,6 +5,7 @@ from typing import Any, Optional
 from ..parsing.sequence import HcSequence
 from ..parsing.inputs import InputBinding
 from ..parsing import line_values
+from ..parsing import sympy_substitution
 from ..renderers import ASCIIRenderer, BaseRenderer, get_renderer
 from ..renderers import demo
 from .. import config
@@ -27,6 +28,39 @@ def default_renderer() -> BaseRenderer:
         )
         renderer_cls = ASCIIRenderer
     return renderer_cls()
+
+
+def run_staged(source: str, namespace: dict, filename: str = "<handcalcs>"):
+    """
+    Run 'source', which has '# hc: -y' lines, in 'namespace' one top-level
+    statement at a time (see sympy_substitution.run_staged), recording its
+    values line by line unless the 'line_values' option is off. Returns the
+    namespace, the values and the rewritten source.
+    """
+    codes = set()
+
+    def run_chunk(chunk: str) -> bool:
+        code = compile(chunk, filename, "exec")
+        codes.add(code)
+        exec(code, namespace)
+        return True
+
+    if not config.get_option("line_values", True):
+        return (
+            namespace,
+            None,
+            sympy_substitution.run_staged(source, namespace, run_chunk),
+        )
+    values = line_values.LineValues(source)
+
+    def on_substitution(substitution) -> None:
+        values.add_names(substitution.line, substitution.names)
+
+    with line_values.recording(values, lambda frame: frame.f_code in codes):
+        rewritten = sympy_substitution.run_staged(
+            source, namespace, run_chunk, on_substitution
+        )
+    return namespace, values, rewritten
 
 
 class HandCalcs:
@@ -78,6 +112,13 @@ class HandCalcs:
         objects (arrays, quantities on a line without units) are used as they are.
         """
         source = self.__read(source_or_path)
+        uses_sympy = sympy_substitution.has_sympy_commands(source)
+        if uses_sympy and (inputs is not None or supplied_globals is not None):
+            raise ValueError(
+                "'# hc: -y' rewrites lines just before they run, so the source must be "
+                "run by handcalcs: it can't be combined with 'inputs' or "
+                "'supplied_globals'."
+            )
         if inputs is not None:
             if supplied_globals is not None:
                 raise TypeError(
@@ -88,14 +129,14 @@ class HandCalcs:
             binding = InputBinding(
                 source, inputs, strict=strict, allow_computed=allow_computed
             )
-            passed_globals, values = self.__evaluate(
+            passed_globals, values, _ = self.__evaluate(
                 binding.exec_source, binding.namespace()
             )
             rendered = self.render_bound(binding, passed_globals, values)
             return self.__output(rendered, destination)
         passed_globals, values = supplied_globals, None
         if supplied_globals is None:
-            passed_globals, values = self.__evaluate(source)
+            passed_globals, values, source = self.__evaluate(source)
         self.hc_ast = self.__parse(source, passed_globals, line_values=values)
         return self.__output(self.__render(passed_globals), destination)
 
@@ -154,7 +195,7 @@ class HandCalcs:
         source as a ``demo_source`` attribute, which is used instead.
         """
         source = self.__read(getattr(self.renderer, "demo_source", None) or demo.source)
-        eval_globals, values = self.__evaluate(source)
+        eval_globals, values, source = self.__evaluate(source)
         demo_ast = self.__parse(source, eval_globals, line_values=values)
         base_context = self.renderer.create_context(
             **(self._context_settings | {"global_ns": eval_globals})
@@ -188,16 +229,20 @@ class HandCalcs:
 
     def __evaluate(self, source, namespace: Optional[dict] = None):
         """
-        Runs 'source' in a copy of 'namespace' and returns the namespace and the
+        Runs 'source' in a copy of 'namespace' and returns the namespace, the
         values recorded line by line while it ran (None with the 'line_values'
-        option off: the source runs with a single exec).
+        option off: the source runs with a single exec) and the source that ran:
+        'source' itself, or with its '# hc: -y' lines rewritten (see
+        handcalcs.parsing.sympy_substitution).
         """
         eval_globals = dict(namespace or {})
+        if sympy_substitution.has_sympy_commands(source):
+            return run_staged(source, eval_globals)
         if not config.get_option("line_values", True):
             exec(source, eval_globals)
-            return eval_globals, None
+            return eval_globals, None, source
         values = line_values.run(source, eval_globals)
-        return eval_globals, values
+        return eval_globals, values, source
 
     def __parse(
         self,

@@ -185,9 +185,8 @@ def test_multiline_calc_stays_on_one_line():
 
 def test_params_grid_is_one_line():
     assert rows("a = 1; b = 2\nc = 3; d = 4; e = 5; f = 6; g = 7\n") == [
-        "a &= 1 \\; &b &= 2 \\; &c &= 3 \\;",
-        "d &= 4 \\; &e &= 5 \\; &f &= 6 \\;",
-        "g &= 7 \\;",
+        "a &= 1 \\; &b &= 2 \\;",
+        "c &= 3 \\; &d &= 4 \\; &e &= 5 \\; &f &= 6 \\; &g &= 7 \\;",
     ]
 
 

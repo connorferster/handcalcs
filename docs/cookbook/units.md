@@ -16,20 +16,30 @@ si.environment("structural", top_level=True)
 
 ```{hc-example}
 :setup: import forallpeople as si; si.environment("structural", top_level=True)
-L = (6 * m)
-w = 5 * kN / m  # hc: -p
+# hc: -u
+L = 6 * m
+w = 5 * kN / m
 M = w * L**2 / 8
 ```
 
 An input such as `6 * m` has nothing worth substituting: without help it renders as
-`L = 6 · m = 6 · 1 m = 6 m`. Skip the substitution in either of two ways, which give the
-same result:
+`L = 6 · m = 6 · 1 m = 6 m`. `# hc: -u` shows each line that is a number times units as
+*name = value*, and leaves the lines that calculate, like `M`, with every step. On its
+own line it lasts until `# hc: units = False`; at the end of a line it applies to that
+line. To use it everywhere, set it once: `handcalcs.set_option("units", True)`.
+
+A line counts as a number times units when it has exactly one number, multiplying units:
+`5 * kN`, `-12 * kN`, `4.5 * kN / m`, `300 * mm**2`. A name only counts as a unit if it
+is one (`kN`), not a variable that holds one (`F = 1 * kN`, then `R = 3 * F`), so `R`
+keeps its steps. In symbolic-only [mode](../getting-started/comment-commands.md), which
+hides values, lines are left as they are.
+
+For a single line, two other ways give the same result:
 
 - wrap the right-hand side in parentheses: `L = (6 * m)`;
 - end the line with the param-line flag: `w = 5 * kN / m  # hc: -p`.
 
-Both show only *name = value*. Lines that calculate, like `M`, keep every step. See
-[Show only the result of a line](showing-and-hiding.md#show-only-the-result-of-a-line).
+See [Show only the result of a line](showing-and-hiding.md#show-only-the-result-of-a-line).
 
 Units are set upright, and a substituted quantity raised to a power is bracketed.
 
@@ -47,8 +57,9 @@ ureg.formatter.default_format = "~P"
 
 ```{hc-example}
 :setup: import pint; ureg = pint.UnitRegistry(); ureg.formatter.default_format = "~P"
-L = (6 * ureg.m)
-w = 5 * ureg.kN / ureg.m  # hc: -p
+# hc: -u
+L = 6 * ureg.m
+w = 5 * ureg.kN / ureg.m
 M = w * L**2 / 8
 ```
 

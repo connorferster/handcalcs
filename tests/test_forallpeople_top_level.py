@@ -36,21 +36,42 @@ def restore_builtins():
     vars(builtins).update(saved)
 
 
+def bare_units() -> bool:
+    """True if forallpeople shows a defined unit as its unit alone (4.0 on)."""
+    si.environment("structural")
+    return repr(si.kN) == "kN"
+
+
 def test_bare_units_substitute_in_ascii(restore_builtins):
+    bare = bare_units()
     rendered = HandCalcs(ASCIIRenderer())(SOURCE)
-    assert "b = a * m = 2 * 1 m = 2 m" in rendered
-    assert "d = kN = 1 kN" in rendered
-    assert "e = a * kN / m = 2 * 1 kN / 1 m = 2 kN/m" in rendered
+    if bare:
+        assert "b = a * m = 2 * m = 2 m" in rendered
+        assert "d = kN\n" in rendered
+        assert "e = a * kN / m = 2 * kN / m = 2 kN/m" in rendered
+    else:
+        assert "b = a * m = 2 * 1 m = 2 m" in rendered
+        assert "d = kN = 1 kN" in rendered
+        assert "e = a * kN / m = 2 * 1 kN / 1 m = 2 kN/m" in rendered
 
 
 def test_bare_units_substitute_in_latex(restore_builtins):
+    bare = bare_units()
     rendered = HandCalcs(LatexRenderer())(SOURCE)
-    assert r"b &= a \cdot m = 2 \cdot 1\ \mathrm{m} = 2\ \mathrm{m}" in rendered
-    assert r"d &= \mathrm{kN} = 1\ \mathrm{kN}" in rendered
-    assert (
-        r"e &= \frac{a \cdot \mathrm{kN}}{m}"
-        r" = \frac{2 \cdot 1\ \mathrm{kN}}{1\ \mathrm{m}} = 2\ \mathrm{kN/m}"
-    ) in rendered
+    if bare:
+        assert r"b &= a \cdot m = 2 \cdot \mathrm{m} = 2\ \mathrm{m}" in rendered
+        assert r"d &= \mathrm{kN} \\" in rendered
+        assert (
+            r"e &= \frac{a \cdot \mathrm{kN}}{m}"
+            r" = \frac{2 \cdot \mathrm{kN}}{\mathrm{m}} = 2\ \mathrm{kN/m}"
+        ) in rendered
+    else:
+        assert r"b &= a \cdot m = 2 \cdot 1\ \mathrm{m} = 2\ \mathrm{m}" in rendered
+        assert r"d &= \mathrm{kN} = 1\ \mathrm{kN}" in rendered
+        assert (
+            r"e &= \frac{a \cdot \mathrm{kN}}{m}"
+            r" = \frac{2 \cdot 1\ \mathrm{kN}}{1\ \mathrm{m}} = 2\ \mathrm{kN/m}"
+        ) in rendered
 
 
 # ``-s`` and ``-m`` are valid expressions once ``s`` and ``m`` are in builtins;

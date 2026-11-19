@@ -35,6 +35,7 @@ from handcalcs.renderers.base import (
     render_symbolic,
     subscript_value,
     OP_PRECEDENCE,
+    operand_precedence,
     BaseRenderContext,
     is_source_number,
     is_atom,
@@ -503,7 +504,7 @@ def render_pow_op(renderer: WR, node: PowOp, base_context: BRC) -> str:
     """
     base = renderer.render_node(node.left, base_context)
     exponent = renderer.render_node(node.right, base_context)
-    base_pre = OP_PRECEDENCE.get(type(node.left), float("inf"))
+    base_pre = operand_precedence(node.left, base_context)
     if (
         base_pre <= OP_PRECEDENCE[PowOp]
         or renderer.leading_sign(base)

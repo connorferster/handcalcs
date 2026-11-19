@@ -1,5 +1,6 @@
 from __future__ import annotations
 import datetime
+import itertools
 import math
 import numbers
 import re
@@ -74,6 +75,8 @@ from handcalcs.parsing.line_nodes import (
     Heading,
     CommentLine,
 )
+from handcalcs.units import displays_bare, is_units_input
+from handcalcs.parsing.sympy_substitution import is_sympy
 from handcalcs.parsing.block_nodes import (
     IfBlock,
     ElseBlock,
@@ -121,6 +124,40 @@ OP_PRECEDENCE = {
     HcUnaryOp: UNARY_PRECEDENCE,
     PowOp: 3,
 }
+
+
+def operand_precedence(node, base_context: Optional["BaseRenderContext"]) -> float:
+    """
+    How tightly ``node`` binds as an operand (``OP_PRECEDENCE``, infinitely
+    tight for a name or a number). In the numeric column a name stands for its
+    value, so a value that is itself a sum binds as one: a complex number with a
+    real and an imaginary part (``3+4j``), or a SymPy sum, product or power. It
+    is bracketed where a sum would be: ``2 · (3+4j)``, ``(3+4j)²``, ``-(3+4j)``.
+    """
+    precedence = OP_PRECEDENCE.get(type(node))
+    if precedence is not None:
+        return precedence
+    if (
+        base_context is not None
+        and getattr(base_context.current, "current_mode", None) == "num"
+        and isinstance(node, (Name, Attribute, Subscript))
+    ):
+        return value_precedence(getattr(node, "value", None))
+    return float("inf")
+
+
+def value_precedence(value) -> float:
+    """How tightly a substituted value binds (see ``operand_precedence``)."""
+    if isinstance(value, complex):
+        return OP_PRECEDENCE[AddOp] if value.real and value.imag else float("inf")
+    if is_sympy(value):
+        if getattr(value, "is_Add", False):
+            return OP_PRECEDENCE[AddOp]
+        if getattr(value, "is_Mul", False):
+            return OP_PRECEDENCE[MultOp]
+        if getattr(value, "is_Pow", False):
+            return OP_PRECEDENCE[PowOp]
+    return float("inf")
 
 
 # Marks a source line continuation inside a rendered column. ``infix_binop`` emits
@@ -729,6 +766,15 @@ class BaseRenderer:
     def render_unknown(self, node: HcNode, base_context: BaseRenderContext) -> str:
         return str(node)
 
+    def same_column(self, column: str, other: str) -> bool:
+        """
+        True if two rendered columns of a line read the same, so the second is
+        dropped (``q = y = 3``, not ``q = y = 3 = 3``). A renderer that marks up
+        one column differently (the HTML renderer's ``<var>`` names) overrides
+        this to look past the markup.
+        """
+        return column == other
+
     def leading_sign(self, rendered: str) -> bool:
         """
         True if a rendered operand starts with a ``-`` or ``+`` sign (e.g. a
@@ -877,13 +923,15 @@ def is_quantity(value) -> bool:
 def quantity_power_base(node, base_context: BaseRenderContext) -> bool:
     """
     True if the base of a power substitutes a quantity in the numeric column,
-    which must be bracketed: ``(6 m)²``, not ``6 m²``.
+    which must be bracketed: ``(6 m)²``, not ``6 m²``. A unit that displays as
+    its unit alone (forallpeople 4's ``mm``) is not: ``mm²``.
     """
     current_mode = getattr(base_context.current, "current_mode", None)
     return (
         current_mode == "num"
         and isinstance(node.left, (Name, Attribute))
         and is_quantity(node.left.value)
+        and not displays_bare(node.left.value)
     )
 
 
@@ -1274,7 +1322,7 @@ def render_unary_op(
     # constant or a power (-a**b) need no parentheses. Also parenthesize a +/-
     # operand that renders with a leading sign so a numeric substitution reads as
     # -(-10.423) rather than the ambiguous --10.423.
-    operand_pre = OP_PRECEDENCE.get(type(node.operand), float("inf"))
+    operand_pre = operand_precedence(node.operand, base_context)
     needs_parens = operand_pre < UNARY_PRECEDENCE
     # Python's `not` binds looser than a comparison, so `not (a < b)` parses with
     # no parens in the AST. Re-add them: `not a < b` reads as `(not a) < b`.
@@ -1704,6 +1752,10 @@ def render_calcline(
     if is_lambda_line(node):
         # A function has no value to substitute or show: only the lambda.
         shown = shown & {"ass", "sym"}
+    if param_line and shown & {"sym", "num"}:
+        # A param line's value is its only value column: a mode that shows any
+        # of them (``ass sym``) shows ``w = 5``, not the bare ``w``.
+        shown = shown | {"res"}
     base_context.line_context.break_nodes = breakable_ops(node.expression_tree)
     columns: deque = deque([])
     if "ass" in shown:
@@ -1755,7 +1807,7 @@ def render_calcline(
     head = [columns.popleft() for _target in range(min(n_targets, len(columns)))]
     values: list = []
     for column in columns:
-        if not values or column != values[-1]:
+        if not values or not renderer.same_column(column, values[-1]):
             values.append(column)
     columns = deque(head + values)
     if "res" in shown and len(columns) > len(head):
@@ -1858,32 +1910,45 @@ def render_params_block(
     renderer: BaseRenderer, node: ParamsBlock, base_context: BaseRenderContext
 ) -> str:
     """
-    Render a ParamsBlock (a run of consecutive ``;``-joined assignment lines) as a
-    grid of ``identifier = value`` cells.
+    Render a ParamsBlock as a grid of ``identifier = value`` cells.
 
     Each child line is rendered as a param line (forced ``param_line=True``), so it
     collapses to a ``["id", "=", "value"]`` cell via the existing ``render_calcline``
-    handler -- any trailing comment on the line is dropped. All cells are flattened
-    and reflowed into ``param_cols`` columns (default 3, min 1, configurable via
-    ``# hc: param_cols=N``); the final row is padded with ``None`` so the grid stays
-    rectangular. ``format_param_grid`` turns the cell grid into the final text.
+    handler. A ``;`` block keeps the rows of its source: each source line is a row
+    of the grid, so its layout is the one written (``node.row_sizes``), and any
+    trailing comment on a line is dropped. A ``# hc: -g`` block keeps each line's
+    comment and reflows its cells into ``param_cols`` columns (default 3, min 1,
+    ``# hc: -c N``). Short rows are padded with ``None`` so the grid stays
+    rectangular; ``format_param_grid`` turns the cell grid into the final text.
     """
     context = base_context.current
     cols = max(1, int(getattr(context, "param_cols", 3)))
-    cells: list = []
-    for line in node.lines:
-        base_context.line_context.param_line = True
-        rendered = renderer.render(line, base_context)
-        if not rendered:
-            continue  # a line hidden by ``# hc: -i``
-        # Keep the id / equality / value components, plus the line comment for a
-        # ``# hc: -g`` block; a ``;`` block has no place for a comment, so it drops.
-        if isinstance(rendered, list):
-            rendered = rendered[: 4 if node.with_comments else 3]
-        cells.append(rendered)
-    rows = [cells[k : k + cols] for k in range(0, len(cells), cols)]
-    if rows:
-        rows[-1].extend([None] * (cols - len(rows[-1])))
+    sizes = node.row_sizes or [len(node.lines)]
+    source_rows: list[list] = []
+    lines = iter(node.lines)
+    for size in sizes:
+        row = []
+        for line in itertools.islice(lines, size):
+            base_context.line_context.param_line = True
+            rendered = renderer.render(line, base_context)
+            if not rendered:
+                continue  # a line hidden by ``# hc: -i``
+            # Keep the id / equality / value components, plus the line comment
+            # for a ``# hc: -g`` block; a ``;`` block has no place for a comment.
+            if isinstance(rendered, list):
+                rendered = rendered[: 4 if node.with_comments else 3]
+            row.append(rendered)
+        if row:
+            source_rows.append(row)
+    if node.row_sizes:
+        rows = source_rows
+        width = max((len(row) for row in rows), default=0)
+    else:
+        cells = [cell for row in source_rows for cell in row]
+        rows = [cells[k : k + cols] for k in range(0, len(cells), cols)]
+        width = cols
+    for row in rows:
+        row.extend([None] * (width - len(row)))
     return renderer.format_param_grid(rows, base_context)
 
 
@@ -2142,6 +2207,20 @@ def _is_scalar_literal(node) -> bool:
     return False
 
 
+def units_input_line(node: CalcLine, context) -> bool:
+    """True if ``# hc: -u`` applies to ``node`` and it is a number times units."""
+    inline = node.comment.commands if isinstance(node.comment, InlineCommand) else {}
+    units = inline.get("units")
+    if units is None:
+        units = getattr(context, "units", False)
+    return (
+        bool(units)
+        and len(node.expression_tree) == 1
+        and "res" in mode_columns(inline.get("mode") or context.mode)
+        and is_units_input(node.expression_tree[0])
+    )
+
+
 @BaseRenderer.register("calc_line:pre")
 def toggle_param_line(
     renderer: BaseRenderer, node: CalcLine, base_context: BRC
@@ -2156,9 +2235,17 @@ def toggle_param_line(
     a unary-negated constant, e.g. ``-10.423``) or a literal collection (a
     ``list``/``tuple``/``set``/``dict`` whose every element is itself a literal).
     A collection containing a variable name still shows its substitution.
+
+    Under ``# hc: -u`` (``context.units``, or the line's own inline command), a
+    number times units (``P = 5 * kN``, see ``units.is_units_input``) is a
+    param line too, unless the mode hides the result: the collapsed line shows
+    only the value, so it would show nothing but the name.
     """
     context = base_context.current
     if getattr(context, "param_line", False) == True:
+        return node
+    if units_input_line(node, context):
+        base_context.line_context.param_line = True
         return node
     rhs = node.expression_tree[0] if len(node.expression_tree) == 1 else None
     is_literal_collection = isinstance(
@@ -2240,8 +2327,8 @@ def infix_binop(
     symbol = node.symbol
     ltype = left.__class__
     rtype = right.__class__
-    lpre = precedence.get(ltype, float("inf"))
-    rpre = precedence.get(rtype, float("inf"))
+    lpre = operand_precedence(left, base_context)
+    rpre = operand_precedence(right, base_context)
     _ = context.space
     if not allow_spaces:
         _ = ""

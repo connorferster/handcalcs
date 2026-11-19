@@ -51,8 +51,24 @@ M_f <= M_r     # hc: --check
 
 ## Using the output
 
-Insert the string anywhere in a page. It inherits the page's font and color, and its
-styles never override yours (see [Styling the HTML output](../customizing/html-styling.md)).
+Insert the string anywhere in a page. Comments and headings inherit the page's font and
+color, and its styles never override yours (see
+[Styling the HTML output](../customizing/html-styling.md)).
+
+The calculations themselves are typeset like a hand calculation: names in italic, in a
+serif maths font (Cambria Math, then STIX Two Text, DejaVu Serif or Georgia, whichever
+the reader has), with each result highlighted in the theme colour.
+
+## Colours
+
+`theme_color` (a `"#RRGGBB"` colour, petrol `#0B5F66` by default) colours the result
+highlight, block headers, parameter grids and indent guides:
+
+```python
+HTMLRenderer(theme_color="#4100C2")
+```
+
+The colours are plain CSS, so they also print with WeasyPrint.
 
 ```python
 from handcalcs import HandCalcs
@@ -71,6 +87,21 @@ HandCalcs(HTMLRenderer())(source, destination="beam.html")
 ```
 
 In Jupyter, `%hc_default_renderer html` displays it with `IPython.display.HTML`.
+
+## Fractions
+
+A division is shown as a stacked fraction, numerator over denominator, drawn with plain
+HTML and CSS. Fractions nest, and brackets around a fraction stretch to its height. A
+division in an exponent stays on one line: `a**(1/2)` is shown as a<sup>1/2</sup>.
+
+The `/` and the brackets an inline division would need are kept as hidden text, so
+copying a calculation, or reading it with a screen reader, gives `(a + b)/(c - d)`.
+
+For divisions on one line, as in earlier versions, use `fractions="inline"`:
+
+```python
+HTMLRenderer(fractions="inline")  # a / b
+```
 
 ## Output structure
 
@@ -99,19 +130,25 @@ In Jupyter, `%hc_default_renderer html` displays it with `IPython.display.HTML`.
 | `hc-params` | A parameter grid (a `<table>`); cells are `hc-param-id`, `hc-param-eq`, `hc-param-val`, `hc-param-comment`, with `hc-param-gap` spacers. |
 | `hc-multiline` | Added to the table of a `# hc: -m` calculation. |
 | `hc-pre` | Pre-formatted text (whitespace kept). |
+| `hc-frac`, `hc-num`, `hc-den` | A stacked fraction, its numerator and its denominator. |
+| `hc-paren` | A bracket stretched around a fraction (`hc-paren-1`, or `hc-paren-2` around nested fractions). |
+| `hc-hidden` | Text kept for copying and screen readers but not shown. |
+| `<var>` | A name (set in italic). Function and module names are not in `<var>`. |
 
 Headings are `<h1>` (for `##`) to `<h6>`. The headings and text sizes come from the host
 page.
 
 ## Conventions
 
-- Names: Greek letters as Unicode characters; `_` makes a `<sub>` subscript, and further
+- Names: in `<var>`, set in italic (subscripts and superscripts stay upright); Greek
+  letters as Unicode characters; `_` makes a `<sub>` subscript, and further
   subscripts follow after a comma (`N<sub>pl,Rd</sub>`; nested with the `subscripts`
   option); `__` is a space, `___` a literal underscore. `hat`, `bar`, `dot`, `ddot`,
   `prime` and `star` add a hat, an overbar, a dot, two dots, a prime or a superscript `*` to
   the part before them. All of this is one `name:sym` rule, `swap_identifier`. See
   [naming variables](../getting-started/writing-calculations.md#naming-variables).
-- Operators: `*` → `·`, `**` → `<sup>`, `sqrt` → `√`, `<=` → `≤`.
+- Operators: `*` → `·`, `/` → a stacked fraction, `//` → a fraction in `⌊ ⌋`, `**` →
+  `<sup>`, `sqrt` → `√`, `<=` → `≤`.
 - Comments: `` `code` ``, `**bold**` and `*italic*` become `<code>`, `<strong>` and
   `<em>`. `$...$` is not math in HTML: it is shown as written.
 - Numbers use the format code as-is (`1.2e+05` stays as written). Strings are shown in

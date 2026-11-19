@@ -22,7 +22,8 @@ those values.
 
 ## Signature
 
-`handcalc(renderer=None, render_context=None, destination=None, *, docstring=True)`
+`handcalc(renderer=None, render_context=None, destination=None, *, docstring=True,
+display=False)`
 
 `renderer`
 : A renderer **instance**. If it is omitted, the renderer named by the
@@ -48,8 +49,13 @@ those values.
   used without handcalcs. The comment lines between the docstring and the first
   statement are rendered either way.
 
+`display`
+: Whether each call shows the render rather than returning it (see
+  [Showing the render](#showing-the-render)). `False` by default.
+
 The decorated function returns a tuple `(return_value, rendered)`. The type of
-`rendered` depends on the renderer, as for [`HandCalcs`](object-oriented.md).
+`rendered` depends on the renderer, as for [`HandCalcs`](object-oriented.md). With
+`display`, it returns only `return_value`.
 
 ## What is rendered
 
@@ -72,17 +78,41 @@ def shear_capacity(b_w, d, f_c):
     return V_c
 ```
 
-## Using it in Jupyter
+## Showing the render
 
-The decorator returns the rendered output; it does not display it. Display it with the
-class that matches the renderer:
+With `display=True`, each call shows the render where the code is running and returns
+only the function's result:
 
 ```python
-from IPython.display import Markdown, display
+@handcalc(MarkdownRenderer(), display=True)
+def moment(w, L):
+    M = w * L**2 / 8
+    return M
 
-value, markdown = shear_capacity(300, 540, 30)
-display(Markdown(markdown))
+M = moment(5, 6)  # shows the calculation; M == 22.5
 ```
+
+- In Jupyter (a notebook, JupyterLab, VS Code, Colab), the render is displayed as rich
+  output, as `%%render` displays it: Markdown for the Markdown renderer, LaTeX for the
+  LaTeX renderer, and so on.
+- Anywhere else (a script, a terminal), it is printed.
+- The Word and Excel renderers don't render text, so use them with `destination`.
+  With a `destination`, the file is written and its path is shown.
+
+`display` may also be a function, which each call passes the render to (or the file's
+path, with a `destination`). Use it to send the render somewhere else, such as a web
+page or a list of calculations for a report:
+
+```python
+import streamlit as st
+
+@handcalc(MarkdownRenderer(), display=st.markdown)
+def moment(w, L):
+    ...
+```
+
+`jupyter_display=True`, from handcalcs 1, still works as an alias for `display=True`,
+with a deprecation warning.
 
 ## Source
 

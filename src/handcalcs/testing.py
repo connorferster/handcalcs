@@ -90,12 +90,30 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
     ),
     _case("param-line", "apple = 2\nberry = apple * 3  # hc: -p\n", "apple berry"),
     _case(
+        "units",
+        "from handcalcs.testing import kiwi  # hc: -i\n# hc: -u\napple = 5 * kiwi\n",
+        "apple",
+        "kiwi",
+    ),
+    # SymPy substitution runs the source in stages; no line here holds a SymPy
+    # expression, so it renders as usual (and needs no SymPy).
+    _case(
+        "sympy",
+        "# hc: -y\napple = 2\nberry = apple\n# hc: sympy = False\ncherry = berry * 2\n",
+        "apple berry cherry",
+    ),
+    _case(
         "grid",
         "# hc: -g -c 2\napple = 1  # lemon\nberry = 2\ncherry = 3\n",
         "apple berry cherry lemon",
     ),
     _case(
         "grid-semicolons", "apple = 1; berry = 2; cherry = 3\n", "apple berry cherry"
+    ),
+    _case(
+        "grid-semicolon-rows",
+        "apple = 1; berry = 2; cherry = 3; damson = 4\nelder = 5;\nfig = 6; grape = 7\n",
+        "apple berry cherry damson elder fig grape",
     ),
     _case("line-break", "apple = 1\n# hc: -b\nberry = 2\n", "apple berry"),
     _case(
@@ -198,6 +216,37 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
 )
 
 _MISSING = object()
+
+
+class _Registry:
+    """The little of a pint registry the Excel renderer asks a unit for."""
+
+    class Quantity:
+        def __init__(self, magnitude, unit):
+            self.magnitude = magnitude
+
+        def to_base_units(self):
+            return self
+
+
+class Unit:
+    """
+    A stand-in unit for the ``units`` case, so it needs neither pint nor
+    forallpeople: it is recognized as a pint ``Unit`` (see ``handcalcs.units``),
+    is its own SI base unit, and a number times it is the number.
+    """
+
+    dimensionality: dict = {}
+    _REGISTRY = _Registry()
+
+    def __rmul__(self, number):
+        return number
+
+    def __repr__(self) -> str:
+        return "kiwi"
+
+
+kiwi = Unit()
 
 
 def render_case(renderer: Any, case: FeatureCase) -> Any:

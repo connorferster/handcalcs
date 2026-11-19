@@ -125,9 +125,8 @@ def test_alignment_on_first_assign_only():  # 10
 
 def test_params_grid_is_aligned_and_ragged():  # 12
     assert rows("a = 1; b = 2\nc = 3; d = 4; e = 5; f = 6; g = 7\n") == [
-        "a &= 1 \\; &b &= 2 \\; &c &= 3 \\;",
-        "d &= 4 \\; &e &= 5 \\; &f &= 6 \\;",
-        "g &= 7 \\;",
+        "a &= 1 \\; &b &= 2 \\;",
+        "c &= 3 \\; &d &= 4 \\; &e &= 5 \\; &f &= 6 \\; &g &= 7 \\;",
     ]
 
 
