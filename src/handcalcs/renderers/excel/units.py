@@ -26,6 +26,7 @@ from fractions import Fraction
 from types import ModuleType
 from typing import Any, Optional, Union
 
+from ...units import is_physical, is_pint_unit
 from .compat import incompatible
 
 # Significant digits kept in a unit constant (``mm`` -> 0.001): removes float
@@ -57,25 +58,8 @@ def is_pint_quantity(value: Any) -> bool:
     )
 
 
-def is_pint_unit(value: Any) -> bool:
-    return (
-        type(value).__name__ == "Unit"
-        and hasattr(value, "dimensionality")
-        and hasattr(value, "_REGISTRY")
-    )
-
-
 def is_pint_registry(value: Any) -> bool:
     return type(value).__name__.endswith("UnitRegistry") and hasattr(value, "Quantity")
-
-
-def is_physical(value: Any) -> bool:
-    """A forallpeople Physical."""
-    return (
-        type(value).__name__ == "Physical"
-        and hasattr(value, "dimensions")
-        and hasattr(value, "value")
-    )
 
 
 def has_units(value: Any) -> bool:
@@ -116,10 +100,13 @@ def _physical_unit_value(physical: Any) -> UnitValue:
     display = getattr(physical, "display", None)
     if callable(display):
         # forallpeople 3.5+: the shown number and unit, and the exact factor
-        # from the SI value to the number.
+        # from the SI value to the number. (forallpeople 4 shows a defined unit
+        # with no number, "mm", so its text can't be parsed.)
         shown = display()
         factor = shown.factor
-        if isinstance(factor, (int, Fraction)):
+        if factor == 0:
+            to_si = 1.0
+        elif isinstance(factor, (int, Fraction)):
             to_si = 1 / Fraction(factor)
         else:
             to_si = 1 / float(factor)

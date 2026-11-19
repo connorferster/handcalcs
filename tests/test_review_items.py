@@ -213,7 +213,7 @@ def test_method_names_are_not_quoted():
 
 def test_strings_are_quoted_and_escaped_in_html():
     out = HandCalcs(HTMLRenderer())('name = "<b>W310</b>"\n')
-    assert "name = “&lt;b&gt;W310&lt;/b&gt;”" in out
+    assert "<var>name</var> = “&lt;b&gt;W310&lt;/b&gt;”" in out
 
 
 def test_ascii_superscripts_are_not_quoted():

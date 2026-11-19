@@ -4,13 +4,16 @@ import ast
 import inspect
 import os
 import textwrap
-from typing import Optional
+import warnings
+from typing import Callable, Optional
 from functools import wraps
 import innerscope
 from ..renderers.base import BaseRenderer
 from .object_oriented import default_renderer
+from .display import show
 from ..parsing.sequence import HcSequence, drop_after_return
 from ..parsing.line_values import LineValues, recording
+from ..parsing import sympy_substitution
 from .. import config
 
 
@@ -71,6 +74,69 @@ def function_body(func, docstring: bool = True) -> tuple[str, int]:
     return textwrap.dedent("\n".join(lines[start:end])), file_offset + start
 
 
+class SympyFunction:
+    """
+    A function with ``# hc: -y`` lines, run as a copy with those lines rewritten
+    (see handcalcs.parsing.sympy_substitution). The expressions are looked up in
+    the call's arguments, then the function's globals, when it is called; the
+    copy is compiled again only when one of them changes.
+    """
+
+    def __init__(self, func):
+        if func.__code__.co_freevars:
+            raise sympy_substitution.SympySubstitutionError(
+                f"'{func.__name__}' uses variables of the function it is defined "
+                "in, so its '# hc: -y' lines can't be rewritten: define it at the "
+                "top level of a module or notebook."
+            )
+        self.func = func
+        self.signature = inspect.signature(func)
+        self.source = textwrap.dedent(inspect.getsource(func))
+        self.marks = sympy_substitution.find_marks(self.source)
+        self._key = None
+        self._compiled = None
+
+    def prepare(self, body_source: str, args, kwargs):
+        """The function to call and its rewritten body source, for these arguments."""
+        bound = self.signature.bind(*args, **kwargs)
+        bound.apply_defaults()
+        lookup = sympy_substitution.namespace_lookup(
+            bound.arguments, self.func.__globals__
+        )
+        source, substitutions = sympy_substitution.substitute(
+            self.source, lookup, marks=self.marks
+        )
+        body, _ = sympy_substitution.substitute(body_source, lookup)
+        if not substitutions:
+            return self.func, body
+        if source != self._key:
+            self._compiled = self.compile(source)
+            self._key = source
+        return self._compiled, body
+
+    def compile(self, source: str):
+        func = self.func
+        tree = ast.parse(source)
+        node = next(
+            node
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == func.__name__
+        )
+        # The copy is not decorated again; its lines are the function's lines in
+        # its file (``getsource`` starts at the first line of the code object).
+        node.decorator_list = []
+        module = ast.Module(body=[node], type_ignores=[])
+        ast.increment_lineno(module, func.__code__.co_firstlineno - 1)
+        code = compile(module, func.__code__.co_filename, "exec")
+        namespace: dict = {}
+        exec(code, func.__globals__, namespace)
+        copy = namespace[func.__name__]
+        copy.__defaults__ = func.__defaults__
+        copy.__kwdefaults__ = func.__kwdefaults__
+        return copy
+
+
 def returns_names_only(stmt: ast.stmt) -> bool:
     """True for ``return``, ``return M`` and ``return M, V``."""
     if not isinstance(stmt, ast.Return):
@@ -87,6 +153,8 @@ def handcalc(
     destination: Optional[str | os.PathLike] = None,
     *,
     docstring: bool = True,
+    display: bool | Callable[[object], object] = False,
+    jupyter_display: Optional[bool] = None,
 ):
     """
     Decorate a calculation function so that a call returns ``(return_value,
@@ -101,10 +169,29 @@ def handcalc(
     The function's docstring is rendered as a note above the calculation; with
     ``docstring=False`` it is left out (for a docstring written for the code's
     readers rather than for the calculation).
+
+    With ``display=True`` each call shows the render where the code is running
+    (displayed in a Jupyter kernel, printed elsewhere) and returns only the
+    function's return value. ``display`` may instead be a function, which each
+    call passes the render to (``display=st.markdown``). With a 'destination',
+    the file's path is shown (or passed) instead of the render.
+    ``jupyter_display=True`` is a deprecated alias for ``display=True``.
     """
+    if jupyter_display is not None:
+        if display is not False:
+            raise TypeError("give display or jupyter_display, not both")
+        warnings.warn(
+            "jupyter_display is deprecated; use display=True, which shows the "
+            "render in Jupyter and prints it elsewhere.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        display = bool(jupyter_display)
+    if not (isinstance(display, bool) or callable(display)):
+        raise TypeError(f"display must be True, False or a function, not {display!r}")
     if callable(renderer) and not isinstance(renderer, BaseRenderer):
         # @handcalc without brackets: the "renderer" is the decorated function.
-        return handcalc()(renderer)
+        return handcalc(docstring=docstring, display=display)(renderer)
     if renderer is None:
         renderer = default_renderer()
     if render_context is None:
@@ -121,30 +208,38 @@ def handcalc(
 
     def handcalc_decorator(func):
         body_source, line_offset = function_body(func, docstring)
-        code = func.__code__
-
-        def is_call_frame(frame) -> bool:
-            # innerscope runs a copy of the function's code, made to keep its locals.
-            frame_code = frame.f_code
-            return (
-                frame_code.co_name == code.co_name
-                and frame_code.co_firstlineno == code.co_firstlineno
-                and frame_code.co_filename == code.co_filename
-            )
+        sympy_function = None
+        if sympy_substitution.has_sympy_commands(body_source):
+            sympy_function = SympyFunction(func)
 
         @wraps(func)
         def decorated(*args, **kwargs):
+            run, source = func, body_source
+            if sympy_function is not None:
+                run, source = sympy_function.prepare(body_source, args, kwargs)
+            code = run.__code__
+
+            def is_call_frame(frame) -> bool:
+                # innerscope runs a copy of the function's code, made to keep
+                # its locals.
+                frame_code = frame.f_code
+                return (
+                    frame_code.co_name == code.co_name
+                    and frame_code.co_firstlineno == code.co_firstlineno
+                    and frame_code.co_filename == code.co_filename
+                )
+
             # innerscope retrieves values of locals, closures, and globals; the
             # values of each line are recorded while it runs.
             if config.get_option("line_values", True):
-                values = LineValues(body_source, line_offset)
+                values = LineValues(source, line_offset)
                 with recording(values, is_call_frame):
-                    scope = innerscope.call(func, *args, **kwargs)
+                    scope = innerscope.call(run, *args, **kwargs)
             else:
                 values = None
-                scope = innerscope.call(func, *args, **kwargs)
+                scope = innerscope.call(run, *args, **kwargs)
             hc_ast = HcSequence.from_source(
-                body_source, hc_globals=scope, hc_locals={}, line_values=values
+                source, hc_globals=scope, hc_locals={}, line_values=values
             )
             drop_after_return(hc_ast.sequence)
             base_context = renderer.create_context(
@@ -152,11 +247,18 @@ def handcalc(
             )
             rendered_tree = renderer.render(hc_ast, base_context)
             completed_render = renderer.complete(rendered_tree, base_context)
+            output = completed_render
             if destination is not None:
-                return scope.return_value, renderer.to_file(
-                    completed_render, destination
-                )
-            return scope.return_value, completed_render
+                output = renderer.to_file(completed_render, destination)
+            if display is False:
+                return scope.return_value, output
+            if callable(display):
+                display(output)
+            elif destination is not None:
+                print(f"Rendered to {output}")
+            else:
+                show(renderer, output)
+            return scope.return_value
 
         return decorated
 

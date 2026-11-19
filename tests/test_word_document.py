@@ -130,11 +130,11 @@ def test_unknown_layout_is_an_error():
 
 
 def test_params_grid_is_a_borderless_table():
-    document = render("b = 300; d = 500; f_c = 30; t = 2\n")
+    document = render("b = 300; d = 500; f_c = 30\nt = 2; x = 1\n")
     (table,) = document.tables
     assert len(table.rows) == 2 and len(table.columns) == 3
     cells = [math_text(cell._tc) for row in table.rows for cell in row.cells]
-    assert cells == ["b=300", "d=500", "fc=30", "t=2", "", ""]
+    assert cells == ["b=300", "d=500", "fc=30", "t=2", "x=1", ""]
     assert table.style is None or "Grid" not in table.style.name
 
 

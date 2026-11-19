@@ -94,7 +94,9 @@ def test_latex_expression_result_aligns_on_first_equals():
 
 def test_html_expression_result_is_highlighted():
     out = _render(HTMLRenderer(), "a = 2\nb = 3\na * b\n")
-    assert 'a · b = 2 · 3 = <span class="hc-result">6</span>' in out
+    assert (
+        '<var>a</var> · <var>b</var> = 2 · 3 = <span class="hc-result">6</span>' in out
+    )
 
 
 def test_param_command_hides_substitution():

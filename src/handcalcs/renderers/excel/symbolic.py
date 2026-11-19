@@ -21,6 +21,7 @@ from handcalcs.parsing.inline_nodes import FunctionCall
 from handcalcs.parsing.operator_nodes import HcBinOp, HcCompOp, HcUnaryOp, PowOp
 from handcalcs.renderers.base import (
     OP_PRECEDENCE,
+    operand_precedence,
     ROOT_SYMBOLS,
     BaseRenderContext,
     infix_binop,
@@ -233,7 +234,7 @@ def render_pow(renderer, node: HcBinOp, base_context: BaseRenderContext) -> str:
     # keeps the infix rules: (a + b)<sup>2</sup>, (-a)<sup>2</sup>.
     context = base_context.current
     base = renderer.render_node(node.left, base_context)
-    loose = OP_PRECEDENCE.get(type(node.left), math.inf) <= OP_PRECEDENCE[PowOp]
+    loose = operand_precedence(node.left, base_context) <= OP_PRECEDENCE[PowOp]
     if loose or base.lstrip().startswith(("-", "+")):
         base = f"{context.lpar}{base}{context.rpar}"
     exponent = renderer.render_node(node.right, base_context)

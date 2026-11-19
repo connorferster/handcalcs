@@ -146,8 +146,9 @@ DISPLAY = {
         " + \\mathrm{loads}_{\\mathrm{live\\ load}} + M_{\\mathrm{Ed},i} + \\alpha_{i}"
     ),
     HTMLRenderer: (
-        "xs<sub>0</sub> + xs<sub>-1</sub> + loads<sub>dead</sub>"
-        " + loads<sub>live load</sub> + M<sub>Ed,i</sub> + α<sub>i</sub>"
+        "<var>xs</var><sub>0</sub> + <var>xs</var><sub>-1</sub>"
+        " + <var>loads</var><sub>dead</sub> + <var>loads</var><sub>live load</sub>"
+        " + <var>M</var><sub>Ed,i</sub> + <var>α</var><sub>i</sub>"
     ),
     ASCIIRenderer: 'xs[0] + xs[-1] + loads["dead"] + loads["live load"] + M_Ed[i] + α[i]',
 }
@@ -174,7 +175,11 @@ y = xs[1:3][0] + xs[i + 1]
     "renderer_class, symbolic, numeric",
     [
         (ASCIIRenderer, "xs[1:3][0] + xs[i + 1]", "2 + xs[1 + 1]"),
-        (HTMLRenderer, "xs[1:3][0] + xs[i + 1]", "2 + xs[1 + 1]"),
+        (
+            HTMLRenderer,
+            "<var>xs</var>[1:3][0] + <var>xs</var>[<var>i</var> + 1]",
+            "2 + <var>xs</var>[1 + 1]",
+        ),
         (LatexRenderer, "\\mathrm{xs}[1:3][0] + \\mathrm{xs}[i + 1]", "2 + \\mathrm{xs}[1 + 1]"),
     ],
 )

@@ -4,6 +4,35 @@
 
 ### Features
 
+- **`;` grids keep the layout you write**: each `;` line is a row of the grid, so
+  `a = 1; b = 2` over `c = 3; d = 4; e = 5` lays out two cells over three. Before,
+  the cells were reflowed three to a row. End a line with `;` (`f = 6;`) for a
+  one-cell row. `# hc: -c N` now sets the width of
+  `# hc: -g` grids only, which still reflow
+  ([details](../getting-started/writing-calculations.md#parameter-grids)).
+- **SymPy substitution, `# hc: -y`**: `x = f`, where `f` holds a SymPy expression, runs
+  and renders as `x = <the expression>` with the values its symbols have when the line
+  runs, so the algebra done in SymPy becomes a calculation, as v1's `%%render sympy`
+  did. On its own line it applies to every such line until `# hc: sympy = False`. Works
+  in scripts, `%%render` and `@handcalc` (where the expression may be an argument).
+  SymPy is not a dependency.
+- **`%%source`** prints a cell's rendered text (LaTeX, Markdown, HTML, plain text)
+  instead of displaying it, to copy into another document. `%%source latex` uses the
+  LaTeX renderer for that cell, as v1's `%%tex` did. It takes `%%render`'s `inputs=`
+  arguments, and `%source` prints one line.
+- **`# hc: -u` shows unit inputs as values** (#353): a line that is a number times
+  units, `P = 5 * kN`, renders as `P = 5 kN` instead of `P = 5 · kN = 5 · 1 kN = 5 kN`.
+  Lines that calculate keep every step. Turn it on for what follows, for one line
+  (inline), or everywhere with `set_option("units", True)`
+  ([details](../cookbook/units.md#calculate-with-forallpeople)).
+- **Stacked fractions in the HTML renderer**, with typeset maths: italic names in a
+  serif maths font. `HTMLRenderer(fractions="inline")` keeps divisions on one line
+  ([details](../renderers/html.md#fractions)).
+- **`@handcalc(display=True)`** shows the render (displayed in Jupyter, printed
+  elsewhere) and returns only the function's result; `jupyter_display=True` from
+  handcalcs 1 still works (#369, [details](../interfaces/decorator.md#showing-the-render)).
+- **A command line**: `handcalcs script.py -o calc.docx` (see
+  [Command line](../interfaces/command-line.md)).
 - **Excel formulas with US units have unit factors only where they are needed.**
   Formulas used to convert every reference to SI and back, so a sheet in US
   units was full of factors that cancel: `M_u = w_u * L**2 / 8` was
@@ -23,13 +52,25 @@
 
 ### Fixes
 
+- **A substituted value that is itself a sum is bracketed** (#224): a complex number
+  with a real and an imaginary part, or a SymPy sum, product or power, now reads
+  `2 · (3+4j)`, `(3+4j)²` and `-(3+4j)` instead of `2 · 3+4j`, `3+4j²` and `-3+4j`, in
+  every renderer. The LaTeX renderer no longer brackets a SymPy value standing on its
+  own (`z = 3 + 4i`, not `z = (3 + 4i)`).
 - **`round()` of a value with units in the Excel renderer** gave a different result from
   Python. forallpeople's `round(x, n)` only changes how many digits are shown, but the
   sheet used `ROUND` on the SI value: `round(M / P, 3)` with `M / P = 4.80 mm` became
   `5 mm` (0.0048 m rounded to 0.005 m). The formula now leaves the value unchanged.
   With pint, it rounds the magnitude in the quantity's own unit, as pint does.
+- The HTML renderer's tints (the result highlight, parameter grids, block headers,
+  import chips, muted comments) now print in WeasyPrint PDFs.
+- A power with an exponent that isn't a number (`a**(1/2)`) rendered as `a**(1 / 2)` in
+  HTML; it is now a superscript.
 - The test dependencies require forallpeople 3.4.1, which fixes how a value is displayed
   when its factor matches no defined unit (#352).
+- A parameter line (`w = 5`) in a mode without the result column, such as
+  `mode = "ass sym"` (v1's `%%render symbolic`), showed only its name (`w`). It now
+  shows its value: `w = 5`.
 
 ## 2.0.0rc4 (2026-11-11)
 

@@ -36,6 +36,8 @@ GitHub issue that asked for it is linked where there is one.
 | calculate with forallpeople or pint | [Units](units.md) |
 | show a result in particular units | [Specific units](units.md#show-a-result-in-specific-units) |
 | show a value with a tolerance, like 1 ± 0.1 | [Values with their own LaTeX](units.md#values-with-a-tolerance-or-their-own-latex) |
+| **SymPy** | |
+| calculate with an expression worked out in SymPy | [Expressions from SymPy](sympy.md#calculate-with-an-expression-from-sympy) |
 | **Reports** | |
 | make a PDF, Word or HTML document | [Write to a file](documents.md#write-a-calculation-straight-to-a-file), [Word](documents.md#a-word-document) |
 | make a PDF without LaTeX | [PDF with WeasyPrint](documents.md#a-pdf-through-html-with-weasyprint) |
@@ -68,6 +70,7 @@ showing-and-hiding
 checks
 symbols
 units
+sympy
 documents
 workflows
 ```

@@ -11,8 +11,10 @@ line; at the end of a line it applies to that line. See
 | `-f CODE` | `--format-code` | `format_code` | a format code | Number format |
 | `-m` | `--multiline`, `--mult` | `multiline` | flag | Break calculations over several lines |
 | `-p` | `--param-line` | `param_line` | flag | Show *target = result* only |
+| `-u` | `--units` | `units` | flag | Show a number times units (`5 * kN`) as its value only (`handcalcs.units.is_units_input`) |
+| `-y` | `--sympy` | `sympy` | flag | Substitute the SymPy expression a name holds (`x = f` runs as `x = <f's expression>`); see `handcalcs.parsing.sympy_substitution` |
 | `-g` | `--grid`, `--params-block`, `--params` | (opens a grid) | flag | Grid of the following assignments, with comments |
-| `-c N` | `--param-cols`, `--param_cols` | `param_cols` | integer | Columns in parameter grids (default 3) |
+| `-c N` | `--param-cols`, `--param_cols` | `param_cols` | integer | Columns in `-g` parameter grids (default 3) |
 | `-b` | `--line-break` | (one-shot) | flag | Vertical space |
 | | `--check` | `check` | flag | A boolean result is shown as a pass/fail mark (`CHECK_MARKS`) |
 | | `--pagebreak`, `--page-break` | (one-shot) | flag | Page break (see below) |
@@ -56,7 +58,7 @@ Python; if that fails, it is parsed as flags.
 |---|---|
 | `format_code` | a format code string |
 | `mode` | `"full"`, or a string containing any of `ass`, `sym`, `num`, `res` |
-| `multiline`, `param_line`, `ignore` | `True` / `False` |
+| `multiline`, `param_line`, `units`, `sympy`, `ignore` | `True` / `False` |
 | `param_cols` | integer |
 | `assign` | the symbol between steps (default `"="`) |
 | `subscripts` | `"comma"` or `"nested"` |
