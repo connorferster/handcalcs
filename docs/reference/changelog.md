@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.0.0rc5 (2026-11-19)
+
+The fifth release candidate of handcalcs 2.0. Install it with
+`pip install "handcalcs>=2.0.0rc5"`; a plain `pip install handcalcs` still installs
+1.x until 2.0.0 is released.
 
 ### Features
 
@@ -74,8 +78,9 @@
   import chips, muted comments) now print in WeasyPrint PDFs.
 - A power with an exponent that isn't a number (`a**(1/2)`) rendered as `a**(1 / 2)` in
   HTML; it is now a superscript.
-- The test dependencies require forallpeople 3.4.1, which fixes how a value is displayed
-  when its factor matches no defined unit (#352).
+- The test dependencies require forallpeople 3.5.0 (3.4.1 fixed how a value is displayed
+  when its factor matches no defined unit, #352; 3.5 gives the Excel renderer exact unit
+  factors).
 - A parameter line (`w = 5`) in a mode without the result column, such as
   `mode = "ass sym"` (v1's `%%render symbolic`), showed only its name (`w`). It now
   shows its value: `w = 5`.
