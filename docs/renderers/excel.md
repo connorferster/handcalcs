@@ -140,24 +140,44 @@ contain assignments, nested `if` trees and comments.
 [pint](https://pint.readthedocs.io) and
 [forallpeople](https://github.com/connorferster/forallpeople) values are
 supported. A value cell holds the magnitude in the value's display unit, and the
-unit column shows the unit. Formulas convert every reference to SI base units
-and convert the result back, so mixed units stay correct after an edit:
+unit column shows the unit. Formulas stay correct after an edit even when units
+are mixed: the renderer tracks each reference's unit and writes a conversion
+factor only where the units do not cancel, in its simplest form (`/12`, not
+`*0.0833333`):
 
 ```python
-F = 12.5 * kN
-L = 300 * mm
-M = F * L      # =F*1000*(L*0.001)/1000, shown in kN·m
+w_u = 1.82 * kip / ft
+L = 24 * ft
+M_u = w_u * L**2 / 8       # =w_u*L^2/8, in kip·ft
+phi_M_n = phi * F_y * Z_x  # =phi*F_y*Z_x, in kip·in
+DCR = M_u / phi_M_n        # =M_u/phi_M_n*12
+M_2 = M_u + phi_M_n        # =M_u+phi_M_n/12, in kip·ft
 ```
+
+A factor is written where values meet in different units (`+`, `-`,
+comparisons, `if`/`else`, `min`, `max`), where a function needs SI values
+(`sqrt` and the other functions), and at the end, when the result's unit is not
+the row's. A unit written in an expression (`12 * mm`) is part of the factor, so
+`t = 12 * mm if L > 250 * mm else 8 * mm` is `=IF(L>250,12,8)`.
+
+With forallpeople, use an environment with the units of your calculation, so
+that results are displayed in units that cancel. For US customary units, use
+`us_structural` (forallpeople 3.5 or later): it has every combination of `lb`
+and `kip` with `in` and `ft` up to the fourth power, and shows mixed-unit
+results (ksi with psi, ft with in) in US units rather than SI. In an
+environment that mixes SI and US units, such as `structural`, a result like
+`A_s * F_y / (0.85 * f_c * b)` (ksi and psi) is shown in millimetres, and the
+sheet carries `*25400` and `/25.4` to match.
 
 To choose the unit a row displays, convert it with `.to()`. The target can be a
 unit string (`"kip"`) or a unit expression (`ureg.kip * ureg.ft`). The
-conversion adds nothing to the formula, because the row's unit already scales the
-SI result, and the symbolic column shows only the value being converted:
+conversion adds nothing to the formula but the factor to the new unit, and the
+symbolic column shows only the value being converted:
 
 ```python
-F_z = gamma_conc * vol_ftg
-F_z = F_z.to("kip")   # a second row, F_z_2 = =F_z*1000/4448.22161526, in kip
-M = (F * L).to("kipft")
+M = w * L**2 / 8      # in kip·ft
+M = M.to("kipin")     # a second row, M_2 = =M*12, in kip·in
+F = (F_x * n).to("kip")
 ```
 
 `round()`, `float()` and `int()` of a value with units work as they do in Python:

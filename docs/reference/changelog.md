@@ -33,6 +33,17 @@
   handcalcs 1 still works (#369, [details](../interfaces/decorator.md#showing-the-render)).
 - **A command line**: `handcalcs script.py -o calc.docx` (see
   [Command line](../interfaces/command-line.md)).
+- **Excel formulas with US units have unit factors only where they are needed.**
+  Formulas used to convert every reference to SI and back, so a sheet in US
+  units was full of factors that cancel: `M_u = w_u * L**2 / 8` was
+  `=w_u*14593.9029372*(L*0.3048)^2/8/1355.81794833`. It is now `=w_u*L^2/8`. A
+  factor is written only where units do not cancel, in its simplest form:
+  `DCR = M_u / phi_M_n` (kip·ft over kip·in) is `=M_u/phi_M_n*12`. Factors are
+  exact with forallpeople 3.5 or later, and its new `us_structural` environment
+  shows mixed-unit results in US units
+  ([details](../renderers/excel.md#units)). Formulas give the same results as
+  before. Sheets in base SI units are unchanged; with prefixed units the factors
+  fold too (`=F*L` for kN and mm, instead of `=F*1000*(L*0.001)`).
 - **`# hc: --boxed`** draws a box around a line's result: `\boxed{}` in LaTeX and
   Markdown, a framed result in HTML, a boxed formula in Word, a bordered value cell in
   Excel, and a box drawn with line characters in ASCII. On its own line it boxes the
