@@ -1,3 +1,4 @@
+import unicodedata
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Optional
@@ -64,6 +65,42 @@ def aligned_text(text: str, lhs_width: int) -> AlignedText:
     return aligned
 
 
+# The two ends of a ``# hc: --boxed`` result while it is rendered; ``draw_boxes``
+# turns each into a side of the box (each mark is as wide as the side it becomes,
+# so grids line up before the box is drawn).
+BOX_OPEN = "\ue000"
+BOX_CLOSE = "\ue001"
+
+
+def draw_boxes(text: str, nl: str) -> str:
+    """
+    Draw a box around each boxed span of ``text``: its marks become ``│`` and
+    the row gets a ``┌─┐`` line above it and a ``└─┘`` line below.
+    """
+    rows = []
+    for row in text.split(nl):
+        if BOX_OPEN not in row:
+            rows.append(row)
+            continue
+        # Each box's left and right side, in display columns (a combining
+        # accent takes none).
+        sides, column = [], 0
+        for char in row:
+            if char == BOX_OPEN:
+                sides.append(column)
+            elif char == BOX_CLOSE:
+                sides[-1] = (sides[-1], column)
+            column += not unicodedata.combining(char)
+        top = bottom = ""
+        for left, right in sides:
+            rule = "─" * (right - left - 1)
+            top += f"{' ' * (left - len(top))}┌{rule}┐"
+            bottom += f"{' ' * (left - len(bottom))}└{rule}┘"
+        middle = row.replace(BOX_OPEN, "│").replace(BOX_CLOSE, "│")
+        rows += [top, middle, bottom]
+    return nl.join(rows)
+
+
 class HeadingText(str):
     """A rendered heading: its text plus its underline (and overline)."""
 
@@ -78,6 +115,8 @@ class ASCIIRenderer(BaseRenderer):
     """
 
     name = "ascii"
+    # A ``# hc: --boxed`` result is drawn on three rows; see ``draw_boxes``.
+    BOX = (f"{BOX_OPEN} ", f" {BOX_CLOSE}")
 
     # The underline character for each heading level and whether the heading
     # gets a matching overline too. Levels deeper than the last use the last.
@@ -108,18 +147,29 @@ class ASCIIRenderer(BaseRenderer):
             and isinstance(item[0], AlignedText)
         ):
             item = item[0]
+        # A one-line calc with a ``# hc: --boxed`` result becomes three rows,
+        # once it is aligned with the lines around it (a grid draws its own).
+        elif (
+            isinstance(item, list)
+            and all(isinstance(part, str) for part in item)
+            and any(BOX_OPEN in part for part in item)
+        ):
+            context = base_context.current
+            item = draw_boxes(context.space.join(item), context.newline)
         return super().join_item(item, depth, base_context)
 
     def format_calc_grid(self, rows: list, base_context: BaseRenderContext) -> str:
         id_width = max((len(str(ident)) for ident, _eq, _val in rows), default=0)
-        return aligned_text(super().format_calc_grid(rows, base_context), id_width)
+        text = super().format_calc_grid(rows, base_context)
+        return aligned_text(draw_boxes(text, base_context.current.newline), id_width)
 
     def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
         context = base_context.current
         text = super().format_param_grid(rows, base_context)
         _ = context.space
         first_row = text.split(context.newline)[0]
-        return aligned_text(text, max(first_row.find(f"{_}{context.assign}"), 0))
+        lhs = max(first_row.find(f"{_}{context.assign}"), 0)
+        return aligned_text(draw_boxes(text, context.newline), lhs)
 
 
 PTR = ASCIIRenderer

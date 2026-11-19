@@ -76,6 +76,8 @@ class WordRenderer(BaseRenderer):
         omml.run(omml.EM_SPACE) + omml.text("✓"),
         omml.run(omml.EM_SPACE) + omml.text("✗"),
     )
+    # A ``# hc: --boxed`` result, in Word's own boxed-formula element.
+    BOX: ClassVar[tuple[str, str]] = ("<m:borderBox><m:e>", "</m:e></m:borderBox>")
     # Keywords are upright words, like ``and``/``or``.
     IF_EXP_KEYWORDS: ClassVar[tuple[str, str]] = (
         omml.upright(" if "),
