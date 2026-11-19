@@ -574,7 +574,7 @@ def test_html_boxed_result():
     assert '= <span class="hc-result hc-boxed">6</span>' in out
     assert ".handcalcs :where(.hc-boxed){border:1px solid currentColor;" in out
     out = _render(HTMLRenderer(), "a = 2  # hc: --boxed\n")
-    assert 'a = <span class="hc-boxed">2</span>' in out
+    assert '<var>a</var> = <span class="hc-boxed">2</span>' in out
 
 
 def test_word_boxed_result():
