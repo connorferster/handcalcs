@@ -34,6 +34,11 @@ def render(renderer, source: str):
 ISSUE = "F = array([2, 4]) * ureg.kN\nl_1 = array([10, 5]) * ureg.mm\nM_1 = F * l_1\n"
 
 
+def same_dots(text: str) -> str:
+    """pint's pretty units multiply with '⋅' (U+22C5); older pint writes '·' (U+00B7)."""
+    return text.replace("·", "⋅")
+
+
 @pytest.mark.parametrize(
     "renderer_class, expected",
     [
@@ -50,10 +55,10 @@ ISSUE = "F = array([2, 4]) * ureg.kN\nl_1 = array([10, 5]) * ureg.mm\nM_1 = F * 
     ],
 )
 def test_issue_384_values_shown(renderer_class, expected):
-    out = render(renderer_class(), ISSUE)
+    out = same_dots(render(renderer_class(), ISSUE))
     assert ".5g" not in out
     for text in expected:
-        assert text in out
+        assert same_dots(text) in out
 
 
 def test_word_values_shown():
@@ -64,7 +69,7 @@ def test_word_values_shown():
     text = output_text(render(WordRenderer(), ISSUE))
     assert ".5g" not in text
     # The units follow the array as text, abbreviated as the registry's default is.
-    assert text.rstrip().endswith("20 20  kN⋅mm")
+    assert same_dots(text).rstrip().endswith("20 20  kN⋅mm")
 
 
 @pytest.mark.parametrize(
