@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **pint quantities of numpy arrays show their values** (#384): in the LaTeX and
+  Markdown renderers, `array([2, 4]) * ureg.kN` rendered every element as the format
+  code (`.5g`). The array is now drawn as other numpy arrays are, `[2, 4] kN`, in every
+  renderer, so the format code and `max_items` apply to its elements.
+
 ## 2.0.0rc5 (2026-11-19)
 
 The fifth release candidate of handcalcs 2.0. Install it with

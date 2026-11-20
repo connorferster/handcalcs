@@ -28,6 +28,7 @@ from handcalcs.parsing.nodes import (
     Subscript,
     Slice,
     Matrix,
+    ArrayQuantity,
 )
 from handcalcs.parsing.null_values import NoValue
 from handcalcs.parsing.operator_nodes import (
@@ -215,6 +216,13 @@ def is_array(value) -> bool:
     return type(value).__module__.split(".")[0] == "numpy" and hasattr(value, "ndim")
 
 
+def is_array_quantity(value) -> bool:
+    """True for a pint quantity whose magnitude is a numpy array."""
+    return pint_default_format(value) is not None and is_array(
+        getattr(value, "magnitude", None)
+    )
+
+
 def _reify(value):
     """
     Wrap a raw runtime Python value in the matching HcNode so it renders through
@@ -227,6 +235,13 @@ def _reify(value):
     """
     if isinstance(value, HcNode):
         return value
+    if is_array_quantity(value):
+        # A pint quantity of a numpy array: its array is drawn like any other
+        # (the format code, max_items) and its units follow, as for a scalar.
+        return ArrayQuantity(
+            magnitude=_reify(value.magnitude),
+            units=Constant(value=value.units, calculated=True),
+        )
     if is_array(value):
         # A numpy array: its elements take the format code. A 2-D array is a
         # matrix; any other is a list (nested for more dimensions).
@@ -786,6 +801,16 @@ class BaseRenderer:
         """
         return rendered.lstrip().startswith(("-", "+"))
 
+    def join_quantity(
+        self, magnitude: Any, units: Any, base_context: BaseRenderContext
+    ) -> Any:
+        """
+        A quantity of an array from its rendered array and units (see
+        ``render_array_quantity``): ``[20, 40] kN``. A renderer that sets units
+        apart in its own way (LaTeX's ``\\ ``) overrides this.
+        """
+        return f"{magnitude} {units}"
+
     def format_param_grid(self, rows: list, base_context: BaseRenderContext) -> str:
         """
         Format a params grid (``rows`` of cells, each cell already rendered to a
@@ -1055,6 +1080,21 @@ def render_list(
         return f",{_}".join(rendered_elems)
     rendered_elems = elide_items(rendered_elems, base_context, "…")
     return f"({f',{_}'.join(rendered_elems)})"
+
+
+@BaseRenderer.register("array_quantity")
+def render_array_quantity(
+    renderer: BaseRenderer, node: ArrayQuantity, base_context: BaseRenderContext
+) -> Any:
+    """
+    A quantity of an array: the array, then its units as a scalar quantity
+    shows them (``[20, 40] kN·mm``). A dimensionless quantity is its array.
+    """
+    magnitude = renderer.render(node.magnitude, base_context)
+    units = renderer.render(node.units, base_context)
+    if not units:
+        return magnitude
+    return renderer.join_quantity(magnitude, units, base_context)
 
 
 def elide_matrix(

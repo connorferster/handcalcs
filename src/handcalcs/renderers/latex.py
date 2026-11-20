@@ -533,6 +533,10 @@ class LatexRenderer(BaseRenderer):
             return []
         return [f"{self.paragraph(joined)}\n\n"]
 
+    def join_quantity(self, magnitude: str, units: str, base_context: BRC) -> str:
+        """A quantity of an array, its units set apart as a scalar's are."""
+        return f"{magnitude}\\ {units}"
+
     def paragraph(self, text: str) -> str:
         """
         Prefix a text paragraph with PARAGRAPH (``\\noindent``) unless it is

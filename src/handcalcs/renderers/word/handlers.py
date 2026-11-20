@@ -18,6 +18,7 @@ from handcalcs.parsing.nodes import (
     Constant,
     Dictionary,
     Matrix,
+    ArrayQuantity,
     HcNode,
     List,
     Name,
@@ -418,6 +419,14 @@ def render_matrix(renderer: WR, node: Matrix, base_context: BRC) -> str:
     rows = [[renderer.render(cell, base_context) for cell in row] for row in node.rows]
     rows = elide_matrix(rows, base_context, omml.run("⋯"), omml.run("⋮"))
     return omml.matrix(rows)
+
+
+@WR.register("array_quantity")
+def render_array_quantity(renderer: WR, node: ArrayQuantity, base_context: BRC) -> str:
+    """A quantity of an array: the array, then its units as text, as a scalar's."""
+    magnitude = renderer.render(node.magnitude, base_context)
+    units = f"{node.units.value}"
+    return magnitude + omml.text(f" {units}") if units else magnitude
 
 
 @WR.register("tuple")

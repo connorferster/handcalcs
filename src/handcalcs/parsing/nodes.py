@@ -98,6 +98,20 @@ class Matrix(HcNode):
 
 
 @dataclass
+class ArrayQuantity(HcNode):
+    """
+    A pint quantity whose magnitude is a numpy array (``np.array([2, 4]) * kN``):
+    ``magnitude`` is the array as a node (a ``List``, a ``Matrix`` or, for a
+    0-d array, a ``Constant``) and ``units`` its pint units as a ``Constant``.
+    The array is drawn by handcalcs, like any numpy array, rather than by pint.
+    """
+
+    magnitude: Any
+    units: Any
+    type: str = "array_quantity"
+
+
+@dataclass
 class Subscript(HcNode):
     """
     An index or key lookup: ``xs[0]``, ``loads["dead"]``, ``A[i, j]``. ``index``
