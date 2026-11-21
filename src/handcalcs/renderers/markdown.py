@@ -161,6 +161,9 @@ class MarkdownRenderer(LatexRenderer):
     # blockquote would carry the inner lines' ``> `` prefixes into the LaTeX.
     MATH_OPEN = "$$\\begin{aligned}"
     MATH_CLOSE = "\\end{aligned}$$"
+    # A front-end scrolls a wide equation instead of clipping it, so long rows
+    # are not split (and there is no ``\hcfit`` to scale them).
+    MAX_ROW_WIDTH = None
     ROW_SEP = " \\\\ "
     MATH_SKIP = ""
     PARAGRAPH = ""

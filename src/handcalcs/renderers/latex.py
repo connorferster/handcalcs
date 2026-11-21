@@ -27,6 +27,7 @@ from handcalcs.renderers.base import (
     receiver_needs_parens,
     render_receiver,
     render_symbolic,
+    render_params_block as base_render_params_block,
 )
 from handcalcs.renderers.prose import Span, prose_spans
 
@@ -93,6 +94,7 @@ from handcalcs.parsing.block_nodes import (
     ElifBlock,
     CalcsBlock,
     ForBlock,
+    ParamsBlock,
 )
 
 BRC = BaseRenderContext
@@ -161,6 +163,250 @@ def latex_span(span: Span, in_math: bool = False) -> str:
     if span.kind == "em":
         return f"\\emph{{{latex_text(span.text)}}}"
     return latex_text(span.text)
+
+
+## WIDTH ESTIMATE
+#
+# TeX cannot break a line inside an ``aligned`` box, so the renderer estimates
+# how wide each row will be when typeset and re-lays out the rows that would
+# overrun the line (see ``LatexRenderer.MAX_ROW_WIDTH``). Widths are in points of
+# a 10pt Computer Modern math font; checked against TeX, the estimate of
+# real calc rows is within about 10% of the typeset width.
+
+_LATEX_TOKEN = re.compile(r"\\[A-Za-z]+\*?|\\.|\s+|.", re.S)
+_SPACE_WIDTHS = {
+    "\\ ": 3.33,
+    "\\,": 1.67,
+    "\\:": 2.22,
+    "\\;": 2.78,
+    "\\!": -1.67,
+    "\\quad": 10.0,
+    "\\qquad": 20.0,
+    "~": 3.33,
+}
+# Glyph widths; binary operators and relations add their spacing on top.
+_BINOP_WIDTHS = {
+    "+": 7.78,
+    "-": 7.78,
+    "\\cdot": 2.78,
+    "\\times": 7.78,
+    "\\pm": 7.78,
+    "\\mp": 7.78,
+    "\\bmod": 18.0,
+}
+_RELATION_WIDTHS = {
+    "=": 7.78,
+    "<": 7.78,
+    ">": 7.78,
+    "\\le": 7.78,
+    "\\ge": 7.78,
+    "\\lt": 7.78,
+    "\\gt": 7.78,
+    "\\ne": 7.78,
+    "\\in": 6.67,
+    "\\notin": 6.67,
+    "\\approx": 7.78,
+}
+_DELIMITER_WIDTHS = {
+    "(": 3.89,
+    ")": 3.89,
+    "[": 2.78,
+    "]": 2.78,
+    "|": 2.78,
+    "\\{": 5.0,
+    "\\}": 5.0,
+    ".": 0.0,
+    "\\lfloor": 4.44,
+    "\\rfloor": 4.44,
+    "\\lceil": 4.44,
+    "\\rceil": 4.44,
+}
+_SIZED_DELIMITERS = {"\\left", "\\right", "\\bigl", "\\bigr", "\\Bigl", "\\Bigr"}
+# Commands whose braced argument is set at the current size; the first group
+# is set upright (in text or roman letters).
+_UPRIGHT_WRAPPERS = {
+    "\\mathrm",
+    "\\text",
+    "\\operatorname",
+    "\\texttt",
+    "\\mathsf",
+    "\\mbox",
+    "\\textrm",
+}
+_WRAPPERS = _UPRIGHT_WRAPPERS | {
+    "\\mathit",
+    "\\mathbf",
+    "\\boldsymbol",
+    "\\mathcal",
+    "\\hat",
+    "\\bar",
+    "\\dot",
+    "\\ddot",
+    "\\tilde",
+    "\\vec",
+    "\\overline",
+    "\\mathbin",
+    "\\mathrel",
+    "\\mathop",
+}
+_ZERO_WIDTH = {"&", "\\displaystyle", "\\textstyle", "\\limits", "\\nolimits"}
+_NAMED_OPERATORS = {
+    "\\sin",
+    "\\cos",
+    "\\tan",
+    "\\exp",
+    "\\log",
+    "\\ln",
+    "\\sinh",
+    "\\cosh",
+    "\\tanh",
+    "\\arcsin",
+    "\\arccos",
+    "\\arctan",
+    "\\max",
+    "\\min",
+}
+# Letters far from the average letter width.
+_UPRIGHT_LETTERS = {
+    "m": 8.33,
+    "w": 7.22,
+    "i": 2.78,
+    "l": 2.78,
+    "j": 3.06,
+    "t": 3.89,
+    "f": 3.06,
+    "r": 3.92,
+    "s": 3.94,
+    "M": 9.17,
+    "W": 10.28,
+    "I": 3.61,
+    "J": 5.14,
+}
+_ITALIC_LETTERS = {
+    "m": 8.78,
+    "w": 7.16,
+    "i": 3.45,
+    "l": 2.98,
+    "j": 4.12,
+    "t": 3.61,
+    "f": 4.9,
+    "r": 4.51,
+    "M": 9.7,
+    "W": 9.44,
+    "I": 4.4,
+    "J": 5.53,
+}
+
+
+def _latex_argument(tokens: list[str], i: int) -> tuple[list[str], int]:
+    """
+    The tokens of the macro argument at ``tokens[i]`` (a braced group, or a
+    single token) and the index just past it.
+    """
+    while i < len(tokens) and tokens[i] == " ":
+        i += 1
+    if i >= len(tokens):
+        return [], i
+    if tokens[i] != "{":
+        return [tokens[i]], i + 1
+    depth = 0
+    for j in range(i, len(tokens)):
+        if tokens[j] == "{":
+            depth += 1
+        elif tokens[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return tokens[i + 1 : j], j + 1
+    return tokens[i + 1 :], len(tokens)
+
+
+def _latex_width(
+    tokens: list[str], scale: float, display: bool, upright: bool
+) -> float:
+    """
+    Width of a run of tokens at ``scale`` (1 for text size, smaller for
+    scripts). ``display`` is True in display style, where the parts of a
+    fraction keep the full size; ``upright`` is True inside ``\\mathrm``/``\\text``,
+    where a space is a real space.
+    """
+    total = 0.0
+    spaced = scale == 1.0  # operator spacing vanishes in script styles
+    script = max(scale * 0.7, 0.5)
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        i += 1
+        if token == "{":
+            group, i = _latex_argument(tokens, i - 1)
+            total += _latex_width(group, scale, display, upright)
+        elif token == " ":
+            total += 3.33 * scale if upright else 0.0
+        elif token in ("^", "_"):
+            group, i = _latex_argument(tokens, i)
+            total += _latex_width(group, script, False, False)
+        elif token in ("\\frac", "\\dfrac", "\\tfrac"):
+            numerator, i = _latex_argument(tokens, i)
+            denominator, i = _latex_argument(tokens, i)
+            inner = scale if display else script
+            total += 2.4 * scale + max(
+                _latex_width(numerator, inner, False, False),
+                _latex_width(denominator, inner, False, False),
+            )
+        elif token == "\\sqrt":
+            group, i = _latex_argument(tokens, i)
+            total += 8.33 * scale + _latex_width(group, scale, display, False)
+        elif token in _SIZED_DELIMITERS:
+            delimiter, i = _latex_argument(tokens, i)
+            total += _DELIMITER_WIDTHS.get("".join(delimiter), 3.89) * scale
+        elif token == "\\color":
+            _color, i = _latex_argument(tokens, i)
+        elif token in _WRAPPERS:
+            group, i = _latex_argument(tokens, i)
+            total += _latex_width(
+                group, scale, display, upright or token in _UPRIGHT_WRAPPERS
+            )
+        elif token in _SPACE_WIDTHS:
+            total += _SPACE_WIDTHS[token] * scale
+        elif token in _BINOP_WIDTHS:
+            total += (_BINOP_WIDTHS[token] + (4.44 if spaced else 0.0)) * scale
+        elif token in _RELATION_WIDTHS:
+            total += (_RELATION_WIDTHS[token] + (5.56 if spaced else 0.0)) * scale
+        elif token in _NAMED_OPERATORS:
+            total += (5.0 * (len(token) - 1) + 1.67) * scale
+        elif token in _ZERO_WIDTH or token == "}":
+            continue
+        elif token in ("(", ")"):
+            total += 3.89 * scale
+        elif token in (".", ";", ":", "'", "!", "|", "[", "]"):
+            total += 2.78 * scale
+        elif token == ",":
+            total += (2.78 + (1.67 if spaced and not upright else 0.0)) * scale
+        elif token.isdigit():
+            total += 5.0 * scale
+        elif token.isalpha() and len(token) == 1:
+            letters = _UPRIGHT_LETTERS if upright else _ITALIC_LETTERS
+            if token in letters:
+                total += letters[token] * scale
+            elif token.isupper():
+                total += (7.2 if upright else 7.6) * scale
+            else:
+                total += (5.0 if upright else 5.6) * scale
+        elif token.startswith("\\") and len(token) > 2:
+            total += 6.5 * scale  # a symbol command: a Greek letter, \infty, ...
+        else:
+            total += 5.0 * scale
+    return total
+
+
+def estimate_latex_width(latex: str) -> float:
+    """
+    Approximate width, in points at 10pt, of ``latex`` typeset as one line of
+    display-style math. Alignment markers (``&``) take no width.
+    """
+    tokens = [
+        " " if token.isspace() else token for token in _LATEX_TOKEN.findall(latex)
+    ]
+    return _latex_width(tokens, 1.0, True, False)
 
 
 GREEK_LOWER = {
@@ -417,8 +663,30 @@ class LatexRenderer(BaseRenderer):
 
     # Math groups are set flush-left as displaystyle boxes (not centred
     # displays), so they line up with the prose and show a nested block's indent.
-    MATH_OPEN = "\\noindent$\\displaystyle\n\\begin{aligned}[t]"
-    MATH_CLOSE = "\\end{aligned}$"
+    # Each box goes through ``\hcfit`` (FIT_DEFINITION), which scales it down
+    # to the line width if it is still too wide: TeX cannot break a line inside
+    # an ``aligned`` box, so an over-long group would otherwise run off the page.
+    MATH_OPEN = "\\noindent\\hcfit{$\\displaystyle\n\\begin{aligned}[t]"
+    MATH_CLOSE = "\\end{aligned}$}"
+    # Defines ``\hcfit``; written once at the top of any output that uses it.
+    # ``\providecommand`` keeps a definition of your own. The scaling needs
+    # graphicx; without it an over-wide group is set at full size, as before.
+    FIT_DEFINITION = (
+        "\\providecommand{\\hcfit}[1]{\\sbox0{#1}%\n"
+        "  \\ifdim\\wd0>\\linewidth\\ifdefined\\resizebox"
+        "\\resizebox{\\linewidth}{!}{\\usebox0}%\n"
+        "  \\else\\usebox0\\fi\\else\\usebox0\\fi}"
+    )
+    # The widest a calc row may be, in points at 10pt (the text width of a
+    # default ``article``), before it is laid out over several lines as with
+    # ``# hc: -m``: ``target = symbolic``, then ``= numeric`` and ``= result``
+    # each on a row of their own. A row that is still too wide gets a math
+    # group of its own, so only that group is scaled down by ``\hcfit``.
+    # ``None`` turns both off.
+    MAX_ROW_WIDTH: Optional[float] = 345.0
+    # True while a ``# hc: -g`` grid, which may be reflowed to fit the line, is
+    # formatted (see ``render_params_block``); a ``;`` grid keeps its rows.
+    reflow_param_grid = False
     # Vertical space before and after each math group (a box has none of the
     # display skip a centred display gets).
     MATH_SKIP = "\\medskip"
@@ -453,12 +721,14 @@ class LatexRenderer(BaseRenderer):
     IF_EXP_KEYWORDS = ("\\;\\mathrm{if}\\;", "\\;\\mathrm{else}\\;")
     COMPREHENSION_KEYWORDS = ("\\;\\mathrm{for}\\;", "\\;\\mathrm{in}\\;")
     # A file written by ``to_file`` is a complete document; the output itself is
-    # a fragment for a document's body. amssymb and xcolor are for CHECK_MARKS.
+    # a fragment for a document's body. amssymb and xcolor are for CHECK_MARKS,
+    # graphicx for scaling an over-wide math group (FIT_DEFINITION).
     preamble = (
         "\\documentclass{article}\n"
         "\\usepackage{amsmath}\n"
         "\\usepackage{amssymb}\n"
         "\\usepackage{xcolor}\n"
+        "\\usepackage{graphicx}\n"
         "\\begin{document}\n"
     )
     postamble = "\\end{document}\n"
@@ -490,8 +760,10 @@ class LatexRenderer(BaseRenderer):
         return context
 
     def complete(self, tree: list, base_context: BRC):
-        body = self.join(tree, base_context)
-        return body.strip() + "\n"
+        body = self.join(tree, base_context).strip()
+        if self.FIT_DEFINITION and "\\hcfit{" in body:
+            body = f"{self.FIT_DEFINITION}\n\n{body}"
+        return body + "\n"
 
     def join_item(self, item, depth: int, base_context: BRC) -> list[str]:
         """
@@ -558,12 +830,33 @@ class LatexRenderer(BaseRenderer):
     def join_math_group(self, rows: list, depth: int, base_context: BRC) -> list[str]:
         """
         Join the rows of a CalcsBlock into a single ``aligned`` math group.
+
+        A row wider than MAX_ROW_WIDTH (even after ``join_math_row`` has split
+        it over several lines) is set as a group of its own, so that when
+        ``\\hcfit`` scales it down to the line width the rows around it keep
+        their size.
         """
         math_rows = [self.join_math_row(row, base_context) for row in rows]
         math_rows = [row for row in math_rows if row]
-        if not math_rows:
-            return []
-        return [f"{self.math_group(math_rows)}\n\n"]
+        groups: list[list[str]] = [[]]
+        for row in math_rows:
+            if self.row_too_wide(row):
+                groups += [[row], []]
+            else:
+                groups[-1].append(row)
+        return [f"{self.math_group(group)}\n\n" for group in groups if group]
+
+    def row_too_wide(self, row: str) -> bool:
+        """
+        True when a joined ``aligned`` row (which may span several lines,
+        separated by ROW_SEP) has a line estimated wider than MAX_ROW_WIDTH.
+        """
+        if self.MAX_ROW_WIDTH is None:
+            return False
+        return any(
+            estimate_latex_width(line) > self.MAX_ROW_WIDTH
+            for line in row.split(self.ROW_SEP)
+        )
 
     def math_group(self, rows: list[str]) -> str:
         """
@@ -580,6 +873,10 @@ class LatexRenderer(BaseRenderer):
         (a pre-formatted multiline grid, or a one-shot line break) passes
         through unchanged; a line break is dropped since rows are already
         separated. An inline comment stays at the end of its line's row.
+
+        A row with substitution columns (more than ``target = value``) that
+        would be wider than MAX_ROW_WIDTH is laid out over several lines, like
+        a ``# hc: -m`` calc (see ``split_math_row``).
         """
         context = base_context.current
         if isinstance(row, str):
@@ -587,10 +884,37 @@ class LatexRenderer(BaseRenderer):
         parts = list(row)
         if parts and parts[0] == "":
             return ""
+        if parts.count(context.assign) > 1 and self.row_too_wide(
+            context.space.join(parts)
+        ):
+            return self.split_math_row(parts, base_context)
         if context.assign in parts:
             idx = parts.index(context.assign)
             parts[idx] = f"&{parts[idx]}"
         return context.space.join(parts).strip()
+
+    def split_math_row(self, parts: list[str], base_context: BRC) -> str:
+        """
+        Lay out the components of a calc row (``target = symbolic = numeric =
+        result``) as a multiline grid: the target and the first column on the
+        first line, then one line per further column, each opened by its
+        assignment symbol at the alignment point (``format_calc_grid``). An
+        inline comment, the last part, rides the last (result) line.
+        """
+        context = base_context.current
+        _ = context.space
+        columns: list[list[str]] = [[]]
+        for part in parts:
+            if part == context.assign:
+                columns.append([])
+            else:
+                columns[-1].append(part)
+        target, *values = (_.join(column).strip() for column in columns)
+        rows = [
+            ["" if k else target, context.assign, value]
+            for k, value in enumerate(values)
+        ]
+        return self.format_calc_grid(rows, base_context)
 
     def format_param_grid(self, rows: list, base_context: BRC) -> str:
         """
@@ -601,7 +925,52 @@ class LatexRenderer(BaseRenderer):
         after its value (its leading ``\\quad`` is dropped) and every non-last cell
         is followed by a ``\\qquad``, so the gap to the next assignment is wider
         than the gap inside a cell, whether or not that cell has a comment.
+
+        A grid estimated wider than MAX_ROW_WIDTH is first reflowed into fewer
+        columns (see ``fit_param_grid``).
         """
+        _ = base_context.current.space
+        rows = self.fit_param_grid(rows, base_context)
+        lines = [
+            f"{_}&".join(cells) for cells in self.param_grid_cells(rows, base_context)
+        ]
+        return self.math_group(lines)
+
+    def fit_param_grid(self, rows: list, base_context: BRC) -> list:
+        """
+        A ``# hc: -g`` grid unchanged if it fits in MAX_ROW_WIDTH, otherwise its
+        cells, in reading order, reflowed into the most columns that fit (one
+        column at the least; a grid still too wide is scaled down by
+        ``\\hcfit``). A ``;`` grid keeps the rows as written.
+        """
+        if self.MAX_ROW_WIDTH is None or not self.reflow_param_grid:
+            return rows
+        cells = [cell for row in rows for cell in row if cell is not None]
+        n_cols = max((len(row) for row in rows), default=0)
+        for cols in range(n_cols, 1, -1):
+            grid = (
+                rows
+                if cols == n_cols
+                else [cells[k : k + cols] for k in range(0, len(cells), cols)]
+            )
+            if self.param_grid_width(grid, base_context) <= self.MAX_ROW_WIDTH:
+                return grid
+        return [[cell] for cell in cells]
+
+    def param_grid_width(self, rows: list, base_context: BRC) -> float:
+        """Estimated width of a params grid: the widest cell of each column, summed."""
+        widths: list[float] = []
+        for cells in self.param_grid_cells(rows, base_context):
+            for k, cell in enumerate(cells):
+                width = estimate_latex_width(cell)
+                if k < len(widths):
+                    widths[k] = max(widths[k], width)
+                else:
+                    widths.append(width)
+        return sum(widths)
+
+    def param_grid_cells(self, rows: list, base_context: BRC) -> list[list[str]]:
+        """The ``aligned`` text of each cell of a params grid, row by row."""
         _ = base_context.current.space
         has_comments = any(
             cell is not None and len(cell) > 3 and str(cell[3])
@@ -629,8 +998,8 @@ class LatexRenderer(BaseRenderer):
                     if k < len(row) - 1:
                         text += f"{_}\\qquad"
                 cells.append(text)
-            lines.append(f"{_}&".join(cells))
-        return self.math_group(lines)
+            lines.append(cells)
+        return lines
 
     def format_calc_grid(self, rows: list, base_context: BRC) -> str:
         """
@@ -770,6 +1139,20 @@ def render_keyword(renderer: LR, node: Keyword, base_context: BRC) -> str:
     if node.arg is None:
         return f"\\ast\\ast {value}"
     return f"{latex_identifier(node.arg, identifier_options(renderer, base_context))} = {value}"
+
+
+@LR.register("params_block")
+def render_params_block(renderer: LR, node: ParamsBlock, base_context: BRC) -> str:
+    """
+    The base params grid, marking a ``# hc: -g`` grid (one without
+    ``row_sizes``) as free to reflow into fewer columns if it is too wide for
+    the line (``fit_param_grid``). A ``;`` grid keeps the layout written.
+    """
+    renderer.reflow_param_grid = not node.row_sizes
+    try:
+        return base_render_params_block(renderer, node, base_context)
+    finally:
+        renderer.reflow_param_grid = False
 
 
 @LR.register("calcs_block:pre")

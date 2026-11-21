@@ -9,8 +9,8 @@ own subclass.
 
 | Attribute | `LatexRenderer` | `MarkdownRenderer` | Wraps or separates |
 |---|---|---|---|
-| `MATH_OPEN` | `\noindent$\displaystyle` + newline + `\begin{aligned}[t]` | `$$\begin{aligned}` | The start of a math group |
-| `MATH_CLOSE` | `\end{aligned}$` | `\end{aligned}$$` | The end of a math group |
+| `MATH_OPEN` | `\noindent\hcfit{$\displaystyle` + newline + `\begin{aligned}[t]` | `$$\begin{aligned}` | The start of a math group |
+| `MATH_CLOSE` | `\end{aligned}$}` | `\end{aligned}$$` | The end of a math group |
 | `ROW_SEP` | ` \\` + newline | ` \\ ` | Rows within a group |
 | `MATH_SKIP` | `\medskip` | (empty) | Before and after each group |
 | `PARAGRAPH` | `\noindent ` | (empty) | The start of each prose paragraph |
@@ -21,6 +21,8 @@ own subclass.
 | `COMMENT_OPEN`, `COMMENT_CLOSE` | `\quad\text{(`, `)}` | inherited | Around an inline comment |
 | `OPERATOR_SYMBOLS` | `{"mult_op": "\\cdot", ...}` | adds `\lt`, `\gt` | The symbol for each operator node type |
 | `MATH_FUNCS` | `{"sin": "\\sin", ...}` | inherited | Function names typeset as operators |
+| `MAX_ROW_WIDTH` | `345.0` (points) | `None` | The widest a row may be before it is split (see [long equations](../renderers/latex.md#long-equations)); `None` turns splitting off |
+| `FIT_DEFINITION` | `\providecommand{\hcfit}...` | not used | Defines `\hcfit`, written once at the top of output that uses it |
 
 The values are in {source}`src/handcalcs/renderers/latex.py` and
 {source}`src/handcalcs/renderers/markdown.py`.

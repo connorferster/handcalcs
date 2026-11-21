@@ -1,3 +1,7 @@
+\providecommand{\hcfit}[1]{\sbox0{#1}%
+  \ifdim\wd0>\linewidth\ifdefined\resizebox\resizebox{\linewidth}{!}{\usebox0}%
+  \else\usebox0\fi\else\usebox0\fi}
+
 \section*{HandCalcs v2.0 Demo}
 
 \noindent This is a demo of the main rendering features of HandCalcs v2.x. It is intended to showcase the output of a given renderer and make comparisons between renderers. This paragraph demonstrates the rendering of a series of comment lines which can be used for explanation within your Python script.
@@ -15,41 +19,45 @@
 \medskip
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 a &= 5.25 \\
 b &= -1.04231 \times 10^{1} \\
 c &= 2 \\
-x_{1} &= \frac{-b + \sqrt{b^{2} - 4 \cdot a \cdot c}}{2 \cdot a} = \frac{-\left(-1.04231 \times 10^{1}\right) + \sqrt{\left(-1.04231 \times 10^{1}\right)^{2} - 4 \cdot 5.25 \cdot 2}}{2 \cdot 5.25} = 1.7686 \\
-x_{2} &= \frac{-b - \sqrt{b^{2} - 4 \cdot a \cdot c}}{2 \cdot a} = \frac{-\left(-1.04231 \times 10^{1}\right) - \sqrt{\left(-1.04231 \times 10^{1}\right)^{2} - 4 \cdot 5.25 \cdot 2}}{2 \cdot 5.25} = 0.21523
-\end{aligned}$
+x_{1} &= \frac{-b + \sqrt{b^{2} - 4 \cdot a \cdot c}}{2 \cdot a} \\
+&= \frac{-\left(-1.04231 \times 10^{1}\right) + \sqrt{\left(-1.04231 \times 10^{1}\right)^{2} - 4 \cdot 5.25 \cdot 2}}{2 \cdot 5.25} \\
+&= 1.7686 \\
+x_{2} &= \frac{-b - \sqrt{b^{2} - 4 \cdot a \cdot c}}{2 \cdot a} \\
+&= \frac{-\left(-1.04231 \times 10^{1}\right) - \sqrt{\left(-1.04231 \times 10^{1}\right)^{2} - 4 \cdot 5.25 \cdot 2}}{2 \cdot 5.25} \\
+&= 0.21523
+\end{aligned}$}
 
 \medskip
 
 \noindent Params grid type 1
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 f &= 1 \; &g &= 2 \; &h &= 4 \;
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
 \noindent Params grid type 2 (Comments allowed)
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 x &= 3 \; \text{(comment 1)} \qquad &y &= 4 \qquad &z &= 5 \; \text{(last comment)}
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
 \subsection*{Lateral torsional buckling}
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \omega_{2} &= 1 \quad\text{(A beam under uniform moment)} \\
 L &= 6000 \quad\text{(Unbraced length of beam, in mm)} \\
@@ -58,29 +66,31 @@ I_{y} &= 160 \times 10^{6} \quad\text{(Second moment of area about weak axis, in
 G &= 77 \times 10^{3} \quad\text{(Shear modulus, in MPa)} \\
 J &= 133 \times 10^{3} \quad\text{(Polar moment of area, in mm\textasciicircum{}3)} \\
 C_{w} &= 200 \times 10^{9} \quad\text{(Warping constant)}
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
 \medskip
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} \\
 &= \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} \\
 &= 4.3134 \times 10^{8} \quad\text{(A long equation)}
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
 \medskip
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
-M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} = \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} = 4.3134 \times 10^{8} \quad\text{(A long equation)}
-\end{aligned}$
+M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} \\
+&= \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} \\
+&= 4.3134 \times 10^{8} \quad\text{(A long equation)}
+\end{aligned}$}
 
 \medskip
 
@@ -89,14 +99,14 @@ M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot 
 \noindent The purpose of this demo is to show nested if/elif/else statements
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 b_{w} &= 200 \quad\text{(mm)} \\
 h_{w} &= 310 \quad\text{(mm)} \\
 t_{f} &= 10 \quad\text{(mm)} \\
 t_{w} &= 6 \quad\text{(mm)} \\
 F_{y} &= 350 \quad\text{(MPa)}
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
@@ -107,10 +117,10 @@ F_{y} &= 350 \quad\text{(MPa)}
 
 \begin{list}{}{\setlength{\leftmargin}{1.5em}}\item[]
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \mathrm{class}_{\mathrm{section}} &= 3
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
@@ -121,11 +131,11 @@ F_{y} &= 350 \quad\text{(MPa)}
 \subsection*{Iteration using for-loops}
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \mathrm{vals}_{x} &= [1, 2, 3, 4, 5] \\
 \mathrm{vals}_{y} &= [5, 4, 3, 2, 1]
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
@@ -138,11 +148,11 @@ F_{y} &= 350 \quad\text{(MPa)}
 
 \begin{list}{}{\setlength{\leftmargin}{1.5em}}\item[]
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \mathrm{value}_{\mathrm{computed}} &= \operatorname{degrees}\left(\arctan\left(\frac{\mathrm{val}_{y}}{\mathrm{val}_{x}}\right)\right) = \operatorname{degrees}\left(\arctan\left(\frac{1}{5}\right)\right) = 11.31 \\
 \mathrm{acc}.\mathrm{append}\left(\mathrm{value}_{\mathrm{computed}}\right) &= \mathrm{acc}.\mathrm{append}\left(11.31\right)
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
@@ -151,10 +161,10 @@ F_{y} &= 350 \quad\text{(MPa)}
 \end{list}
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \mathrm{acc} &= [78.69, 75.964, 71.565, \ldots, 30.964, 21.801, 11.31]
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
@@ -163,7 +173,7 @@ F_{y} &= 350 \quad\text{(MPa)}
 \noindent This section demonstrates the \texttt{and}, \texttt{or}, \texttt{not}, \texttt{is}, and \texttt{in} operators. The \texttt{and}/\texttt{or} operators render with their operands spaced, while a nested \texttt{or} inside an \texttt{and} is parenthesized to preserve precedence.
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \mathrm{temp} &= 75 \quad\text{(Measured temperature, deg C)} \\
 \mathrm{temp}_{\mathrm{min}} &= 40 \quad\text{(Minimum operating temperature, deg C)} \\
@@ -171,15 +181,27 @@ F_{y} &= 350 \quad\text{(MPa)}
 \mathrm{materials} &= [\text{``steel''}, \text{``concrete''}, \text{``timber''}] \\
 \mathrm{material} &= \text{``steel''} \\
 \mathrm{override} &= \mathrm{None} \\
-\mathrm{in}_{\mathrm{range}} &= \mathrm{temp}_{\mathrm{min}} < \mathrm{temp} \;\mathrm{and}\; \mathrm{temp} < \mathrm{temp}_{\mathrm{max}} = 40 < 75 \;\mathrm{and}\; 75 < 120 = \mathrm{True} \quad\text{(Within the operating range)} \\
-\mathrm{is}_{\mathrm{extreme}} &= \mathrm{temp} < \mathrm{temp}_{\mathrm{min}} \;\mathrm{or}\; \mathrm{temp} > \mathrm{temp}_{\mathrm{max}} = 75 < 40 \;\mathrm{or}\; 75 > 120 = \mathrm{False} \quad\text{(Outside the operating range)} \\
+\mathrm{in}_{\mathrm{range}} &= \mathrm{temp}_{\mathrm{min}} < \mathrm{temp} \;\mathrm{and}\; \mathrm{temp} < \mathrm{temp}_{\mathrm{max}} \\
+&= 40 < 75 \;\mathrm{and}\; 75 < 120 \\
+&= \mathrm{True} \quad\text{(Within the operating range)} \\
+\mathrm{is}_{\mathrm{extreme}} &= \mathrm{temp} < \mathrm{temp}_{\mathrm{min}} \;\mathrm{or}\; \mathrm{temp} > \mathrm{temp}_{\mathrm{max}} \\
+&= 75 < 40 \;\mathrm{or}\; 75 > 120 \\
+&= \mathrm{False} \quad\text{(Outside the operating range)} \\
 \mathrm{not}_{\mathrm{frozen}} &= \mathrm{not}\;\left(\mathrm{temp} < 0\right) = \mathrm{not}\;\left(75 < 0\right) = \mathrm{True} \quad\text{(Above freezing)} \\
-\mathrm{material}_{\mathrm{ok}} &= \mathrm{material} \in \mathrm{materials} = \text{``steel''} \in [\text{``steel''}, \text{``concrete''}, \text{``timber''}] = \mathrm{True} \quad\text{(Material is recognised)} \\
-\mathrm{material}_{\mathrm{missing}} &= \mathrm{material} \notin \mathrm{materials} = \text{``steel''} \notin [\text{``steel''}, \text{``concrete''}, \text{``timber''}] = \mathrm{False} \\
-\mathrm{no}_{\mathrm{override}} &= \mathrm{override} \;\mathrm{is}\; \mathrm{None} = \mathrm{None} \;\mathrm{is}\; \mathrm{None} = \mathrm{True} \quad\text{(No manual override was set)} \\
+\mathrm{material}_{\mathrm{ok}} &= \mathrm{material} \in \mathrm{materials} \\
+&= \text{``steel''} \in [\text{``steel''}, \text{``concrete''}, \text{``timber''}] \\
+&= \mathrm{True} \quad\text{(Material is recognised)} \\
+\mathrm{material}_{\mathrm{missing}} &= \mathrm{material} \notin \mathrm{materials} \\
+&= \text{``steel''} \notin [\text{``steel''}, \text{``concrete''}, \text{``timber''}] \\
+&= \mathrm{False} \\
+\mathrm{no}_{\mathrm{override}} &= \mathrm{override} \;\mathrm{is}\; \mathrm{None} \\
+&= \mathrm{None} \;\mathrm{is}\; \mathrm{None} \\
+&= \mathrm{True} \quad\text{(No manual override was set)} \\
 \mathrm{has}_{\mathrm{override}} &= \mathrm{override} \;\mathrm{is\ not}\; \mathrm{None} = \mathrm{None} \;\mathrm{is\ not}\; \mathrm{None} = \mathrm{False} \\
-\mathrm{combined} &= \mathrm{in}_{\mathrm{range}} \;\mathrm{and}\; \left(\mathrm{is}_{\mathrm{extreme}} \;\mathrm{or}\; \mathrm{not}_{\mathrm{frozen}}\right) = \mathrm{True} \;\mathrm{and}\; \left(\mathrm{False} \;\mathrm{or}\; \mathrm{True}\right) = \mathrm{True} \quad\text{(Precedence: \texttt{or} is parenthesized)}
-\end{aligned}$
+\mathrm{combined} &= \mathrm{in}_{\mathrm{range}} \;\mathrm{and}\; \left(\mathrm{is}_{\mathrm{extreme}} \;\mathrm{or}\; \mathrm{not}_{\mathrm{frozen}}\right) \\
+&= \mathrm{True} \;\mathrm{and}\; \left(\mathrm{False} \;\mathrm{or}\; \mathrm{True}\right) \\
+&= \mathrm{True} \quad\text{(Precedence: \texttt{or} is parenthesized)}
+\end{aligned}$}
 
 \medskip
 
@@ -187,20 +209,20 @@ F_{y} &= 350 \quad\text{(MPa)}
 
 \begin{list}{}{\setlength{\leftmargin}{1.5em}}\item[]
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 \mathrm{section}_{\mathrm{check}} &= 1
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
 
 \end{list}
 
 \medskip
-\noindent$\displaystyle
+\noindent\hcfit{$\displaystyle
 \begin{aligned}[t]
 a_{\mathrm{dictionary}} &= \{\text{``cat''}\colon 1, \text{``hat''}\colon 2, \text{``bat''}\colon 3.1416\} \\
 a_{\mathrm{tuple}} &= (\text{``string''}, 1, 42, 3 + 4j)
-\end{aligned}$
+\end{aligned}$}
 
 \medskip
