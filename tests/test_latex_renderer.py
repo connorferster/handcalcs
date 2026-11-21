@@ -19,7 +19,13 @@ import pytest
 
 from handcalcs import HandCalcs
 from handcalcs.renderers.identifiers import IdentifierOptions
-from handcalcs.renderers.latex import LatexRenderer, latex_identifier, latex_prose
+from handcalcs.renderers.latex import (
+    LatexRenderer,
+    estimate_latex_width,
+    latex_identifier,
+    latex_prose,
+)
+from handcalcs.renderers.markdown import MarkdownRenderer
 
 GOLDEN = pathlib.Path(__file__).parent / "golden" / "latex_demo.tex"
 UPDATE_GOLDEN = os.environ.get("HANDCALCS_UPDATE_GOLDEN") == "1"
@@ -83,9 +89,6 @@ def find_pdflatex() -> str | None:
     return str(tinytex) if tinytex.exists() else None
 
 
-KNOWN_OVERFULL = 5
-
-
 @pytest.mark.skipif(find_pdflatex() is None, reason="pdflatex is not installed")
 def test_demo_compiles_with_pdflatex(demo_output, tmp_path):
     tex = LatexRenderer().to_file(demo_output, tmp_path / "demo.tex")
@@ -98,20 +101,19 @@ def test_demo_compiles_with_pdflatex(demo_output, tmp_path):
         if line.startswith("!") or "Warning" in line
     ]
     assert result.returncode == 0 and not problems, "\n".join(problems)
-    # Overflow budget. The demo still has KNOWN_OVERFULL boxes wider than the
-    # text: the x_1/x_2 group, both M_u forms (one deliberately one-line), the
-    # nested value_computed row and the material_ok/missing logic rows.
-    # Fewer is progress (lower the budget); more is a regression.
+    # Long rows are split over several lines and a group still too wide is
+    # scaled to the line by \\hcfit, so nothing runs past the text width.
     overfull = re.findall(r"^Overfull \\hbox.*$", (tmp_path / "demo.log").read_text(), re.M)
-    assert len(overfull) <= KNOWN_OVERFULL, "\n".join(overfull)
+    assert not overfull, "\n".join(overfull)
 
 
 # --- Output structure ---------------------------------------------------------
 
 def test_calcs_block_is_one_aligned_group_without_trailing_row_break():
     assert render("a = 1\nb = 2\n") == (
-        "\\medskip\n\\noindent$\\displaystyle\n\\begin{aligned}[t]\n"
-        "a &= 1 \\\\\nb &= 2\n\\end{aligned}$\n\n\\medskip\n"
+        f"{LatexRenderer.FIT_DEFINITION}\n\n"
+        "\\medskip\n\\noindent\\hcfit{$\\displaystyle\n\\begin{aligned}[t]\n"
+        "a &= 1 \\\\\nb &= 2\n\\end{aligned}$}\n\n\\medskip\n"
     )
 
 
@@ -497,3 +499,83 @@ def test_function_call_keyword_arguments():
         " = \\operatorname{round}\\left(2.567, \\mathrm{ndigits} = 3\\right) = 2.567"
     )
     assert out[-1].startswith("r &= \\operatorname{f}\\left(1, \\ast\\ast \\mathrm{opts}\\right)")
+
+
+# --- Long equations -------------------------------------------------------------
+
+LONG_CALC = (
+    "alpha_first = 1.2345\n"
+    "beta_second = 2.3456\n"
+    "gamma_third = 3.4567\n"
+    "total = (alpha_first + beta_second) * (gamma_third + alpha_first) * "
+    "(beta_second + gamma_third) * (alpha_first + beta_second + gamma_third)"
+    "  # a note\n"
+)
+
+
+def test_width_estimate_tracks_typeset_width():
+    # Typeset widths (in pt) measured with pdflatex at 10pt.
+    assert estimate_latex_width("342\\ \\mathrm{mm} - 86.5\\ \\mathrm{mm}") == pytest.approx(85.0, rel=0.1)
+    assert estimate_latex_width(
+        "\\frac{127\\ \\mathrm{mm}}{18.9\\ \\mathrm{mm}}"
+    ) == pytest.approx(40.2, rel=0.1)
+    assert estimate_latex_width("a &= b") == estimate_latex_width("a = b")
+
+
+def test_long_row_is_split_one_step_per_line_with_comment_on_the_last():
+    out = rows(LONG_CALC)
+    assert out[-3].startswith("\\mathrm{total} &= \\left(\\alpha_{\\mathrm{first}}")
+    assert out[-2].startswith("&= \\left(1.2345 + 2.3456\\right)")
+    assert out[-1].startswith("&= ") and out[-1].endswith("\\quad\\text{(a note)}")
+
+
+def test_short_row_is_not_split():
+    assert rows("a = 2\nb = a + 1\n")[1] == "b &= a + 1 = 2 + 1 = 3"
+
+
+def test_max_row_width_none_keeps_long_rows_on_one_line():
+    class OneLine(LatexRenderer):
+        MAX_ROW_WIDTH = None
+
+    out = HandCalcs(renderer=OneLine())(LONG_CALC)
+    assert out.count("&=") == 4
+
+
+def test_row_too_wide_after_splitting_gets_its_own_group():
+    terms = " + ".join(f"x_{k} * x_{k}" for k in range(40))
+    source = "from math import sqrt\n" + "".join(f"x_{k} = {k}\n" for k in range(40))
+    source += f"y = sqrt({terms})\nz = 1\n"
+    out = render(source)
+    groups = out.split("\\begin{aligned}[t]\n")[1:]
+    assert len(groups) == 3
+    assert groups[1].startswith("y &=") and "z &= 1" in groups[2]
+
+
+def test_fit_definition_written_once_before_the_body():
+    out = render("a = 1\n## Heading\nb = 2\n")
+    assert out.startswith(LatexRenderer.FIT_DEFINITION)
+    assert out.count("\\providecommand") == 1
+    assert "\\usepackage{graphicx}" in LatexRenderer.preamble
+
+
+def test_wide_params_grid_reflows_into_fewer_columns():
+    source = "# hc: -g -c 3\n" + "".join(
+        f"x_{k} = {k}  # a fairly long explanatory note number {k}\n" for k in range(6)
+    )
+    out = rows(source)
+    assert all(row.count("&=") < 3 for row in out)
+    assert [row.split(" &=")[0] for row in out][0] == "x_{0}"
+
+
+def test_wide_semicolon_grid_keeps_its_rows():
+    cells = "; ".join(f"x_{k} = {k}.123456789" for k in range(12))
+    assert len(rows(cells + "\n")) == 1
+
+
+def test_narrow_params_grid_keeps_its_columns():
+    assert rows("# hc: -g\na = 1\nb = 2\nc = 3\nd = 4\n")[0].count("&=") == 3
+
+
+def test_markdown_does_not_split_long_rows():
+    out = HandCalcs(renderer=MarkdownRenderer())(LONG_CALC)
+    assert "hcfit" not in out and out.count("&=") == 4
