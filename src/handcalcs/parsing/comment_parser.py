@@ -3,7 +3,6 @@ import ast
 
 from .commands import CommentCommandError
 
-
 HEADING_PREFIX = re.compile(r"^#(?:\s*#+)?")
 
 

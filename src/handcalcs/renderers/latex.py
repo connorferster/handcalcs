@@ -692,7 +692,8 @@ class LatexRenderer(BaseRenderer):
     MATH_SKIP = "\\medskip"
     PARAGRAPH = "\\noindent "
     ROW_SEP = " \\\\\n"
-    LINE_BREAK = "\\medskip"
+    # A ``# hc: -b`` line break: one blank line.
+    LINE_BREAK = "\\vspace{\\baselineskip}"
     PAGE_BREAK = "\\newpage"
     CONTINUATION_INDENT = "\\quad"
     BLOCK_OPEN = "\\begin{list}{}{\\setlength{\\leftmargin}{1.5em}}\\item[]"

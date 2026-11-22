@@ -216,17 +216,18 @@ def test_quoted_body_paragraphs_stay_in_one_quote():
     assert tokens.count("blockquote_open") == 1
 
 
-def test_line_break_is_one_spacer_paragraph():
+def test_line_break_is_one_spacer_div():
     assert render("a = 1\n# hc: -b\nb = 2\n") == (
-        "$$\\begin{aligned} a &= 1 \\end{aligned}$$\n\n&nbsp;\n\n"
+        "$$\\begin{aligned} a &= 1 \\end{aligned}$$\n\n"
+        '<div style="height:0.25em"></div>\n\n'
         "$$\\begin{aligned} b &= 2 \\end{aligned}$$\n"
     )
 
 
 def test_line_break_inside_quote_is_quoted():
     out = render("a = 1\nif a > 0:\n    b = 1\n    # hc: -b\n    c = 2\n")
-    assert out.count("&nbsp;") == 1
-    assert "\n>\n> &nbsp;\n>\n" in out
+    assert out.count("<div") == 1
+    assert '\n>\n> <div style="height:0.25em"></div>\n>\n' in out
 
 
 def test_output_has_no_runs_of_blank_lines(demo_output):
