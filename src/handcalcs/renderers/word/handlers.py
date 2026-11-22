@@ -44,6 +44,7 @@ from handcalcs.renderers.base import (
     quantity_power_base,
     receiver_needs_parens,
     render_condition,
+    render_params_block as base_render_params_block,
 )
 from handcalcs.renderers.identifiers import (
     GREEK_UNICODE,
@@ -629,3 +630,17 @@ def for_block_header(renderer: WR, node: ForBlock, base_context: BRC) -> str:
     target = renderer.render(node.assigns[0], base_context)
     iterable = renderer.render(node.iterator[0], base_context)
     return f"Iterating over each {inline_math(target)} in {inline_math(iterable)}:"
+
+
+@WR.register("params_block")
+def render_params_block(renderer: WR, node, base_context: BRC):
+    """
+    The base params grid, marking a ``# hc: -g`` grid (one without
+    ``row_sizes``) as free to reflow into fewer columns if it is too wide for
+    the page (``DocumentWriter.fit_params``). A ``;`` grid keeps its rows.
+    """
+    renderer.reflow_param_grid = not node.row_sizes
+    try:
+        return base_render_params_block(renderer, node, base_context)
+    finally:
+        renderer.reflow_param_grid = False

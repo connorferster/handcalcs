@@ -4,6 +4,11 @@
 
 ### Fixes
 
+- **Long equations no longer run off the page in Word**: the Word renderer estimates
+  each equation's width against the document's text width. A substituted row that is
+  too wide is split one step per row, as with `-m`; a wide `# hc: -g` grid is set in
+  fewer columns; and a row that is still too wide is set in a smaller font, down to
+  60% ([details](../renderers/word.md#long-equations)).
 - **Long equations no longer run off the page in LaTeX**: TeX cannot break a line
   inside an `aligned` group, so long calculations overflowed the right margin (an
   `Overfull \hbox` warning). The LaTeX renderer now estimates each row's typeset width:
