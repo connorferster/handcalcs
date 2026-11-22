@@ -57,8 +57,7 @@ pip install handcalcs
 ```
 
 handcalcs needs Python 3.11 or newer. Extras add the Excel and Word renderers
-(`handcalcs[excel]`, `handcalcs[word]`) and Jupyter export options
-(`handcalcs[exporters]`). See [Installation](https://handcalcs.structuralpython.com/getting-started/installation.html).
+(`handcalcs[excel]`, `handcalcs[word]`). See [Installation](https://handcalcs.structuralpython.com/getting-started/installation.html).
 
 ## Quick start
 

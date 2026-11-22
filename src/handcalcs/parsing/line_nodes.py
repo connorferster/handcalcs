@@ -8,6 +8,7 @@ from .commands import parse_commands
 from .comment_parser import (
     is_comment_command,
     is_markdown_heading,
+    heading_prefix_length,
     parse_kwargs,
     split_commands,
 )
@@ -75,12 +76,12 @@ class Heading(HcLineNode):
     def from_raw_comment(cls, comment: str):
         # The first '#' is the Python comment marker, not part of the heading; the
         # remaining leading '#' characters set the markdown heading level (so '##'
-        # -> level 1, '###' -> level 2). The remaining text (with '#'s and
-        # surrounding whitespace stripped) is the heading content.
+        # -> level 1, '###' -> level 2). Spaces between them don't count, so
+        # '# ##' is '###'. The remaining text is the heading content.
         stripped = comment.lstrip()
-        leading = len(stripped) - len(stripped.lstrip("#"))
-        heading_level = max(leading - 1, 1)
-        content = stripped.lstrip("#").strip()
+        hashes, length = heading_prefix_length(stripped)
+        heading_level = max(hashes - 1, 1)
+        content = stripped[length:].strip()
         return cls(content=content, heading_level=heading_level)
 
 

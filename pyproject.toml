@@ -37,11 +37,6 @@ Source = "https://github.com/connorferster/handcalcs"
 
 
 [project.optional-dependencies]
-exporters = [
-    "nb-hideinputs",
-]
-
-
 doc = [
     "sphinx>=8.1",
     "shibuya>=2025.1",

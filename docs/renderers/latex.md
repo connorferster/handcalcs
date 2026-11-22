@@ -102,7 +102,7 @@ notebooks.
 | Comment lines | A `\noindent` paragraph (LaTeX special characters escaped; `` `code` ``, `**bold**`, `*italic*` and `$math$` typeset) |
 | A run of calculation lines | One flush-left `aligned` group, aligned on the first `=` of each row, with `\medskip` before and after |
 | Parameter grid | An `aligned` group with one column pair per cell |
-| `# hc: -b` | `\medskip` |
+| `# hc: -b` | `\vspace{\baselineskip}` (one blank line) |
 | `if` / `for` body | Indented with a `list` environment |
 
 ## Long equations

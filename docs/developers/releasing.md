@@ -23,7 +23,7 @@
 
 | Workflow | Runs |
 |---|---|
-| `.github/workflows/python-pytest.yml` | On pushes and pull requests to `main`: `uv sync`, `black --check`, `pytest`, on Linux, macOS and Windows with Python 3.11 to 3.14. |
+| `.github/workflows/python-pytest.yml` | On pushes and pull requests to `main`: `uv sync`, `black --check`, `pytest`, on Linux, macOS and Windows with Python 3.11 to 3.14; `pytest` again with forallpeople 4, and the Markdown output through KaTeX. |
 | `.github/workflows/python-publish.yml` | On a published GitHub release: build, check the version against the tag and upload to PyPI. |
 
 ## PyPI trusted publishing

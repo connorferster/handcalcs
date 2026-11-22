@@ -139,6 +139,9 @@ class HTMLRenderer(BaseRenderer):
         ' <span class="hc-check hc-fail">✗</span>',
     )
     PAGE_BREAK = '<div class="hc-page-break" style="break-after: page;"></div>'
+    # A ``# hc: -b`` line break: an empty div, one blank line tall with the
+    # flex gap (see ``.hc-break`` in the stylesheet).
+    LINE_BREAK = '<div class="hc-break"></div>'
     # A ``# hc: --boxed`` result; see ``result_span``.
     BOX = (BOXED_OPEN, "</span>")
     # A file written by ``to_file`` is a complete page around the output, which
@@ -309,6 +312,9 @@ class HTMLRenderer(BaseRenderer):
         ".handcalcs :where(.hc-paren-2){transform:scaleY(3);margin:0 0.15em;}"
         ".handcalcs :where(.hc-hidden){position:absolute;width:1px;height:1px;"
         "overflow:hidden;clip-path:inset(50%);white-space:nowrap;}"
+        # A `-b` line break: with the flex gap, about one blank line, the same
+        # space as the Markdown renderer adds between equations in Jupyter.
+        ".handcalcs :where(.hc-break){height:1em;}"
         ".handcalcs :where(.hc-matrix-cell){display:table-cell;text-align:right;"
         "padding:0 0.3em;line-height:1.2;}"
     )
@@ -364,8 +370,8 @@ class HTMLRenderer(BaseRenderer):
           its body lines directly, at the current level (no wrapper);
         - an all-string list -> one ``.hc-line`` whose components join with a
           single space.
-        Falsy items (``''``/``None``/``[]``) and one-shot line-break directives
-        emit nothing -- CSS ``gap`` owns inter-line spacing.
+        Falsy items (``''``/``None``/``[]``) emit nothing -- CSS ``gap`` owns
+        inter-line spacing -- and a one-shot line break is ``LINE_BREAK``.
         """
         if not item:
             return []
@@ -373,10 +379,9 @@ class HTMLRenderer(BaseRenderer):
         if isinstance(item, str):
             if item == PAGE_BREAK:
                 return [self.PAGE_BREAK]
-            # A one-shot line-break directive is a bare newline; the CSS gap
-            # already supplies vertical rhythm, so it emits nothing.
+            # A one-shot line-break directive is a bare newline.
             if not item.strip("\n"):
-                return []
+                return [self.LINE_BREAK]
             stripped = item.strip()
             # Block-level HTML built by a handler (a heading, a prose <p>) is
             # already a complete element; pass it through as a flex child.

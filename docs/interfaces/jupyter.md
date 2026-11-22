@@ -34,7 +34,8 @@ What happens:
    suppressed. If the cell raises an error, the error is shown as usual and nothing
    is rendered.
 2. handcalcs parses the cell and renders it with the session's renderer, reading values
-   from the notebook namespace.
+   from the notebook namespace. Line magics (`%time ...`) and `!` commands in the cell
+   run in step 1 but are not rendered. They can't be combined with `inputs=`.
 3. The output is displayed with the IPython display class that matches the renderer.
 
 Formatting is controlled with [comment commands](../getting-started/comment-commands.md)
@@ -172,9 +173,12 @@ inherits from: a subclass of `HTMLRenderer` is shown as HTML, a subclass of
 ## Exporting a notebook
 
 To share a notebook of rendered calculations without the code, export it with the
-input cells hidden. The [nb-hideinputs](https://github.com/connorferster/nb-hideinputs)
-package (`pip install "handcalcs[exporters]"`) adds "no input" HTML, LaTeX and PDF
-export options to Jupyter.
+input cells hidden, using nbconvert's `--no-input`:
+
+```bash
+jupyter nbconvert --to html --no-input calcs.ipynb
+jupyter nbconvert --to pdf --no-input calcs.ipynb
+```
 
 ## Source
 

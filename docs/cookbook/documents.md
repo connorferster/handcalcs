@@ -141,8 +141,7 @@ jupyter nbconvert --to html --no-input calcs.ipynb
 jupyter nbconvert --to pdf --no-input calcs.ipynb
 ```
 
-`pip install "handcalcs[exporters]"` also adds "no input" export options to Jupyter's
-menus. See [Exporting a notebook](../interfaces/jupyter.md#exporting-a-notebook).
+See also [Exporting a notebook](../interfaces/jupyter.md#exporting-a-notebook).
 
 ## Start a new page
 

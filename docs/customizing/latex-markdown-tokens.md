@@ -14,7 +14,7 @@ own subclass.
 | `ROW_SEP` | ` \\` + newline | ` \\ ` | Rows within a group |
 | `MATH_SKIP` | `\medskip` | (empty) | Before and after each group |
 | `PARAGRAPH` | `\noindent ` | (empty) | The start of each prose paragraph |
-| `LINE_BREAK` | `\medskip` | `&nbsp;` | A `# hc: -b` break |
+| `LINE_BREAK` | `\vspace{\baselineskip}` | `<div style="height:0.25em"></div>` | A `# hc: -b` break |
 | `BLOCK_OPEN`, `BLOCK_CLOSE` | a `list` environment | not used | Around an `if`/`for` body |
 | `BLOCK_PREFIX` | not used | `>` | Each line of an `if`/`for` body (blockquote) |
 | `HEADINGS` | `section*`, `subsection*`, `subsubsection*`, `paragraph*` | not used (`#` headings) | Headings by level |

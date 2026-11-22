@@ -31,8 +31,29 @@ lines (rc5).
 `@handcalc(jupyter_display=True)` still works, with a deprecation warning; it will
 be removed in handcalcs 3.0.
 
+### Changes since 2.0.0rc5
+
+- **The `exporters` extra is gone.** nb-hideinputs, which it installed, no longer hides
+  input cells with current nbconvert. Use nbconvert's own `--no-input` instead
+  (`jupyter nbconvert --to html --no-input calcs.ipynb`; see
+  [Exporting a notebook](../interfaces/jupyter.md#exporting-a-notebook)).
+
 ### Fixes since 2.0.0rc5
 
+- **`# ##` and `#  ##` are headings**, the same as `###`: spaces between the comment
+  marker and the heading's `#`s no longer turn it into a comment line.
+- **`# hc: -b` adds about one blank line in every renderer.** The HTML renderer added
+  nothing; it now adds a spacer (`.hc-break`). The Markdown renderer's `&nbsp;`
+  paragraph added about two lines between equations in Jupyter; it is now a small
+  spacer `<div>`. In LaTeX the break is `\vspace{\baselineskip}` instead of `\medskip`.
+- **Long equations no longer run off the page in Word**: the Word renderer estimates
+  each equation's width against the document's text width. A substituted row that is
+  too wide is split one step per row, as with `-m`; a wide `# hc: -g` grid is set in
+  fewer columns; and a row that is still too wide is set in a smaller font, down to
+  60% ([details](../renderers/word.md#long-equations)).
+- **Line magics and `!` commands inside a `%%render` cell** (`%time x = f(y)`,
+  `!ls`) raised a `SyntaxError`. They now run with the cell and are left out of the
+  render. With `inputs=` they give a clear error instead.
 - **Long equations no longer run off the page in LaTeX**: TeX cannot break a line
   inside an `aligned` group, so long calculations overflowed the right margin (an
   `Overfull \hbox` warning). The LaTeX renderer now estimates each row's typeset width:

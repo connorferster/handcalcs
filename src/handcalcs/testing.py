@@ -61,6 +61,9 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
         "## Grape\n# A lemon note\napple = 3\n",
         "Grape lemon apple",
     ),
+    _case(
+        "spaced-heading", "# ## Grape\n#  ### Lemon\napple = 3\n", "Grape Lemon apple"
+    ),
     _case("inline-comment", "apple = 3  # lemon note\n", "apple lemon"),
     _case("import", "from math import sqrt\napple = sqrt(9)\n", "apple"),
     _case("augmented", "apple = 1\napple += 2\n", "apple"),

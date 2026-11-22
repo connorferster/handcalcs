@@ -7,7 +7,8 @@ renderer (the Jupyter default); every built-in renderer supports the same featur
 ## Headings and prose
 
 A comment starting with `##` is a heading. `##` is the top level, `###` the next, and so
-on. Other comment lines are prose; consecutive comment lines join into one paragraph.
+on. Spaces after the first `#` don't count, so `# ##` is the same as `###`. Other comment
+lines are prose; consecutive comment lines join into one paragraph.
 
 ```{hc-example}
 ## Beam design
@@ -301,7 +302,8 @@ case, or call a renderer once per case from a script (see
 
 ## Spacing
 
-`# hc: -b` inserts a blank line (vertical space) at that point:
+`# hc: -b` inserts a blank line (vertical space) at that point. Between two comment
+lines it ends one paragraph and starts another:
 
 ```{hc-example}
 :renderer: ascii
