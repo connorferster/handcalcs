@@ -112,7 +112,7 @@ def moment(w, L):
 ```
 
 `jupyter_display=True`, from handcalcs 1, still works as an alias for `display=True`,
-with a deprecation warning.
+with a deprecation warning; it will be removed in handcalcs 3.0.
 
 ## Source
 

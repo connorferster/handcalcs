@@ -1,8 +1,14 @@
 # Coming from handcalcs v1
 
 handcalcs v2 is a rewrite. The parser now builds a tree of nodes, and separate
-**renderers** turn that tree into Markdown, LaTeX, HTML, plain text or Excel. Most
+**renderers** turn that tree into Markdown, LaTeX, HTML, plain text, Excel or Word. Most
 notebooks need only a few changes.
+
+```{note}
+`pip install --upgrade handcalcs` now installs 2.0. To keep a project on 1.x until you
+have updated it, pin it: `pip install "handcalcs<2"` (or `handcalcs<2` in your
+`requirements.txt` or `pyproject.toml`).
+```
 
 ## Quick reference
 
@@ -20,7 +26,7 @@ notebooks need only a few changes.
 | `from handcalcs.decorator import handcalc` | `from handcalcs import handcalc` |
 | `$x^y$` in a comment | still LaTeX math, in the LaTeX and Markdown renderers; other LaTeX in a comment (`\textbf{}`) is escaped: use `**bold**` (see [styling comments](writing-calculations.md#styling-comments)) |
 | `@handcalc(override=..., precision=..., ...)` | `@handcalc(renderer, render_context={...})` (see [the decorator](../interfaces/decorator.md)) |
-| `@handcalc(jupyter_display=True)` | `@handcalc(renderer, display=True)`: displayed in Jupyter, printed elsewhere; the call returns only the result, as before. `jupyter_display=True` still works, with a deprecation warning |
+| `@handcalc(jupyter_display=True)` | `@handcalc(renderer, display=True)`: displayed in Jupyter, printed elsewhere; the call returns only the result, as before. `jupyter_display=True` still works, with a deprecation warning, until handcalcs 3.0 |
 | `@handcalc` left out the docstring | the docstring is rendered as a note; `@handcalc(renderer, docstring=False)` leaves it out |
 | `handcalcs.set_option("display_precision", 3)` | `handcalcs.set_option("format_code", ".3f")` |
 | `latex_block_start`, `line_break`, `math_environment_start`, ... options | renderer class attributes (see [LaTeX and Markdown tokens](../customizing/latex-markdown-tokens.md)) |

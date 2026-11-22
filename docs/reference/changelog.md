@@ -1,15 +1,44 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 (unreleased)
 
-### Changes
+handcalcs 2.0 is a rewrite: the parser builds a tree of nodes, and pluggable
+**renderers** turn it into Markdown (the Jupyter default), LaTeX, HTML, ASCII text,
+Excel (live formulas) or Word (editable equations). `pip install handcalcs` now
+installs 2.0. Notebooks written for 1.x need a few changes; see
+[Coming from handcalcs v1](../getting-started/migrating-from-v1.md), or pin
+`"handcalcs<2"` to stay on 1.x for now.
+
+The sections for 2.0.0rc1 to rc5 below list everything that is new. For people
+coming from 1.x, the main points:
+
+- **Comment commands** (`# hc: -f .2f`, `-m`, `-g`, `-i`/`-s` with conditions,
+  `--check`, `--boxed`, `--pagebreak`) replace the v1 cell override tags.
+- **Headings, prose and light Markdown in comments**, and Jinja templating.
+- **More of Python renders**: nested `if`/`for`, indexing, comprehensions, conditional
+  expressions, `with` blocks, line continuations, bare expressions.
+- **Units**: forallpeople and pint quantities, `# hc: -u` for unit inputs.
+- **SymPy substitution** with `# hc: -y` (v1's `%%render sympy`), `%%source latex`
+  (v1's `%%tex`), `%render` for one line, `@handcalc(display=True)`, a command line
+  (`handcalcs script.py -o calc.docx`) and `inputs=` to render one script with many
+  input sets.
+
+Behaviour changed during the release candidates (see each section): comment commands
+are read, never run (rc3); a value keeps the `-f` format of its line (rc3); a lone
+line ending in `;` is a one-cell grid row and `# hc: -c` no longer reshapes `;`
+lines (rc5).
+
+`@handcalc(jupyter_display=True)` still works, with a deprecation warning; it will
+be removed in handcalcs 3.0.
+
+### Changes since 2.0.0rc5
 
 - **The `exporters` extra is gone.** nb-hideinputs, which it installed, no longer hides
   input cells with current nbconvert. Use nbconvert's own `--no-input` instead
   (`jupyter nbconvert --to html --no-input calcs.ipynb`; see
   [Exporting a notebook](../interfaces/jupyter.md#exporting-a-notebook)).
 
-### Fixes
+### Fixes since 2.0.0rc5
 
 - **`# ##` and `#  ##` are headings**, the same as `###`: spaces between the comment
   marker and the heading's `#`s no longer turn it into a comment line.

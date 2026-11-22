@@ -175,14 +175,16 @@ def handcalc(
     function's return value. ``display`` may instead be a function, which each
     call passes the render to (``display=st.markdown``). With a 'destination',
     the file's path is shown (or passed) instead of the render.
-    ``jupyter_display=True`` is a deprecated alias for ``display=True``.
+    ``jupyter_display=True`` is a deprecated alias for ``display=True``, to be
+    removed in handcalcs 3.0.
     """
     if jupyter_display is not None:
         if display is not False:
             raise TypeError("give display or jupyter_display, not both")
         warnings.warn(
-            "jupyter_display is deprecated; use display=True, which shows the "
-            "render in Jupyter and prints it elsewhere.",
+            "jupyter_display is deprecated and will be removed in handcalcs 3.0; "
+            "use display=True, which shows the render in Jupyter and prints it "
+            "elsewhere.",
             DeprecationWarning,
             stacklevel=2,
         )
