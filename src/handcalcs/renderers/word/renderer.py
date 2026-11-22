@@ -67,6 +67,10 @@ class WordRenderer(BaseRenderer):
 
     name = "word"
 
+    # True while a ``# hc: -g`` grid renders: it may be reflowed into fewer
+    # columns to fit the page (see ``DocumentWriter.fit_params``).
+    reflow_param_grid = False
+
     # A continuation row (a source line continuation) starts with an em space.
     CONTINUATION_INDENT: ClassVar[str] = omml.run(omml.EM_SPACE)
     # An inline comment starts with COMMENT_OPEN (see ``render_inline_comment``).
@@ -195,13 +199,15 @@ class WordRenderer(BaseRenderer):
             else:
                 writer.line_break(depth)
         elif isinstance(item, CalcGrid) or not isinstance(item[-1], list):
-            rows = self.math_rows([item], base_context)
+            rows = self.math_rows([item], base_context, writer.max_math_width(depth))
             if rows:
                 writer.math_group(rows, self.layout, depth)
         else:
             header, body = item[0], item[-1]
             if body and isinstance(body[0], MathGroup):
-                rows = self.math_rows(body[1:], base_context)
+                rows = self.math_rows(
+                    body[1:], base_context, writer.max_math_width(depth)
+                )
                 if rows:
                     writer.math_group(rows, body[0].layout, depth)
             elif isinstance(header, str) and header.strip():
@@ -210,8 +216,13 @@ class WordRenderer(BaseRenderer):
             else:
                 self.write_items(writer, body, depth, base_context)
 
-    def math_rows(self, lines: list, base_context) -> list[Row | Prose]:
-        """The equation rows of a CalcsBlock's lines (see ``join_math_row``)."""
+    def math_rows(
+        self, lines: list, base_context, max_width: Optional[float] = None
+    ) -> list[Row | Prose]:
+        """
+        The equation rows of a CalcsBlock's lines (see ``join_math_row``);
+        ``max_width`` is the width of the text column, in ems.
+        """
         rows: list[Row | Prose] = []
         for line in lines:
             if isinstance(line, CalcGrid):
@@ -220,15 +231,21 @@ class WordRenderer(BaseRenderer):
                 if line.strip():
                     rows.append(Prose(line))
             elif line:
-                rows.extend(self.join_math_row(line, base_context))
+                rows.extend(self.join_math_row(line, base_context, max_width))
         return rows
 
-    def join_math_row(self, parts: list, base_context) -> list[Row | Prose]:
+    def join_math_row(
+        self, parts: list, base_context, max_width: Optional[float] = None
+    ) -> list[Row | Prose]:
         """
         One calc line's components as an equation row, split before its first
         assignment symbol (the alignment point). A line with no math (a
         docstring) is prose; an ignored line is no row. An inline comment stays
         at the end of its line's row.
+
+        A row with substitution columns (more than ``target = value``) that is
+        estimated wider than ``max_width`` ems is set over several rows, one
+        step per row, like a ``# hc: -m`` calc (see ``split_math_row``).
         """
         context = base_context.current
         parts = list(parts)
@@ -236,12 +253,37 @@ class WordRenderer(BaseRenderer):
             return []
         if not any("<m:" in part for part in parts):
             return [Prose(" ".join(parts))]
+        if (
+            max_width
+            and parts.count(context.assign) > 1
+            and omml.estimate_width("".join(parts)) > max_width
+        ):
+            return self.grid_rows(self.split_math_row(parts, base_context))
         if context.assign in parts:
             idx = parts.index(context.assign)
         else:
             idx = 0
         row = Row("".join(parts[:idx]), "".join(parts[idx:]))
         return [row]
+
+    def split_math_row(self, parts: list, base_context) -> CalcGrid:
+        """
+        A calc row (``target = symbolic = numeric = result``) as a multiline
+        grid: the target and the first column on the first row, then one row
+        per further column, each opened by its assignment symbol. An inline
+        comment, the last part, rides the last (result) row.
+        """
+        assign = base_context.current.assign
+        columns: list[list[str]] = [[]]
+        for part in parts:
+            if part == assign:
+                columns.append([])
+            else:
+                columns[-1].append(part)
+        target, *values = ("".join(column) for column in columns)
+        return CalcGrid(
+            [["" if k else target, assign, value] for k, value in enumerate(values)]
+        )
 
     def grid_rows(self, grid: CalcGrid) -> list[Row]:
         """
@@ -256,7 +298,10 @@ class WordRenderer(BaseRenderer):
         return rows
 
     def format_param_grid(self, rows: list, base_context) -> ParamsTable:
-        return ParamsTable([[cell and list(cell) for cell in row] for row in rows])
+        return ParamsTable(
+            [[cell and list(cell) for cell in row] for row in rows],
+            reflow=self.reflow_param_grid,
+        )
 
     def format_calc_grid(self, rows: list, base_context) -> CalcGrid:
         return CalcGrid([list(row) for row in rows])

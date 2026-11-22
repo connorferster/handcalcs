@@ -103,3 +103,48 @@ def test_plain_text():
 def test_to_element_serialises_in_math_namespace():
     xml = etree.tostring(omml.to_element(omml.run("x"))).decode()
     assert xml.startswith("<m:oMath")
+
+
+# --- width estimate -----------------------------------------------------------
+
+
+def test_fraction_is_as_wide_as_its_wider_part():
+    wide, narrow = omml.run("abcdef"), omml.run("x")
+    assert omml.estimate_width(omml.frac(wide, narrow)) == pytest.approx(
+        omml.estimate_width(wide) + 0.2
+    )
+
+
+def test_scripts_are_narrower_than_the_base():
+    base = omml.estimate_width(omml.run("x"))
+    script = omml.estimate_width(omml.run("2"))
+    assert omml.estimate_width(omml.sup(omml.run("x"), omml.run("2"))) == pytest.approx(
+        base + omml.SCRIPT_SCALE * script
+    )
+
+
+def test_relations_get_math_spacing_but_text_does_not():
+    assert omml.estimate_width(omml.run("=")) > omml.estimate_width(omml.text("="))
+
+
+def test_alignment_point_has_no_width():
+    assert omml.estimate_width(omml.ALIGN) == 0
+
+
+def test_equation_array_is_as_wide_as_its_widest_row():
+    rows = [omml.run("a"), omml.run("abcdef")]
+    assert omml.estimate_width(omml.eq_arr(rows)) == pytest.approx(
+        omml.estimate_width(rows[1])
+    )
+
+
+def test_scale_runs_sets_the_size_of_every_run():
+    element = omml.to_element(omml.upright("sin") + omml.run("x", font="<w:b/>"))
+    omml.scale_runs(element, 18)
+    w = "{%s}" % omml.W_NS
+    runs = list(element.iter(f"{{{omml.M_NS}}}r"))
+    assert all(r.find(f"{w}rPr/{w}sz").get(f"{w}val") == "18" for r in runs)
+    # w:rPr follows m:rPr in a run, and keeps the bold.
+    first = [child.tag.rsplit("}")[-1] for child in runs[0]]
+    assert first == ["rPr", "rPr", "t"]
+    assert runs[1].find(f"{w}rPr/{w}b") is not None
