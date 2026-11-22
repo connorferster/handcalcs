@@ -2,6 +2,26 @@
 
 Reviewed 2026-11-22 against `main` at `52a6482` (rc5 + #385 + #386).
 
+## Status (2026-11-22)
+
+Everything below that can be done in code has a PR. Merge order: #387 (this file),
+#388–#392 in any order, then **#393 last**, after main is merged into it. The
+changelog entries conflict, so I fold them in after each merge.
+
+| PR | What | Plan § |
+|---|---|---|
+| #388 | `# ##` headings; `-b` ≈ one blank line in every renderer (HTML had none) | 1.1, 1.2 |
+| #389 | Word: split/reflow/shrink long equations | 1.3 |
+| #390 | Line magics and `!` in a `%%render` cell | 3 |
+| #391 | CI `katex` job (pinned, sha-checked KaTeX) | 3 |
+| #392 | Drop `exporters` (nb-hideinputs broken on nbconvert 7.17; use `--no-input`); remove v1 images and `vis_pyproject.toml` | 3 |
+| #393 | Version 2.0.0, Production/Stable, `HC_SOURCE_REF`, README/install text, `handcalcs<2` note, `jupyter_display` removed in 3.0, 2.0.0 changelog | 2 |
+| ym-handcalcs #16 | `-b` = one leading | 1.2 |
+
+Not done (needs you): open the Word demo in Word to check #389 by eye; test in Colab
+(#190); at release, set the changelog date, tag `v2.0.0`, publish, and close #369 and #365;
+then the §5 downstream steps.
+
 ## Verdict
 
 Nearly ready. The code, CI and packaging are in good shape. What's left is the three
