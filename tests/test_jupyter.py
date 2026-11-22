@@ -347,7 +347,7 @@ def test_source_prints_the_session_renderers_text(shell):
 def test_source_latex_is_v1_tex(shell):
     ip, _ = shell
     out = source_cell(ip, "latex")
-    assert out.startswith("\\medskip") and "c &= a + b = 2 + 3 = 5" in out
+    assert out.startswith("\\providecommand{\\hcfit}") and "c &= a + b = 2 + 3 = 5" in out
     # The session's renderer is unchanged.
     assert config.get_option("jupyter_renderer") == "markdown"
 

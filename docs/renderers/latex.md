@@ -60,13 +60,15 @@ document class (see [Writing a file](../interfaces/object-oriented.md#writing-a-
 
 Without a `destination`, the output is a fragment for the body of a document. It needs
 the `amsmath` package, plus `amssymb` and `xcolor` for the marks of
-[`--check`](../cookbook/checks.md) lines. A minimal document:
+[`--check`](../cookbook/checks.md) lines and `graphicx` to scale an equation that is too
+wide for the line (see [long equations](#long-equations)). A minimal document:
 
 ```latex
 \documentclass{article}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{xcolor}
+\usepackage{graphicx}
 \begin{document}
 % paste or \input the handcalcs output here
 \end{document}
@@ -102,6 +104,38 @@ notebooks.
 | Parameter grid | An `aligned` group with one column pair per cell |
 | `# hc: -b` | `\medskip` |
 | `if` / `for` body | Indented with a `list` environment |
+
+## Long equations
+
+TeX cannot break a line inside an `aligned` group, so a long calculation would run past
+the right margin. The renderer prevents this in three steps:
+
+1. **Long rows are split.** It estimates how wide each row will be when typeset. A row
+   that shows substitution (`target = symbolic = numeric = result`) and is wider than
+   `MAX_ROW_WIDTH` (345 pt, the text width of a default `article`) is laid out as with
+   [`-m`](../getting-started/comment-commands.md#a-long-equation): the symbolic form on the first line, then
+   `= numeric` and `= result` on their own lines, all aligned on `=`.
+2. **Wide parameter grids are reflowed.** A `# hc: -g`
+   [parameter grid](../getting-started/writing-calculations.md#parameter-grids) wider
+   than `MAX_ROW_WIDTH` is set in the most columns that fit, keeping its reading order.
+   A `;` grid keeps the rows you wrote.
+3. **Anything still too wide is scaled down.** Every math group is wrapped in `\hcfit`,
+   which scales the group down to `\linewidth` only when it is wider than the line. A row
+   that is still too wide after step 1 (one long `sqrt` cannot be split) is put in a group
+   of its own, so only that row shrinks.
+
+`\hcfit` is defined once, with `\providecommand`, at the top of the output. To change how
+over-wide groups are handled, define your own `\hcfit` (taking the math as its one
+argument) before the output. Without `graphicx`, an over-wide group is set at full
+size and TeX warns about an overfull box.
+
+For a document with a wider or narrower text block, set `MAX_ROW_WIDTH` in a subclass.
+Set it to `None` to keep every row on one line:
+
+```python
+class WideLatexRenderer(LatexRenderer):
+    MAX_ROW_WIDTH = 450.0  # points
+```
 
 ## Math conventions
 

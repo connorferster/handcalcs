@@ -4,6 +4,15 @@
 
 ### Fixes
 
+- **Long equations no longer run off the page in LaTeX**: TeX cannot break a line
+  inside an `aligned` group, so long calculations overflowed the right margin (an
+  `Overfull \hbox` warning). The LaTeX renderer now estimates each row's typeset width:
+  a substituted row wider than the line (`MAX_ROW_WIDTH`, 345 pt) is split one step per
+  line as with `-m`, a wide `# hc: -g` grid is set in fewer columns, and a group that is
+  still too wide is scaled down to the line by `\hcfit`. The scaling needs `graphicx`,
+  now in the file preamble
+  ([details](../renderers/latex.md#long-equations)).
+
 - **pint quantities of numpy arrays show their values** (#384): in the LaTeX and
   Markdown renderers, `array([2, 4]) * ureg.kN` rendered every element as the format
   code (`.5g`). The array is now drawn as other numpy arrays are, `[2, 4] kN`, in every
