@@ -83,6 +83,42 @@ def test_heading_level_excludes_comment_marker(raw, expected_level):
     assert heading.heading_level == expected_level
 
 
+@pytest.mark.parametrize(
+    "raw,expected_level",
+    [("# ## A heading", 2), ("#  ## A heading", 2), ("#   ### A heading", 3)],
+    ids=["one-space", "two-spaces", "h3"],
+)
+def test_spaces_after_comment_marker_are_ignored(raw, expected_level):
+    # '# ##' reads as '###': spaces between the comment marker and the
+    # heading '#'s don't count.
+    heading = Heading.from_raw_comment(raw)
+    assert heading.content == "A heading"
+    assert heading.heading_level == expected_level
+
+
+def test_hash_in_heading_text_is_kept():
+    heading = Heading.from_raw_comment("## #1 Beam")
+    assert heading.content == "#1 Beam"
+    assert heading.heading_level == 1
+
+
+@pytest.mark.parametrize(
+    "raw,is_heading",
+    [
+        ("## H", True),
+        ("# ## H", True),
+        ("#  ## H", True),
+        ("# # H", False),
+        ("# H", False),
+        ("# H ## x", False),
+    ],
+)
+def test_is_markdown_heading_with_spaces(raw, is_heading):
+    from handcalcs.parsing.comment_parser import is_markdown_heading
+
+    assert is_markdown_heading(raw) is is_heading
+
+
 # --- CommentCommand.from_raw_comment: kwarg vs flag ---------------------
 
 

@@ -8,11 +8,11 @@ This is a demo of the main rendering features of HandCalcs v2.x. It is intended 
 
 `import math`
 
-&nbsp;
+<div style="height:0.25em"></div>
 
 The variables 'a' and 'b' below have been formatted with different line-scopes formatting codes. Both originally have nine decimal places.
 
-&nbsp;
+<div style="height:0.25em"></div>
 
 $$\begin{aligned} a &= 5.25 \\ b &= -1.04231 \times 10^{1} \\ c &= 2 \\ x_{1} &= \frac{-b + \sqrt{b^{2} - 4 \cdot a \cdot c}}{2 \cdot a} = \frac{-\left(-1.04231 \times 10^{1}\right) + \sqrt{\left(-1.04231 \times 10^{1}\right)^{2} - 4 \cdot 5.25 \cdot 2}}{2 \cdot 5.25} = 1.7686 \\ x_{2} &= \frac{-b - \sqrt{b^{2} - 4 \cdot a \cdot c}}{2 \cdot a} = \frac{-\left(-1.04231 \times 10^{1}\right) - \sqrt{\left(-1.04231 \times 10^{1}\right)^{2} - 4 \cdot 5.25 \cdot 2}}{2 \cdot 5.25} = 0.21523 \end{aligned}$$
 
@@ -28,11 +28,11 @@ $$\begin{aligned} x &= 3 \; \text{(comment 1)} \qquad &y &= 4 \qquad &z &= 5 \; 
 
 $$\begin{aligned} \omega_{2} &= 1 \quad\text{(A beam under uniform moment)} \\ L &= 6000 \quad\text{(Unbraced length of beam, in mm)} \\ E &= 200000 \quad\text{(Elastic modulus, in MPa)} \\ I_{y} &= 160 \times 10^{6} \quad\text{(Second moment of area about weak axis, in mm}\hat{}\text{4)} \\ G &= 77 \times 10^{3} \quad\text{(Shear modulus, in MPa)} \\ J &= 133 \times 10^{3} \quad\text{(Polar moment of area, in mm}\hat{}\text{3)} \\ C_{w} &= 200 \times 10^{9} \quad\text{(Warping constant)} \end{aligned}$$
 
-&nbsp;
+<div style="height:0.25em"></div>
 
 $$\begin{aligned} M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} \\ &= \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} \\ &= 4.3134 \times 10^{8} \quad\text{(A long equation)} \end{aligned}$$
 
-&nbsp;
+<div style="height:0.25em"></div>
 
 $$\begin{aligned} M_{u} &= \frac{\omega_{2} \cdot \pi}{L} \cdot \sqrt{E \cdot I_{y} \cdot G \cdot J + \left(\frac{\pi \cdot E}{L}\right)^{2} \cdot I_{y} \cdot C_{w}} = \frac{1 \cdot 3.1416}{6000} \cdot \sqrt{200000 \cdot 1.6 \times 10^{8} \cdot 77000 \cdot 1.33 \times 10^{5} + \left(\frac{3.1416 \cdot 200000}{6000}\right)^{2} \cdot 1.6 \times 10^{8} \cdot 2 \times 10^{11}} = 4.3134 \times 10^{8} \quad\text{(A long equation)} \end{aligned}$$
 
@@ -52,7 +52,7 @@ Since $\bigl(\frac{b_{w}}{2 \cdot t_{f}} \le \frac{200}{\sqrt{F_{y}}}\bigr) \rig
 
 $$\begin{aligned} \mathrm{vals}_{x} &= [1, 2, 3, 4, 5] \\ \mathrm{vals}_{y} &= [5, 4, 3, 2, 1] \end{aligned}$$
 
-&nbsp;
+<div style="height:0.25em"></div>
 
 Iterating over each $\mathrm{val}_{x}$ in $\mathrm{vals}_{x}$:
 

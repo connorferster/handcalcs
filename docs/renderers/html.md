@@ -130,6 +130,7 @@ HTMLRenderer(fractions="inline")  # a / b
 | `hc-params` | A parameter grid (a `<table>`); cells are `hc-param-id`, `hc-param-eq`, `hc-param-val`, `hc-param-comment`, with `hc-param-gap` spacers. |
 | `hc-multiline` | Added to the table of a `# hc: -m` calculation. |
 | `hc-pre` | Pre-formatted text (whitespace kept). |
+| `hc-break` | The space a `# hc: -b` line break adds (`height: 1em`). |
 | `hc-frac`, `hc-num`, `hc-den` | A stacked fraction, its numerator and its denominator. |
 | `hc-paren` | A bracket stretched around a fraction (`hc-paren-1`, or `hc-paren-2` around nested fractions). |
 | `hc-hidden` | Text kept for copying and screen readers but not shown. |

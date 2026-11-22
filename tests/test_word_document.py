@@ -301,3 +301,98 @@ def test_demo_lines_layout_has_no_alignment_marks():
     document = HandCalcs(renderer=WordRenderer(layout="lines")).demo()
     runs = document.element.body.findall(f".//{M}r")
     assert runs and not [run for run in runs if math_text(run) == "&"]
+
+
+# --- long equations: keeping within the page ----------------------------------
+
+LONG = (
+    "first_val = 1.2345\nsecond_val = 2.3456\nthird_val = 3.4567\n"
+    "result_val = (first_val * second_val + third_val ** 2) / (first_val + second_val)"
+    " + first_val * third_val - second_val / third_val\n"
+)
+
+
+def sizes(paragraph) -> set[int]:
+    return {int(sz.get(qn("w:val"))) for sz in paragraph.iter(qn("w:sz"))}
+
+
+def test_long_row_is_split_one_step_per_row():
+    # Too wide for the page on one row: the symbolic, numeric and result steps
+    # each get a row, aligned on their "=".
+    document = render(LONG)
+    (paragraph,) = math_paragraphs(document)
+    rows = eq_rows(paragraph)
+    assert len(rows) == 6
+    assert rows[3].startswith("resultval&=") and rows[3].count("=") == 1
+    assert all(row.startswith("&=") and row.count("=") == 1 for row in rows[4:])
+
+
+def test_short_rows_are_not_split():
+    document = render("a = 2\nb = a * 3\n")
+    (paragraph,) = math_paragraphs(document)
+    assert eq_rows(paragraph) == ["a&=2", "b&=a⋅3=2⋅3=6"]
+
+
+def test_wide_page_keeps_the_row_whole():
+    from docx.shared import Inches
+
+    document = docx.Document()
+    document.sections[0].page_width = Inches(40)
+    render(LONG, document=document)
+    (paragraph,) = math_paragraphs(document)
+    assert len(eq_rows(paragraph)) == 4
+
+
+def test_row_still_too_wide_is_its_own_smaller_equation():
+    # One step that cannot be split (a long sum) is set apart, in a smaller
+    # font, but not below MIN_MATH_SCALE of 11 pt.
+    terms = " + ".join(f"value_number_{k}" for k in range(12))
+    source = "".join(f"value_number_{k} = {k}\n" for k in range(12)) + f"total = {terms}\n"
+    document = render(source)
+    paragraphs = math_paragraphs(document)
+    assert len(paragraphs) > 1
+    assert not sizes(paragraphs[0])
+    smaller = [sizes(p) for p in paragraphs if sizes(p)]
+    assert smaller and all(size >= round(22 * 0.6) for s in smaller for size in s)
+
+
+def test_lines_layout_splits_long_rows_too():
+    document = render(LONG, layout="lines")
+    texts = [math_text(p) for p in math_paragraphs(document)]
+    assert len(texts) == 6
+
+
+def test_wide_g_grid_reflows_into_fewer_columns():
+    cells = "".join(
+        f"parameter_with_a_long_name_{k} = {k}.12345  # a comment about it\n"
+        for k in range(6)
+    )
+    document = render("# hc: -g -c 3\n" + cells)
+    (table,) = document.tables
+    assert len(table.columns) < 3
+
+
+def test_semicolon_grid_keeps_its_rows():
+    row = "; ".join(f"parameter_with_a_long_name_{k} = {k}.12345" for k in range(4))
+    document = render(row + "\n")
+    (table,) = document.tables
+    assert len(table.columns) == 4
+
+
+def test_narrow_g_grid_keeps_its_columns():
+    document = render("# hc: -g -c 3\na = 1\nb = 2\nc = 3\nd = 4\n")
+    (table,) = document.tables
+    assert len(table.columns) == 3
+
+
+def test_text_width_follows_the_page_and_the_style():
+    from docx.shared import Pt
+    from handcalcs.renderers.word.document import DocumentWriter
+
+    document = docx.Document()
+    writer = DocumentWriter(document)
+    assert writer.font_size() == 11
+    assert writer.max_math_width() == pytest.approx(432 / 11)
+    assert writer.max_math_width(depth=1) == pytest.approx((432 - 36) / 11)
+    document.styles["HC Math"].font.size = Pt(12)
+    assert writer.max_math_width() == pytest.approx(432 / 12)
