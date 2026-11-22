@@ -80,7 +80,7 @@ M_f <= M_r     # hc: --check
 | `import ...` | A code span |
 | A run of calculation lines | One `$$\begin{aligned} ... \end{aligned}$$` on a **single line** |
 | A parameter grid | Its own `aligned` group |
-| `# hc: -b` | An `&nbsp;` spacer paragraph |
+| `# hc: -b` | A spacer `<div style="height:0.25em"></div>`, about one blank line in Jupyter. Front-ends that drop raw HTML (pandoc to PDF or Word) show no space |
 | `if` / `for` body | A blockquote, one `>` per nesting level |
 
 The math is the same as the [LaTeX renderer](latex.md)'s (Greek letters, subscripts,
