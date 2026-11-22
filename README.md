@@ -17,19 +17,11 @@
 
 The same calculation can go to different **renderers**: Markdown and LaTeX for Jupyter and documents, HTML for web pages, ASCII text for terminals and logs, a live, formula-based Excel worksheet and Word documents. You can restyle the built-in renderers or write your own.
 
-## v2.0.0 Pre-release out now!
+## handcalcs 2.0
 
-This readme has been uodated to reflect the changes in 
-handcalcs v2. 
-
-As of 2026-11-19, the fifth release candidate is available for install:
-
-pip install "handcalcs==2.0.0rc5"
-
-or
-
-pip install --pre handcalcs
-
+handcalcs 2.0 is a rewrite. If you're coming from 1.x, read
+[Coming from handcalcs v1](https://handcalcs.structuralpython.com/getting-started/migrating-from-v1.html);
+to stay on 1.x for now, install `"handcalcs<2"`.
 
 **[Read the v2 documentation](https://handcalcs.structuralpython.com/)**: getting started, every renderer, a cookbook of
 recipes, and how to customize or write a renderer.
@@ -61,11 +53,10 @@ c = √(a² + b²) = √(2.5² + 4²) = 4.717
 ## Installing
 
 ```console
-pip install "handcalcs>=2.0.0rc5"
+pip install handcalcs
 ```
 
-handcalcs 2.0 is a release candidate, so ask for it by version: a plain
-`pip install handcalcs` installs 1.x. handcalcs needs Python 3.11 or newer. Extras add the Excel and Word renderers
+handcalcs needs Python 3.11 or newer. Extras add the Excel and Word renderers
 (`handcalcs[excel]`, `handcalcs[word]`) and Jupyter export options
 (`handcalcs[exporters]`). See [Installation](https://handcalcs.structuralpython.com/getting-started/installation.html).
 

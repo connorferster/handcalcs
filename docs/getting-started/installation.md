@@ -1,17 +1,16 @@
 # Installation
 
-handcalcs is a pure-Python package on PyPI. These docs are for handcalcs 2.0, which is
-a release candidate for now, so ask for it by version (a plain `pip install handcalcs`
-installs 1.x):
+handcalcs is a pure-Python package on PyPI. These docs are for handcalcs 2.0 (to stay
+on 1.x, install `"handcalcs<2"`; see [Coming from handcalcs v1](migrating-from-v1.md)):
 
 ```console
-$ pip install "handcalcs>=2.0.0rc5"
+$ pip install handcalcs
 ```
 
 or, with [uv](https://docs.astral.sh/uv/):
 
 ```console
-$ uv add "handcalcs>=2.0.0rc5"
+$ uv add handcalcs
 ```
 
 ## Optional extras
@@ -29,7 +28,7 @@ handcalcs does not install Jupyter itself. Install JupyterLab (or Notebook) in t
 environment:
 
 ```console
-$ pip install "handcalcs>=2.0.0rc5" jupyterlab
+$ pip install handcalcs jupyterlab
 ```
 
 Then, in a notebook, `import handcalcs` registers the `%%render` cell magic. See
