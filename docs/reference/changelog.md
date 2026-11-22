@@ -15,6 +15,9 @@
   too wide is split one step per row, as with `-m`; a wide `# hc: -g` grid is set in
   fewer columns; and a row that is still too wide is set in a smaller font, down to
   60% ([details](../renderers/word.md#long-equations)).
+- **Line magics and `!` commands inside a `%%render` cell** (`%time x = f(y)`,
+  `!ls`) raised a `SyntaxError`. They now run with the cell and are left out of the
+  render. With `inputs=` they give a clear error instead.
 - **Long equations no longer run off the page in LaTeX**: TeX cannot break a line
   inside an `aligned` group, so long calculations overflowed the right margin (an
   `Overfull \hbox` warning). The LaTeX renderer now estimates each row's typeset width:

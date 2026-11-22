@@ -420,3 +420,59 @@ def test_line_magic_substitutes_a_sympy_expression(shell):
     _, outputs = run_cell(ip, "a = 2\n%render x = f  # hc: -y\n")
     assert "x &= 3 \\cdot a = 3 \\cdot 2 = 6" in outputs[0]["text/markdown"]
     assert ip.user_ns["x"] == 6
+
+
+# --- IPython syntax inside a %%render cell ------------------------------------
+
+
+def test_line_magic_in_render_cell_runs_but_is_not_rendered(shell):
+    ip, _ = shell
+    result, outputs = run_cell(ip, "%%render\na = 2\n%time b = a * 3\nc = b + 1\n")
+    assert result.success
+    assert ip.user_ns["b"] == 6
+    assert outputs[-1]["text/markdown"] == (
+        "$$\\begin{aligned} a &= 2 \\\\ c &= b + 1 = 6 + 1 = 7 \\end{aligned}$$\n"
+    )
+
+
+def test_shell_command_in_render_cell_is_not_rendered(shell):
+    ip, _ = shell
+    result, outputs = run_cell(ip, "%%render\na = 2\n!true\nc = a + 1\n")
+    assert result.success
+    assert "c &= a + 1" in outputs[-1]["text/markdown"]
+    assert "true" not in outputs[-1]["text/markdown"]
+
+
+def test_line_magic_as_a_block_body(shell):
+    # An empty line would leave the 'if' with no body; it becomes 'pass'.
+    ip, jupyter = shell
+    cell = "a = 2\nif a > 1:\n    %who\nc = a + 1\n"
+    assert jupyter.without_ipython_lines(cell) == (
+        "a = 2\nif a > 1:\n    pass\nc = a + 1\n"
+    )
+    result, outputs = run_cell(ip, "%%render\n" + cell)
+    assert result.success
+    assert "c &= a + 1" in outputs[-1]["text/markdown"]
+
+
+def test_plain_python_cell_is_unchanged(shell):
+    _, jupyter = shell
+    assert jupyter.without_ipython_lines(CELL) == CELL
+    indented = "    a = 1\n    b = 2\n"
+    assert jupyter.without_ipython_lines(indented) == indented
+
+
+def test_line_magic_with_inputs_is_refused(shell):
+    ip, _ = shell
+    ip.user_ns["case"] = {"a": 5}
+    result, _ = run_cell(ip, "%%render inputs=case\na = 2\n%who\nc = a + 1\n")
+    assert not result.success
+    assert "can't be combined with inputs=" in str(result.error_in_exec)
+
+
+def test_source_magic_skips_line_magics(shell):
+    ip, _ = shell
+    with capture_output() as captured:
+        ip.run_cell("%%source\na = 2\n%who\nc = a + 1\n")
+    assert "c &= a + 1" in captured.stdout
+    assert "who" not in captured.stdout
