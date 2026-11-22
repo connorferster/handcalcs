@@ -46,6 +46,9 @@ Some tests are skipped unless a tool is available:
   $ HANDCALCS_KATEX_JS=katex.min.js uv run --with mini-racer pytest tests/test_markdown_renderer.py
   ```
 
+  CI's `katex` job does this with a pinned KaTeX (`KATEX_VERSION`, checked against
+  `KATEX_SHA256`); update both together.
+
 - **Excel recalculation**: `scripts/excel_demo.py` writes the Excel demo; run it with
   `uv run --with formulas` to recalculate every formula independently and compare it
   with Python.
