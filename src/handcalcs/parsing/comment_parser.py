@@ -4,14 +4,29 @@ import ast
 from .commands import CommentCommandError
 
 
+HEADING_PREFIX = re.compile(r"^#(?:\s*#+)?")
+
+
 def is_markdown_heading(comment: str) -> bool:
     """
-    Returns True if the comment represents a markdown heading.
+    Returns True if the comment represents a markdown heading: '##' or more
+    '#'s, which may be split by spaces after the Python comment marker, so
+    '# ##' and '#  ##' are headings too (the same as '###').
     """
-    is_markdown = False
-    if comment.startswith("##"):  # Or any other number of octothorpes
-        is_markdown = True
-    return is_markdown
+    comment = comment.lstrip()
+    if comment.startswith("##"):
+        return True
+    return comment.startswith("#") and comment[1:].lstrip().startswith("##")
+
+
+def heading_prefix_length(comment: str) -> tuple[int, int]:
+    """
+    Returns (number of '#'s, length) of the heading prefix of 'comment': the
+    comment marker, any spaces after it and the run of '#'s that follows.
+    """
+    match = HEADING_PREFIX.match(comment)
+    prefix = match.group(0) if match else ""
+    return prefix.count("#"), len(prefix)
 
 
 def is_comment_command(comment: str) -> bool:
