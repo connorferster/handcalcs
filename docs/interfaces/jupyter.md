@@ -173,9 +173,12 @@ inherits from: a subclass of `HTMLRenderer` is shown as HTML, a subclass of
 ## Exporting a notebook
 
 To share a notebook of rendered calculations without the code, export it with the
-input cells hidden. The [nb-hideinputs](https://github.com/connorferster/nb-hideinputs)
-package (`pip install "handcalcs[exporters]"`) adds "no input" HTML, LaTeX and PDF
-export options to Jupyter.
+input cells hidden, using nbconvert's `--no-input`:
+
+```bash
+jupyter nbconvert --to html --no-input calcs.ipynb
+jupyter nbconvert --to pdf --no-input calcs.ipynb
+```
 
 ## Source
 

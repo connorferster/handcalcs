@@ -780,9 +780,6 @@ doc = [
 excel = [
     { name = "xlsxwriter" },
 ]
-exporters = [
-    { name = "nb-hideinputs" },
-]
 word = [
     { name = "python-docx" },
 ]
@@ -830,7 +827,6 @@ requires-dist = [
     { name = "innerscope", specifier = ">=0.8.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "myst-parser", marker = "extra == 'doc'", specifier = ">=4.0" },
-    { name = "nb-hideinputs", marker = "extra == 'exporters'" },
     { name = "pfst", specifier = ">=0.3.2,<0.4" },
     { name = "platformdirs", specifier = ">=3.0.0" },
     { name = "python-docx", marker = "extra == 'word'", specifier = ">=1.1" },
@@ -841,7 +837,7 @@ requires-dist = [
     { name = "sphinxcontrib-katex", marker = "extra == 'doc'", specifier = ">=0.9" },
     { name = "xlsxwriter", marker = "extra == 'excel'", specifier = ">=3.2" },
 ]
-provides-extras = ["exporters", "doc", "word", "excel"]
+provides-extras = ["doc", "word", "excel"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1617,18 +1613,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/21/dc/603751677fff302f34396e206b610f556a59d7fe58b9a2145f54e96b48e8/myst_parser-5.1.0.tar.gz", hash = "sha256:ab69322dc6719dcc7f296479dbb70181b66df6ed315064f92dbc85c0e1bf2f02", size = 101182, upload-time = "2026-05-13T09:38:19.361Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/09/dc/f3dfb7488b770f3f67e6545085bf2abea5172e88f57b8ad25ef860ca704c/myst_parser-5.1.0-py3-none-any.whl", hash = "sha256:9c91c52b3cdb4d94a6506e4fab4e2f296c7623a0da0dcbe6de1565c3dad67a8a", size = 85817, upload-time = "2026-05-13T09:38:17.904Z" },
-]
-
-[[package]]
-name = "nb-hideinputs"
-version = "0.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "nbconvert" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/13/48/3a2969fbaee7372bac16767cbd34f1baccd087b9105a6cff69efe4affd5a/nb_hideinputs-0.2.0.tar.gz", hash = "sha256:75fcb4615ccb539fa9b51a65ee44fbf756d695fa0663c3a0d2e661fb501e8a6c", size = 2919, upload-time = "2024-06-27T22:26:36.906Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cf/0c/3f200b4bdb51a6eeffe9921e7de85d4ce48b706c422055769db4f4a3dd06/nb_hideinputs-0.2.0-py2.py3-none-any.whl", hash = "sha256:82c8d4fa4fb1b3e9a1b3b1096523d5e9108a4418e179507251b42d3814844a2b", size = 2716, upload-time = "2024-06-27T22:26:35.642Z" },
 ]
 
 [[package]]
