@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changes
+
+- **The `exporters` extra is gone.** nb-hideinputs, which it installed, no longer hides
+  input cells with current nbconvert. Use nbconvert's own `--no-input` instead
+  (`jupyter nbconvert --to html --no-input calcs.ipynb`; see
+  [Exporting a notebook](../interfaces/jupyter.md#exporting-a-notebook)).
+
 ### Fixes
 
 - **Long equations no longer run off the page in LaTeX**: TeX cannot break a line
