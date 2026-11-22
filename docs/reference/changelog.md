@@ -4,6 +4,12 @@
 
 ### Fixes
 
+- **`# ##` and `#  ##` are headings**, the same as `###`: spaces between the comment
+  marker and the heading's `#`s no longer turn it into a comment line.
+- **`# hc: -b` adds about one blank line in every renderer.** The HTML renderer added
+  nothing; it now adds a spacer (`.hc-break`). The Markdown renderer's `&nbsp;`
+  paragraph added about two lines between equations in Jupyter; it is now a small
+  spacer `<div>`. In LaTeX the break is `\vspace{\baselineskip}` instead of `\medskip`.
 - **Long equations no longer run off the page in Word**: the Word renderer estimates
   each equation's width against the document's text width. A substituted row that is
   too wide is split one step per row, as with `-m`; a wide `# hc: -g` grid is set in
