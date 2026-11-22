@@ -34,7 +34,8 @@ What happens:
    suppressed. If the cell raises an error, the error is shown as usual and nothing
    is rendered.
 2. handcalcs parses the cell and renders it with the session's renderer, reading values
-   from the notebook namespace.
+   from the notebook namespace. Line magics (`%time ...`) and `!` commands in the cell
+   run in step 1 but are not rendered. They can't be combined with `inputs=`.
 3. The output is displayed with the IPython display class that matches the renderer.
 
 Formatting is controlled with [comment commands](../getting-started/comment-commands.md)

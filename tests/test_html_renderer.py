@@ -299,3 +299,15 @@ def test_no_color_mix_in_the_stylesheet():
 def test_result_highlight_follows_the_theme():
     out = _render("a = 1\n", {"a": 1}, theme_color="#7C3AED")
     assert "--hc-highlight:rgba(124,58,237,0.12);" in out
+
+
+def test_line_break_is_a_spacer_div():
+    # `# hc: -b` adds a spacer between the two lines (it used to add nothing).
+    out = _render_markup("a = 1\n# hc: -b\nb = 2\n", {"a": 1, "b": 2})
+    assert out.count('<div class="hc-break"></div>') == 1
+    assert out.index("hc-break") < out.index(">b<")
+
+
+def test_line_break_has_a_height():
+    out = _render("a = 1\n", {"a": 1})
+    assert ".handcalcs :where(.hc-break){height:1em;}" in out

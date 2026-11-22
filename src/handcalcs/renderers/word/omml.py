@@ -243,3 +243,162 @@ _TAG = re.compile(r"<[^>]*>")
 def plain_text(fragment: str) -> str:
     """The text an OMML fragment shows, without its markup (``-3`` for a run of -3)."""
     return unescape(_TAG.sub("", fragment))
+
+
+# --- Width estimate ---------------------------------------------------------
+#
+# Word's equation arrays (the "aligned" layout) never break, and Google Docs and
+# LibreOffice don't break the equations of the "lines" layout, so the renderer
+# estimates how wide each equation will be and re-lays out the ones that would
+# overrun the text width (see ``WordRenderer.join_math_row``). Widths are in ems
+# of the math font (Cambria Math, a little wider than TeX's Computer Modern);
+# the estimate is rough, like the LaTeX one.
+
+# Glyph widths; a math run adds the operator spacing on top.
+_RELATIONS = {"=": 0.67, "<": 0.67, ">": 0.67, "≤": 0.67, "≥": 0.67, "≠": 0.67}
+_RELATIONS |= {"≈": 0.67, "∈": 0.6, "∉": 0.6, "→": 0.9}
+_BINOPS = {"+": 0.67, "-": 0.67, "−": 0.67, "×": 0.67, "±": 0.67, "∓": 0.67}
+_BINOPS |= {"·": 0.28, "⋅": 0.28, "/": 0.5}
+# Space around a relation (5/18 em each side) and a binary operator (4/18 em).
+_RELATION_SPACE = 2 * 5 / 18
+_BINOP_SPACE = 2 * 4 / 18
+_NARROW = set("iljtfrIJ1.,:;'!|()[]")
+_WIDE = set("mwMW")
+# Scripts and the degree of a radical are set smaller.
+SCRIPT_SCALE = 0.7
+
+
+def _char_width(char: str) -> float:
+    if char == "&":  # the alignment point of an equation-array row
+        return 0.0
+    if char in _NARROW:
+        return 0.3
+    if char in _WIDE:
+        return 0.82
+    if char == EM_SPACE:
+        return 1.0
+    if char == " ":
+        return 0.25
+    if char.isupper():
+        return 0.68
+    if char.isdigit():
+        return 0.55
+    return 0.52
+
+
+def _run_width(run) -> float:
+    props = run.find(f"{{{M_NS}}}rPr")
+    normal = props is not None and props.find(f"{{{M_NS}}}nor") is not None
+    text = "".join(t.text or "" for t in run.iter(_M_T))
+    width = 0.0
+    for char in text:
+        if char in _RELATIONS:
+            width += _RELATIONS[char] + (0 if normal else _RELATION_SPACE)
+        elif char in _BINOPS:
+            width += _BINOPS[char] + (0 if normal else _BINOP_SPACE)
+        else:
+            width += _char_width(char)
+    return width
+
+
+def _child(node, tag: str):
+    return node.find(f"{{{M_NS}}}{tag}")
+
+
+def _children_width(node) -> float:
+    return sum(_width(child) for child in node)
+
+
+def _prop(node, prop: str, default: str) -> str:
+    """The ``m:val`` of a property of ``node`` (e.g. the ``m:begChr`` of an ``m:d``)."""
+    for child in node:
+        if child.tag.endswith("Pr"):
+            found = _child(child, prop)
+            if found is not None:
+                return found.get(f"{{{M_NS}}}val", default)
+    return default
+
+
+def _width(node) -> float:
+    tag = node.tag.rsplit("}", 1)[-1] if isinstance(node.tag, str) else ""
+    if tag == "r":
+        return _run_width(node)
+    if tag.endswith("Pr") or tag in ("t", ""):
+        return 0.0
+    if tag == "f":
+        num, den = _width(_child(node, "num")), _width(_child(node, "den"))
+        if _prop(node, "type", "bar") in ("lin", "skw"):
+            return num + den + 0.5
+        return max(num, den) + 0.2
+    if tag in ("sSup", "sSub"):
+        script = _child(node, "sup" if tag == "sSup" else "sub")
+        return _width(_child(node, "e")) + SCRIPT_SCALE * _width(script)
+    if tag == "sSubSup":
+        scripts = max(_width(_child(node, "sub")), _width(_child(node, "sup")))
+        return _width(_child(node, "e")) + SCRIPT_SCALE * scripts
+    if tag == "rad":
+        return (
+            _width(_child(node, "e")) + 0.8 + SCRIPT_SCALE * _width(_child(node, "deg"))
+        )
+    if tag == "d":
+        slots = [child for child in node if child.tag == f"{{{M_NS}}}e"]
+        brackets = sum(
+            _char_width(_prop(node, prop, char)) + 0.1
+            for prop, char in (("begChr", "("), ("endChr", ")"))
+            if _prop(node, prop, char)
+        )
+        separators = 0.55 * max(len(slots) - 1, 0)
+        return sum(_width(slot) for slot in slots) + brackets + separators
+    if tag == "eqArr":
+        return max((_width(row) for row in node), default=0.0)
+    if tag == "m":
+        columns: list[float] = []
+        for row in node.iter(f"{{{M_NS}}}mr"):
+            for k, cell in enumerate(row):
+                width = _width(cell)
+                if k < len(columns):
+                    columns[k] = max(columns[k], width)
+                else:
+                    columns.append(width)
+        return sum(columns) + 0.5 * max(len(columns) - 1, 0)
+    if tag == "func":
+        return _width(_child(node, "fName")) + _width(_child(node, "e")) + 0.17
+    if tag == "borderBox":
+        return _children_width(node) + 0.4
+    if tag == "nary":
+        limits = max(_width(_child(node, "sub")), _width(_child(node, "sup")))
+        return 1.0 + SCRIPT_SCALE * limits + _width(_child(node, "e"))
+    return _children_width(node)
+
+
+def estimate_width(fragment: str) -> float:
+    """The estimated width, in ems of the math font, of an OMML fragment."""
+    return element_width(to_element(fragment))
+
+
+def element_width(node) -> float:
+    """The estimated width, in ems, of a parsed OMML element (see ``to_element``)."""
+    if node is None:
+        return 0.0
+    return _width(node)
+
+
+def scale_runs(node, half_points: int) -> None:
+    """Set every math run in ``node`` in a font of ``half_points`` / 2 pt."""
+    from lxml import etree
+
+    w_rpr, w_sz = f"{{{W_NS}}}rPr", f"{{{W_NS}}}sz"
+    for run in node.iter(_M_R):
+        rpr = run.find(w_rpr)
+        if rpr is None:
+            rpr = etree.Element(w_rpr)
+            m_rpr = run.find(f"{{{M_NS}}}rPr")
+            if m_rpr is not None:
+                m_rpr.addnext(rpr)
+            else:
+                run.insert(0, rpr)
+        for tag in (w_sz, f"{{{W_NS}}}szCs"):
+            size = rpr.find(tag)
+            if size is None:
+                size = etree.SubElement(rpr, tag)
+            size.set(f"{{{W_NS}}}val", str(half_points))
