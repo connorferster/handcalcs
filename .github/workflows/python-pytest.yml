@@ -80,6 +80,40 @@ jobs:
         FORALLPEOPLE_LEGACY_UNIT_REPR: "1"
       run: uv run --no-sync pytest -p no:warnings
 
+  katex:
+    # The Markdown renderer's math must typeset in KaTeX (JupyterLab, VS Code):
+    # tests/test_markdown_renderer.py::test_math_typesets_with_katex, skipped
+    # elsewhere, runs the demo and a stress calc through KaTeX in mini-racer.
+    runs-on: ubuntu-latest
+    env:
+      KATEX_VERSION: "0.16.25"
+      KATEX_SHA256: "76d534cf1167067008fca12c4e903fc44cf8cfda8c5279c318d1f78cd90b086e"
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v7
+      with:
+        python-version: "3.13"
+    - uses: astral-sh/setup-uv@v10.3.0
+      with:
+        version: "0.13.1"
+        python-version: "3.13"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+        cache-suffix: katex
+    - name: Install dependencies, mini-racer and KaTeX
+      run: |
+        uv sync --locked --no-default-groups --group test
+        uv pip install mini-racer
+        curl -sSfL -o "$RUNNER_TEMP/katex.min.js" \
+          "https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/katex.min.js"
+        echo "$KATEX_SHA256  $RUNNER_TEMP/katex.min.js" | sha256sum --check
+    - name: Typeset the Markdown output with KaTeX
+      run: |
+        export HANDCALCS_KATEX_JS="$RUNNER_TEMP/katex.min.js"
+        uv run --no-sync pytest tests/test_markdown_renderer.py -k katex -rs
+
   lint:
     runs-on: ubuntu-latest
     steps:
