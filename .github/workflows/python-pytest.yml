@@ -105,7 +105,8 @@ jobs:
     - name: Install dependencies, mini-racer and KaTeX
       run: |
         uv sync --locked --no-default-groups --group test
-        uv pip install mini-racer
+        # The check script also reads notebooks and parses Markdown.
+        uv pip install mini-racer nbformat markdown-it-py
         curl -sSfL -o "$RUNNER_TEMP/katex.min.js" \
           "https://cdn.jsdelivr.net/npm/katex@$KATEX_VERSION/dist/katex.min.js"
         echo "$KATEX_SHA256  $RUNNER_TEMP/katex.min.js" | sha256sum --check
