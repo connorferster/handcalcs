@@ -145,7 +145,7 @@ class MarkdownRenderer(LatexRenderer):
       imports are code spans, all Markdown-escaped (``markdown_prose``);
     - each calc group is one ``$$\\begin{aligned} ... \\end{aligned}$$`` on a
       single physical line, with ``\\\\`` between the rows;
-    - a ``# hc: -b`` line break is an ``&nbsp;`` spacer paragraph;
+    - a ``# hc: -b`` line break is a small spacer ``<div>`` (``LINE_BREAK``);
     - the body of an if/for/def block is a blockquote, with one ``>`` per
       nesting level. Blank lines inside a body are quoted too, and every quote
       ends with an unquoted blank line, so Markdown's lazy continuation never
@@ -167,8 +167,11 @@ class MarkdownRenderer(LatexRenderer):
     ROW_SEP = " \\\\ "
     MATH_SKIP = ""
     PARAGRAPH = ""
-    # A one-shot line break is a spacer paragraph, the counterpart of \medskip.
-    LINE_BREAK = "&nbsp;"
+    # A ``# hc: -b`` line break: about one blank line. An empty block that keeps
+    # the margins on either side apart (an ``&nbsp;`` paragraph added two lines
+    # between equations in Jupyter). Front-ends that drop raw HTML (pandoc to
+    # PDF or Word) or its style (GitHub) show no space.
+    LINE_BREAK = '<div style="height:0.25em"></div>'
     # Honoured when the Markdown is printed or converted to PDF through HTML.
     PAGE_BREAK = '<div style="break-after: page;"></div>'
     # A Markdown file needs nothing around the output (not the LaTeX document).

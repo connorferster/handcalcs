@@ -1,3 +1,4 @@
+import ast
 import os
 import re
 import sys
@@ -298,7 +299,54 @@ def run_and_render(
     exec_result.raise_error()
 
     # Render against the updated variables (after .run_cell(cell))
-    render_and_display(cell, ip.user_ns, values, destination, as_source, renderer_name)
+    render_and_display(
+        without_ipython_lines(cell),
+        ip.user_ns,
+        values,
+        destination,
+        as_source,
+        renderer_name,
+    )
+
+
+def without_ipython_lines(source: str) -> str:
+    """
+    'source' with each line that IPython's transforms change (a line magic such
+    as '%time', a '!' command) left empty, so that the cell parses as Python for
+    rendering and keeps its line numbers. Where an empty line would leave a
+    block with no body, the line is 'pass' instead. Those lines have already
+    run, as the cell ran through IPython; they are not rendered.
+    """
+    transformed = ip.transform_cell(source).splitlines(keepends=True)
+    lines = source.splitlines(keepends=True)
+    if len(transformed) != len(lines):
+        return source
+    changed = [
+        # A change of indent alone is IPython dedenting the whole cell.
+        line.strip() != new.strip()
+        for line, new in zip(lines, transformed)
+    ]
+    if not any(changed):
+        return source
+
+    def replace(filler: bool) -> str:
+        out = []
+        for line, is_changed in zip(lines, changed):
+            if not is_changed:
+                out.append(line)
+                continue
+            body = line.lstrip()
+            indent = line[: len(line) - len(body)]
+            ending = line[len(line.rstrip("\r\n")) :] or "\n"
+            out.append(f"{indent}pass{ending}" if filler else ending)
+        return "".join(out)
+
+    blanked = replace(filler=False)
+    try:
+        ast.parse(blanked)
+    except SyntaxError:
+        return replace(filler=True)
+    return blanked
 
 
 def source_renderer(line: str, is_line_magic: bool) -> tuple[str, Optional[str]]:
@@ -391,6 +439,11 @@ def render_with_inputs(
         raise UsageError(
             "'# hc: -y' can't be combined with inputs=: it rewrites lines just "
             "before they run, and inputs= rewrites the cell before it runs."
+        )
+    if without_ipython_lines(cell) != cell:
+        raise UsageError(
+            "Line magics and '!' commands can't be combined with inputs=: the "
+            "cell is rewritten as Python before it runs."
         )
     binding = InputBinding(cell, inputs, strict=strict, allow_computed=allow_computed)
     ip.user_ns.update(binding.namespace())

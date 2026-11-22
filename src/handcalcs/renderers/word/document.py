@@ -24,6 +24,14 @@ LAYOUTS = ("aligned", "lines")
 # left-hand side in the "lines" layout (a continuation or a numeric row).
 INDENT = 720
 ROW_INDENT = 360
+TWIPS_PER_POINT = 20
+
+# An equation still wider than the text after its row is split is set in a
+# smaller font, down to MIN_MATH_SCALE of the paragraph's size.
+MIN_MATH_SCALE = 0.6
+# The left and right margins of a table cell, in ems (Word's 0.08 inch each).
+CELL_PADDING = 1.0
+DEFAULT_FONT_SIZE = 11.0
 
 MATH_STYLE = "HC Math"
 CODE_STYLE = "HC Code"
@@ -45,9 +53,14 @@ class Code:
 
 @dataclass
 class ParamsTable:
-    """A params grid: rows of cells, each ``[id, eq, value, comment]`` or ``None``."""
+    """
+    A params grid: rows of cells, each ``[id, eq, value, comment]`` or ``None``.
+    ``reflow`` is True for a ``# hc: -g`` grid, which may be set in fewer
+    columns if it is too wide for the page; a ``;`` grid keeps its rows.
+    """
 
     rows: list
+    reflow: bool = False
 
 
 @dataclass
@@ -84,6 +97,8 @@ def validate_layout(layout: Any) -> str:
         raise ValueError(f"layout must be one of {LAYOUTS}, not {layout!r}")
     return layout
 
+
+_W_NAMESPACE = {"w": omml.W_NS}
 
 _INLINE_MATH = re.compile(r"(<m:oMath>.*?</m:oMath>)", re.DOTALL)
 
@@ -160,6 +175,36 @@ class DocumentWriter:
             paragraph.paragraph_format.left_indent = Twips(INDENT * depth)
         return paragraph
 
+    def font_size(self) -> float:
+        """The size, in points, of the equations' paragraph style (``HC Math``)."""
+        style = self.document.styles[MATH_STYLE]
+        while style is not None:
+            if style.font.size is not None:
+                return style.font.size.pt
+            style = style.base_style
+        defaults = self.document.styles.element.find(
+            ".//w:docDefaults//w:rPr/w:sz", namespaces=_W_NAMESPACE
+        )
+        if defaults is not None:
+            return int(defaults.get(f"{{{omml.W_NS}}}val")) / 2
+        return DEFAULT_FONT_SIZE
+
+    def max_math_width(self, depth: int = 0, extra: int = 0) -> float | None:
+        """
+        The width, in ems of the equations' font, of the text column at block
+        ``depth`` (less ``extra`` twips of indent), or None if the document has
+        no page size.
+        """
+        section = self.document.sections[-1]
+        if section.page_width is None:
+            return None
+        width = section.page_width.pt
+        width -= (section.left_margin.pt if section.left_margin else 0) + (
+            section.right_margin.pt if section.right_margin else 0
+        )
+        width -= (INDENT * depth + extra) / TWIPS_PER_POINT
+        return max(width, 0) / self.font_size()
+
     def heading(self, item: Heading) -> None:
         """
         A heading paragraph in the ``Heading N`` style. A template without that
@@ -221,7 +266,11 @@ class DocumentWriter:
         self.document.add_page_break()
 
     def display_math(self, fragment: str, depth: int = 0, extra: int = 0) -> None:
-        """A paragraph holding one flush-left display equation (``m:oMathPara``)."""
+        """
+        A paragraph holding one flush-left display equation (``m:oMathPara``).
+        An equation estimated wider than the text column is set in a smaller
+        font, to fit, but not below ``MIN_MATH_SCALE`` of the normal size.
+        """
         from docx.oxml import parse_xml
         from docx.shared import Twips
 
@@ -232,17 +281,30 @@ class DocumentWriter:
             f"<m:oMathPara {omml.NSMAP}>"
             '<m:oMathParaPr><m:jc m:val="left"/></m:oMathParaPr></m:oMathPara>'
         )
-        para.append(omml.to_element(fragment))
+        equation = omml.to_element(fragment)
+        max_width = self.max_math_width(depth, extra)
+        width = omml.element_width(equation)
+        if max_width and width > max_width:
+            scale = max(max_width / width, MIN_MATH_SCALE)
+            omml.scale_runs(equation, round(self.font_size() * 2 * scale))
+        para.append(equation)
         paragraph._p.append(para)
 
     def math_group(self, rows: list[Row | Prose], layout: str, depth: int) -> None:
         """
         A CalcsBlock's equations. In the "aligned" layout, each run of rows is
         one equation array aligned before the first ``=`` (a prose row ends the
-        run); in the "lines" layout every row is an equation of its own, and a
-        row with no left-hand side is indented a little further.
+        run, and a row too wide for the page is an array of its own); in the
+        "lines" layout every row is an equation of its own, and a row with no
+        left-hand side is indented a little further.
         """
         pending: list[Row] = []
+        max_width = self.max_math_width(depth)
+
+        def too_wide(row: Row) -> bool:
+            return bool(max_width) and (
+                omml.estimate_width(f"{row.lhs}{row.rhs}") > max_width
+            )
 
         def flush() -> None:
             if pending:
@@ -260,9 +322,37 @@ class DocumentWriter:
                 self.display_math(
                     f"{row.lhs}{row.rhs}", depth, 0 if row.lhs else ROW_INDENT
                 )
+            elif too_wide(row):
+                # Set on its own, so that only this row is made smaller.
+                flush()
+                pending.append(row)
+                flush()
             else:
                 pending.append(row)
         flush()
+
+    def fit_params(self, item: ParamsTable, depth: int = 0) -> list:
+        """
+        The rows of a params grid: as written if they fit the text column, or
+        if the grid is a ``;`` grid; otherwise the cells, in reading order, in
+        the most columns that fit (one at the least).
+        """
+        rows = item.rows
+        max_width = self.max_math_width(depth)
+        if not item.reflow or not max_width:
+            return rows
+        cells = [cell for row in rows for cell in row if cell is not None]
+        widths = [
+            omml.estimate_width("".join(map(str, c))) + CELL_PADDING for c in cells
+        ]
+        n_cols = max((len(row) for row in rows), default=0)
+        for cols in range(n_cols, 1, -1):
+            columns = [max(widths[k::cols]) for k in range(min(cols, len(widths)))]
+            if sum(columns) <= max_width:
+                if cols == n_cols:
+                    return rows
+                return [cells[k : k + cols] for k in range(0, len(cells), cols)]
+        return [[cell] for cell in cells]
 
     def params_table(self, item: ParamsTable, depth: int = 0) -> None:
         """
@@ -273,7 +363,7 @@ class DocumentWriter:
         from docx.oxml import parse_xml
         from docx.oxml.ns import qn
 
-        rows = item.rows
+        rows = self.fit_params(item, depth)
         ncols = max((len(row) for row in rows), default=0)
         if not ncols:
             return

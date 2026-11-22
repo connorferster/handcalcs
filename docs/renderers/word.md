@@ -177,12 +177,36 @@ pandoc centres every equation, splits upright words into single letters and flat
 params grids into one row, so the Word renderer gives a closer match to handcalcs'
 layout.
 
+## Long equations
+
+Word doesn't break the rows of an equation array, and Google Docs and LibreOffice don't
+break any equation, so a long calculation would run past the right margin. The renderer
+estimates how wide each equation will be and compares it with the text width of the
+document (its page width less the margins and any block indent, in the `HC Math`
+paragraph's font size):
+
+1. **Long rows are split.** A row that shows substitution (`target = symbolic = numeric
+   = result`) and is too wide is laid out as with
+   [`-m`](../getting-started/comment-commands.md#a-long-equation): the symbolic form on
+   the first row, then `= numeric` and `= result` on rows of their own.
+2. **Wide parameter grids are reflowed.** A `# hc: -g`
+   [parameter grid](../getting-started/writing-calculations.md#parameter-grids) that is
+   too wide is set in the most columns that fit, keeping its reading order. A `;` grid
+   keeps the rows you wrote.
+3. **Anything still too wide is set smaller.** A row that is still too wide after step 1
+   (one long sum cannot be split) becomes an equation of its own in a smaller font, to
+   fit, but not below 60% of the normal size (`MIN_MATH_SCALE` in
+   `handcalcs.renderers.word.document`).
+
+The estimate is approximate. A template with a wider page or smaller margins gets
+fewer splits.
+
 ## Notes
 
 - A list or tuple longer than 10 items shows its first and last 3 items around "…", as
   in every renderer (the `max_items` and `edge_items`
-  [settings](../customizing/render-context.md)). An equation row can't break across
-  lines, so use a line continuation (`\`) to break a long equation yourself.
+  [settings](../customizing/render-context.md)). A line continuation (`\`) breaks a
+  long equation where you choose.
 - `HandCalcs(renderer=WordRenderer()).demo()` renders the general handcalcs demo as a
   document.
 
