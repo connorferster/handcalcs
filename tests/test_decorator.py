@@ -440,3 +440,46 @@ def test_jupyter_display_is_a_deprecated_alias(capsys):
     assert "3 * 2" in capsys.readouterr().out
     with pytest.raises(TypeError, match="not both"):
         handcalc(ASCIIRenderer(), display=True, jupyter_display=True)
+
+
+# --- A decorated function in a rendered script -----------------------------------
+
+SCRIPT_WITH_DECORATOR = """\
+from handcalcs import handcalc
+from handcalcs.renderers import ASCIIRenderer
+
+@handcalc(ASCIIRenderer())
+def area(b, h):
+    A = b * h
+    return A
+
+value, rendered = area(2, 3)
+"""
+
+
+@pytest.mark.parametrize(
+    "line_values, prefix",
+    [(True, ""), (False, ""), (True, "# hc: -y\n")],
+    ids=["recorded", "plain-exec", "staged"],
+)
+def test_decorated_function_in_a_rendered_script(line_values, prefix):
+    # @handcalc reads its function's source; HandCalcs registers the script's
+    # source so it can (it raised "could not get source code").
+    from handcalcs import HandCalcs, set_option
+
+    set_option("line_values", line_values)
+    try:
+        out = HandCalcs(ASCIIRenderer())(prefix + SCRIPT_WITH_DECORATOR)
+    finally:
+        set_option("line_values", True)
+    assert "A = b * h = 2 * 3 = 6" in out
+
+
+def test_source_filenames_are_unique():
+    from handcalcs.parsing.line_values import source_filename
+
+    import linecache
+
+    first, second = source_filename("a = 1\n"), source_filename("b = 2\n")
+    assert first != second
+    assert linecache.getlines(first) == ["a = 1\n"]
