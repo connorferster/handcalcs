@@ -30,7 +30,7 @@ def default_renderer() -> BaseRenderer:
     return renderer_cls()
 
 
-def run_staged(source: str, namespace: dict, filename: str = "<handcalcs>"):
+def run_staged(source: str, namespace: dict, filename: Optional[str] = None):
     """
     Run 'source', which has '# hc: -y' lines, in 'namespace' one top-level
     statement at a time (see sympy_substitution.run_staged), recording its
@@ -38,6 +38,8 @@ def run_staged(source: str, namespace: dict, filename: str = "<handcalcs>"):
     namespace, the values and the rewritten source.
     """
     codes = set()
+    if filename is None:
+        filename = line_values.source_filename(source)
 
     def run_chunk(chunk: str) -> bool:
         code = compile(chunk, filename, "exec")
@@ -239,7 +241,8 @@ class HandCalcs:
         if sympy_substitution.has_sympy_commands(source):
             return run_staged(source, eval_globals)
         if not config.get_option("line_values", True):
-            exec(source, eval_globals)
+            code = compile(source, line_values.source_filename(source), "exec")
+            exec(code, eval_globals)
             return eval_globals, None, source
         values = line_values.run(source, eval_globals)
         return eval_globals, values, source

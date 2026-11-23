@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import ast
 import io
+import itertools
+import linecache
 import re
 import sys
 import tokenize
@@ -355,10 +357,27 @@ def _settrace_recording(values, accept):
         sys.settrace(previous)
 
 
-def run(source: str, namespace: dict, filename: str = "<handcalcs>") -> LineValues:
+_SOURCE_NUMBERS = itertools.count(1)
+
+
+def source_filename(source: str) -> str:
+    """
+    A new file name for ``source`` (``<handcalcs-N>``), registered with
+    ``linecache`` so that ``inspect.getsource`` can read the functions defined
+    in it: ``@handcalc`` reads the source of the function it decorates, so a
+    decorated function in a rendered script would otherwise raise "could not
+    get source code" when it is called.
+    """
+    filename = f"<handcalcs-{next(_SOURCE_NUMBERS)}>"
+    lines = source.splitlines(keepends=True)
+    linecache.cache[filename] = (len(source), None, lines, filename)
+    return filename
+
+
+def run(source: str, namespace: dict, filename: Optional[str] = None) -> LineValues:
     """Run ``source`` in ``namespace``, recording its values line by line."""
     values = LineValues(source)
-    code = compile(source, filename, "exec")
+    code = compile(source, filename or source_filename(source), "exec")
     with recording(values, lambda frame: frame.f_code is code):
         exec(code, namespace)
     return values

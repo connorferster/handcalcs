@@ -40,6 +40,11 @@ be removed in handcalcs 3.0.
 
 ### Fixes since 2.0.0rc5
 
+- **A `@handcalc` function in a rendered script works**: calling it raised
+  `OSError: could not get source code`, because the decorator reads its function's
+  source and a script run by `HandCalcs(...)(path)` or the `handcalcs` command had no
+  source file Python could find. The script's source is now registered for
+  `inspect`.
 - **`# ##` and `#  ##` are headings**, the same as `###`: spaces between the comment
   marker and the heading's `#`s no longer turn it into a comment line.
 - **`# hc: -b` adds about one blank line in every renderer.** The HTML renderer added
