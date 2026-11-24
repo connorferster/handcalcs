@@ -7,11 +7,7 @@
 2. **Golden files** are current and reviewed (see [Tests](testing.md#golden-files)).
 3. **Version**: update `version` in `pyproject.toml` (the package is built with
    [flit](https://flit.pypa.io/)).
-4. **Docs**: in `docs/conf.py`, set the default `HC_SOURCE_REF` to the release tag (for
-   example `"v2.0.0"`) so source links in the published docs point at the released
-   code. The docs workflow uses this default, so the links work once the tag exists.
-   It stays on that tag until the next release.
-   Build with `-W` to catch broken links and references.
+4. **Docs** build with `-W`, to catch broken links and references.
 5. **Changelog**: add the release to [the changelog](../reference/changelog.md). For a
    pre-release, say how to install it: a plain `pip install handcalcs` skips it.
 6. **Tag and release** on GitHub, with the tag `v` + the version (`v2.0.0`).
