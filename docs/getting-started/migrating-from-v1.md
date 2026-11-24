@@ -10,6 +10,14 @@ have updated it, pin it: `pip install "handcalcs<2"` (or `handcalcs<2` in your
 `requirements.txt` or `pyproject.toml`).
 ```
 
+```{tip}
+[hc-migrate](https://github.com/StructuralPython/hc-migrate) makes most of the changes
+below for you. `hc-migrate beam.ipynb --to ipynb` writes `beam_v2.ipynb`, converted for
+handcalcs 2; `--to py` turns a notebook into a handcalcs 2 script instead. A folder
+converts every notebook in it, and anything it can't convert is listed for you to check.
+Install it with `pip install hc-migrate`.
+```
+
 ## Quick reference
 
 | v1 | v2 |
