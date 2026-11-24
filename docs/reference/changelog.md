@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 (unreleased)
+## 2.0.0 (2026-11-24)
 
 handcalcs 2.0 is a rewrite: the parser builds a tree of nodes, and pluggable
 **renderers** turn it into Markdown (the Jupyter default), LaTeX, HTML, ASCII text,
@@ -67,7 +67,6 @@ be removed in handcalcs 3.0.
   still too wide is scaled down to the line by `\hcfit`. The scaling needs `graphicx`,
   now in the file preamble
   ([details](../renderers/latex.md#long-equations)).
-
 - **pint quantities of numpy arrays show their values** (#384): in the LaTeX and
   Markdown renderers, `array([2, 4]) * ureg.kN` rendered every element as the format
   code (`.5g`). The array is now drawn as other numpy arrays are, `[2, 4] kN`, in every

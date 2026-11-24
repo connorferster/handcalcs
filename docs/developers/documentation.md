@@ -18,18 +18,17 @@ The site is static HTML, served from bunny.net. A GitHub Actions workflow builds
 with `-W` and uploads `docs/_build/html/` as it is; no server-side processing is needed.
 The KaTeX stylesheet and fonts load from jsDelivr, so math needs no extra files.
 
-Two environment variables affect a published build:
+One environment variable affects a published build:
 
 | Variable | Effect |
 |---|---|
-| `HC_SOURCE_REF` | The git ref that source links point at (see [Source links](#source-links)). |
 | `HC_DOCS_URL` | The site's root URL, used for canonical links. Defaults to `https://handcalcs.structuralpython.com/`. |
 
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `docs/conf.py` | Configuration, including `HC_SOURCE_REF` (see below) and the theme's navigation bar. |
+| `docs/conf.py` | Configuration, including the theme's navigation bar. |
 | `docs/index.md` | The landing page. |
 | `docs/<section>/index.md` | Each section's first page: the short "what you need to get going" page, with cards to the rest of the section. |
 | `docs/_ext/` | Local Sphinx extensions: `hc_example.py`, `hc_source.py`. |
@@ -79,7 +78,7 @@ output, so the docs cannot drift from the code.
 
 ## Source links
 
-Two roles link to the source on GitHub, at the git ref in `HC_SOURCE_REF`:
+Two roles link to the source on GitHub, on `main`:
 
 - ``{src}`handcalcs.renderers.base.render_calcline` `` links a Python object to its exact
   lines, found at build time, so the link follows the code. Use
@@ -88,7 +87,5 @@ Two roles link to the source on GitHub, at the git ref in `HC_SOURCE_REF`:
 
 The API reference gets `[source]` links the same way, through `sphinx.ext.linkcode`.
 
-`HC_SOURCE_REF` defaults to the latest release tag (set in `docs/conf.py` at each release,
-see [Releasing](releasing.md)), so the published docs link to the code people install.
-Set it in the environment to link elsewhere, for example to a branch you are working on:
-`HC_SOURCE_REF=main sphinx-build ...`.
+The docs are published from `main`, and line numbers are found in the code being built,
+so the links point at `main`, where those lines are.

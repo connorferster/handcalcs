@@ -15,7 +15,7 @@ changelog entries conflict, so I fold them in after each merge.
 | #390 | Line magics and `!` in a `%%render` cell | 3 |
 | #391 | CI `katex` job (pinned, sha-checked KaTeX) | 3 |
 | #392 | Drop `exporters` (nb-hideinputs broken on nbconvert 7.17; use `--no-input`); remove v1 images and `vis_pyproject.toml` | 3 |
-| #393 | Version 2.0.0, Production/Stable, `HC_SOURCE_REF`, README/install text, `handcalcs<2` note, `jupyter_display` removed in 3.0, 2.0.0 changelog | 2 |
+| #393 | Version 2.0.0, Production/Stable, README/install text, `handcalcs<2` note, `jupyter_display` removed in 3.0, 2.0.0 changelog | 2 |
 | ym-handcalcs #16 | `-b` = one leading | 1.2 |
 
 Not done (needs you): open the Word demo in Word to check #389 by eye; test in Colab
@@ -70,7 +70,6 @@ All three are still open (probed on `52a6482`).
 - `pyproject.toml`: `version = "2.0.0"`. Change the classifier from
   `Development Status :: 4 - Beta` to `5 - Production/Stable`.
 - `uv.lock`: update the handcalcs version by hand (the old local uv).
-- `docs/conf.py`: `HC_SOURCE_REF = "v2.0.0"`.
 - **Changelog:** add a 2.0.0 section that summarises rc1–rc5 for people coming from
   1.x, and drop the "plain `pip install` installs 1.x" wording. Put the behaviour
   changes in that summary: a lone line ending in `;` is a one-cell grid row, and

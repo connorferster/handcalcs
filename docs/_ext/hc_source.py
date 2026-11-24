@@ -5,8 +5,8 @@ The ``src`` role: link a Python object to its source lines on GitHub.
     {src}`the calc line handler <handcalcs.renderers.base.render_calcline>`
 
 The object is imported at build time and its lines are found with ``inspect``,
-so links follow the code as it moves. The link points at ``hc_source_ref`` in
-``hc_repo_url`` (both set in conf.py).
+so links follow the code as it moves. The link points at ``main`` in
+``hc_repo_url`` (set in conf.py).
 """
 
 import ast
@@ -99,7 +99,7 @@ class SourceRole(SphinxRole):
         except Exception as error:  # report and fall back to plain code text
             logger.warning(f"src role: cannot resolve {target!r}: {error}", location=self.get_location())
             return [nodes.literal(label, label)], []
-        url = f"{config.hc_repo_url}/blob/{config.hc_source_ref}/{relative}{anchor}"
+        url = f"{config.hc_repo_url}/blob/main/{relative}{anchor}"
         ref = nodes.reference("", "", internal=False, refuri=url, classes=["hc-src"])
         ref += nodes.literal(label, label)
         return [ref], []
@@ -107,6 +107,5 @@ class SourceRole(SphinxRole):
 
 def setup(app):
     app.add_config_value("hc_repo_url", "", "env")
-    app.add_config_value("hc_source_ref", "main", "env")
     app.add_role("src", SourceRole())
     return {"version": "1.0", "parallel_read_safe": True, "parallel_write_safe": True}

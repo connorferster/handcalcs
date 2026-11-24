@@ -22,9 +22,6 @@ copyright = "2020-2026, Connor Ferster"
 release = handcalcs.__dict__.get("__version__", "2.0.0rc5")
 version = release
 
-# The git ref that every source-code link points at. Set this to the release tag
-# (e.g. "v2.0.0") when cutting a release so links stay pinned to that code.
-HC_SOURCE_REF = os.environ.get("HC_SOURCE_REF", "v2.0.0")
 HC_REPO_URL = "https://github.com/connorferster/handcalcs"
 
 extensions = [
@@ -42,7 +39,6 @@ extensions = [
 ]
 
 hc_repo_url = HC_REPO_URL
-hc_source_ref = HC_SOURCE_REF
 
 source_suffix = {".md": "markdown"}
 exclude_patterns = ["_build", "_old_*", "Thumbs.db", ".DS_Store"]
@@ -64,9 +60,9 @@ myst_heading_anchors = 3
 katex_prerender = False
 katex_options = "{throwOnError: false, strict: false}"
 
-# {source}`src/handcalcs/renderers/base.py` -> the file on GitHub at HC_SOURCE_REF.
+# {source}`src/handcalcs/renderers/base.py` -> the file on GitHub (on main).
 extlinks = {
-    "source": (f"{HC_REPO_URL}/blob/{HC_SOURCE_REF}/%s", "%s"),
+    "source": (f"{HC_REPO_URL}/blob/main/%s", "%s"),
     # {issue}`218` -> #218, linked to the GitHub issue.
     "issue": (f"{HC_REPO_URL}/issues/%s", "#%s"),
 }
@@ -81,7 +77,7 @@ autodoc_default_options: dict = {}
 
 
 def linkcode_resolve(domain, info):
-    """Link every autodoc entry to its source lines on GitHub at HC_SOURCE_REF."""
+    """Link every autodoc entry to its source lines on GitHub (on main)."""
     if domain != "py" or not info.get("module"):
         return None
     module = sys.modules.get(info["module"])
@@ -105,7 +101,7 @@ def linkcode_resolve(domain, info):
     except ValueError:
         return None
     end = start + len(lines) - 1
-    return f"{HC_REPO_URL}/blob/{HC_SOURCE_REF}/{relative.as_posix()}#L{start}-L{end}"
+    return f"{HC_REPO_URL}/blob/main/{relative.as_posix()}#L{start}-L{end}"
 
 
 # -- HTML output (Shibuya) ---------------------------------------------------
@@ -121,7 +117,7 @@ html_context = {
     "source_type": "github",
     "source_user": "connorferster",
     "source_repo": "handcalcs",
-    "source_version": HC_SOURCE_REF,
+    "source_version": "main",
     "source_docs_path": "/docs/",
 }
 
