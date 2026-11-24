@@ -19,9 +19,16 @@ The same calculation can go to different **renderers**: Markdown and LaTeX for J
 
 ## handcalcs 2.0
 
-handcalcs 2.0 is a rewrite. If you're coming from 1.x, read
-[Coming from handcalcs v1](https://handcalcs.structuralpython.com/getting-started/migrating-from-v1.html);
-to stay on 1.x for now, install `"handcalcs<2"`.
+handcalcs 2.0 is a rewrite around a parsed node tree and pluggable renderers. Most
+notebooks written for 1.x need only a few changes: `import handcalcs` instead of
+`import handcalcs.render`, and `# hc:` comment commands instead of `%%render` arguments.
+
+- [Coming from handcalcs v1](https://handcalcs.structuralpython.com/getting-started/migrating-from-v1.html)
+  lists everything that changed.
+- [hc-migrate](https://github.com/StructuralPython/hc-migrate) converts 1.x notebooks
+  for you (`pip install hc-migrate`, then `hc-migrate beam.ipynb --to ipynb`), or turns
+  notebooks into handcalcs 2 scripts (`--to py`).
+- To stay on 1.x for now, install `"handcalcs<2"`.
 
 **[Read the v2 documentation](https://handcalcs.structuralpython.com/)**: getting started, every renderer, a cookbook of
 recipes, and how to customize or write a renderer.
@@ -86,18 +93,21 @@ latex = HandCalcs(LatexRenderer())(pathlib.Path("beam.py"))
 
 On a function, `@handcalc(renderer)` returns the result and the rendered calculation.
 
+From the command line, render a script without writing any Python around it:
+
+```console
+handcalcs beam.py                  # ASCII text in the terminal
+handcalcs beam.py -o beam.docx     # a Word document (needs handcalcs[word])
+```
+
+`python -m handcalcs` is the same command. See
+[Command line](https://handcalcs.structuralpython.com/interfaces/command-line.html).
+
 ## Renderers
 
 Markdown (the Jupyter default), LaTeX, HTML, ASCII text, a live formula-based Excel
 workbook, and Word documents with native equations. Subclass one to change its look, or
 write your own. See [Renderers](https://handcalcs.structuralpython.com/renderers/index.html).
-
-## Upgrading from handcalcs 1.x
-
-handcalcs 2 is a rewrite around a parsed node tree and pluggable renderers. Most notebooks
-need only a few changes: `import handcalcs` instead of `import handcalcs.render`, and
-`# hc:` comment commands instead of `%%render` arguments. See
-[Coming from handcalcs v1](https://handcalcs.structuralpython.com/getting-started/migrating-from-v1.html).
 
 ## Gotchas
 
