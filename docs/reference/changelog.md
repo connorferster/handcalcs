@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A `# hc: -g` grid also takes bare names (`b_w` on its own line): each is a cell
+  showing its value, so a grid can list inputs defined in an earlier cell. Before, a
+  bare name ended the grid.
+
 ## 2.0.0 (2026-11-24)
 
 handcalcs 2.0 is a rewrite: the parser builds a tree of nodes, and pluggable
