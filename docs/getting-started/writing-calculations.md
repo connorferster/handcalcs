@@ -197,7 +197,7 @@ f_y = 400; E_s = 200000
 
 To keep inline comments, use a `# hc: -g` command instead. The assignments that follow
 go into the grid, each with its comment, until a blank line, a comment line or a
-statement that is not an assignment. Each cell shows only *target = result*:
+statement that is not an assignment or a bare name. Each cell shows only *target = result*:
 
 ```{hc-example}
 # hc: -g
@@ -216,6 +216,19 @@ b = 200  # mm
 d = 450  # mm
 f_c = 30  # MPa
 f_y = 400  # MPa
+```
+
+A bare name in a `# hc: -g` grid shows its value, so a grid can list inputs defined
+somewhere else, such as an earlier cell or hidden lines:
+
+```{hc-example}
+b = 200  # hc: -i
+d = 450  # hc: -i
+f_c = 30  # hc: -i
+# hc: -g
+b  # mm
+d  # mm
+f_c  # MPa
 ```
 
 ```{note}

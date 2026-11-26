@@ -317,6 +317,31 @@ def test_params_block_respects_param_cols(renderer):
     )
 
 
+def test_params_block_shows_bare_names(renderer):
+    # A bare name under `# hc: -g` is a grid cell showing its value, like an
+    # assignment's, comment included; the run may start with one.
+    tree = HcSequence.from_source(
+        "# hc: -g\na  # width\nb\nc = 3\nd\n",
+        {"a": 1, "b": 2, "c": 3, "d": 4}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == (
+        "a = 1 (width)    b = 2    c = 3\n"
+        "d = 4\n"
+    )
+
+
+def test_params_block_ends_at_other_expressions(renderer):
+    # Only a bare name joins the grid: any other expression ends it.
+    tree = HcSequence.from_source(
+        "# hc: -g\na\nb\na + b\n",
+        {"a": 1, "b": 2}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out.splitlines()[0] == "a = 1    b = 2"
+    assert len(out.splitlines()) == 2
+
+
 def test_hidden_cell_in_a_semicolon_row(renderer):
     tree = HcSequence.from_source(
         "a = 1; b = 2\nc = 3; d = 4  # hc: -i\ne = 5; f = 6\n",

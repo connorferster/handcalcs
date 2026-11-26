@@ -411,6 +411,13 @@ class AST_Parser:
                 and (line_counts[stmt.lineno] >= 2 or self._ends_with_semicolon(stmt))
             )
 
+        def is_grid_stmt(stmt) -> bool:
+            # A ``# hc: -g`` cell: an assignment, or a bare name (``b_w``), which
+            # renders as ``b_w = 300`` like an assignment's cell.
+            return isinstance(stmt, ast.Assign) or (
+                isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Name)
+            )
+
         out = deque()
         i = 0
         n = len(body)
@@ -432,15 +439,16 @@ class AST_Parser:
                 continue
             if hasattr(stmt, "lineno"):
                 # A ``# hc: -g`` command directly above opens a params block of
-                # the consecutive single assignments that follow it.
+                # the consecutive single assignments (and bare names, which show
+                # their value) that follow it.
                 if (
-                    isinstance(stmt, ast.Assign)
+                    is_grid_stmt(stmt)
                     and flushed
                     and isinstance(flushed[-1], CommentCommand)
                     and flushed[-1].commands.get("params_block")
                 ):
                     run = deque()
-                    while i < n and isinstance(body[i], ast.Assign):
+                    while i < n and is_grid_stmt(body[i]):
                         if run and (
                             self._has_pending_comment_before(body[i].lineno)
                             or self._blank_between(body[i - 1], body[i])

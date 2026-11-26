@@ -162,7 +162,7 @@ A row of short parameter assignments takes up a lot of vertical space. Separate 
 b = 300; h = 600; c = 40
 ```
 
-or put `# hc: -g` above a group of assignments to lay them out in a grid, `-c N`
+or put `# hc: -g` above a group of assignments (or bare names) to lay them out in a grid, `-c N`
 columns wide, with their comments:
 
 ```{hc-example}

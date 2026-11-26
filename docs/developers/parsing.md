@@ -29,8 +29,9 @@ A statement list (the module, an `if` branch, a loop body) goes through
   each becoming a `Heading`, `CommentCommand` or `CommentLine`
   ({src}`_make_comment_line <handcalcs.parsing.ast_parser.AST_Parser._make_comment_line>`);
 - gathers `;`-separated assignments that share a line into a `ParamsBlock`;
-- after a `# hc: -g` command, gathers the following assignments into a `ParamsBlock`
-  with comments, stopping at a blank line, a comment or a non-assignment.
+- after a `# hc: -g` command, gathers the following assignments and bare names
+  (`b_w`, an `ExprLine` showing its value) into a `ParamsBlock` with comments,
+  stopping at a blank line, a comment or any other statement.
 
 Because comments are attached *before* the next statement, a comment after the last
 statement of a body has no statement to attach to.

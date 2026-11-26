@@ -111,6 +111,11 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
         "apple berry cherry lemon",
     ),
     _case(
+        "grid-bare-names",
+        "apple = 1\nberry = 2\n# hc: -g\napple  # lemon\nberry\ncherry = 3\n",
+        "apple berry cherry lemon",
+    ),
+    _case(
         "grid-semicolons", "apple = 1; berry = 2; cherry = 3\n", "apple berry cherry"
     ),
     _case(
