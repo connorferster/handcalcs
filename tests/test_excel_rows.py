@@ -155,6 +155,8 @@ def test_rows_do_not_mutate_the_tree():
     ("import math, os\n", "importing 'os'"),
     ("i = 0\nwhile i < 1:\n    i = i + 1\n", "while"),
     ("a = b = 1\n", "chained assignment"),
+    ("# hc: -g\na = b = 1\n", "chained assignment"),
+    ("a = b = 1; c = 2\n", "chained assignment"),
     ("a, b = 1, 2\n", "tuple unpacking"),
     ("a = [1, 2]\n", "'list'"),
     ("a = len('ab')\n", r"'len\(\)'"),

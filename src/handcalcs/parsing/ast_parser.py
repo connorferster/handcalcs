@@ -4,7 +4,7 @@ import bisect
 import builtins
 import io
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import tokenize
 from typing import Union, Optional
 from collections import deque, ChainMap, Counter
@@ -387,6 +387,24 @@ class AST_Parser:
         end = getattr(prev, "end_lineno", prev.lineno)
         return any(row in self._blank_rows for row in range(end + 1, nxt.lineno))
 
+    def _grid_lines(self, stmt: ast.AST) -> list:
+        """
+        ``stmt`` parsed as the cells of a params grid: a chained assignment of
+        names (``a = b = 2 + 3``) is a cell for each target (``a = 5``, ``b = 5``),
+        each keeping the line's comment; any other statement is one cell.
+        """
+        parsed = self.ast_parse(stmt)
+        if (
+            isinstance(parsed, CalcLine)
+            and len(parsed.assigns) > 1
+            and all(isinstance(target, Name) for target in parsed.assigns)
+        ):
+            return [
+                replace(parsed, assigns=deque([target]), chained=True)
+                for target in parsed.assigns
+            ]
+        return [parsed]
+
     def _parse_body(self, body: list) -> deque:
         """
         Parses a list of statements, interleaving any standalone comment lines
@@ -454,7 +472,7 @@ class AST_Parser:
                             or self._blank_between(body[i - 1], body[i])
                         ):
                             break
-                        run.append(self.ast_parse(body[i]))
+                        run.extend(self._grid_lines(body[i]))
                         i += 1
                     out.append(ParamsBlock(lines=run, with_comments=True))
                     continue
@@ -470,8 +488,9 @@ class AST_Parser:
                     if body[i].lineno != row:
                         row = body[i].lineno
                         row_sizes.append(0)
-                    row_sizes[-1] += 1
-                    run.append(self.ast_parse(body[i]))
+                    lines = self._grid_lines(body[i])
+                    row_sizes[-1] += len(lines)
+                    run.extend(lines)
                     i += 1
                 out.append(ParamsBlock(lines=run, row_sizes=row_sizes))
             else:

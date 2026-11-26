@@ -342,6 +342,41 @@ def test_params_block_ends_at_other_expressions(renderer):
     assert len(out.splitlines()) == 2
 
 
+def test_params_block_splits_a_chained_assignment(renderer):
+    # Each target of a chained assignment is its own cell, with the value and a
+    # copy of the line's comment (before, the cell was cut to ``a = b =``).
+    tree = HcSequence.from_source(
+        "# hc: -g\na = b = 2 + 3  # mm\nc = 1\n", {"a": 5, "b": 5, "c": 1}, {}
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == "a = 5 (mm)    b = 5 (mm)    c = 1\n"
+
+
+def test_semicolon_row_splits_a_chained_assignment(renderer):
+    # A ``;`` grid keeps its rows: the split cells stay in their source row.
+    tree = HcSequence.from_source(
+        "a = b = 5; c = 1\nd = 2; e = 3\n",
+        {"a": 5, "b": 5, "c": 1, "d": 2, "e": 3}, {},
+    )
+    out = renderer.join(renderer.render(tree))
+    assert out == (
+        "a = 5    b = 5    c = 1\n"
+        "d = 2    e = 3\n"
+    )
+
+
+def test_inline_hide_hides_every_cell_of_a_chain(renderer):
+    tree = HcSequence.from_source(
+        "# hc: -g\na = b = 5  # hc: -i\nc = 1\n", {"a": 5, "b": 5, "c": 1}, {}
+    )
+    assert renderer.join(renderer.render(tree)) == "c = 1\n"
+
+
+def test_chained_assignment_outside_a_grid_is_one_line(renderer):
+    tree = HcSequence.from_source("a = b = 2 + 3\n", {"a": 5, "b": 5}, {})
+    assert renderer.join(renderer.render(tree)) == "a = b = 2 + 3 = 5\n"
+
+
 def test_hidden_cell_in_a_semicolon_row(renderer):
     tree = HcSequence.from_source(
         "a = 1; b = 2\nc = 3; d = 4  # hc: -i\ne = 5; f = 6\n",

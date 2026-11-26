@@ -231,6 +231,15 @@ d  # mm
 f_c  # MPa
 ```
 
+A chained assignment in a grid, `;` or `# hc: -g`, gives a cell for each name, each
+with the line's comment:
+
+```{hc-example}
+# hc: -g
+b_1 = b_2 = 300  # mm
+d = 450  # mm
+```
+
 ```{note}
 A standalone command such as `# hc: -c 2` stays in effect for the rest of the
 calculation. See [scope](comment-commands.md#scope).

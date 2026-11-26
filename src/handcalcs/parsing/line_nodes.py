@@ -27,6 +27,9 @@ class CalcLine(HcLineNode):
     expression_tree: deque = field(default_factory=deque)
     comment: Optional[InlineComment | InlineCommand] = None
     pars_nesting: bool = False
+    # One target of a chained assignment (``a = b = 5``) split into its own grid
+    # cell (see ``AST_Parser._grid_lines``); the Excel renderer refuses it.
+    chained: bool = False
     type: str = "calc_line"
 
 

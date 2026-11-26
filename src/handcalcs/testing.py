@@ -116,6 +116,11 @@ FEATURE_CASES: tuple[FeatureCase, ...] = (
         "apple berry cherry lemon",
     ),
     _case(
+        "grid-chained",
+        "# hc: -g\napple = berry = 2 + 3  # lemon\ncherry = 1\n",
+        "apple berry cherry lemon",
+    ),
+    _case(
         "grid-semicolons", "apple = 1; berry = 2; cherry = 3\n", "apple berry cherry"
     ),
     _case(
