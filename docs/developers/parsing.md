@@ -33,6 +33,12 @@ A statement list (the module, an `if` branch, a loop body) goes through
   (`b_w`, an `ExprLine` showing its value) into a `ParamsBlock` with comments,
   stopping at a blank line, a comment or any other statement.
 
+In either kind of grid, a chained assignment of names (`a = b = 5`) becomes a
+`CalcLine` for each target (`AST_Parser._grid_lines`), each with the line's
+expression and comment and `chained=True`, so every renderer gets one cell per
+target. The Excel renderer refuses a `chained` line, as it refuses a chained
+assignment anywhere else.
+
 Because comments are attached *before* the next statement, a comment after the last
 statement of a body has no statement to attach to.
 

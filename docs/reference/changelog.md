@@ -5,6 +5,10 @@
 - A `# hc: -g` grid also takes bare names (`b_w` on its own line): each is a cell
   showing its value, so a grid can list inputs defined in an earlier cell. Before, a
   bare name ended the grid.
+- A chained assignment (`a = b = 2 + 3`) in a `# hc: -g` or `;` grid is a cell for
+  each name (`a = 5`, `b = 5`), each with the line's comment. Before, its cell lost the
+  value (`a = b =`). Outside a grid it is unchanged (`a = b = 2 + 3 = 5`); the Excel
+  renderer still refuses it.
 
 ## 2.0.0 (2026-11-24)
 

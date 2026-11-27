@@ -11,7 +11,7 @@ from handcalcs.testing import FEATURE_CASES, check_case
 RENDERERS = ["ascii", "latex", "markdown", "html", "word", "excel"]
 
 # Calculations a worksheet cannot hold; the Excel renderer refuses them by design.
-EXCEL_INCOMPATIBLE = {"expression", "grid-bare-names", "collection", "for-block"}
+EXCEL_INCOMPATIBLE = {"expression", "grid-bare-names", "grid-chained", "collection", "for-block"}
 
 
 @pytest.mark.parametrize("case", FEATURE_CASES, ids=lambda case: case.id)

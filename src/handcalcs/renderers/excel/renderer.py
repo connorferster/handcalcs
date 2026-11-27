@@ -326,7 +326,7 @@ def render_calc_line(renderer: ER, node, base_context: BRC) -> list[Row]:
     param_line = param_line or getattr(context, "param_line", False)
     try:
         targets = list(node.assigns)
-        if len(targets) != 1:
+        if len(targets) != 1 or node.chained:
             raise incompatible(
                 "chained assignment (a = b = 1) has no Excel equivalent", node
             )
